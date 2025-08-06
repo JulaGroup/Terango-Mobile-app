@@ -194,7 +194,7 @@ const RestaurantDetailsSkeleton = () => {
 
       {/* Menu Items Skeleton */}
       <ScrollView style={{ flex: 1, padding: 20 }}>
-        <SkeletonLoader width="60%" height={22} style={{ marginBottom: 16 }} />{" "}
+        <SkeletonLoader width="60%" height={22} style={{ marginBottom: 16 }} />
         {/* Menu Item Skeletons */}
         {[1, 2, 3].map((item) => (
           <View key={item} style={styles.menuItem}>

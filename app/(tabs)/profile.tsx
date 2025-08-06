@@ -629,7 +629,6 @@ export default function ProfilePage() {
         }
       >
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-
         {/* Profile Card - Enhanced */}
         <View style={styles.profileCard}>
           <View style={styles.avatarContainer}>
@@ -682,7 +681,6 @@ export default function ProfilePage() {
             </View>
           </View>
         </View>
-
         {/* Vendor CTA - Dynamic based on application status */}
         {user?.role !== "VENDOR" && (
           <TouchableOpacity
@@ -745,7 +743,6 @@ export default function ProfilePage() {
             </View>
           </TouchableOpacity>
         )}
-
         {/* Menu Items - Updated Colors */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Account Settings</Text>
@@ -768,8 +765,7 @@ export default function ProfilePage() {
             </TouchableOpacity>
           ))}
         </View>
-
-        {/* Development Tools - Only show in development */}
+        {/* Development Tools - Only show in development
         {__DEV__ && (
           <View style={styles.menuSection}>
             <Text style={styles.sectionTitle}>🛠️ Development Tools</Text>
@@ -806,14 +802,12 @@ export default function ProfilePage() {
               </TouchableOpacity>
             </View>
           </View>
-        )}
-
+        )} */}
         {/* Logout Button - Updated Colors */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#FFFFFFFF" />
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
-
         {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>TeranGo v1.0.0</Text>

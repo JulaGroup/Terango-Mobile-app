@@ -9,19 +9,19 @@ import {
   RefreshControl,
   Alert,
   StatusBar,
-  Image,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
-import { LinearGradient } from "expo-linear-gradient";
 import { orderApi, type Order } from "@/lib/api";
 
 const statusColors = {
   PENDING: "#F39C12",
+  ACCEPTED: "#3498DB",
+  PREPARING: "#3498DB",
   PROCESSING: "#3498DB",
+  READY: "#10B981",
   DISPATCHED: "#9B59B6",
   DELIVERED: "#27AE60",
   CANCELLED: "#E74C3C",
@@ -29,18 +29,13 @@ const statusColors = {
 
 const statusIcons = {
   PENDING: "time-outline",
+  ACCEPTED: "checkmark-outline",
+  PREPARING: "restaurant-outline",
   PROCESSING: "restaurant-outline",
+  READY: "checkmark-circle-outline",
   DISPATCHED: "car-outline",
   DELIVERED: "checkmark-circle-outline",
   CANCELLED: "close-circle-outline",
-};
-
-const statusLabels = {
-  PENDING: "Order Placed",
-  PROCESSING: "Being Prepared",
-  DISPATCHED: "Out for Delivery",
-  DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
 };
 
 export default function Orders() {
@@ -49,444 +44,11 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Animation values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(50)).current;
-  const headerScale = useRef(new Animated.Value(0.95)).current;
-
-  useEffect(() => {
-    // Start animations
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(headerScale, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Load orders
-    loadOrders();
-  }, [fadeAnim, slideAnim, headerScale]);
-
-  const loadOrders = useCallback(async () => {
-    try {
-      setError(null);
-      const ordersData = await orderApi.getCustomerOrders();
-      setOrders(ordersData);
-    } catch (error: any) {
-      console.error("Error loading orders:", error);
-      setError(error.message || "Failed to load orders");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadOrders();
-  }, [loadOrders]);
-
-  const handleCancelOrder = async (orderId: string) => {
-    Alert.alert(
-      "Cancel Order",
-      "Are you sure you want to cancel this order?",
-      [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await orderApi.cancelOrder(orderId, "Cancelled by customer");
-              loadOrders(); // Refresh orders
-              Alert.alert("Success", "Order has been cancelled");
-            } catch (error: any) {
-              Alert.alert("Error", "Failed to cancel order");
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const renderOrderCard = (order: Order, index: number) => {
-    const itemSlideAnim = useRef(new Animated.Value(30)).current;
-    const itemFadeAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.parallel([
-        Animated.timing(itemFadeAnim, {
-          toValue: 1,
-          duration: 400,
-          delay: index * 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(itemSlideAnim, {
-          toValue: 0,
-          duration: 400,
-          delay: index * 100,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, [itemFadeAnim, itemSlideAnim, index]);
-
-    const statusColor = statusColors[order.status];
-    const canCancel = order.status === "PENDING" || order.status === "PROCESSING";
-
-    return (
-      <Animated.View
-        key={order.id}
-        style={[
-          styles.orderCard,
-          {
-            opacity: itemFadeAnim,
-            transform: [{ translateY: itemSlideAnim }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={styles.orderHeader}
-          onPress={() => router.push(`/order-details/${order.id}`)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.orderInfo}>
-            <View style={styles.orderIdRow}>
-              <Text style={styles.orderId}>#{order.id.slice(-8).toUpperCase()}</Text>
-              <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                <Ionicons 
-                  name={statusIcons[order.status] as any} 
-                  size={12} 
-                  color="#fff" 
-                />
-                <Text style={styles.statusText}>{statusLabels[order.status]}</Text>
-              </View>
-            </View>
-            
-            <Text style={styles.restaurantName}>
-              <Ionicons name="restaurant" size={14} color="#6B7280" /> {order.restaurant?.name || "Restaurant"}
-            </Text>
-            
-            <Text style={styles.orderDate}>
-              {new Date(order.createdAt).toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
-          </View>
-
-          <View style={styles.orderSummary}>
-            <Text style={styles.totalAmount}>D{order.totalAmount.toFixed(2)}</Text>
-            <Text style={styles.itemCount}>{order.items.length} item{order.items.length > 1 ? "s" : ""}</Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Order Items Preview */}
-        <View style={styles.itemsPreview}>
-          {order.items.slice(0, 3).map((item) => (
-            <View key={item.id} style={styles.itemPreview}>
-              {item.menuItem.imageUrl ? (
-                <Image 
-                  source={{ uri: item.menuItem.imageUrl }} 
-                  style={styles.itemImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={styles.itemImagePlaceholder}>
-                  <Ionicons name="restaurant" size={16} color="#9CA3AF" />
-                </View>
-              )}
-              <View style={styles.itemInfo}>
-                <Text style={styles.itemName} numberOfLines={1}>
-                  {item.menuItem.name}
-                </Text>
-                <Text style={styles.itemDetails}>
-                  {item.quantity}x D{item.price.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          ))}
-          
-          {order.items.length > 3 && (
-            <Text style={styles.moreItems}>
-              +{order.items.length - 3} more item{order.items.length - 3 > 1 ? "s" : ""}
-            </Text>
-          )}
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.orderActions}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push(`/order-details/${order.id}`)}
-          >
-            <Ionicons name="eye-outline" size={16} color={PrimaryColor} />
-            <Text style={[styles.actionText, { color: PrimaryColor }]}>View Details</Text>
-          </TouchableOpacity>
-
-          {canCancel && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
-              onPress={() => handleCancelOrder(order.id)}
-            >
-              <Ionicons name="close-outline" size={16} color="#EF4444" />
-              <Text style={[styles.actionText, { color: "#EF4444" }]}>Cancel</Text>
-            </TouchableOpacity>
-          )}
-
-          {order.status === "DELIVERED" && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.reorderButton]}
-              onPress={() => {
-                // TODO: Implement reorder functionality
-                Alert.alert("Reorder", "Reorder functionality coming soon!");
-              }}
-            >
-              <Ionicons name="refresh-outline" size={16} color="#10B981" />
-              <Text style={[styles.actionText, { color: "#10B981" }]}>Reorder</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      </Animated.View>
-    );
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Orders</Text>
-        </View>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={PrimaryColor} />
-          <Text style={styles.loadingText}>Loading your orders...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>My Orders</Text>
-        </View>
-        <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorMessage}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={loadOrders}>
-            <LinearGradient
-              colors={[PrimaryColor, "#FF8F65"]}
-              style={styles.retryButtonGradient}
-            >
-              <Ionicons name="refresh" size={20} color="#fff" />
-              <Text style={styles.retryButtonText}>Try Again</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      
-      {/* Header */}
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            transform: [{ scale: headerScale }],
-            opacity: fadeAnim,
-          },
-        ]}
-      >
-        <Text style={styles.headerTitle}>My Orders</Text>
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={onRefresh}
-          disabled={refreshing}
-        >
-          <Ionicons 
-            name="refresh" 
-            size={24} 
-            color={refreshing ? "#9CA3AF" : PrimaryColor} 
-          />
-        </TouchableOpacity>
-      </Animated.View>
-
-      {orders.length === 0 ? (
-        <Animated.View
-          style={[
-            styles.emptyState,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <View style={styles.emptyIconContainer}>
-            <Ionicons name="receipt-outline" size={64} color="#D1D5DB" />
-          </View>
-          <Text style={styles.emptyTitle}>No orders yet</Text>
-          <Text style={styles.emptyDescription}>
-            When you place an order, it will appear here. Start exploring restaurants and place your first order!
-          </Text>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => router.push("/(tabs)/")}
-          >
-            <LinearGradient
-              colors={[PrimaryColor, "#FF8F65"]}
-              style={styles.exploreButtonGradient}
-            >
-              <Ionicons name="storefront" size={20} color="#fff" />
-              <Text style={styles.exploreButtonText}>Explore Restaurants</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
-      ) : (
-        <ScrollView
-          style={styles.content}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          contentContainerStyle={{ paddingBottom: 20 }}
-        >
-          <Animated.View
-            style={[
-              styles.ordersContainer,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.ordersCount}>
-              {orders.length} order{orders.length > 1 ? "s" : ""} found
-            </Text>
-            
-            {orders.map((order, index) => renderOrderCard(order, index))}
-          </Animated.View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-}
-const dummyOrders: Order[] = [
-  {
-    id: "ord-001",
-    address: "Kairaba Avenue, Serrekunda, The Gambia",
-    totalAmount: 125.5,
-    status: "PROCESSING",
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-    updatedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-    driver: {
-      id: "drv-001",
-      user: {
-        fullName: "Modou Jallow",
-        phone: "+220 991 2345",
-      },
-    },
-  },
-  {
-    id: "ord-002",
-    address: "Churchill's Town, Banjul, The Gambia",
-    totalAmount: 89.25,
-    status: "DISPATCHED",
-    createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), // 4 hours ago
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    driver: {
-      id: "drv-002",
-      user: {
-        fullName: "Fatou Ceesay",
-        phone: "+220 992 6789",
-      },
-    },
-  },
-  {
-    id: "ord-003",
-    address: "Kanifing Estate, Kanifing, The Gambia",
-    totalAmount: 67.75,
-    status: "PENDING",
-    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "ord-004",
-    address: "Old Jeshwang, Kanifing, The Gambia",
-    totalAmount: 156.0,
-    status: "DELIVERED",
-    createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    updatedAt: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(), // 22 hours ago
-    driver: {
-      id: "drv-003",
-      user: {
-        fullName: "Lamin Sanyang",
-        phone: "+220 993 1122",
-      },
-    },
-  },
-  {
-    id: "ord-005",
-    address: "Gunjur Village, West Coast Region, The Gambia",
-    totalAmount: 234.8,
-    status: "DELIVERED",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    updatedAt: new Date(
-      Date.now() - 3 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000
-    ).toISOString(),
-    driver: {
-      id: "drv-004",
-      user: {
-        fullName: "Isatou Touray",
-        phone: "+220 994 5566",
-      },
-    },
-  },
-  {
-    id: "ord-006",
-    address: "Bakau New Town, Bakau, The Gambia",
-    totalAmount: 45.5,
-    status: "CANCELLED",
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 1 week ago
-    updatedAt: new Date(
-      Date.now() - 7 * 24 * 60 * 60 * 1000 + 1 * 60 * 60 * 1000
-    ).toISOString(),
-  },
-];
-
-export default function OrdersScreen() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"live" | "past">("live");
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-  const router = useRouter();
-
-  // Dummy orders data for testing
+  // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -514,20 +76,14 @@ export default function OrdersScreen() {
     return () => skeletonAnimation.stop();
   }, [loading, skeletonOpacity]);
 
-  const fetchOrders = useCallback(async (userIdParam?: string) => {
+  const fetchOrders = useCallback(async () => {
     try {
       setError(null);
-      // TODO: Replace with real API call when backend is ready
-      // const response = await axios.get(`${API_URL}/api/orders/user/${userIdParam}`);
-      // setOrders(response.data);
-
-      // For now, use dummy data with a simulated delay
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate network delay
-      setOrders(dummyOrders);
+      const ordersData = await orderApi.getCustomerOrders();
+      setOrders(ordersData);
     } catch (error: any) {
       console.error("Failed to fetch orders:", error);
-      const errorMessage =
-        error.response?.data?.error || "Failed to load orders";
+      const errorMessage = error.message || "Failed to load orders";
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -543,7 +99,7 @@ export default function OrdersScreen() {
       if (storedUserId && loggedInStatus === "true") {
         setUserId(storedUserId);
         setIsLoggedIn(true);
-        fetchOrders(storedUserId);
+        fetchOrders();
       } else {
         setIsLoggedIn(false);
         setLoading(false);
@@ -562,8 +118,27 @@ export default function OrdersScreen() {
   const onRefresh = () => {
     if (userId) {
       setRefreshing(true);
-      fetchOrders(userId);
+      fetchOrders();
     }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes, Cancel",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await orderApi.cancelOrder(orderId, "Cancelled by customer");
+            fetchOrders();
+            Alert.alert("Success", "Order has been cancelled");
+          } catch {
+            Alert.alert("Error", "Failed to cancel order");
+          }
+        },
+      },
+    ]);
   };
 
   const SkeletonBox = ({
@@ -647,7 +222,14 @@ export default function OrdersScreen() {
   const getFilteredOrders = () => {
     if (activeTab === "live") {
       return orders.filter((order) =>
-        ["PENDING", "PROCESSING", "DISPATCHED"].includes(order.status)
+        [
+          "PENDING",
+          "ACCEPTED",
+          "PREPARING",
+          "PROCESSING",
+          "READY",
+          "DISPATCHED",
+        ].includes(order.status)
       );
     } else {
       return orders.filter((order) =>
@@ -709,6 +291,19 @@ export default function OrdersScreen() {
         </View>
       </View>
 
+      {/* Restaurant */}
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
+      >
+        <Ionicons name="restaurant-outline" size={16} color="#666" />
+        <Text
+          style={{ marginLeft: 8, color: "#666", flex: 1, fontWeight: "500" }}
+          numberOfLines={1}
+        >
+          {order.restaurant?.name || "Restaurant"}
+        </Text>
+      </View>
+
       {/* Address */}
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
@@ -718,7 +313,25 @@ export default function OrdersScreen() {
           style={{ marginLeft: 8, color: "#666", flex: 1 }}
           numberOfLines={2}
         >
-          {order.address}
+          {order.deliveryAddress}
+        </Text>
+      </View>
+
+      {/* Items Preview */}
+      <View
+        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
+      >
+        <Ionicons name="fast-food-outline" size={16} color="#666" />
+        <Text
+          style={{ marginLeft: 8, color: "#666", flex: 1 }}
+          numberOfLines={1}
+        >
+          {order.items.length} item{order.items.length > 1 ? "s" : ""} •{" "}
+          {order.items
+            .slice(0, 2)
+            .map((item) => item.menuItem.name)
+            .join(", ")}
+          {order.items.length > 2 && ` +${order.items.length - 2} more`}
         </Text>
       </View>
 
@@ -739,75 +352,64 @@ export default function OrdersScreen() {
         </Text>
       </View>
 
-      {/* Driver Info (if assigned) */}
-      {order.driver && (
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginBottom: 12,
-            backgroundColor: "#F8F9FA",
-            padding: 8,
-            borderRadius: 8,
-          }}
-        >
-          <Ionicons
-            name="person-circle-outline"
-            size={20}
-            color={PrimaryColor}
-          />
-          <View style={{ marginLeft: 8, flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: "600", color: "#333" }}>
-              Driver: {order.driver.user.fullName}
-            </Text>
-            <Text style={{ fontSize: 12, color: "#666" }}>
-              {order.driver.user.phone}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={{
-              backgroundColor: PrimaryColor,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 8,
-            }}
-            onPress={() =>
-              Alert.alert("Call Driver", `Call ${order.driver?.user.phone}?`)
-            }
-          >
-            <Ionicons name="call" size={16} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* Footer */}
       <View
         style={{
           flexDirection: "row",
           justifyContent: "space-between",
           alignItems: "center",
+          paddingTop: 12,
+          borderTopWidth: 1,
+          borderTopColor: "#F3F4F6",
         }}
       >
         <Text style={{ fontSize: 12, color: "#999" }}>
           {formatDate(order.createdAt)}
         </Text>
-        <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: 4,
-          }}
-          onPress={() =>
-            Alert.alert("Track Order", `Tracking order ${order.id}`)
-          }
-        >
-          <Text
-            style={{ fontSize: 12, color: PrimaryColor, fontWeight: "600" }}
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
+            <TouchableOpacity
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: "#FEF2F2",
+                borderWidth: 1,
+                borderColor: "#FEE2E2",
+              }}
+              onPress={() => handleCancelOrder(order.id)}
+            >
+              <Text
+                style={{ fontSize: 12, color: "#EF4444", fontWeight: "600" }}
+              >
+                Cancel
+              </Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 8,
+              backgroundColor: "#F0F9FF",
+              borderWidth: 1,
+              borderColor: "#E0F2FE",
+            }}
+            onPress={() =>
+              Alert.alert("Track Order", `Tracking order ${order.id}`)
+            }
           >
-            Track Order
-          </Text>
-          <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
-        </TouchableOpacity>
+            <Text
+              style={{ fontSize: 12, color: PrimaryColor, fontWeight: "600" }}
+            >
+              Track
+            </Text>
+            <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -852,7 +454,7 @@ export default function OrdersScreen() {
                 marginBottom: 24,
               }}
             >
-              <Ionicons name="receipt-outline" size={50} color="#FF6B35" />
+              <Ionicons name="receipt-outline" size={50} color={PrimaryColor} />
             </View>
 
             <Text
@@ -882,7 +484,7 @@ export default function OrdersScreen() {
 
             <TouchableOpacity
               style={{
-                backgroundColor: "#FF6B35",
+                backgroundColor: PrimaryColor,
                 paddingVertical: 16,
                 paddingHorizontal: 32,
                 borderRadius: 12,
@@ -913,7 +515,7 @@ export default function OrdersScreen() {
             >
               <Text
                 style={{
-                  color: "#FF6B35",
+                  color: PrimaryColor,
                   fontSize: 14,
                   fontWeight: "500",
                 }}
@@ -956,7 +558,7 @@ export default function OrdersScreen() {
                 marginBottom: 12,
               }}
             >
-              <Ionicons name="time-outline" size={20} color="#FF6B35" />
+              <Ionicons name="time-outline" size={20} color={PrimaryColor} />
               <Text style={{ marginLeft: 12, fontSize: 14, color: "#666" }}>
                 Track orders in real-time
               </Text>
@@ -969,14 +571,14 @@ export default function OrdersScreen() {
                 marginBottom: 12,
               }}
             >
-              <Ionicons name="receipt-outline" size={20} color="#FF6B35" />
+              <Ionicons name="receipt-outline" size={20} color={PrimaryColor} />
               <Text style={{ marginLeft: 12, fontSize: 14, color: "#666" }}>
                 View order history and receipts
               </Text>
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Ionicons name="repeat-outline" size={20} color="#FF6B35" />
+              <Ionicons name="repeat-outline" size={20} color={PrimaryColor} />
               <Text style={{ marginLeft: 12, fontSize: 14, color: "#666" }}>
                 Reorder your favorites easily
               </Text>
@@ -1046,7 +648,14 @@ export default function OrdersScreen() {
               Live Orders (
               {
                 orders.filter((o) =>
-                  ["PENDING", "PROCESSING", "DISPATCHED"].includes(o.status)
+                  [
+                    "PENDING",
+                    "ACCEPTED",
+                    "PREPARING",
+                    "PROCESSING",
+                    "READY",
+                    "DISPATCHED",
+                  ].includes(o.status)
                 ).length
               }
               )
@@ -1087,7 +696,12 @@ export default function OrdersScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: 16 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[PrimaryColor]}
+            tintColor={PrimaryColor}
+          />
         }
       >
         {error ? (
@@ -1124,7 +738,7 @@ export default function OrdersScreen() {
                 alignItems: "center",
                 gap: 4,
               }}
-              onPress={() => fetchOrders(userId || undefined)}
+              onPress={() => fetchOrders()}
             >
               <Ionicons name="refresh" size={16} color="#fff" />
               <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
@@ -1163,6 +777,24 @@ export default function OrdersScreen() {
                 ? "When you place an order, it will appear here"
                 : "Your completed orders will be shown here"}
             </Text>
+            {activeTab === "live" && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: PrimaryColor,
+                  paddingHorizontal: 24,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  marginTop: 16,
+                }}
+                onPress={() => router.push("/" as any)}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}
+                >
+                  Start Shopping
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           getFilteredOrders().map(renderOrderCard)

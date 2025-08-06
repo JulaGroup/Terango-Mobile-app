@@ -98,6 +98,48 @@ const getAuthToken = async (): Promise<string | null> => {
     if (!token) {
       token = await AsyncStorage.getItem("authToken");
     }
+    console.log(
+      "🔐 Auth Token Retrieved:",
+      token ? "✅ Token found" : "❌ No token"
+    );
+
+    // Debug: Print first and last few characters of token
+    if (token) {
+      console.log(
+        "🔍 Token Preview:",
+        `${token.substring(0, 20)}...${token.substring(token.length - 20)}`
+      );
+
+      // Try to decode and check expiration
+      try {
+        const base64Url = token.split(".")[1];
+        const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+        const jsonPayload = decodeURIComponent(
+          atob(base64)
+            .split("")
+            .map(function (c) {
+              return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+            })
+            .join("")
+        );
+
+        const decoded = JSON.parse(jsonPayload);
+        console.log("🕒 Token expires:", new Date(decoded.exp * 1000));
+        console.log(
+          "🔄 Token valid:",
+          decoded.exp * 1000 > Date.now() ? "✅ Valid" : "❌ EXPIRED"
+        );
+        console.log("👤 User ID from token:", decoded.userId);
+
+        if (decoded.exp * 1000 <= Date.now()) {
+          console.log("⚠️ Token is expired! User needs to login again.");
+          return null;
+        }
+      } catch (decodeError) {
+        console.log("❌ Token decode failed:", decodeError);
+      }
+    }
+
     return token;
   } catch (error) {
     console.error("Error getting auth token:", error);
@@ -118,10 +160,16 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     },
   };
 
+  console.log(`🌐 API Call: ${options.method || "GET"} ${endpoint}`);
+  console.log(
+    `🔐 Auth Header: ${token ? "✅ Bearer token included" : "❌ No token"}`
+  );
+
   const response = await fetch(`${API_URL}${endpoint}`, config);
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`❌ API Error: ${response.status} - ${errorText}`);
     throw new Error(`API Error: ${response.status} - ${errorText}`);
   }
 
@@ -388,9 +436,40 @@ export const userApi = {
     return apiCall("/api/auth/vendor-status");
   },
 
-  // Get user profile
-  getUserProfile: async () => {
-    return apiCall("/api/auth/profile");
+  // Get user profile - requires userId
+  getUserProfile: async (userId: string) => {
+    return apiCall(`/api/users/${userId}/profile`);
+  },
+
+  // Get current user info from token
+  getCurrentUser: async () => {
+    const token = await getAuthToken();
+    if (!token) throw new Error("No authentication token found");
+
+    try {
+      // Decode token to get userId
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map(function (c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join("")
+      );
+
+      const decoded = JSON.parse(jsonPayload);
+      const userId = decoded.userId;
+
+      if (!userId) throw new Error("Invalid token: no userId found");
+
+      // Get full user profile
+      return await userApi.getUserProfile(userId);
+    } catch (error) {
+      console.error("Error decoding token or fetching profile:", error);
+      throw new Error("Failed to get current user profile");
+    }
   },
 };
 
@@ -398,6 +477,13 @@ export const userApi = {
 export const orderApi = {
   // Create a new order
   createOrder: async (orderData: CreateOrderData): Promise<Order> => {
+    console.log("🛒 Creating order with data:", orderData);
+    const token = await getAuthToken();
+    console.log(
+      "🔐 Token for order creation:",
+      token ? "✅ Available" : "❌ Missing"
+    );
+
     return apiCall("/api/orders", {
       method: "POST",
       body: JSON.stringify(orderData),

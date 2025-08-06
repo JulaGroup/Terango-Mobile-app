@@ -15,7 +15,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
-import { orderApi, type CreateOrderData } from "@/lib/api";
+import { orderApi, type CreateOrderData, userApi } from "@/lib/api";
+import { debugAuthState } from "@/utils/debugAuth";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -190,6 +191,28 @@ export default function Checkout() {
     setLoading(true);
 
     try {
+      // Debug auth state before placing order
+      await debugAuthState();
+
+      // Test if user is authenticated by calling profile endpoint
+      try {
+        console.log("🧪 Testing auth with profile endpoint...");
+        const profile = await userApi.getCurrentUser();
+        console.log("✅ Profile fetch successful:", profile);
+      } catch (authTestError: any) {
+        console.error("❌ Auth test failed:", authTestError.message);
+        Alert.alert(
+          "Authentication Required",
+          "Please log in again to place orders.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Log In", onPress: () => router.push("/auth") },
+          ]
+        );
+        setLoading(false);
+        return;
+      }
+
       // Create orders for each restaurant
       const orderPromises = restaurantIds.map(async (restaurantId) => {
         const restaurantItems = restaurantCarts[restaurantId];

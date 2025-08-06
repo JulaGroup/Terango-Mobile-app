@@ -760,33 +760,6 @@ export default function VendorManagement() {
                 </Text>
               </LinearGradient>
             </View>
-
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#F97316", "#EA580C"]}
-                style={styles.statGradient}
-              >
-                <Ionicons name="calculator" size={20} color="#fff" />
-                <Text style={styles.statNumber}>
-                  D{Math.round(stats.averageOrderValue).toLocaleString()}
-                </Text>
-                <Text style={styles.statTitle}>Avg Order Value</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statCard}>
-              <LinearGradient
-                colors={["#6366F1", "#4F46E5"]}
-                style={styles.statGradient}
-              >
-                <Ionicons name="business" size={20} color="#fff" />
-                <Text style={styles.statNumber}>
-                  {stats.activeBusinesses}/{stats.totalBusinesses}
-                </Text>
-                <Text style={styles.statTitle}>Active Businesses</Text>
-              </LinearGradient>
-            </View>
-
             <View style={styles.statCard}>
               <LinearGradient
                 colors={["#8B5CF6", "#7C3AED"]}
