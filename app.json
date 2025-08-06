@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "TeranGo",
+    "slug": "terango",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "backgroundColor": "#ffffff",
+    "icon": "./assets/images/splash.png",
+    "userInterfaceStyle": "light",
+    "scheme": "teranggo",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B00"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/splash.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.darboedev.terango"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow TeranGo to use your location to find nearby vendors and provide accurate delivery estimates."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#FF6B35",
+          "sounds": ["./assets/sounds/notification.mp3"]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
