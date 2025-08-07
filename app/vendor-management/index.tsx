@@ -348,19 +348,19 @@ export default function VendorManagement() {
           subtitle: "Kitchen orders & status",
           icon: "receipt-outline",
           colors: ["#EF4444", "#DC2626"] as [string, string],
-          route: "orders",
+          route: "vendor-management/orders",
           count: stats.pendingOrders,
           hasAccess: true,
         },
-        {
-          title: "Daily Analytics",
-          subtitle: "Sales & customer insights",
-          icon: "analytics-outline",
-          colors: ["#8B5CF6", "#7C3AED"] as [string, string],
-          route: "analytics",
-          count: null,
-          hasAccess: true,
-        },
+        // {
+        //   title: "Daily Analytics",
+        //   subtitle: "Sales & customer insights",
+        //   icon: "analytics-outline",
+        //   colors: ["#8B5CF6", "#7C3AED"] as [string, string],
+        //   route: "analytics",
+        //   count: null,
+        //   hasAccess: true,
+        // },
         {
           title: "Restaurant Settings",
           subtitle: "Update image & profile",
@@ -789,7 +789,7 @@ export default function VendorManagement() {
         <View style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => router.push("./orders")}
             >
@@ -797,9 +797,9 @@ export default function VendorManagement() {
                 <Ionicons name="add" size={24} color="#10B981" />
               </View>
               <Text style={styles.quickActionText}>New Order</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickActionButton}
               onPress={() => router.push("./analytics")}
             >
@@ -807,7 +807,7 @@ export default function VendorManagement() {
                 <Ionicons name="analytics" size={24} color="#8B5CF6" />
               </View>
               <Text style={styles.quickActionText}>View Analytics</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={styles.quickActionButton}

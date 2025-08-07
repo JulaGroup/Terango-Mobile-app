@@ -12,6 +12,8 @@ import {
   ActivityIndicator,
   Animated,
   Image,
+  Modal,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -56,8 +58,8 @@ const nextStatusMap = {
   PENDING: "ACCEPTED",
   ACCEPTED: "PREPARING",
   PREPARING: "READY",
-  READY: "DISPATCHED",
-  DISPATCHED: "DELIVERED",
+  // READY orders cannot be advanced by vendors - drivers handle DISPATCHED and DELIVERED
+  // DISPATCHED and DELIVERED are not included here intentionally
 };
 
 export default function VendorOrders() {
@@ -67,6 +69,8 @@ export default function VendorOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("ALL");
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [showOrderTicket, setShowOrderTicket] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -156,6 +160,323 @@ export default function VendorOrders() {
     return order.status === filter;
   });
 
+  // Order Ticket Modal Component
+  const OrderTicketModal = () => {
+    if (!selectedOrder) return null;
+
+    const order = selectedOrder;
+    const statusColor = statusColors[order.status];
+
+    return (
+      <Modal
+        visible={showOrderTicket}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowOrderTicket(false)}
+      >
+        <SafeAreaView style={styles.ticketContainer}>
+          {/* Header */}
+          <View style={styles.ticketHeader}>
+            <TouchableOpacity
+              style={styles.ticketBackButton}
+              onPress={() => setShowOrderTicket(false)}
+            >
+              <Ionicons name="close" size={24} color="#111827" />
+            </TouchableOpacity>
+            <Text style={styles.ticketHeaderTitle}>Order Details</Text>
+            <TouchableOpacity style={styles.ticketPrintButton}>
+              <Ionicons name="print-outline" size={24} color={PrimaryColor} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={styles.ticketContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Order Summary Card */}
+            <View style={styles.ticketCard}>
+              <View
+                style={[
+                  styles.ticketStatusStrip,
+                  { backgroundColor: statusColor },
+                ]}
+              />
+
+              {/* Status Badge at Top */}
+              <View style={styles.ticketStatusContainer}>
+                <View
+                  style={[
+                    styles.ticketStatusBadge,
+                    { backgroundColor: statusColor },
+                  ]}
+                >
+                  <Ionicons
+                    name={statusIcons[order.status] as any}
+                    size={16}
+                    color="#fff"
+                  />
+                  <Text style={styles.ticketStatusText}>
+                    {statusLabels[order.status]}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketOrderHeader}>
+                <View>
+                  <Text style={styles.ticketOrderNumber}>
+                    ORDER #{order.id.slice(-8).toUpperCase()}
+                  </Text>
+                  <Text style={styles.ticketOrderDate}>
+                    {new Date(order.createdAt).toLocaleDateString("en-US", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketTotalAmount}>
+                <Text style={styles.ticketTotalLabel}>Total Amount</Text>
+                <Text style={styles.ticketTotalValue}>
+                  D{order.totalAmount.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
+            {/* Customer Information */}
+            <View style={styles.ticketCard}>
+              <Text style={styles.ticketSectionTitle}>
+                Customer Information
+              </Text>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="person" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Customer Name</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.customerName || "Not provided"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="call" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Phone Number</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.customerPhone || "Not provided"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="location" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Delivery Address</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.deliveryAddress || "Not provided"}
+                  </Text>
+                </View>
+              </View>
+
+              {order.notes && (
+                <View style={styles.ticketInfoRow}>
+                  <Ionicons name="chatbubble" size={20} color="#6B7280" />
+                  <View style={styles.ticketInfoContent}>
+                    <Text style={styles.ticketInfoLabel}>Special Notes</Text>
+                    <Text style={styles.ticketInfoValue}>{order.notes}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Order Items */}
+            <View style={styles.ticketCard}>
+              <Text style={styles.ticketSectionTitle}>
+                Order Items ({order.items.length})
+              </Text>
+
+              {order.items.map((item) => (
+                <View key={item.id} style={styles.ticketItemRow}>
+                  {item.menuItem.imageUrl ? (
+                    <Image
+                      source={{ uri: item.menuItem.imageUrl }}
+                      style={styles.ticketItemImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.ticketItemPlaceholder}>
+                      <Ionicons name="restaurant" size={24} color="#9CA3AF" />
+                    </View>
+                  )}
+
+                  <View style={styles.ticketItemInfo}>
+                    <Text style={styles.ticketItemName}>
+                      {item.menuItem.name}
+                    </Text>
+                    {item.menuItem.description && (
+                      <Text
+                        style={styles.ticketItemDescription}
+                        numberOfLines={2}
+                      >
+                        {item.menuItem.description}
+                      </Text>
+                    )}
+                    <Text style={styles.ticketItemPrice}>
+                      D{item.price.toFixed(2)} × {item.quantity}
+                    </Text>
+                  </View>
+
+                  <View style={styles.ticketItemTotal}>
+                    <Text style={styles.ticketItemTotalAmount}>
+                      D{(item.price * item.quantity).toFixed(2)}
+                    </Text>
+                    <View style={styles.ticketQuantityBadge}>
+                      <Text style={styles.ticketQuantityText}>
+                        {item.quantity}x
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+
+              {/* Order Summary */}
+              <View style={styles.ticketSummary}>
+                <View style={styles.ticketSummaryRow}>
+                  <Text style={styles.ticketSummaryLabel}>Subtotal</Text>
+                  <Text style={styles.ticketSummaryValue}>
+                    D{order.totalAmount.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.ticketSummaryRow}>
+                  <Text style={styles.ticketSummaryLabel}>Delivery Fee</Text>
+                  <Text style={styles.ticketSummaryValue}>D0.00</Text>
+                </View>
+                <View style={[styles.ticketSummaryRow, styles.ticketTotalRow]}>
+                  <Text style={styles.ticketTotalLabel}>Total</Text>
+                  <Text style={styles.ticketTotalValue}>
+                    D{order.totalAmount.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Restaurant Information */}
+            <View style={styles.ticketCard}>
+              <Text style={styles.ticketSectionTitle}>Restaurant Details</Text>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="storefront" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Restaurant</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.restaurant?.name || "Unknown"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="location" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Address</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.restaurant?.address || "Not provided"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.ticketInfoRow}>
+                <Ionicons name="call" size={20} color="#6B7280" />
+                <View style={styles.ticketInfoContent}>
+                  <Text style={styles.ticketInfoLabel}>Phone</Text>
+                  <Text style={styles.ticketInfoValue}>
+                    {order.restaurant?.phone || "Not provided"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Action Buttons for Ticket */}
+            <View style={styles.ticketActions}>
+              {order.status === "PENDING" && (
+                <TouchableOpacity
+                  style={styles.ticketAcceptButton}
+                  onPress={() => {
+                    setShowOrderTicket(false);
+                    handleUpdateOrderStatus(order.id, "ACCEPTED");
+                  }}
+                >
+                  <LinearGradient
+                    colors={["#22C55E", "#16A34A"]}
+                    style={styles.ticketActionGradient}
+                  >
+                    <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                    <Text style={styles.ticketActionText}>Accept Order</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {(order.status === "ACCEPTED" ||
+                order.status === "PREPARING") && (
+                <TouchableOpacity
+                  style={styles.ticketAdvanceButton}
+                  onPress={() => {
+                    const nextStatus =
+                      nextStatusMap[order.status as keyof typeof nextStatusMap];
+                    if (nextStatus) {
+                      setShowOrderTicket(false);
+                      handleUpdateOrderStatus(order.id, nextStatus);
+                    }
+                  }}
+                >
+                  <LinearGradient
+                    colors={[PrimaryColor, "#FF8F65"]}
+                    style={styles.ticketActionGradient}
+                  >
+                    <Ionicons
+                      name="arrow-forward-circle"
+                      size={20}
+                      color="#fff"
+                    />
+                    <Text style={styles.ticketActionText}>
+                      Mark{" "}
+                      {
+                        statusLabels[
+                          nextStatusMap[
+                            order.status as keyof typeof nextStatusMap
+                          ] as keyof typeof statusLabels
+                        ]
+                      }
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
+
+              {(order.status === "PENDING" ||
+                order.status === "ACCEPTED" ||
+                order.status === "PREPARING") && (
+                <TouchableOpacity
+                  style={styles.ticketCancelButton}
+                  onPress={() => {
+                    setShowOrderTicket(false);
+                    handleCancelOrder(order.id);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color="#EF4444" />
+                  <Text style={styles.ticketCancelText}>Cancel Order</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
+
   const OrderCard = ({ order, index }: { order: Order; index: number }) => {
     const itemSlideAnim = useRef(new Animated.Value(50)).current;
     const itemFadeAnim = useRef(new Animated.Value(0)).current;
@@ -185,9 +506,13 @@ export default function VendorOrders() {
     }, [itemFadeAnim, itemSlideAnim, scaleAnim, index]);
 
     const statusColor = statusColors[order.status];
-    const nextStatus = nextStatusMap[order.status as keyof typeof nextStatusMap];
+    const nextStatus =
+      nextStatusMap[order.status as keyof typeof nextStatusMap];
     const canAdvance = !!nextStatus;
-    const canCancel = order.status === "PENDING" || order.status === "ACCEPTED" || order.status === "PREPARING";
+    const canCancel =
+      order.status === "PENDING" ||
+      order.status === "ACCEPTED" ||
+      order.status === "PREPARING";
 
     return (
       <Animated.View
@@ -195,22 +520,21 @@ export default function VendorOrders() {
           styles.orderCard,
           {
             opacity: itemFadeAnim,
-            transform: [
-              { translateY: itemSlideAnim },
-              { scale: scaleAnim }
-            ],
+            transform: [{ translateY: itemSlideAnim }, { scale: scaleAnim }],
           },
         ]}
       >
         {/* Status Indicator Strip */}
         <View style={[styles.statusStrip, { backgroundColor: statusColor }]} />
-        
+
         {/* Card Header */}
         <View style={styles.cardHeader}>
           <View style={styles.orderHeaderLeft}>
             <View style={styles.orderIdContainer}>
               <Text style={styles.orderIdLabel}>ORDER</Text>
-              <Text style={styles.modernOrderId}>#{order.id.slice(-6).toUpperCase()}</Text>
+              <Text style={styles.modernOrderId}>
+                #{order.id.slice(-6).toUpperCase()}
+              </Text>
             </View>
             <View style={styles.timeContainer}>
               <Ionicons name="time-outline" size={14} color="#9CA3AF" />
@@ -222,13 +546,26 @@ export default function VendorOrders() {
               </Text>
             </View>
           </View>
-          
+
           <View style={styles.orderHeaderRight}>
-            <View style={[styles.modernStatusBadge, { backgroundColor: statusColor }]}>
-              <Ionicons name={statusIcons[order.status] as any} size={14} color="#fff" />
-              <Text style={styles.modernStatusText}>{statusLabels[order.status]}</Text>
+            <View
+              style={[
+                styles.modernStatusBadge,
+                { backgroundColor: statusColor },
+              ]}
+            >
+              <Ionicons
+                name={statusIcons[order.status] as any}
+                size={12}
+                color="#fff"
+              />
+              <Text style={styles.modernStatusText}>
+                {statusLabels[order.status]}
+              </Text>
             </View>
-            <Text style={styles.modernTotalAmount}>D{order.totalAmount.toFixed(2)}</Text>
+            <Text style={styles.modernTotalAmount}>
+              D{order.totalAmount.toFixed(2)}
+            </Text>
           </View>
         </View>
 
@@ -239,11 +576,15 @@ export default function VendorOrders() {
               <Ionicons name="person" size={20} color={PrimaryColor} />
             </View>
             <View style={styles.customerDetails}>
-              <Text style={styles.modernCustomerName}>{order.customerName || "Customer"}</Text>
-              <Text style={styles.customerPhone}>{order.customerPhone || "No phone"}</Text>
+              <Text style={styles.modernCustomerName}>
+                {order.customerName || "Customer"}
+              </Text>
+              <Text style={styles.customerPhone}>
+                {order.customerPhone || "No phone"}
+              </Text>
             </View>
           </View>
-          
+
           <View style={styles.addressContainer}>
             <View style={styles.addressIcon}>
               <Ionicons name="location" size={16} color="#EF4444" />
@@ -252,14 +593,28 @@ export default function VendorOrders() {
               {order.deliveryAddress || "No address provided"}
             </Text>
           </View>
-          
+
           {order.notes && (
             <View style={styles.notesContainer}>
               <Ionicons name="chatbubble-outline" size={14} color="#9CA3AF" />
-              <Text style={styles.orderNotes} numberOfLines={2}>{order.notes}</Text>
+              <Text style={styles.orderNotes} numberOfLines={2}>
+                {order.notes}
+              </Text>
             </View>
           )}
         </View>
+
+        {/* Special status indicator for READY orders */}
+        {order.status === "READY" && (
+          <View style={styles.readyStatusIndicator}>
+            <View style={styles.readyStatusContent}>
+              <Ionicons name="car-outline" size={20} color="#22C55E" />
+              <Text style={styles.readyStatusText}>
+                Order ready for pickup - Waiting for driver assignment
+              </Text>
+            </View>
+          </View>
+        )}
 
         {/* Order Items Preview */}
         <View style={styles.itemsPreview}>
@@ -269,7 +624,7 @@ export default function VendorOrders() {
               <Ionicons name="chevron-down" size={16} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
-          
+
           <View style={styles.itemsList}>
             {order.items.slice(0, 2).map((item, itemIndex) => (
               <View key={item.id} style={styles.modernItemRow}>
@@ -297,7 +652,7 @@ export default function VendorOrders() {
                 </Text>
               </View>
             ))}
-            
+
             {order.items.length > 2 && (
               <View style={styles.moreItemsIndicator}>
                 <Text style={styles.moreItemsText}>
@@ -319,7 +674,7 @@ export default function VendorOrders() {
               <Text style={styles.modernCancelText}>Cancel</Text>
             </TouchableOpacity>
           )}
-          
+
           {canAdvance && (
             <TouchableOpacity
               style={styles.modernAdvanceButton}
@@ -336,12 +691,12 @@ export default function VendorOrders() {
               </LinearGradient>
             </TouchableOpacity>
           )}
-          
+
           <TouchableOpacity
             style={styles.modernDetailsButton}
             onPress={() => {
-              // TODO: Navigate to order details
-              Alert.alert("Order Details", `Order #${order.id.slice(-6).toUpperCase()}`);
+              setSelectedOrder(order);
+              setShowOrderTicket(true);
             }}
           >
             <Ionicons name="eye" size={18} color={PrimaryColor} />
@@ -536,6 +891,9 @@ export default function VendorOrders() {
           </Animated.View>
         </ScrollView>
       )}
+
+      {/* Order Ticket Modal */}
+      <OrderTicketModal />
     </SafeAreaView>
   );
 }
@@ -858,7 +1216,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  
+
   // Modern OrderCard Styles
   statusStrip: {
     height: 4,
@@ -995,6 +1353,27 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontStyle: "italic",
   },
+  readyStatusIndicator: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  readyStatusContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: "#22C55E",
+  },
+  readyStatusText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#16A34A",
+    fontWeight: "600",
+  },
   itemsPreview: {
     paddingHorizontal: 20,
     paddingBottom: 16,
@@ -1124,5 +1503,271 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: PrimaryColor,
+  },
+
+  // Order Ticket Modal Styles
+  ticketContainer: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+  },
+  ticketHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  ticketBackButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+  },
+  ticketHeaderTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 16,
+  },
+  ticketPrintButton: {
+    padding: 8,
+  },
+  ticketContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  ticketCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginVertical: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: "hidden",
+  },
+  ticketStatusStrip: {
+    height: 4,
+    width: "100%",
+  },
+  ticketStatusContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 12,
+    alignItems: "flex-start",
+  },
+  ticketOrderHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  ticketOrderNumber: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  ticketOrderDate: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  ticketStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  ticketStatusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+    textTransform: "uppercase",
+  },
+  ticketTotalAmount: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    alignItems: "center",
+  },
+  ticketTotalLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  ticketTotalValue: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: PrimaryColor,
+  },
+  ticketSectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    padding: 20,
+    paddingBottom: 16,
+  },
+  ticketInfoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  ticketInfoContent: {
+    flex: 1,
+  },
+  ticketInfoLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  ticketInfoValue: {
+    fontSize: 15,
+    color: "#374151",
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  ticketItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    gap: 16,
+  },
+  ticketItemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+  },
+  ticketItemPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  ticketItemInfo: {
+    flex: 1,
+  },
+  ticketItemName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 4,
+  },
+  ticketItemDescription: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 6,
+    lineHeight: 18,
+  },
+  ticketItemPrice: {
+    fontSize: 14,
+    color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  ticketItemTotal: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  ticketItemTotalAmount: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  ticketQuantityBadge: {
+    backgroundColor: PrimaryColor,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  ticketQuantityText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  ticketSummary: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 2,
+    borderTopColor: "#F3F4F6",
+    gap: 8,
+  },
+  ticketSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  ticketSummaryLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  ticketSummaryValue: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "600",
+  },
+  ticketTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  ticketActions: {
+    padding: 20,
+    gap: 12,
+    paddingBottom: 40,
+  },
+  ticketAcceptButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  ticketAdvanceButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  ticketActionGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 8,
+  },
+  ticketActionText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  ticketCancelButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 2,
+    borderColor: "#FECACA",
+    gap: 8,
+  },
+  ticketCancelText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#EF4444",
   },
 });

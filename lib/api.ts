@@ -333,6 +333,61 @@ export const vendorApi = {
       body: JSON.stringify({ imageUrl }),
     });
   },
+
+  // Update restaurant details
+  updateRestaurantDetails: async (
+    restaurantId: string,
+    details: {
+      name?: string;
+      description?: string;
+      phone?: string;
+      email?: string;
+      website?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      latitude?: number;
+      longitude?: number;
+      cuisineType?: string;
+      priceRange?: string;
+      minimumOrderAmount?: number;
+      deliveryFee?: number;
+      estimatedDeliveryTime?: string;
+      isActive?: boolean;
+      acceptsOrders?: boolean;
+    }
+  ) => {
+    return apiCall(`/api/restaurants/${restaurantId}/details`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(details),
+    });
+  },
+
+  // Update restaurant operating hours
+  updateRestaurantHours: async (
+    restaurantId: string,
+    openingHours: {
+      monday: { open: string; close: string; closed: boolean };
+      tuesday: { open: string; close: string; closed: boolean };
+      wednesday: { open: string; close: string; closed: boolean };
+      thursday: { open: string; close: string; closed: boolean };
+      friday: { open: string; close: string; closed: boolean };
+      saturday: { open: string; close: string; closed: boolean };
+      sunday: { open: string; close: string; closed: boolean };
+    }
+  ) => {
+    return apiCall(`/api/restaurants/${restaurantId}/hours`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ openingHours }),
+    });
+  },
 };
 
 // Menu API functions

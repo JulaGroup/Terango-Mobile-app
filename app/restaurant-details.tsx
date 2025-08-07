@@ -8,7 +8,6 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
-  Alert,
   Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +19,45 @@ import { useCart } from "@/context/CartContext";
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = 80;
+
+// Helper function to get category icons
+const getCategoryIcon = (category: string): any => {
+  const categoryLower = category.toLowerCase();
+  if (
+    categoryLower.includes("appetizer") ||
+    categoryLower.includes("starter")
+  ) {
+    return "leaf";
+  } else if (
+    categoryLower.includes("main") ||
+    categoryLower.includes("entree")
+  ) {
+    return "restaurant";
+  } else if (
+    categoryLower.includes("dessert") ||
+    categoryLower.includes("sweet")
+  ) {
+    return "ice-cream";
+  } else if (
+    categoryLower.includes("drink") ||
+    categoryLower.includes("beverage")
+  ) {
+    return "wine";
+  } else if (categoryLower.includes("pizza")) {
+    return "pizza";
+  } else if (
+    categoryLower.includes("burger") ||
+    categoryLower.includes("sandwich")
+  ) {
+    return "fast-food";
+  } else if (categoryLower.includes("salad")) {
+    return "nutrition";
+  } else if (categoryLower.includes("soup")) {
+    return "cafe";
+  } else {
+    return "restaurant-outline";
+  }
+};
 
 // Skeleton Loader Component for Restaurant Details
 const SkeletonLoader = ({
@@ -261,11 +299,30 @@ interface Restaurant {
   description?: string;
   imageUrl?: string;
   isActive: boolean;
+  phone?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  latitude?: number;
+  longitude?: number;
+  minimumOrderAmount?: number;
+  rating?: number;
+  totalReviews?: number;
+  openingHours?: {
+    monday: { open: string; close: string; closed: boolean };
+    tuesday: { open: string; close: string; closed: boolean };
+    wednesday: { open: string; close: string; closed: boolean };
+    thursday: { open: string; close: string; closed: boolean };
+    friday: { open: string; close: string; closed: boolean };
+    saturday: { open: string; close: string; closed: boolean };
+    sunday: { open: string; close: string; closed: boolean };
+  };
   service: {
     id: string;
     name: string;
-    location: string;
-    imageUrl?: string;
+    type: string;
     category: {
       name: string;
     };
@@ -284,6 +341,7 @@ export default function RestaurantDetails() {
   const [activeSection, setActiveSection] = useState<string>("");
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
+  const [fadeAnim] = useState(new Animated.Value(0));
   const [imageLoadErrors, setImageLoadErrors] = useState<{
     [key: string]: boolean;
   }>({});
@@ -349,6 +407,17 @@ export default function RestaurantDetails() {
     }
   }, [restaurantId, fetchRestaurantDetails]);
 
+  // Fade in animation when restaurant data loads
+  useEffect(() => {
+    if (restaurant && !loading) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [restaurant, loading, fadeAnim]);
+
   // Pulse animation for cart button
   useEffect(() => {
     if (cartItems.length > 0) {
@@ -385,10 +454,22 @@ export default function RestaurantDetails() {
 
     addToCart(cartItem);
 
-    // Show feedback
-    Alert.alert("Added to Cart", `${item.name} has been added to your cart!`, [
-      { text: "OK", style: "default" },
-    ]);
+    // Enhanced cart animation feedback
+    Animated.sequence([
+      Animated.timing(cartPulse, {
+        toValue: 1.15,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cartPulse, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Show subtle feedback without blocking UI
+    console.log(`✓ ${item.name} added to cart`);
   };
 
   const getCartItemQuantity = (itemId: string): number => {
@@ -523,12 +604,9 @@ export default function RestaurantDetails() {
           ]}
         >
           {/* Restaurant Background Image */}
-          {(restaurant.service?.imageUrl || restaurant.imageUrl) &&
-          !imageLoadErrors[`hero-${restaurant.id}`] ? (
+          {restaurant.imageUrl && !imageLoadErrors[`hero-${restaurant.id}`] ? (
             <Animated.Image
-              source={{
-                uri: restaurant.service?.imageUrl || restaurant.imageUrl,
-              }}
+              source={{ uri: restaurant.imageUrl }}
               style={[
                 styles.heroBackgroundImage,
                 {
@@ -580,47 +658,98 @@ export default function RestaurantDetails() {
               <View style={styles.restaurantInfo}>
                 <Text style={styles.restaurantName}>{restaurant.name}</Text>
                 <Text style={styles.restaurantDescription}>
-                  {restaurant.description ||
-                    restaurant.service?.category?.name ||
-                    "Delicious food"}
+                  {restaurant.description || "Delicious food made with love"}
                 </Text>
 
+                {/* Enhanced Restaurant Meta */}
                 <View style={styles.restaurantMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location" size={16} color="#fff" />
-                    <Text style={styles.metaText}>
-                      {restaurant.service?.location}
-                    </Text>
-                  </View>
+                  {restaurant.rating && (
+                    <View style={styles.metaItem}>
+                      <Ionicons name="star" size={16} color="#FFD700" />
+                      <Text style={styles.metaText}>
+                        {restaurant.rating.toFixed(1)} (
+                        {restaurant.totalReviews || 0} reviews)
+                      </Text>
+                    </View>
+                  )}
 
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time" size={16} color="#fff" />
-                    <Text style={styles.metaText}>25-35 min</Text>
-                  </View>
+                  {restaurant.address && (
+                    <View style={styles.metaItem}>
+                      <Ionicons
+                        name="location"
+                        size={16}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                      <Text style={styles.metaText}>
+                        {restaurant.city
+                          ? `${restaurant.city}, ${restaurant.state || ""}`
+                          : restaurant.address}
+                      </Text>
+                    </View>
+                  )}
 
-                  <View style={styles.metaItem}>
-                    <Ionicons name="star" size={16} color="#FFD700" />
-                    <Text style={styles.metaText}>4.5 (230 reviews)</Text>
-                  </View>
+                  {restaurant.phone && (
+                    <TouchableOpacity
+                      style={styles.metaItem}
+                      onPress={() => {
+                        if (restaurant.phone) {
+                          // Would open phone dialer in real app
+                          console.log("Calling:", restaurant.phone);
+                        }
+                      }}
+                    >
+                      <Ionicons
+                        name="call"
+                        size={16}
+                        color="rgba(255,255,255,0.9)"
+                      />
+                      <Text style={styles.metaText}>{restaurant.phone}</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {restaurant.minimumOrderAmount &&
+                    restaurant.minimumOrderAmount > 0 && (
+                      <View style={styles.metaItem}>
+                        <Ionicons
+                          name="cash-outline"
+                          size={16}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <Text style={styles.metaText}>
+                          Min. order: ${restaurant.minimumOrderAmount}
+                        </Text>
+                      </View>
+                    )}
                 </View>
 
-                {restaurant.isActive && (
-                  <View style={styles.statusBadge}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>Open Now</Text>
-                  </View>
-                )}
+                {/* Operating Status Badge */}
+                <View style={styles.statusBadge}>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor: restaurant.isActive
+                          ? "#00C851"
+                          : "#FF6B6B",
+                      },
+                    ]}
+                  />
+                  <Text style={styles.statusText}>
+                    {restaurant.isActive ? "Open Now" : "Closed"}
+                  </Text>
+                </View>
               </View>
             </View>
           </LinearGradient>
         </Animated.View>
 
-        {/* Menu Categories */}
+        {/* Enhanced Menu Categories */}
         <View style={styles.categoriesContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.categoriesScroll}
+            contentContainerStyle={styles.categoriesContent}
           >
             {/* All Categories Button */}
             <TouchableOpacity
@@ -631,6 +760,15 @@ export default function RestaurantDetails() {
               ]}
               onPress={() => setActiveSection("")}
             >
+              <View style={styles.categoryIconContainer}>
+                <Ionicons
+                  name="grid"
+                  size={18}
+                  color={
+                    !activeSection || activeSection === "" ? "#fff" : "#007AFF"
+                  }
+                />
+              </View>
               <Text
                 style={[
                   styles.categoryButtonText,
@@ -642,32 +780,47 @@ export default function RestaurantDetails() {
               </Text>
             </TouchableOpacity>
 
-            {/* Individual Category Buttons */}
-            {Object.keys(groupedMenuItems).map((category) => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryButton,
-                  activeSection === category && styles.categoryButtonActive,
-                ]}
-                onPress={() => setActiveSection(category)}
-              >
-                <Text
+            {/* Individual Category Buttons with Icons */}
+            {Object.keys(groupedMenuItems).map((category, index) => {
+              const categoryIcon = getCategoryIcon(category);
+              const itemCount = groupedMenuItems[category]?.length || 0;
+
+              return (
+                <TouchableOpacity
+                  key={category}
                   style={[
-                    styles.categoryButtonText,
-                    activeSection === category &&
-                      styles.categoryButtonTextActive,
+                    styles.categoryButton,
+                    activeSection === category && styles.categoryButtonActive,
                   ]}
+                  onPress={() => setActiveSection(category)}
                 >
-                  {category}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.categoryIconContainer}>
+                    <Ionicons
+                      name={categoryIcon}
+                      size={18}
+                      color={activeSection === category ? "#fff" : "#007AFF"}
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.categoryButtonText,
+                      activeSection === category &&
+                        styles.categoryButtonTextActive,
+                    ]}
+                  >
+                    {category}
+                  </Text>
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryBadgeText}>{itemCount}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
         </View>
 
         {/* Menu Items */}
-        <View style={styles.menuContainer}>
+        <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
           {Object.entries(groupedMenuItems)
             .filter(
               ([category]) =>
@@ -793,7 +946,7 @@ export default function RestaurantDetails() {
                 ))}
               </View>
             ))}
-        </View>
+        </Animated.View>
       </Animated.ScrollView>
 
       {/* Floating Cart Summary */}
@@ -1065,7 +1218,9 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   categoryButton: {
-    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 25,
     backgroundColor: "#F8F9FA",
@@ -1077,6 +1232,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     borderWidth: 1,
     borderColor: "rgba(0, 0, 0, 0.04)",
+    minHeight: 44,
   },
   categoryButtonActive: {
     backgroundColor: PrimaryColor,
@@ -1117,18 +1273,19 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     backgroundColor: "#fff",
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 20,
-    marginBottom: 20,
-    elevation: 8,
+    marginBottom: 16,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
     position: "relative",
     borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.06)",
+    borderColor: "rgba(0, 0, 0, 0.04)",
     width: "100%",
+    overflow: "hidden",
   },
   menuItemContent: {
     flexDirection: "row",
@@ -1316,19 +1473,20 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   cartSummaryButton: {
-    borderRadius: 24,
-    elevation: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
+    borderRadius: 28,
+    elevation: 16,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
   },
   cartSummaryContainer: {
     backgroundColor: "#1F2937",
-    borderRadius: 24,
+    borderRadius: 28,
     padding: 20,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    overflow: "hidden",
   },
   cartSummaryContent: {
     flexDirection: "row",
@@ -1394,5 +1552,30 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     letterSpacing: 0.5,
     marginRight: 8,
+  },
+
+  // Enhanced Category Styles
+  categoriesContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  categoryIconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 6,
+  },
+  categoryBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  categoryBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });

@@ -324,7 +324,7 @@ export default function ProfilePage() {
             icon: "storefront-outline",
             title: "Manage Vendor Business",
             subtitle: "Manage your products, orders & analytics",
-            onPress: () => router.push("/vendor-management"),
+            onPress: () => router.replace("/vendor-management"),
           },
         ]
       : []),
