@@ -10,15 +10,31 @@ export default function TraditionalMeals() {
   const { addToCart, removeFromCart } = useCart();
 
   const handleAddToCart = (productId: number) => {
-    // Find the product to get its storeId, or use a default
+    // Find the product to get its details
     const product = traditionalMealsProducts.find((p) => p.id === productId);
-    const storeId = product?.storeId || 5; // Default storeId if not found
-    addToCart(productId, storeId);
-    console.log("Added to cart:", productId, "from store:", storeId);
+    if (!product) return;
+
+    const cartItem = {
+      id: productId.toString(),
+      name: product.name,
+      price: product.price,
+      description: product.description || "",
+      restaurantId: (product.storeId || 5).toString(),
+      restaurantName: product.storeName || "Traditional Kitchen",
+      imageUrl: "", // Will be handled by ProductCard component
+    };
+
+    addToCart(cartItem);
+    console.log(
+      "Added to cart:",
+      product.name,
+      "from store:",
+      product.storeName || "Traditional Kitchen"
+    );
   };
 
   const handleRemoveFromCart = (productId: number) => {
-    removeFromCart(productId);
+    removeFromCart(productId.toString());
     console.log("Removed from cart:", productId);
   };
 

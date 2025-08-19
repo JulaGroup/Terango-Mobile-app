@@ -4,16 +4,35 @@ import { Ionicons } from "@expo/vector-icons";
 import ProductCard from "./ProductCard";
 import { freshFromFarmProducts } from "@/constants/fakeData";
 import { PrimaryColor } from "@/constants/Colors";
+import { useCart } from "@/context/CartContext";
 
 export default function FreshFromFarm() {
+  const { addToCart, removeFromCart } = useCart();
+
   const handleAddToCart = (productId: number) => {
-    console.log("Added to cart:", productId);
-    // TODO: Implement cart functionality
+    // Find the product to get its details
+    const product = freshFromFarmProducts.find((p) => p.id === productId);
+    if (!product) return;
+
+    const cartItem = {
+      id: productId.toString(),
+      name: product.name,
+      price: product.price,
+      description: `Fresh ${product.category.toLowerCase()} - ${
+        product.organic ? "Organic" : "Farm Fresh"
+      }`,
+      restaurantId: "7", // Default shop ID for farm products
+      restaurantName: "Fresh Farm Market",
+      imageUrl: "", // Will be handled by ProductCard component
+    };
+
+    addToCart(cartItem);
+    console.log("Added to cart:", product.name, "from Fresh Farm Market");
   };
 
   const handleRemoveFromCart = (productId: number) => {
+    removeFromCart(productId.toString());
     console.log("Removed from cart:", productId);
-    // TODO: Implement cart functionality
   };
 
   const renderProductCard = ({ item }: { item: any }) => (

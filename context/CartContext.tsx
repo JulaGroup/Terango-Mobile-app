@@ -9,8 +9,8 @@ interface CartItem {
   price: number;
   quantity: number;
   imageUrl?: string;
-  restaurantId: string;
-  restaurantName: string;
+  vendorId: string;
+  vendorName: string;
   description?: string;
 }
 
@@ -26,8 +26,8 @@ interface CartContextType {
   getItemCount: () => number;
   getTotalQuantity: () => number;
   getQuantity: (itemId: string) => number;
-  getRestaurantDetails: () => { id: string; name: string } | null;
-  getCartByRestaurant: () => Record<string, CartItem[]>;
+  getVendorDetails: () => { id: string; name: string } | null;
+  getCartByVendor: () => Record<string, CartItem[]>;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -42,8 +42,8 @@ const CartContext = createContext<CartContextType>({
   getItemCount: () => 0,
   getTotalQuantity: () => 0,
   getQuantity: () => 0,
-  getRestaurantDetails: () => null,
-  getCartByRestaurant: () => ({}),
+  getVendorDetails: () => null,
+  getCartByVendor: () => ({}),
 });
 
 export const useCart = () => useContext(CartContext);
@@ -89,8 +89,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    // Check if we already have items from a different restaurant
-    if (items.length > 0 && items[0].restaurantId !== newItem.restaurantId) {
+    // Check if we already have items from a different vendor
+    if (items.length > 0 && items[0].vendorId !== newItem.vendorId) {
       Alert.alert(
         "Start New Cart?",
         "You have items in your cart from a different restaurant. Would you like to start a new cart?",
@@ -162,11 +162,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return items.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getRestaurantDetails = () => {
+  const getVendorDetails = () => {
     if (items.length === 0) return null;
     return {
-      id: items[0].restaurantId,
-      name: items[0].restaurantName,
+      id: items[0].vendorId,
+      name: items[0].vendorName,
     };
   };
 
@@ -175,17 +175,17 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     return getCartTotal(); // Just an alias for getCartTotal
   };
 
-  const getCartByRestaurant = () => {
-    const restaurantMap: Record<string, CartItem[]> = {};
+  const getCartByVendor = () => {
+    const vendorMap: Record<string, CartItem[]> = {};
 
     items.forEach((item) => {
-      if (!restaurantMap[item.restaurantId]) {
-        restaurantMap[item.restaurantId] = [];
+      if (!vendorMap[item.vendorId]) {
+        vendorMap[item.vendorId] = [];
       }
-      restaurantMap[item.restaurantId].push(item);
+      vendorMap[item.vendorId].push(item);
     });
 
-    return restaurantMap;
+    return vendorMap;
   };
 
   const getQuantity = (itemId: string) => {
@@ -207,8 +207,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         getItemCount,
         getTotalQuantity,
         getQuantity,
-        getRestaurantDetails,
-        getCartByRestaurant,
+        getVendorDetails,
+        getCartByVendor,
       }}
     >
       {children}

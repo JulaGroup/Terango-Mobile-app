@@ -1,5 +1,6 @@
 // export const API_URL =
 // "https://auth-service-production-8e42.up.railway.app";
+// export const API_URL = "http://192.168.1.39:8080";
 export const API_URL = "http://192.168.1.39:8080";
 // export const API_URL = "http://172.20.10.27:8080" //Phone;
 

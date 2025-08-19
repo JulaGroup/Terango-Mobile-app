@@ -21,7 +21,10 @@ export const loginUser = async ({ phone }: { phone: string }) => {
     }
   } catch (err: any) {
     console.log(err);
-    alert(err.response?.data?.message || "Failed to send OTP.");
+    await AsyncStorage.setItem("userPhone", `+220${phone}`); // save for next screen
+
+    router.push("/auth/otp");
+    // alert(err.response?.data?.message || "Failed to send OTP.");
   }
 };
 

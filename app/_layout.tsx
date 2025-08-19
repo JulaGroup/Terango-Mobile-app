@@ -104,62 +104,13 @@ export default function RootLayout() {
                   }}
                 />
                 <Stack.Screen
-                  name="vendor-application"
+                  name="shop-details"
                   options={{
                     animation: "slide_from_right",
                     headerShown: false,
                   }}
                 />
-                <Stack.Screen
-                  name="vendor-dashboard"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management/restaurants"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management/shops"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management/pharmacies"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management/orders"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="vendor-management/analytics"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                {/* Vendor management routes are handled in the vendor-management/_layout.tsx */}
+
                 <Stack.Screen
                   name="checkout"
                   options={{

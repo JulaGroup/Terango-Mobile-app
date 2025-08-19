@@ -28,7 +28,7 @@ export default function Cart() {
     getTotalQuantity,
     updateQuantity,
     removeFromCart,
-    getCartByRestaurant,
+    getCartByVendor,
     clearCart,
   } = useCart();
 
@@ -58,8 +58,8 @@ export default function Cart() {
     ]).start();
   }, [fadeAnim, slideAnim, checkoutButtonAnim]);
 
-  const restaurantCarts = getCartByRestaurant();
-  const restaurantIds = Object.keys(restaurantCarts);
+  const vendorCarts = getCartByVendor();
+  const vendorIds = Object.keys(vendorCarts);
 
   const handleClearCart = () => {
     Alert.alert(
@@ -129,17 +129,17 @@ export default function Cart() {
             {item.name}
           </Text>
 
-          {item.description && (
+          {item.description ? (
             <Text style={styles.itemDescription} numberOfLines={2}>
               {item.description}
             </Text>
-          )}
+          ) : null}
 
           <Text style={styles.itemPrice}>D{item.price.toFixed(2)}</Text>
 
           <View style={styles.itemFooter}>
             <Text style={styles.itemRestaurant} numberOfLines={1}>
-              {item.restaurantName}
+              {item.vendorName}
             </Text>
 
             <View style={styles.quantityControls}>
@@ -183,15 +183,15 @@ export default function Cart() {
     );
   };
 
-  const RestaurantSection = ({
-    restaurantId,
+  const VendorSection = ({
+    vendorId,
     items,
   }: {
-    restaurantId: string;
+    vendorId: string;
     items: typeof cartItems;
   }) => {
-    const restaurantName = items[0]?.restaurantName || "Restaurant";
-    const restaurantTotal = items.reduce(
+    const vendorName = items[0]?.vendorName || "Vendor";
+    const vendorTotal = items.reduce(
       (total, item) => total + item.price * item.quantity,
       0
     );
@@ -203,10 +203,10 @@ export default function Cart() {
             <Ionicons name="restaurant" size={18} color="#FF6B35" />
           </View>
           <View style={styles.restaurantInfo}>
-            <Text style={styles.restaurantName}>{restaurantName}</Text>
+            <Text style={styles.restaurantName}>{vendorName}</Text>
             <Text style={styles.restaurantItemCount}>
               {items.length} item{items.length > 1 ? "s" : ""} • D
-              {restaurantTotal.toFixed(2)}
+              {vendorTotal.toFixed(2)}
             </Text>
           </View>
         </View>
@@ -301,21 +301,21 @@ export default function Cart() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {restaurantIds.length > 1 && (
+        {vendorIds.length > 1 ? (
           <View style={styles.multiRestaurantNotice}>
             <Ionicons name="information-circle" size={16} color="#F59E0B" />
             <Text style={styles.noticeText}>
-              Your cart contains items from {restaurantIds.length} restaurants.
-              Separate orders will be created for each.
+              Your cart contains items from {vendorIds.length} vendors. Separate
+              orders will be created for each.
             </Text>
           </View>
-        )}
+        ) : null}
 
-        {restaurantIds.map((restaurantId) => (
-          <RestaurantSection
-            key={restaurantId}
-            restaurantId={restaurantId}
-            items={restaurantCarts[restaurantId]}
+        {vendorIds.map((vendorId) => (
+          <VendorSection
+            key={vendorId}
+            vendorId={vendorId}
+            items={vendorCarts[vendorId]}
           />
         ))}
 

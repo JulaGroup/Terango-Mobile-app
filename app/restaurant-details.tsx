@@ -365,10 +365,9 @@ export default function RestaurantDetails() {
       }
 
       const data = await response.json();
-      console.log("Restaurant details:", data);
 
       setRestaurant(data);
-
+      console.log("Fetched restaurant details:", data);
       // Group menu items by meal time
       const grouped: { [key: string]: MenuItem[] } = {};
 
@@ -447,8 +446,8 @@ export default function RestaurantDetails() {
       name: item.name,
       price: item.price,
       description: item.description || "",
-      restaurantId: restaurant.id,
-      restaurantName: restaurant.name,
+      vendorId: restaurant.id,
+      vendorName: restaurant.name,
       imageUrl: item.imageUrl || "",
     };
 

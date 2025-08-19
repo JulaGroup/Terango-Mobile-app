@@ -177,10 +177,11 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
   const dismissLocationModal = () => {
     setShowLocationModal(false);
-    // Still show notification modal if needed
-    if (permissions.notifications === "not-asked") {
-      setTimeout(() => setShowNotificationModal(true), 2000);
-    }
+    // Mark that we've shown the permission modals
+    AsyncStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
+    setHasShownPermissionModals(true);
+    // Do NOT show notification modal again if modals have been marked as shown
+    // If you want to show notification modal only once, this prevents repeat popups
   };
 
   const dismissNotificationModal = async () => {

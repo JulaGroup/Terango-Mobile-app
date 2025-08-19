@@ -584,6 +584,55 @@ export const orderApi = {
       body: JSON.stringify({ reason }),
     });
   },
+
+  // Shop Products Management
+  getShopProducts: async (shopId: string) => {
+    return apiCall(`/api/product/shop/${shopId}`);
+  },
+
+  createShopProduct: async (productData: FormData) => {
+    return apiCall("/api/product", {
+      method: "POST",
+      body: productData,
+    });
+  },
+
+  updateShopProduct: async (productId: string, productData: FormData) => {
+    return apiCall(`/api/product/${productId}`, {
+      method: "PUT",
+      body: productData,
+    });
+  },
+
+  deleteShopProduct: async (productId: string) => {
+    return apiCall(`/api/product/${productId}`, {
+      method: "DELETE",
+    });
+  },
+
+  getShopProductById: async (productId: string) => {
+    return apiCall(`/api/product/${productId}`);
+  },
+
+  // Shop Orders Management
+  getShopOrders: async (userId: string) => {
+    return apiCall(`/api/order/shop/vendor/${userId}`);
+  },
+
+  updateShopOrderStatus: async (orderId: string, status: string) => {
+    return apiCall(`/api/order/${orderId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Shop Settings Management
+  updateShopSettings: async (shopId: string, settings: any) => {
+    return apiCall(`/api/shop/${shopId}`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
+  },
 };
 
 // Admin API functions for managing all products/menu items

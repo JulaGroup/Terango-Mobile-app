@@ -14,6 +14,7 @@ import StoresNearYou from "@/components/ui/home/StoresNearYouNew";
 import GreatForBreakfast from "@/components/ui/home/GreatForBreakfast";
 import TraditionalMeals from "@/components/ui/home/TraditionalMeals";
 import LocalBeverages from "@/components/ui/home/LocalBeverages";
+import LocalShops from "@/components/ui/home/LocalShops";
 
 // New sections based on actual subcategories
 import LocalDishes from "@/components/ui/home/LocalDishes";
@@ -154,11 +155,19 @@ export default function HomeScreen() {
         {/* Restaurants Near You - Moved Higher */}
         <RestaurantNearYou />
 
+        {/* Stores Near You - Moved Higher */}
+        {/* <StoresNearYou /> */}
+
+        {/* Local Shops - Quality products near you */}
+        <LocalShops />
+
         {/* Hero Banner with Navigation Buttons */}
         <HeroBanner />
 
-        {/* Stores Near You - Moved Higher */}
-        <StoresNearYou />
+        {/* Traditional Meals and Beverages */}
+        {/* <TraditionalMeals /> */}
+        {/* <LocalBeverages /> */}
+        <FreshFromFarm />
 
         {/* Local Dishes - Authentic Gambian cuisine */}
         {/* <LocalDishes /> */}

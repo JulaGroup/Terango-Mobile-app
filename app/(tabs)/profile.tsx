@@ -16,7 +16,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { Ionicons } from "@expo/vector-icons";
-import { VendorApplicationAPI } from "@/lib/vendorApplicationAPI";
+import VendorApplicationAPI from "../../lib/vendorApplicationAPI";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{
@@ -29,134 +29,135 @@ export default function ProfilePage() {
     addresses?: any[];
     preferences?: any;
   } | null>(null);
+  const [vendorApplication, setVendorApplication] = useState<{
+    status: string;
+    businessName: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [vendorApplication, setVendorApplication] = useState<{
-    status: "PENDING" | "APPROVED" | "REJECTED" | "WAITING_LIST" | null;
-    businessName?: string;
-  } | null>(null);
   const router = useRouter();
 
   // Animated skeleton loader
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
   // Fetch user data function (extracted to be reusable)
-  const fetchUserData = useCallback(
-    async (isRefresh = false) => {
-      try {
-        const userId = await AsyncStorage.getItem("userId");
-        const token = await AsyncStorage.getItem("token");
-        const userPhone = await AsyncStorage.getItem("userPhone");
+  const fetchUserData = useCallback(async (isRefresh = false) => {
+    try {
+      const userId = await AsyncStorage.getItem("userId");
+      const token = await AsyncStorage.getItem("token");
+      const userPhone = await AsyncStorage.getItem("userPhone");
 
-        if (!userId || !token) {
-          // Not logged in - set loading to false and user to null
-          if (!isRefresh) setLoading(false);
-          setUser(null);
-          return;
-        }
-
-        // User has credentials, try to fetch their data
-        try {
-          const response = await axios.get(
-            `${API_URL}/api/users/${userId}/profile`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-          console.log("Profile data fetched successfully:", response.data);
-          const profileData = response.data;
-          const userData = profileData.user;
-
-          // Store user data for other parts of the app
-          await AsyncStorage.setItem("userData", JSON.stringify(userData));
-
-          setUser({
-            fullName: userData?.fullName,
-            email: userData?.email,
-            phone: userData?.phone || userPhone,
-            role: userData?.role,
-            avatarUrl: userData?.avatarUrl || profileData?.avatarUrl,
-            isVerified: userData?.isVerified,
-            addresses: profileData?.addresses || [],
-            preferences: profileData?.preferences || {},
-          });
-
-          // Fetch vendor application status if user is not already a vendor
-          if (userData?.role !== "VENDOR") {
-            try {
-              const applicationResponse =
-                await VendorApplicationAPI.getUserApplication(token);
-              if (applicationResponse?.application) {
-                const applicationData = {
-                  status: applicationResponse.application.status,
-                  businessName: applicationResponse.application.businessName,
-                };
-                setVendorApplication(applicationData);
-
-                // Auto-redirect approved vendors to their dashboard (only on initial load, not refresh)
-                if (applicationData.status === "APPROVED" && !isRefresh) {
-                  // Show a brief notification before redirecting
-                  Alert.alert(
-                    "Welcome Back!",
-                    `Welcome back to your vendor dashboard for "${applicationData.businessName}".`,
-                    [
-                      {
-                        text: "Go to Dashboard",
-                        onPress: () => router.push("/vendor-management"),
-                      },
-                      {
-                        text: "Stay on Profile",
-                        style: "cancel",
-                      },
-                    ]
-                  );
-                }
-              }
-            } catch (error: any) {
-              // If no application found (404), that's fine - user hasn't applied yet
-              if (!error.message?.includes("No application found")) {
-                console.log("Error fetching vendor application:", error);
-              }
-            }
-          }
-        } catch (apiError: any) {
-          console.log("API call failed:", apiError);
-
-          // Check if it's an authentication error (401/403)
-          if (
-            apiError.response?.status === 401 ||
-            apiError.response?.status === 403
-          ) {
-            // Token is invalid/expired - clear auth data and redirect to login
-            console.log("Authentication failed - clearing auth data");
-            await AsyncStorage.multiRemove([
-              "token",
-              "userId",
-              "userPhone",
-              "isLoggedIn",
-              "userData",
-            ]);
-            setUser(null);
-            // Don't show error alert for auth failures - just silently handle it
-          } else {
-            // Other API errors - show error message
-            // Alert.alert("Error", "Failed to load user data. Please try again.");
-            setUser(null);
-          }
-        }
-      } catch (error) {
-        console.log("Failed to fetch user data:", error);
-        // General error (e.g., AsyncStorage issues) - just set user to null
-        setUser(null);
-      } finally {
+      if (!userId || !token) {
+        // Not logged in - set loading to false and user to null
         if (!isRefresh) setLoading(false);
+        setUser(null);
+        return;
       }
-    },
-    [router]
-  );
+
+      // User has credentials, try to fetch their data
+      try {
+        const response = await axios.get(
+          `${API_URL}/api/users/${userId}/profile`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        console.log("Profile data fetched successfully:", response.data);
+        const profileData = response.data;
+        const userData = profileData.user;
+
+        // Store user data for other parts of the app
+        await AsyncStorage.setItem("userData", JSON.stringify(userData));
+
+        setUser({
+          fullName: userData?.fullName,
+          email: userData?.email,
+          phone: userData?.phone || userPhone,
+          role: userData?.role,
+          avatarUrl: userData?.avatarUrl || profileData?.avatarUrl,
+          isVerified: userData?.isVerified,
+          addresses: profileData?.addresses || [],
+          preferences: profileData?.preferences || {},
+        });
+
+        // Fetch vendor application status if user is not already a vendor
+        if (userData?.role !== "VENDOR") {
+          try {
+            const applicationResponse =
+              await VendorApplicationAPI.getUserApplication(token);
+            if (applicationResponse?.application) {
+              const applicationData = {
+                status: applicationResponse.application.status,
+                businessName: applicationResponse.application.businessName,
+              };
+              setVendorApplication(applicationData);
+
+              // Show notification for approved vendors about web portal
+              if (applicationData.status === "APPROVED" && !isRefresh) {
+                Alert.alert(
+                  "Vendor Account Approved!",
+                  `Congratulations! Your vendor application for "${applicationData.businessName}" has been approved. You can now manage your business through our vendor web portal.`,
+                  [
+                    {
+                      text: "Learn More",
+                      onPress: () =>
+                        Alert.alert(
+                          "Vendor Web Portal",
+                          "Visit our vendor web portal on your computer or tablet to manage your products, view orders, and track your business analytics. The web portal provides better tools for business management.",
+                          [{ text: "OK" }]
+                        ),
+                    },
+                    {
+                      text: "OK",
+                      style: "cancel",
+                    },
+                  ]
+                );
+              }
+            }
+          } catch (error: any) {
+            // If no application found (404), that's fine - user hasn't applied yet
+            if (!error.message?.includes("No application found")) {
+              console.log("Error fetching vendor application:", error);
+            }
+          }
+        }
+      } catch (apiError: any) {
+        console.log("API call failed:", apiError);
+
+        // Check if it's an authentication error (401/403)
+        if (
+          apiError.response?.status === 401 ||
+          apiError.response?.status === 403
+        ) {
+          // Token is invalid/expired - clear auth data and redirect to login
+          console.log("Authentication failed - clearing auth data");
+          await AsyncStorage.multiRemove([
+            "token",
+            "userId",
+            "userPhone",
+            "isLoggedIn",
+            "userData",
+          ]);
+          setUser(null);
+          // Don't show error alert for auth failures - just silently handle it
+        } else {
+          // Other API errors - show error message
+          // Alert.alert("Error", "Failed to load user data. Please try again.");
+          setUser(null);
+        }
+      }
+    } catch (error) {
+      console.log("Failed to fetch user data:", error);
+      // General error (e.g., AsyncStorage issues) - just set user to null
+      setUser(null);
+    } finally {
+      if (!isRefresh) setLoading(false);
+    }
+  }, []);
 
   // Pull to refresh handler
   const onRefresh = async () => {
@@ -268,8 +269,23 @@ export default function ProfilePage() {
           );
           break;
         case "APPROVED":
-          // Direct navigation to vendor management for approved vendors
-          router.push("/vendor-management");
+          // Redirect approved vendors to web portal information
+          Alert.alert(
+            "Vendor Account Approved!",
+            `Congratulations! Your vendor account for "${vendorApplication.businessName}" is active. Please visit our vendor web portal to manage your business.`,
+            [
+              {
+                text: "Learn More",
+                onPress: () =>
+                  Alert.alert(
+                    "Vendor Web Portal",
+                    "Visit our vendor web portal on your computer or tablet to:\n\n• Manage your products and inventory\n• View and process orders\n• Track sales and analytics\n• Update store settings\n\nThe web portal provides better tools for business management than the mobile app.",
+                    [{ text: "Got it!" }]
+                  ),
+              },
+              { text: "OK" },
+            ]
+          );
           break;
         case "REJECTED":
           Alert.alert(
@@ -279,7 +295,12 @@ export default function ProfilePage() {
               { text: "Cancel" },
               {
                 text: "Apply Again",
-                onPress: () => router.push("/vendor-application"),
+                onPress: () =>
+                  Alert.alert(
+                    "New Application",
+                    "To submit a new vendor application, please contact our support team who will guide you through the process.",
+                    [{ text: "OK" }]
+                  ),
               },
             ]
           );
@@ -292,42 +313,50 @@ export default function ProfilePage() {
           );
           break;
         default:
-          // Fallback to default behavior
-          router.push("/vendor-application");
+          // Fallback for new applications
+          showVendorApplicationInfo();
       }
     } else {
       // No application exists, show the default dialog
-      Alert.alert(
-        "Become a Vendor",
-        "Ready to start selling on TeranGo? Join thousands of vendors serving customers across The Gambia!",
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-          {
-            text: "Apply Now",
-            onPress: () => {
-              router.push("/vendor-application");
-            },
-          },
-        ]
-      );
+      showVendorApplicationInfo();
     }
   };
 
-  const menuItems = [
-    // Add vendor management for VENDOR role users
-    ...(user?.role === "VENDOR"
-      ? [
-          {
-            icon: "storefront-outline",
-            title: "Manage Vendor Business",
-            subtitle: "Manage your products, orders & analytics",
-            onPress: () => router.replace("/vendor-management"),
+  const showVendorApplicationInfo = () => {
+    Alert.alert(
+      "Become a Vendor",
+      "Ready to start selling on TeranGo? Join thousands of vendors serving customers across The Gambia!",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Apply Now",
+          onPress: () => {
+            Alert.alert(
+              "Vendor Application",
+              "To become a vendor on TeranGo, please contact our team who will guide you through the application process and requirements.",
+              [
+                {
+                  text: "Contact Support",
+                  onPress: () =>
+                    Alert.alert(
+                      "Contact Information",
+                      "Please contact us at:\n\nEmail: vendors@terango.gm\nPhone: +220 XXX XXXX\n\nOur team will help you get started!",
+                      [{ text: "Got it!" }]
+                    ),
+                },
+                { text: "Cancel", style: "cancel" },
+              ]
+            );
           },
-        ]
-      : []),
+        },
+      ]
+    );
+  };
+
+  const menuItems = [
     {
       icon: "person-outline",
       title: "Edit Profile",
@@ -849,7 +878,7 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: "#fff",
     marginHorizontal: 20,
-    marginTop: 60,
+    marginTop: 10,
     borderRadius: 24,
     padding: 24,
     shadowColor: "#000",

@@ -30,7 +30,7 @@ export default function Checkout() {
     clearCart,
     getTotalAmount,
     getTotalQuantity,
-    getCartByRestaurant,
+    getCartByVendor,
   } = useCart();
 
   // Animation values
@@ -56,7 +56,7 @@ export default function Checkout() {
 
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
 
-  const restaurantCarts = getCartByRestaurant();
+  const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
   const deliveryFee = 300;
@@ -317,7 +317,7 @@ export default function Checkout() {
       <View
         style={[styles.radioButton, selected && styles.radioButtonSelected]}
       >
-        {selected && <View style={styles.radioButtonInner} />}
+        {selected ? <View style={styles.radioButtonInner} /> : null}
       </View>
     </TouchableOpacity>
   );
@@ -404,7 +404,7 @@ export default function Checkout() {
             {restaurantIds.map((restaurantId, index) => {
               const restaurantItems = restaurantCarts[restaurantId];
               const restaurantName =
-                restaurantItems[0]?.restaurantName || "Restaurant";
+                restaurantItems[0]?.vendorName || "Restaurant";
               const restaurantTotal = restaurantItems.reduce(
                 (sum, item) => sum + item.price * item.quantity,
                 0
@@ -483,7 +483,7 @@ export default function Checkout() {
             <View style={styles.inputGroup}>
               <View style={styles.labelContainer}>
                 <Text style={styles.inputLabel}>Full Name</Text>
-                {userProfile?.isVerified && (
+                {userProfile?.isVerified ? (
                   <View style={styles.verifiedBadge}>
                     <Ionicons
                       name="checkmark-circle"
@@ -492,7 +492,7 @@ export default function Checkout() {
                     />
                     <Text style={styles.verifiedText}>Verified</Text>
                   </View>
-                )}
+                ) : null}
               </View>
               <View style={[styles.input, styles.readOnlyInput]}>
                 <Text style={styles.readOnlyText}>
@@ -509,7 +509,7 @@ export default function Checkout() {
             <View style={styles.inputGroup}>
               <View style={styles.labelContainer}>
                 <Text style={styles.inputLabel}>Phone Number</Text>
-                {userProfile?.isVerified && (
+                {userProfile?.isVerified ? (
                   <View style={styles.verifiedBadge}>
                     <Ionicons
                       name="checkmark-circle"
@@ -518,7 +518,7 @@ export default function Checkout() {
                     />
                     <Text style={styles.verifiedText}>Verified</Text>
                   </View>
-                )}
+                ) : null}
               </View>
               <View style={[styles.input, styles.readOnlyInput]}>
                 <Text style={styles.readOnlyText}>
@@ -613,7 +613,7 @@ export default function Checkout() {
             />
           </Animated.View>
 
-          {restaurantIds.length > 1 && (
+          {restaurantIds.length > 1 ? (
             <View style={styles.multiRestaurantNotice}>
               <Ionicons name="information-circle" size={16} color="#F59E0B" />
               <Text style={styles.noticeText}>
@@ -622,7 +622,7 @@ export default function Checkout() {
                 restaurant.
               </Text>
             </View>
-          )}
+          ) : null}
         </ScrollView>
 
         {/* Place Order Button */}

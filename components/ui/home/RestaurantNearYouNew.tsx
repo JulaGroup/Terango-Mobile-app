@@ -182,7 +182,6 @@ const RestaurantNearYou = () => {
       }
 
       const data = await response.json();
-      console.log("Fetched restaurants:", data);
 
       // Handle both array response and object with data property
       const restaurantList = Array.isArray(data) ? data : data.data || [];
