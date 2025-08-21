@@ -226,13 +226,6 @@ export default function ProfilePage() {
     }, [fetchUserData])
   );
 
-  // Auto-redirect vendors to their dashboard
-  useEffect(() => {
-    if (user && user.role === "VENDOR") {
-      console.log("User is a vendor, considering auto-redirect to dashboard");
-    }
-  }, [user]);
-
   const handleLogout = async () => {
     Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
       {
