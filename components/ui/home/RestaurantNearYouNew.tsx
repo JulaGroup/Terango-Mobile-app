@@ -560,6 +560,7 @@ const RestaurantNearYou = () => {
                 backgroundColor: "#fff",
                 borderRadius: 16,
                 marginRight: index === restaurants.length - 1 ? 0 : 16,
+                marginVertical: 8,
                 elevation: 12,
                 shadowColor: "#000",
                 shadowOffset: { width: 0, height: 8 },

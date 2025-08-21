@@ -10,6 +10,7 @@ import {
   Animated,
   Image,
   FlatList,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -134,11 +135,12 @@ const ProductCard = ({
     setTimer(t);
   };
 
+  const { updateQuantity } = useCart();
   const handleRemove = () => {
-    onRemoveFromCart(product.id);
-
-    // if cart becomes empty, collapse back
-    if (cartQuantity - 1 <= 0) {
+    if (cartQuantity > 1) {
+      updateQuantity(product.id, cartQuantity - 1);
+    } else {
+      onRemoveFromCart(product.id);
       setExpanded(false);
       if (timer) clearTimeout(timer);
     }
@@ -164,66 +166,70 @@ const ProductCard = ({
           />
         ) : (
           <View style={styles.productImagePlaceholder}>
-            <Ionicons name="storefront" size={32} color="#ccc" />
+            <Ionicons name="storefront" size={32} color="#E5E5E5" />
           </View>
         )}
 
+        {/* Discount Badge (optional - you can add discount logic) */}
+        {/* <View style={styles.discountBadge}>
+          <Text style={styles.discountText}>-20%</Text>
+        </View> */}
+
         {/* Floating Add/Quantity Controls */}
-        {cartQuantity > 1 && !expanded ? (
+        {cartQuantity === 0 ? (
           <TouchableOpacity
             style={styles.floatingAddButton}
             onPress={handleAdd}
+            activeOpacity={0.8}
           >
-            <Ionicons name="add" size={20} color="#fff" />
+            <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         ) : expanded ? (
           <View style={styles.overlayControls}>
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={handleRemove}
+              activeOpacity={0.8}
             >
-              <Ionicons name="remove" size={16} color="#fff" />
+              <Ionicons name="remove" size={14} color="#fff" />
             </TouchableOpacity>
 
             <Text style={styles.quantityText}>{cartQuantity}</Text>
 
-            <TouchableOpacity style={styles.quantityButton} onPress={handleAdd}>
-              <Ionicons name="add" size={16} color="#fff" />
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={handleAdd}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
-          // collapsed state: just show quantity badge instead of +
           <TouchableOpacity
             style={styles.floatingAddButton}
-            onPress={() => setExpanded(true)} // expand again on press
+            onPress={() => setExpanded(true)}
+            activeOpacity={0.8}
           >
-            <Text
-              style={{
-                color: "#fff",
-                fontWeight: "bold",
-                fontSize: 16,
-              }}
-            >
-              {cartQuantity}
-            </Text>
+            <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* Product Info */}
       <View style={styles.productInfo}>
-        <Text style={styles.productPrice}>D {product.price.toFixed(1)}</Text>
         <Text style={styles.productName} numberOfLines={2}>
           {product.name}
         </Text>
         {product.description && (
-          <Text
-            style={{ fontSize: 12, color: "#888", marginTop: 2 }}
-            numberOfLines={2}
-          >
+          <Text style={styles.productDescription} numberOfLines={2}>
             {product.description}
           </Text>
         )}
+        <View style={styles.productPriceRow}>
+          <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
+          {/* Optional: Previous price for discounted items */}
+          {/* <Text style={styles.productPreviousPrice}>D{(product.price * 1.2).toFixed(2)}</Text> */}
+        </View>
       </View>
     </View>
   );
@@ -248,7 +254,7 @@ const CategorySection = ({
   const categoryIcon = getCategoryIcon(category);
 
   const renderProductCard = ({ item }: { item: Product }) => (
-    <View style={{ marginRight: 12 }}>
+    <View style={styles.productCardWrapper}>
       <ProductCard
         product={item}
         onAddToCart={onAddToCart}
@@ -261,12 +267,17 @@ const CategorySection = ({
   return (
     <View style={styles.categorySection}>
       {/* Category Header */}
-      <View style={styles.categoryHeader}>
-        <View style={styles.categoryHeaderLeft}>
-          <View style={styles.categoryIconContainer}>
-            <Ionicons name={categoryIcon} size={24} color="#fff" />
+      <View style={styles.categoryHeaderContainer}>
+        <View style={styles.categoryHeaderContent}>
+          <View style={styles.categoryIconWrapper}>
+            <LinearGradient
+              colors={["#FF8500", "#FF6B00"]}
+              style={styles.categoryIconContainer}
+            >
+              <Ionicons name={categoryIcon} size={20} color="#fff" />
+            </LinearGradient>
           </View>
-          <View>
+          <View style={styles.categoryTextContainer}>
             <Text style={styles.categoryTitle}>{category}</Text>
             <Text style={styles.categorySubtitle}>
               {products.length} {products.length === 1 ? "item" : "items"}{" "}
@@ -274,17 +285,30 @@ const CategorySection = ({
             </Text>
           </View>
         </View>
+
+        {/* View All Button */}
+        <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.7}>
+          <Text style={styles.viewAllText}>View all</Text>
+          <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
+        </TouchableOpacity>
       </View>
 
-      {/* Quality Banner (optional - you can customize per category) */}
+      {/* Quality Banner */}
       {/* <View style={styles.qualityBanner}>
-        <View style={styles.qualityBannerContent}>
-          <Ionicons name="checkmark-circle" size={16} color={PrimaryColor} />
-          <Text style={styles.qualityBannerTitle}>Quality Guaranteed</Text>
+        <View style={styles.qualityBannerLeft}>
+          <View style={styles.qualityIconContainer}>
+            <Ionicons name="checkmark-circle" size={16} color="#27AE60" />
+          </View>
+          <View>
+            <Text style={styles.qualityTitle}>Fresh & Quality Assured</Text>
+            <Text style={styles.qualitySubtitle}>
+              Handpicked • Best prices • Fast delivery
+            </Text>
+          </View>
         </View>
-        <Text style={styles.qualityBannerText}>
-          Handpicked products • Best prices • Fast delivery
-        </Text>
+        <View style={styles.qualityBadge}>
+          <Text style={styles.qualityBadgeText}>Premium</Text>
+        </View>
       </View> */}
 
       {/* Products Horizontal Slider */}
@@ -294,7 +318,10 @@ const CategorySection = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.productsListContainer}
-        ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
+        ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+        snapToInterval={180}
+        decelerationRate="fast"
+        scrollEventThrottle={16}
       />
     </View>
   );
@@ -394,21 +421,37 @@ const ShopDetailsSkeleton = () => {
       </View>
 
       {/* Categories Skeleton */}
-      <ScrollView style={{ flex: 1, padding: 20 }}>
+      <ScrollView style={{ flex: 1, paddingTop: 20 }}>
         {[1, 2, 3].map((item) => (
-          <View key={item} style={{ marginBottom: 30 }}>
-            <SkeletonLoader
-              width="60%"
-              height={22}
-              style={{ marginBottom: 16 }}
-            />
-            <ScrollView horizontal>
+          <View key={item} style={{ marginBottom: 32, paddingHorizontal: 16 }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <SkeletonLoader
+                width={40}
+                height={40}
+                style={{ borderRadius: 20, marginRight: 12 }}
+              />
+              <View style={{ flex: 1 }}>
+                <SkeletonLoader
+                  width="60%"
+                  height={18}
+                  style={{ marginBottom: 4 }}
+                />
+                <SkeletonLoader width="40%" height={14} />
+              </View>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {[1, 2, 3].map((card) => (
                 <View key={card} style={{ marginRight: 12 }}>
                   <SkeletonLoader
-                    width={160}
-                    height={200}
-                    style={{ borderRadius: 12 }}
+                    width={168}
+                    height={220}
+                    style={{ borderRadius: 16 }}
                   />
                 </View>
               ))}
@@ -801,7 +844,7 @@ export default function ShopDetails() {
                       style={styles.metaItem}
                       onPress={() => {
                         if (shop.phone) {
-                          console.log("Calling:", shop.phone);
+                          Linking.openURL(`tel:${shop.phone}`);
                         }
                       }}
                     >
@@ -935,7 +978,7 @@ export default function ShopDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FAFAFA",
   },
   errorContainer: {
     flex: 1,
@@ -1133,142 +1176,214 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   categoriesContainer: {
-    backgroundColor: "#fff",
-    paddingBottom: 20,
+    backgroundColor: "#FAFAFA",
+    paddingTop: 8,
+    paddingBottom: 100,
   },
   categorySection: {
-    paddingVertical: 20,
+    marginVertical: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginHorizontal: 8,
+    boxShadow:
+      "rgba(0, 0, 0, 0.1) 0px 0px 5px 0px, rgba(0, 0, 0, 0.1) 0px 0px 1px 0px",
   },
-  categoryHeader: {
+  categoryHeaderContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  categoryHeaderLeft: {
+  categoryHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
+    flex: 1,
   },
-  categoryIconContainer: {
-    backgroundColor: PrimaryColor,
-    borderRadius: 12,
-    padding: 12,
+  categoryIconWrapper: {
     marginRight: 12,
   },
+  categoryIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  categoryTextContainer: {
+    flex: 1,
+  },
   categoryTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    letterSpacing: -0.5,
+    marginBottom: 2,
   },
   categorySubtitle: {
     fontSize: 14,
     color: "#666",
-    marginTop: 2,
+    fontWeight: "500",
   },
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#FFF5F0",
     borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 133, 0, 0.2)",
   },
   viewAllText: {
-    fontSize: 12,
+    fontSize: 13,
     color: PrimaryColor,
     fontWeight: "600",
     marginRight: 4,
   },
   qualityBanner: {
     marginHorizontal: 16,
-    backgroundColor: "#E8F5E8",
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     padding: 16,
     marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: PrimaryColor,
-  },
-  qualityBannerContent: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: "#27AE60",
   },
-  qualityBannerTitle: {
-    fontSize: 14,
+  qualityBannerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  qualityIconContainer: {
+    width: 36,
+    height: 36,
+    backgroundColor: "#E8F5E8",
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  qualityTitle: {
+    fontSize: 15,
     fontWeight: "600",
-    color: PrimaryColor,
-    marginLeft: 8,
+    color: "#1A1A1A",
+    marginBottom: 2,
   },
-  qualityBannerText: {
+  qualitySubtitle: {
     fontSize: 12,
-    color: "#4A5D4A",
-    marginTop: 4,
+    color: "#666",
     lineHeight: 16,
+  },
+  qualityBadge: {
+    backgroundColor: "#27AE60",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  qualityBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#fff",
+    letterSpacing: 0.5,
   },
   productsListContainer: {
     paddingHorizontal: 16,
   },
-  productCard: {
-    width: 160,
-    boxShadow:
-      "rgba(0, 0, 0, 0.02) 0px 1px 3px 0px, rgba(27, 31, 35, 0.15) 0px 0px 0px 1px",
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-    marginVertical: 1,
+  productCardWrapper: {
+    width: 168,
   },
-
+  productCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+    marginBottom: 2,
+    boxShadow:
+      " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
+  },
   productImageContainer: {
     width: "100%",
     height: 140,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    overflow: "hidden",
     position: "relative",
+    overflow: "hidden",
   },
-
   productImage: {
     width: "100%",
     height: "100%",
+    backgroundColor: "#F8F8F8",
   },
-
   productImagePlaceholder: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "#F8F8F8",
   },
-
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#EF4444",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   floatingAddButton: {
     position: "absolute",
-    bottom: 10,
-    right: 10,
+    bottom: 8,
+    right: 8,
+    width: 36,
+    height: 36,
     backgroundColor: PrimaryColor,
-    borderRadius: 50,
-    width: 40,
-    height: 40,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    padding: 8,
-    elevation: 4,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
-
   overlayControls: {
     position: "absolute",
-    bottom: 10,
-    right: 10,
+    bottom: 8,
+    right: 8,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-
   quantityButton: {
     width: 28,
     height: 28,
@@ -1277,65 +1392,51 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
   quantityText: {
     color: "#fff",
     fontSize: 14,
-    fontWeight: "bold",
-    marginHorizontal: 8,
+    fontWeight: "700",
+    marginHorizontal: 10,
+    minWidth: 20,
+    textAlign: "center",
   },
-
+  quantityBadgeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
   productInfo: {
-    padding: 10,
+    padding: 12,
   },
-
   productName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
-    color: "#333",
+    color: "#1A1A1A",
     marginBottom: 4,
+    lineHeight: 20,
   },
-
-  productPrice: {
-    fontSize: 17,
-    fontFamily: "Inter",
-    fontWeight: "bold",
-    color: PrimaryColor,
+  productDescription: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 8,
+    lineHeight: 16,
   },
   productPriceRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
   },
-  productActions: {
-    flexDirection: "row",
-    alignItems: "center",
+  productPrice: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: PrimaryColor,
+    letterSpacing: -0.5,
   },
-  addButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: PrimaryColor,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 2,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  quantityControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: PrimaryColor,
-    borderRadius: 14,
-    paddingHorizontal: 2,
-    paddingVertical: 2,
-    elevation: 2,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+  productPreviousPrice: {
+    fontSize: 14,
+    color: "#999",
+    textDecorationLine: "line-through",
+    marginLeft: 8,
   },
   cartSummary: {
     position: "absolute",

@@ -27,6 +27,7 @@ import { useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Platform,
   Keyboard,
   SafeAreaView,
   TextInput,
@@ -68,12 +69,18 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: "#fff",
+        paddingTop: Platform.OS === "android" ? 20 : 0,
+      }}
+    >
       {/* Sticky SearchBar */}
       <Animated.View
         style={{
           position: "absolute",
-          top: 40,
+          top: Platform.OS === "android" ? 25 : 40,
           zIndex: 1000,
           opacity: showStickySearchBar,
           backgroundColor: "#fff",

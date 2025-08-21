@@ -381,7 +381,7 @@ export default function LocalShops() {
   }
 
   return (
-    <View style={{ paddingVertical: 20 }}>
+    <View style={{ marginVertical: 5 }}>
       {/* Section Header */}
       <View
         style={{
@@ -502,6 +502,7 @@ export default function LocalShops() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 16,
+            marginVertical: 8,
           }}
           keyExtractor={(item) => item.id}
         />

@@ -43,17 +43,21 @@ export default function AuthScreen() {
           marginTop: 20,
           borderRadius: 12,
           overflow: "hidden",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.08,
-          shadowRadius: 24,
-          elevation: 8,
+          ...(Platform.OS === "ios"
+            ? {
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.08,
+                shadowRadius: 24,
+                elevation: 8,
+              }
+            : {}),
         }}
       >
         <Image
           source={require("../../assets/images/splash2.png")}
           style={{
-            width: 100,
+            width: 200,
             height: 100,
             resizeMode: "contain",
             alignSelf: "center",

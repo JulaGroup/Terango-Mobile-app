@@ -1,33 +1,52 @@
 import axios from "axios";
-import { API_URL } from "@/constants/config"; // if you store it separately
+import { API_URL } from "@/constants/config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { jwtDecode } from "jwt-decode";
+
+const safeSetItem = async (key: string, value: string) => {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (e) {
+    console.log(`AsyncStorage setItem error (${key}):`, e);
+  }
+};
+
+const safeGetItem = async (key: string) => {
+  try {
+    return await AsyncStorage.getItem(key);
+  } catch (e) {
+    console.log(`AsyncStorage getItem error (${key}):`, e);
+    return null;
+  }
+};
+
+// Login user and send OTP
 export const loginUser = async ({ phone }: { phone: string }) => {
   if (phone.length < 7) {
     alert("Enter a valid phone number");
     return;
   }
+
   try {
     const res = await axios.post(`${API_URL}/auth/send-otp`, {
       phone: `+220${phone}`,
     });
-    console.log(res);
+
     if (res.status === 200) {
-      await AsyncStorage.setItem("userPhone", `+220${phone}`); // save for next screen
+      await safeSetItem("userPhone", `+220${phone}`);
       router.push("/auth/otp");
     } else {
       alert("Something went wrong. Please try again.");
     }
   } catch (err: any) {
-    console.log(err);
-    await AsyncStorage.setItem("userPhone", `+220${phone}`); // save for next screen
-
+    console.log("Login error:", err);
+    await safeSetItem("userPhone", `+220${phone}`);
     router.push("/auth/otp");
-    // alert(err.response?.data?.message || "Failed to send OTP.");
   }
 };
 
+// Verify OTP
 export const verifyOtp = async ({
   phone,
   otp,
@@ -43,21 +62,23 @@ export const verifyOtp = async ({
 
     const { token, isNewUser } = res.data;
 
-    await AsyncStorage.setItem("token", token);
-    await AsyncStorage.setItem("userPhone", phone);
-    await AsyncStorage.setItem("isLoggedIn", "true");
+    await safeSetItem("token", token);
+    await safeSetItem("userPhone", phone);
+    await safeSetItem("isLoggedIn", "true");
 
     // Decode token to get userId
     const decoded: any = jwtDecode(token);
     const userId = decoded.userId;
-    await AsyncStorage.setItem("userId", userId);
+    await safeSetItem("userId", userId);
 
     return isNewUser;
   } catch (err: any) {
-    console.error(err);
+    console.error("OTP verification error:", err.response?.data || err.message);
     throw new Error(err.response?.data?.message || "Invalid OTP");
   }
 };
+
+// Complete profile
 export const completeProfile = async ({
   userId,
   name,
@@ -68,7 +89,7 @@ export const completeProfile = async ({
   email: string;
 }) => {
   try {
-    const token = await AsyncStorage.getItem("token");
+    const token = await safeGetItem("token");
 
     const res = await axios.post(
       `${API_URL}/api/users/${userId}/profile`,
@@ -82,7 +103,7 @@ export const completeProfile = async ({
 
     return res.data;
   } catch (err: any) {
-    console.error(err.response?.data || err.message);
+    console.error("Complete profile error:", err.response?.data || err.message);
     throw new Error(
       err.response?.data?.message || "Failed to complete profile"
     );

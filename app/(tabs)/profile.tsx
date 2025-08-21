@@ -251,7 +251,7 @@ export default function ProfilePage() {
             "isLoggedIn",
             "hasSeenOnboarding",
           ]);
-          router.replace("/auth");
+          router.replace("/(tabs)");
         },
         style: "destructive",
       },

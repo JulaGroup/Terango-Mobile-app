@@ -8,7 +8,9 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
-  Image,
+  // Image removed, now handled by ProductCard
+  FlatList,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -16,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import ProductCard from "@/components/common/ProductCard";
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = 80;
@@ -235,9 +238,9 @@ const RestaurantDetailsSkeleton = () => {
         <SkeletonLoader width="60%" height={22} style={{ marginBottom: 16 }} />
         {/* Menu Item Skeletons */}
         {[1, 2, 3].map((item) => (
-          <View key={item} style={styles.menuItem}>
-            <View style={styles.menuItemContent}>
-              <View style={styles.menuItemInfo}>
+          <View key={item} style={styles.productCard}>
+            <View style={styles.productInfo}>
+              <View style={styles.productName}>
                 <SkeletonLoader
                   width="80%"
                   height={16}
@@ -256,16 +259,16 @@ const RestaurantDetailsSkeleton = () => {
                 <SkeletonLoader width="40%" height={16} />
               </View>
 
-              <View style={styles.menuItemImageContainer}>
+              <View style={styles.productImageContainer}>
                 <SkeletonLoader
-                  width={80}
-                  height={80}
-                  style={{ borderRadius: 8, marginBottom: 8 }}
+                  width={100}
+                  height={100}
+                  style={{ borderRadius: 16, marginBottom: 8 }}
                 />
                 <SkeletonLoader
-                  width={32}
-                  height={32}
-                  style={{ borderRadius: 16 }}
+                  width={36}
+                  height={36}
+                  style={{ borderRadius: 18 }}
                 />
               </View>
             </View>
@@ -367,16 +370,11 @@ export default function RestaurantDetails() {
       const data = await response.json();
 
       setRestaurant(data);
-      console.log("Fetched restaurant details:", data);
       // Group menu items by meal time
       const grouped: { [key: string]: MenuItem[] } = {};
 
       data.menus?.forEach((menu: Menu) => {
         menu.items?.forEach((item: MenuItem) => {
-          console.log(`Menu item ${item.name}:`, {
-            itemImageUrl: item.imageUrl,
-            hasImage: !!item.imageUrl,
-          });
           const mealTime = item.mealTime || menu.name || "All Items";
           if (!grouped[mealTime]) {
             grouped[mealTime] = [];
@@ -388,9 +386,9 @@ export default function RestaurantDetails() {
       setGroupedMenuItems(grouped);
 
       // Set first section as active
-      const firstSection = Object.keys(grouped)[0];
+      const firstSection = Object.keys(grouped)[1];
       if (firstSection) {
-        setActiveSection(firstSection);
+        setActiveSection("");
       }
     } catch (err: any) {
       console.error("Error fetching restaurant details:", err);
@@ -466,9 +464,6 @@ export default function RestaurantDetails() {
         useNativeDriver: true,
       }),
     ]).start();
-
-    // Show subtle feedback without blocking UI
-    console.log(`✓ ${item.name} added to cart`);
   };
 
   const getCartItemQuantity = (itemId: string): number => {
@@ -692,8 +687,7 @@ export default function RestaurantDetails() {
                       style={styles.metaItem}
                       onPress={() => {
                         if (restaurant.phone) {
-                          // Would open phone dialer in real app
-                          console.log("Calling:", restaurant.phone);
+                          Linking.openURL(`tel:${restaurant.phone}`);
                         }
                       }}
                     >
@@ -715,7 +709,7 @@ export default function RestaurantDetails() {
                           color="rgba(255,255,255,0.9)"
                         />
                         <Text style={styles.metaText}>
-                          Min. order: ${restaurant.minimumOrderAmount}
+                          Min. order: D{restaurant.minimumOrderAmount}
                         </Text>
                       </View>
                     )}
@@ -818,7 +812,7 @@ export default function RestaurantDetails() {
           </ScrollView>
         </View>
 
-        {/* Menu Items */}
+        {/* Menu Items - Horizontal Sliders per Category */}
         <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
           {Object.entries(groupedMenuItems)
             .filter(
@@ -830,119 +824,33 @@ export default function RestaurantDetails() {
             .map(([category, items]) => (
               <View key={category} style={styles.menuSection}>
                 <Text style={styles.menuSectionTitle}>{category}</Text>
-                {items.map((item, itemIndex) => (
-                  <Animated.View
-                    key={item.id}
-                    style={[
-                      styles.menuItem,
-                      {
-                        opacity: 1,
-                        transform: [{ translateY: 0 }],
-                      },
-                    ]}
-                  >
-                    <View style={styles.menuItemContent}>
-                      <View style={styles.menuItemInfo}>
-                        <View style={styles.menuItemTitleContainer}>
-                          <Text style={styles.menuItemName}>{item.name}</Text>
-                        </View>
-                        {item.mealTime && (
-                          <View style={styles.mealTimeBadge}>
-                            <Text style={styles.mealTimeText}>
-                              {item.mealTime}
-                            </Text>
-                          </View>
-                        )}
-                        {item.description && (
-                          <Text
-                            style={styles.menuItemDescription}
-                            numberOfLines={2}
-                          >
-                            {item.description}
-                          </Text>
-                        )}
-                      </View>
-
-                      <View style={styles.menuItemImageContainer}>
-                        <View style={styles.menuItemImage}>
-                          {item.imageUrl &&
-                          !imageLoadErrors[`item-${item.id}`] ? (
-                            <Image
-                              source={{ uri: item.imageUrl }}
-                              style={styles.menuItemImageContent}
-                              resizeMode="cover"
-                              onError={() =>
-                                handleImageError(`item-${item.id}`)
-                              }
-                            />
-                          ) : (
-                            <View style={styles.menuItemImagePlaceholder}>
-                              <Ionicons
-                                name="restaurant"
-                                size={24}
-                                color="#ccc"
-                              />
-                            </View>
-                          )}
-                        </View>
-                      </View>
+                <FlatList
+                  data={items}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingVertical: 4 }}
+                  keyExtractor={(item) => item.id}
+                  renderItem={({ item, index }) => (
+                    <View style={{ width: 200, marginRight: 6 }}>
+                      <ProductCard
+                        product={{
+                          id:
+                            typeof item.id === "number"
+                              ? item.id
+                              : Number(item.id) || index,
+                          name: item.name,
+                          price: item.price,
+                          image: item.imageUrl || "",
+                          description: item.description || "",
+                          inStock: item.isAvailable,
+                        }}
+                        cartQuantity={getCartItemQuantity(item.id)}
+                        onAddToCart={() => handleAddToCart(item)}
+                        onRemoveFromCart={() => removeFromCart(item.id)}
+                      />
                     </View>
-
-                    <View style={styles.priceAndActionContainer}>
-                      <View style={styles.priceContainer}>
-                        <Text style={styles.menuItemPrice}>
-                          D{item.price.toFixed(2)}
-                        </Text>
-                        {!item.isAvailable && (
-                          <View style={styles.unavailableBadge}>
-                            <Text style={styles.unavailableBadgeText}>
-                              Out of Stock
-                            </Text>
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.actionButtonContainer}>
-                        {getCartItemQuantity(item.id) > 0 ? (
-                          <View style={styles.quantityControls}>
-                            <TouchableOpacity
-                              style={styles.quantityButton}
-                              onPress={() => removeFromCart(item.id)}
-                            >
-                              <Ionicons name="remove" size={16} color="#fff" />
-                            </TouchableOpacity>
-
-                            <Text style={styles.quantityText}>
-                              {getCartItemQuantity(item.id)}
-                            </Text>
-
-                            <TouchableOpacity
-                              style={styles.quantityButton}
-                              onPress={() => handleAddToCart(item)}
-                            >
-                              <Ionicons name="add" size={16} color="#fff" />
-                            </TouchableOpacity>
-                          </View>
-                        ) : (
-                          <TouchableOpacity
-                            style={styles.addButton}
-                            onPress={() => handleAddToCart(item)}
-                            disabled={!item.isAvailable}
-                          >
-                            <Ionicons name="add" size={20} color="#fff" />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    </View>
-
-                    {!item.isAvailable && (
-                      <View style={styles.unavailableOverlay}>
-                        <Text style={styles.unavailableText}>
-                          Currently Unavailable
-                        </Text>
-                      </View>
-                    )}
-                  </Animated.View>
-                ))}
+                  )}
+                />
               </View>
             ))}
         </Animated.View>
@@ -1260,148 +1168,110 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   menuSectionTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 20,
-    letterSpacing: 0.5,
-    paddingBottom: 8,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 12,
+    letterSpacing: -0.5,
+    paddingBottom: 4,
     borderBottomWidth: 2,
     borderBottomColor: PrimaryColor,
     alignSelf: "flex-start",
   },
-  menuItem: {
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    position: "relative",
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
-    width: "100%",
+  productCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 6,
+    marginVertical: 2,
+    boxShadow:
+      " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
   },
-  menuItemContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
+  productImageContainer: {
+    width: "100%",
+    height: 140,
+    position: "relative",
+    overflow: "hidden",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
   },
-  menuItemInfo: {
+  productImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F8F8F8",
+  },
+  productImagePlaceholder: {
     flex: 1,
-    marginRight: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
   },
-  menuItemTitleContainer: {
-    marginBottom: 6,
+  productInfo: {
+    padding: 12,
   },
-  menuItemHeader: {
+  productName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1A1A1A",
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  productDescription: {
+    fontSize: 12,
+    color: "#888",
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  productPriceRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 6,
   },
-  menuItemName: {
+  productPrice: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1F2937",
-    letterSpacing: 0.3,
-  },
-  mealTimeBadge: {
-    backgroundColor: "rgba(34, 197, 94, 0.1)",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(34, 197, 94, 0.2)",
-    alignSelf: "flex-start",
-    marginBottom: 8,
-  },
-  mealTimeText: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "#22C55E",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-  },
-  priceAndActionContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    marginTop: 0,
-  },
-  priceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
+    color: PrimaryColor,
+    letterSpacing: -0.5,
   },
   actionButtonContainer: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 12,
+    paddingBottom: 8,
   },
-  unavailableBadge: {
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    paddingHorizontal: 6,
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PrimaryColor,
+    borderRadius: 14,
+    paddingHorizontal: 2,
     paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(239, 68, 68, 0.2)",
-    marginLeft: 8,
+    elevation: 2,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
-  unavailableBadgeText: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "#EF4444",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
+  quantityButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: PrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
   },
-  menuItemDescription: {
+  quantityText: {
+    color: "#fff",
     fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
-    marginBottom: 0,
-  },
-  menuItemPrice: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: PrimaryColor,
-  },
-  menuItemImageContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    minWidth: 100,
-  },
-  menuItemImage: {
-    width: 90,
-    height: 90,
-    borderRadius: 16,
-    backgroundColor: "#F9FAFB",
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
-  },
-  menuItemImageContent: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 16,
-  },
-  menuItemImagePlaceholder: {
-    width: "100%",
-    height: "100%",
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
+    fontWeight: "700",
+    marginHorizontal: 10,
+    minWidth: 20,
+    textAlign: "center",
   },
   addButton: {
     width: 36,
@@ -1410,40 +1280,13 @@ const styles = StyleSheet.create({
     backgroundColor: PrimaryColor,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-  },
-  quantityControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: PrimaryColor,
-    borderRadius: 18,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    elevation: 4,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  quantityButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  quantityText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
-    marginHorizontal: 12,
-    minWidth: 16,
-    textAlign: "center",
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   unavailableOverlay: {
     position: "absolute",
@@ -1454,7 +1297,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.92)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 20,
+    borderRadius: 16,
     backdropFilter: "blur(2px)",
   },
   unavailableText: {

@@ -79,15 +79,23 @@ export default function Onboarding() {
         resizeMode="cover"
       />
       <TouchableOpacity
-        style={{ position: "absolute", top: 60, right: 20 }}
+        style={{
+          position: "absolute",
+          top: 60,
+          right: 20,
+          backgroundColor: "#ff6b00",
+          paddingVertical: 8,
+          paddingHorizontal: 15,
+          borderRadius: 5,
+        }}
         onPress={async () => {
           if (loading) return;
           setLoading(true);
           await AsyncStorage.setItem("hasSeenOnboarding", "true");
-          router.replace("/auth");
+          router.replace("/(tabs)");
         }}
       >
-        <Text style={{ color: "#ff6b00", fontSize: 18, fontWeight: "bold" }}>
+        <Text style={{ color: "black", fontSize: 16, fontWeight: "bold" }}>
           Skip
         </Text>
       </TouchableOpacity>
@@ -154,7 +162,7 @@ export default function Onboarding() {
                 if (loading) return;
                 setLoading(true);
                 await AsyncStorage.setItem("hasSeenOnboarding", "true");
-                router.replace("/auth");
+                router.replace("/(tabs)");
               }}
               activeOpacity={0.8}
             >

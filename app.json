@@ -19,7 +19,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.darboedev.terango"
+      "package": "com.darboedev.terango",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -39,7 +43,9 @@
         {
           "icon": "./assets/images/notification-icon.png",
           "color": "#FF6B35",
-          "sounds": ["./assets/sounds/notification.mp3"]
+          "sounds": [
+            "./assets/sounds/notification.mp3"
+          ]
         }
       ],
       [
@@ -54,6 +60,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "507d12d6-9a8c-4115-a413-86c6c9901d3d"
+      }
     }
   }
 }
