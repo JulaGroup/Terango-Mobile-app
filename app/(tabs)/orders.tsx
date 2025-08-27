@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { orderApi, type Order } from "@/lib/api";
+import { setOrdersRefreshCallback } from "@/services/NotificationService";
 
 const statusColors = {
   PENDING: "#F39C12",
@@ -80,6 +81,7 @@ export default function Orders() {
     try {
       setError(null);
       const ordersData = await orderApi.getCustomerOrders();
+      console.log(ordersData);
       setOrders(ordersData);
     } catch (error: any) {
       console.error("Failed to fetch orders:", error);
@@ -113,7 +115,10 @@ export default function Orders() {
 
   useEffect(() => {
     checkAuthentication();
-  }, [checkAuthentication]);
+    // Register callback to refresh orders on push notification
+    setOrdersRefreshCallback(fetchOrders);
+    return () => setOrdersRefreshCallback(() => {});
+  }, [checkAuthentication, fetchOrders]);
 
   const onRefresh = () => {
     if (userId) {
@@ -255,7 +260,12 @@ export default function Orders() {
         borderLeftColor: statusColors[order.status],
       }}
       activeOpacity={0.8}
-      onPress={() => Alert.alert("Order Details", `Order ID: ${order.id}`)}
+      onPress={() =>
+        router.push({
+          pathname: "/order-details",
+          params: { orderId: order.id },
+        })
+      }
     >
       {/* Header */}
       <View
@@ -295,12 +305,27 @@ export default function Orders() {
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >
-        <Ionicons name="restaurant-outline" size={16} color="#666" />
+        <Ionicons
+          name={
+            order.restaurant
+              ? "restaurant-outline"
+              : order["shop"]
+              ? "cart-outline"
+              : order["pharmacy"]
+              ? "medkit-outline"
+              : "storefront-outline"
+          }
+          size={16}
+          color="#666"
+        />
         <Text
           style={{ marginLeft: 8, color: "#666", flex: 1, fontWeight: "500" }}
           numberOfLines={1}
         >
-          {order.restaurant?.name || "Restaurant"}
+          {order.restaurant?.name ||
+            order["shop"]?.name ||
+            order["pharmacy"]?.name ||
+            "Vendor"}
         </Text>
       </View>
 
@@ -329,9 +354,15 @@ export default function Orders() {
           {order.items.length} item{order.items.length > 1 ? "s" : ""} •{" "}
           {order.items
             .slice(0, 2)
-            .map((item) => item.menuItem.name)
+            .map(
+              (item) =>
+                item.menuItem?.name ||
+                item.product?.name ||
+                item.medicine?.name ||
+                "Item"
+            )
             .join(", ")}
-          {order.items.length > 2 && ` +${order.items.length - 2} more`}
+          {order.items.length > 2 ? ` +${order.items.length - 2} more` : null}
         </Text>
       </View>
 

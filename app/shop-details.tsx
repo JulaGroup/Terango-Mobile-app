@@ -116,6 +116,7 @@ const ProductCard = ({
   onRemoveFromCart,
   cartQuantity,
 }: ProductCardProps) => {
+  const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
@@ -154,7 +155,11 @@ const ProductCard = ({
   }, [timer]);
 
   return (
-    <View style={styles.productCard}>
+    <TouchableOpacity
+      style={styles.productCard}
+      onPress={() => router.push(`/product/${product.id}` as any)}
+      activeOpacity={0.8}
+    >
       {/* Product Image */}
       <View style={styles.productImageContainer}>
         {product.imageUrl && !imageLoadError ? (
@@ -171,15 +176,18 @@ const ProductCard = ({
         )}
 
         {/* Discount Badge (optional - you can add discount logic) */}
-        {/* <View style={styles.discountBadge}>
+        <View style={styles.discountBadge}>
           <Text style={styles.discountText}>-20%</Text>
-        </View> */}
+        </View>
 
         {/* Floating Add/Quantity Controls */}
         {cartQuantity === 0 ? (
           <TouchableOpacity
             style={styles.floatingAddButton}
-            onPress={handleAdd}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent navigation when tapping add button
+              handleAdd();
+            }}
             activeOpacity={0.8}
           >
             <Ionicons name="add" size={18} color="#fff" />
@@ -231,7 +239,7 @@ const ProductCard = ({
           {/* <Text style={styles.productPreviousPrice}>D{(product.price * 1.2).toFixed(2)}</Text> */}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -604,6 +612,7 @@ export default function ShopDetails() {
       vendorId: shop.id,
       vendorName: shop.name,
       imageUrl: item.imageUrl || "",
+      entityType: "shop",
     };
 
     addToCart(cartItem);
@@ -790,19 +799,24 @@ export default function ShopDetails() {
                   <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.cartButtonHero}
-                  onPress={() => router.push("/cart")}
-                >
-                  <Ionicons name="cart" size={24} color="#fff" />
-                  {getTotalCartItems() > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>
-                        {getTotalCartItems()}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                <View style={{ display: "flex", gap: 9, flexDirection: "row" }}>
+                  <TouchableOpacity
+                    style={styles.cartButtonHero}
+                    onPress={() => router.push("/cart")}
+                  >
+                    <Ionicons name="cart" size={24} color="#fff" />
+                    {getTotalCartItems() > 0 && (
+                      <View style={styles.cartBadge}>
+                        <Text style={styles.cartBadgeText}>
+                          {getTotalCartItems()}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.cartButton}>
+                    <Ionicons name="search" size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Shop Info */}
@@ -1176,354 +1190,383 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   categoriesContainer: {
-    backgroundColor: "#FAFAFA",
-    paddingTop: 8,
-    paddingBottom: 100,
+    backgroundColor: "#F8FAFC",
+    paddingTop: 12,
+    paddingBottom: 120,
   },
+
   categorySection: {
-    marginVertical: 8,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginHorizontal: 8,
-    boxShadow:
-      "rgba(0, 0, 0, 0.1) 0px 0px 5px 0px, rgba(0, 0, 0, 0.1) 0px 0px 1px 0px",
+    marginVertical: 12,
+    paddingVertical: 20,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    marginHorizontal: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.04)",
   },
+
   categoryHeaderContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    marginBottom: 20,
   },
+
   categoryHeaderContent: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
   },
+
   categoryIconWrapper: {
-    marginRight: 12,
+    marginRight: 16,
   },
+
   categoryIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
+
   categoryTextContainer: {
     flex: 1,
   },
+
   categoryTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#1A1A1A",
-    letterSpacing: -0.5,
-    marginBottom: 2,
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+    letterSpacing: -0.8,
+    marginBottom: 4,
   },
+
   categorySubtitle: {
-    fontSize: 14,
-    color: "#666",
-    fontWeight: "500",
+    fontSize: 15,
+    color: "#64748B",
+    fontWeight: "600",
+    letterSpacing: -0.2,
   },
+
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF5F0",
+    backgroundColor: "#f0f0f0",
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 133, 0, 0.2)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
+
   viewAllText: {
-    fontSize: 13,
+    fontSize: 12,
     color: PrimaryColor,
     fontWeight: "600",
     marginRight: 4,
   },
-  qualityBanner: {
-    marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-    borderLeftWidth: 4,
-    borderLeftColor: "#27AE60",
-  },
-  qualityBannerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-  qualityIconContainer: {
-    width: 36,
-    height: 36,
-    backgroundColor: "#E8F5E8",
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  qualityTitle: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 2,
-  },
-  qualitySubtitle: {
-    fontSize: 12,
-    color: "#666",
-    lineHeight: 16,
-  },
-  qualityBadge: {
-    backgroundColor: "#27AE60",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  qualityBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#fff",
-    letterSpacing: 0.5,
-  },
+
   productsListContainer: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 4,
   },
+
   productCardWrapper: {
-    width: 168,
+    width: 180,
   },
+
   productCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
-    marginBottom: 2,
-    boxShadow:
-      " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    elevation: 8,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.04)",
+    position: "relative",
   },
+
   productImageContainer: {
     width: "100%",
-    height: 140,
+    height: 150,
     position: "relative",
     overflow: "hidden",
+    backgroundColor: "#F8FAFC",
   },
+
   productImage: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#F8FAFC",
   },
+
   productImagePlaceholder: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#F1F5F9",
   },
+
   discountBadge: {
     position: "absolute",
-    top: 8,
-    left: 8,
+    top: 12,
+    left: 12,
     backgroundColor: "#EF4444",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
+
   discountText: {
     color: "#fff",
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
+
   floatingAddButton: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
-    width: 36,
-    height: 36,
+    bottom: 12,
+    right: 12,
+    width: 40,
+    height: 40,
     backgroundColor: PrimaryColor,
-    borderRadius: 18,
+    borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-    borderWidth: 2,
+    shadowRadius: 12,
+    elevation: 10,
+    borderWidth: 3,
     borderColor: "#FFFFFF",
   },
+
   overlayControls: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
+    bottom: 12,
+    right: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.85)",
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: "rgba(15, 23, 42, 0.95)",
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 12,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    backdropFilter: "blur(10px)",
   },
+
   quantityButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: PrimaryColor,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
+
   quantityText: {
     color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
-    marginHorizontal: 10,
-    minWidth: 20,
+    fontSize: 16,
+    fontWeight: "800",
+    marginHorizontal: 14,
+    minWidth: 24,
     textAlign: "center",
+    letterSpacing: -0.2,
   },
+
   quantityBadgeText: {
     color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
+
   productInfo: {
-    padding: 12,
+    padding: 16,
+    paddingTop: 14,
   },
+
   productName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    marginBottom: 4,
-    lineHeight: 20,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 6,
+    lineHeight: 22,
+    letterSpacing: -0.3,
   },
+
   productDescription: {
-    fontSize: 12,
-    color: "#888",
-    marginBottom: 8,
-    lineHeight: 16,
+    fontSize: 13,
+    color: "#64748B",
+    marginBottom: 12,
+    lineHeight: 18,
+    letterSpacing: -0.1,
   },
+
   productPriceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginTop: 2,
   },
+
   productPrice: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: PrimaryColor,
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
   },
+
   productPreviousPrice: {
-    fontSize: 14,
-    color: "#999",
+    fontSize: 15,
+    color: "#94A3B8",
     textDecorationLine: "line-through",
-    marginLeft: 8,
+    marginLeft: 10,
+    letterSpacing: -0.2,
   },
+
+  // Enhanced cart summary styles
   cartSummary: {
     position: "absolute",
-    bottom: 30,
-    left: 20,
-    right: 20,
+    bottom: 34,
+    left: 16,
+    right: 16,
     zIndex: 1000,
   },
+
   cartSummaryButton: {
-    borderRadius: 28,
-    elevation: 16,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    borderRadius: 32,
+    elevation: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
   },
+
   cartSummaryContainer: {
-    backgroundColor: "#1F2937",
-    borderRadius: 28,
-    padding: 20,
+    backgroundColor: "#0F172A",
+    borderRadius: 32,
+    padding: 24,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(255, 255, 255, 0.1)",
     overflow: "hidden",
+    position: "relative",
   },
+
   cartSummaryContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   cartIconContainer: {
-    width: 40,
-    height: 40,
+    width: 48,
+    height: 48,
     borderRadius: 24,
     backgroundColor: PrimaryColor,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
-    marginRight: 16,
-    elevation: 4,
+    marginRight: 18,
+    elevation: 6,
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 12,
   },
+
   cartItemsBadge: {
     position: "absolute",
-    top: -6,
-    right: -6,
+    top: -8,
+    right: -8,
     backgroundColor: "#EF4444",
-    borderRadius: 12,
-    minWidth: 24,
-    height: 23,
+    borderRadius: 14,
+    minWidth: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#1F2937",
+    borderWidth: 3,
+    borderColor: "#0F172A",
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
   },
+
   cartItemsCount: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "800",
+    fontSize: 13,
+    fontWeight: "900",
+    letterSpacing: -0.2,
   },
+
   cartTextContainer: {
     flex: 1,
-    marginRight: 16,
+    marginRight: 18,
   },
+
   cartItemsText: {
     color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14,
-    fontWeight: "500",
-    marginBottom: 2,
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: 3,
+    letterSpacing: -0.2,
   },
+
   cartCheckoutText: {
     color: "#fff",
-    fontSize: 13,
-    fontWeight: "700",
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
+
   cartPriceContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
+
   cartTotalPrice: {
     color: "#fff",
-    fontSize: 20,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-    marginRight: 8,
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.6,
+    marginRight: 10,
   },
 });

@@ -39,10 +39,26 @@ export interface VendorData {
 // Order-related types
 export interface OrderItem {
   id: string;
-  menuItemId: string;
+  menuItemId?: string; // For restaurant orders
+  productId?: string; // For shop orders
+  medicineId?: string; // For pharmacy orders
   quantity: number;
   price: number;
-  menuItem: {
+  menuItem?: {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    imageUrl?: string;
+  };
+  product?: {
+    id: string;
+    name: string;
+    description: string;
+    price: number;
+    imageUrl?: string;
+  };
+  medicine?: {
     id: string;
     name: string;
     description: string;
@@ -67,11 +83,28 @@ export interface Order {
     | "CANCELLED";
   items: OrderItem[];
   restaurantId: string;
-  restaurant: {
+  restaurant?: {
     id: string;
     name: string;
     address: string;
     phone: string;
+    [key: string]: any;
+  };
+  shopId?: string;
+  shop?: {
+    id: string;
+    name: string;
+    address: string;
+    phone?: string;
+    [key: string]: any;
+  };
+  pharmacyId?: string;
+  pharmacy?: {
+    id: string;
+    name: string;
+    address: string;
+    phone?: string;
+    [key: string]: any;
   };
   createdAt: string;
   estimatedDeliveryTime?: string;

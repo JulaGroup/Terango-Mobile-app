@@ -13,12 +13,28 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
+import { useRegisterPushToken } from "@/services/NotificationService";
+import { useEffect, useState } from "react";
+import { safeGetItem } from "@/actions/auth.ts/action";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+
+  // Get userId from AsyncStorage and register push token
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserId = async () => {
+      const id = await safeGetItem("userId");
+      setUserId(id);
+    };
+    fetchUserId();
+  }, []);
+
+  useRegisterPushToken(userId ?? "");
 
   if (!loaded) {
     // Async font loading only occurs in development.
@@ -83,7 +99,7 @@ export default function RootLayout() {
                   }}
                 />
                 <Stack.Screen
-                  name="SubCategoryProductsPage"
+                  name="SubCategoryView"
                   options={{
                     animation: "slide_from_right",
                     headerShown: false,
@@ -113,6 +129,34 @@ export default function RootLayout() {
 
                 <Stack.Screen
                   name="checkout"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="product/[productId]"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="ViewAllRestaurants"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="order-details"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="ViewAllStores"
                   options={{
                     animation: "slide_from_right",
                     headerShown: false,

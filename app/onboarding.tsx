@@ -143,7 +143,10 @@ export default function Onboarding() {
             {slides.map((_, i) => (
               <View
                 key={i}
-                style={[styles.dot, currentIndex === i && styles.activeDot]}
+                style={[
+                  styles.dot,
+                  currentIndex === i ? styles.activeDot : null,
+                ]}
               />
             ))}
           </View>

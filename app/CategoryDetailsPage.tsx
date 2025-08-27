@@ -151,7 +151,7 @@ const CategoryDetailsPage = () => {
   const handleSubCategoryPress = (subCategory: SubCategory) => {
     // Navigate to subcategory products/services page with the subcategory info
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryView",
       params: {
         subCategoryId: subCategory.id,
         subCategoryName: subCategory.name,

@@ -277,7 +277,9 @@ const LocationModal = ({
         <Text style={styles.addressText} numberOfLines={2}>
           {address.addressLine}
         </Text>
-        {address.city && <Text style={styles.addressCity}>{address.city}</Text>}
+        {address.city ? (
+          <Text style={styles.addressCity}>{address.city}</Text>
+        ) : null}
       </View>
       <TouchableOpacity
         style={styles.deleteButton}

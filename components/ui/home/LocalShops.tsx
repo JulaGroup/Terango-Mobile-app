@@ -70,12 +70,15 @@ const ShopCard = ({
         backgroundColor: "#fff",
         borderRadius: 16,
         marginRight: 16,
-        elevation: 4,
+        elevation: 12,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 15,
         overflow: "hidden",
+        // Additional shadow for better distinction
+        borderWidth: 0.5,
+        borderColor: "rgba(0, 0, 0, 0.08)",
       }}
       onPress={() => onPress(shop.id)}
       activeOpacity={0.8}
@@ -248,8 +251,7 @@ export default function LocalShops() {
   };
 
   const handleViewAll = () => {
-    // Navigate to all shops page
-    console.log("View all shops pressed");
+    router.push("/ViewAllStores");
   };
 
   const renderShopCard = ({ item }: { item: Shop }) => (
@@ -411,7 +413,7 @@ export default function LocalShops() {
                 color: "#333",
               }}
             >
-              Local Shops
+              Stores
             </Text>
             <Text
               style={{
@@ -429,13 +431,17 @@ export default function LocalShops() {
           style={{
             flexDirection: "row",
             alignItems: "center",
+            backgroundColor: "#f0f0f0",
+            borderRadius: 20,
+            paddingHorizontal: 12,
+            paddingVertical: 6,
           }}
         >
           <Text
             style={{
-              fontSize: 14,
-              fontWeight: "600",
+              fontSize: 12,
               color: PrimaryColor,
+              fontWeight: "600",
               marginRight: 4,
             }}
           >
@@ -478,7 +484,7 @@ export default function LocalShops() {
             lineHeight: 16,
           }}
         >
-          Trusted local shops • Quality products • Fast delivery
+          Trusted local shops/stores • Quality products • Fast delivery
         </Text>
       </View>
 
@@ -502,7 +508,8 @@ export default function LocalShops() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
             paddingHorizontal: 16,
-            marginVertical: 8,
+            marginTop: 8,
+            marginBottom: 30,
           }}
           keyExtractor={(item) => item.id}
         />

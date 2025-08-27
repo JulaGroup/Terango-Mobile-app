@@ -29,8 +29,8 @@ const TopPicks = () => {
         name: product.name,
         price: product.price,
         imageUrl: product.image,
-        restaurantId: product.storeId.toString(),
-        restaurantName: product.storeName,
+        vendorId: product.storeId.toString(),
+        vendorName: product.storeName,
         description: product.description || "",
       });
     }

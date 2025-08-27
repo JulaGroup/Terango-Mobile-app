@@ -12,6 +12,7 @@ interface CartItem {
   vendorId: string;
   vendorName: string;
   description?: string;
+  entityType: string;
 }
 
 interface CartContextType {
@@ -93,7 +94,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     if (items.length > 0 && items[0].vendorId !== newItem.vendorId) {
       Alert.alert(
         "Start New Cart?",
-        "You have items in your cart from a different restaurant. Would you like to start a new cart?",
+        "You have items in your cart from a different vendor.. Would you like to start a new cart?",
         [
           {
             text: "Cancel",
@@ -111,6 +112,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setItems((currentItems) => {
+      // Always set entityType, default to 'shop' if missing
+      const safeNewItem = {
+        ...newItem,
+        entityType: newItem.entityType || "shop",
+      };
       const existingItem = currentItems.find((item) => item.id === newItem.id);
 
       if (existingItem) {
@@ -123,7 +129,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Add new item
-      return [...currentItems, { ...newItem, quantity: newItem.quantity || 1 }];
+      return [
+        ...currentItems,
+        { ...safeNewItem, quantity: newItem.quantity || 1 },
+      ];
     });
   };
 

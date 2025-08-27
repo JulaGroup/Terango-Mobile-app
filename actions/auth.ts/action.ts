@@ -12,7 +12,7 @@ const safeSetItem = async (key: string, value: string) => {
   }
 };
 
-const safeGetItem = async (key: string) => {
+export const safeGetItem = async (key: string) => {
   try {
     return await AsyncStorage.getItem(key);
   } catch (e) {

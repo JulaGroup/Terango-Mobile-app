@@ -213,22 +213,42 @@ export default function Checkout() {
         return;
       }
 
-      // Create orders for each restaurant
-      const orderPromises = restaurantIds.map(async (restaurantId) => {
-        const restaurantItems = restaurantCarts[restaurantId];
+      // Debug: log cart items by vendor before order creation
+      console.log("Cart items by vendor:", restaurantCarts);
 
-        const orderData: CreateOrderData = {
-          restaurantId,
+      // Create orders for each vendor (restaurant/shop/pharmacy)
+      const orderPromises = restaurantIds.map(async (vendorId) => {
+        const vendorItems = restaurantCarts[vendorId];
+        // Always use entityType from item, default to 'shop' if missing
+        const entityType = vendorItems[0]?.entityType || "shop";
+
+        let orderData: any = {
           customerName: form.name,
           customerPhone: form.phone,
           deliveryAddress: form.address,
-          items: restaurantItems.map((item) => ({
-            menuItemId: item.id,
-            quantity: item.quantity,
-          })),
           notes: form.notes,
         };
 
+        if (entityType === "restaurant") {
+          orderData.restaurantId = vendorId;
+          orderData.items = vendorItems.map((item) => ({
+            menuItemId: item.id,
+            quantity: item.quantity,
+          }));
+        } else if (entityType === "shop") {
+          orderData.shopId = vendorId;
+          orderData.items = vendorItems.map((item) => ({
+            productId: item.id,
+            quantity: item.quantity,
+          }));
+        } else if (entityType === "pharmacy") {
+          orderData.pharmacyId = vendorId;
+          orderData.items = vendorItems.map((item) => ({
+            medicineId: item.id,
+            quantity: item.quantity,
+          }));
+        }
+        console.log(orderData);
         return orderApi.createOrder(orderData);
       });
 
@@ -292,7 +312,10 @@ export default function Checkout() {
     onPress: () => void;
   }) => (
     <TouchableOpacity
-      style={[styles.paymentMethod, selected && styles.paymentMethodSelected]}
+      style={[
+        styles.paymentMethod,
+        selected ? styles.paymentMethodSelected : null,
+      ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -315,7 +338,10 @@ export default function Checkout() {
         <Text style={styles.paymentMethodSubtitle}>{subtitle}</Text>
       </View>
       <View
-        style={[styles.radioButton, selected && styles.radioButtonSelected]}
+        style={[
+          styles.radioButton,
+          selected ? styles.radioButtonSelected : null,
+        ]}
       >
         {selected ? <View style={styles.radioButtonInner} /> : null}
       </View>

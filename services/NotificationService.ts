@@ -1,4 +1,7 @@
+import { API_URL } from "@/constants/config";
 import * as Notifications from "expo-notifications";
+import { useEffect } from "react";
+import { Platform } from "react-native";
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -10,6 +13,61 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
+
+// Global callback for refreshing orders
+let onOrdersRefresh: (() => void) | null = null;
+export function setOrdersRefreshCallback(cb: () => void) {
+  onOrdersRefresh = cb;
+}
+
+export function useRegisterPushToken(userId: string) {
+  useEffect(() => {
+    async function registerForPushNotificationsAsync() {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") return;
+      const tokenData = await Notifications.getExpoPushTokenAsync();
+      const expoPushToken = tokenData.data;
+      // Send token to backend
+      await fetch(`${API_URL}/api/push-token/save-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          expoPushToken,
+          deviceInfo: Platform.OS,
+        }),
+      });
+      console.log("Expo Push Token:", expoPushToken);
+    }
+    if (userId) registerForPushNotificationsAsync();
+
+    // Listen for notifications
+    const receivedListener = Notifications.addNotificationReceivedListener(
+      (notification) => {
+        console.log(
+          "[Expo] Push notification received and listener is active:",
+          notification
+        );
+        // Trigger orders refresh if callback is set
+        if (onOrdersRefresh) {
+          onOrdersRefresh();
+        }
+      }
+    );
+    const responseListener =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(
+          "[Expo] Push notification response received and listener is active:",
+          response
+        );
+        // Handle notification tap here
+      });
+    return () => {
+      receivedListener.remove();
+      responseListener.remove();
+    };
+  }, [userId]);
+}
 
 export class NotificationService {
   static async scheduleOrderNotification(orderData: {
@@ -110,7 +168,7 @@ export class NotificationService {
   static async getPushToken(): Promise<string | null> {
     try {
       const { data: token } = await Notifications.getExpoPushTokenAsync({
-        projectId: "your-project-id", // Replace with your actual project ID
+        projectId: "terango-af158", // Updated to actual project ID
       });
       return token;
     } catch (error) {

@@ -370,19 +370,19 @@ export default function ProfilePage() {
       onPress: () =>
         Alert.alert("Coming Soon", "Address management coming soon!"),
     },
-    {
-      icon: "receipt-outline",
-      title: "Order History",
-      subtitle: "View your past orders",
-      onPress: () => Alert.alert("Coming Soon", "Order history coming soon!"),
-    },
-    {
-      icon: "notifications-outline",
-      title: "Notifications",
-      subtitle: "Manage your notification preferences",
-      onPress: () =>
-        Alert.alert("Coming Soon", "Notification settings coming soon!"),
-    },
+    // {
+    //   icon: "receipt-outline",
+    //   title: "Order History",
+    //   subtitle: "View your past orders",
+    //   onPress: () => Alert.alert("Coming Soon", "Order history coming soon!"),
+    // },
+    // {
+    //   icon: "notifications-outline",
+    //   title: "Notifications",
+    //   subtitle: "Manage your notification preferences",
+    //   onPress: () =>
+    //     Alert.alert("Coming Soon", "Notification settings coming soon!"),
+    // },
     {
       icon: "help-circle-outline",
       title: "Help & Support",

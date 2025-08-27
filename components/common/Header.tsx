@@ -67,13 +67,13 @@ const Header = () => {
           <TouchableOpacity
             style={{
               backgroundColor: "#FFF5EEFF",
-              padding: 8,
+              padding: 6,
               borderRadius: 8,
             }}
             onPress={handleLocationPress}
             activeOpacity={0.7}
           >
-            <Ionicons name="location-sharp" size={30} color="#ff6b00" />
+            <Ionicons name="location-sharp" size={20} color="#ff6b00" />
           </TouchableOpacity>
 
           <View

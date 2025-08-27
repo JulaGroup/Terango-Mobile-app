@@ -80,7 +80,7 @@ export default function AuthScreen() {
       </View>
 
       <TouchableOpacity
-        style={[styles.button, loading && { opacity: 0.6 }]}
+        style={[styles.button, loading ? { opacity: 0.6 } : null]}
         onPress={handleSubmit}
         disabled={loading}
       >

@@ -1,14 +1,8 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-} from "react-native";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
+import { useCart } from "@/context/CartContext";
 
 export interface UniversalProduct {
   id: number;
@@ -32,54 +26,19 @@ const ProductCard = ({
   onAddToCart,
   onRemoveFromCart,
 }: ProductCardProps) => {
-  const [slideAnim] = useState(new Animated.Value(60)); // start 60px right
-  const [fadeAnim] = useState(new Animated.Value(0));
+  const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const { updateQuantity } = useCart();
 
-  // Animate overlay controls to slide in from right
-  useEffect(() => {
-    if (cartQuantity > 0 && expanded) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 60,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [cartQuantity, expanded, fadeAnim, slideAnim]);
-
-  // Collapse overlay after timeout
-  useEffect(() => {
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [timer]);
-
+  // Expand controls when product is added
   const handleAdd = () => {
     onAddToCart(product);
     setExpanded(true);
+
+    // Reset collapse timer
     if (timer) clearTimeout(timer);
     const t = setTimeout(() => {
       setExpanded(false);
@@ -88,15 +47,44 @@ const ProductCard = ({
   };
 
   const handleRemove = () => {
-    onRemoveFromCart(product);
-    setExpanded(false);
-    if (timer) clearTimeout(timer);
+    if (cartQuantity > 1) {
+      updateQuantity(product.id.toString(), cartQuantity - 1);
+    } else {
+      onRemoveFromCart(product);
+      setExpanded(false);
+      if (timer) clearTimeout(timer);
+    }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [timer]);
+
+  // Show expanded state if item is in cart
+  useEffect(() => {
+    if (cartQuantity > 0 && !expanded) {
+      setExpanded(false); // Keep collapsed unless explicitly expanded
+    }
+  }, [cartQuantity]);
 
   return (
     <View style={styles.card}>
       <View style={styles.productImageContainer}>
-        <Image source={{ uri: product.image || "" }} style={styles.image} />
+        {product.image && !imageLoadError ? (
+          <Image
+            source={{ uri: product.image }}
+            style={styles.image}
+            onError={() => setImageLoadError(true)}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="restaurant" size={32} color="#E5E5E5" />
+          </View>
+        )}
+
         {/* Floating Add/Quantity Controls */}
         {cartQuantity === 0 ? (
           <TouchableOpacity
@@ -107,41 +95,45 @@ const ProductCard = ({
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
         ) : expanded ? (
-          <Animated.View
-            style={[
-              styles.overlayControls,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateX: slideAnim }, { scale: fadeAnim }],
-              },
-            ]}
-          >
+          <View style={styles.overlayControls}>
             <TouchableOpacity
               style={styles.quantityButton}
               onPress={handleRemove}
+              activeOpacity={0.8}
             >
-              <Ionicons name="remove" size={18} color="#fff" />
+              <Ionicons name="remove" size={14} color="#fff" />
             </TouchableOpacity>
+
             <Text style={styles.quantityText}>{cartQuantity}</Text>
-            <TouchableOpacity style={styles.quantityButton} onPress={handleAdd}>
-              <Ionicons name="add" size={18} color="#fff" />
+
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={handleAdd}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={14} color="#fff" />
             </TouchableOpacity>
-          </Animated.View>
+          </View>
         ) : (
           <TouchableOpacity
             style={styles.floatingAddButton}
             onPress={() => setExpanded(true)}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={18} color="#fff" />
+            <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
           </TouchableOpacity>
         )}
       </View>
+
       {/* Product Info */}
       <View style={styles.info}>
-        <Text style={styles.name}>{product.name}</Text>
+        <Text style={styles.name} numberOfLines={2}>
+          {product.name}
+        </Text>
         {product.description && (
-          <Text style={styles.desc}>{product.description}</Text>
+          <Text style={styles.desc} numberOfLines={2}>
+            {product.description}
+          </Text>
         )}
         <View style={styles.productPriceRow}>
           <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
@@ -150,7 +142,6 @@ const ProductCard = ({
     </View>
   );
 };
-// ...existing code...
 
 const styles = StyleSheet.create({
   card: {
@@ -177,6 +168,12 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
+    backgroundColor: "#F8F8F8",
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#F8F8F8",
   },
   floatingAddButton: {
@@ -228,6 +225,11 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     minWidth: 20,
     textAlign: "center",
+  },
+  quantityBadgeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
   info: {
     padding: 10,

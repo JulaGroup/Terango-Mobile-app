@@ -169,12 +169,12 @@ export default function HomeScreen() {
         <LocalShops />
 
         {/* Hero Banner with Navigation Buttons */}
-        <HeroBanner />
+        {/* <HeroBanner /> */}
 
         {/* Traditional Meals and Beverages */}
         {/* <TraditionalMeals /> */}
         {/* <LocalBeverages /> */}
-        <FreshFromFarm />
+        {/* <FreshFromFarm /> */}
 
         {/* Local Dishes - Authentic Gambian cuisine */}
         {/* <LocalDishes /> */}
@@ -191,12 +191,12 @@ export default function HomeScreen() {
         {/* Traditional Gambian Meals */}
         {/* <TraditionalMeals /> */}
 
-        <AdBanner
+        {/* <AdBanner
           title="Weekend Specials"
           buttonText="Explore"
           backgroundColor="#27AE60"
           onPress={() => {}}
-        />
+        /> */}
 
         {/* Local Beverages */}
         {/* <LocalBeverages /> */}
@@ -216,18 +216,18 @@ export default function HomeScreen() {
         {/* Gadget & Tech Zone */}
         {/* <GadgetTechZone /> */}
 
-        <AdBanner
+        {/* <AdBanner
           title="Premium Collection"
           buttonText="Discover"
           backgroundColor="#8E44AD"
           onPress={() => {}}
-        />
+        /> */}
 
         {/* Popular Stores */}
-        <PopularStores />
+        {/* <PopularStores /> */}
 
         {/* Advertisement Banners Section - Moved Lower */}
-        <AdBanner
+        {/* <AdBanner
           title="Special Offers"
           buttonText="Shop Now"
           onPress={() => {}}
@@ -238,7 +238,7 @@ export default function HomeScreen() {
           buttonText="View Deals"
           backgroundColor="#E74C3C"
           onPress={() => {}}
-        />
+        /> */}
       </Animated.ScrollView>
 
       {/* Permission Modals */}

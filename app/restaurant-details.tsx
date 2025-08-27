@@ -447,6 +447,7 @@ export default function RestaurantDetails() {
       vendorId: restaurant.id,
       vendorName: restaurant.name,
       imageUrl: item.imageUrl || "",
+      entityType: "restaurant",
     };
 
     addToCart(cartItem);

@@ -513,6 +513,7 @@ const RestaurantNearYou = () => {
         </View>
 
         <TouchableOpacity
+          onPress={() => router.push("/ViewAllRestaurants")}
           style={{
             flexDirection: "row",
             alignItems: "center",
