@@ -618,7 +618,7 @@ export default function SubCategoryView() {
               {data.menuItems.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Menu Items</Text>
+                    <Text style={styles.sectionTitle}>Meals</Text>
                     <Text style={styles.sectionCount}>
                       {data.menuItems.length}
                     </Text>
@@ -723,6 +723,8 @@ export default function SubCategoryView() {
           </View>
         );
       }
+      // Use same card width/height as MenuItemCard for consistency
+      const cardWidth = (width - 56) / 2;
       return (
         <FlatList
           data={data.products}
@@ -730,8 +732,6 @@ export default function SubCategoryView() {
           key={`products-2col`}
           keyExtractor={(item) => `product-${item.id}`}
           renderItem={({ item, index }) => {
-            // Match meals tab card width and spacing
-            const cardWidth = (width - 56 - 16) / 2;
             const isLeft = index % 2 === 0;
             const cartQuantity =
               cartItems.find((ci) => ci.id === item.id)?.quantity || 0;
@@ -742,7 +742,7 @@ export default function SubCategoryView() {
                   marginLeft: isLeft ? 0 : 16,
                   marginRight: isLeft ? 8 : 0,
                   marginBottom: 20,
-                  padding: 4,
+                  // Match MenuItemCard style
                 }}
               >
                 <ProductCard
@@ -779,9 +779,9 @@ export default function SubCategoryView() {
         return (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={64} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No Menu Items Found</Text>
+            <Text style={styles.emptyTitle}>No Meals Found</Text>
             <Text style={styles.emptySubtitle}>
-              There are no menu items in this category yet.
+              There are no meals in this category yet.
             </Text>
           </View>
         );
