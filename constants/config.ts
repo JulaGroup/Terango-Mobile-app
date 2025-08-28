@@ -2,7 +2,7 @@
 // "https://auth-service-production-8e42.up.railway.app";
 export const API_URL = "http://192.168.1.39:8080"; //work
 // export const API_URL = "http://192.168.0.237:8080"; //Home wifi
-// export const API_URL = "http://172.20.10.27:8080" //Phone;
+// export const API_URL = "http://172.20.10.2:8080"; //Phone;
 
 // Google Places API Key - For Future Implementation
 //

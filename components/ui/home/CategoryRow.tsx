@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { categoryApi } from "@/lib/api";
+import { PrimaryColor } from "@/constants/Colors";
 
 interface Category {
   id: string;
@@ -114,7 +115,7 @@ const CategoryRow = ({
           color: "#262626",
         }}
       >
-        Categories
+        Explore TeranGO
       </Text>
       <FlatList
         data={[1, 2, 3, 4, 5]}
@@ -165,7 +166,7 @@ const CategoryRow = ({
             color: "#262626",
           }}
         >
-          Categories
+          Explore TeranGO
         </Text>
         <View
           style={{
@@ -231,7 +232,7 @@ const CategoryRow = ({
             color: "#262626",
           }}
         >
-          Categories
+          Explore TeranGO
         </Text>
         <View
           style={{
@@ -308,7 +309,8 @@ const CategoryRow = ({
             color: "#262626",
           }}
         >
-          Categories
+          Explore Teran
+          <Text style={{ fontWeight: "bold", color: PrimaryColor }}>GO</Text>
         </Text>
         <TouchableOpacity
           style={{

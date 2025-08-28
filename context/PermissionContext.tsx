@@ -167,6 +167,9 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
       await AsyncStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
       setHasShownPermissionModals(true);
 
+      // Re-check system permissions to update state and prevent repeat modal
+      await checkCurrentPermissions();
+
       return granted;
     } catch (error) {
       console.error("Error requesting notification permission:", error);

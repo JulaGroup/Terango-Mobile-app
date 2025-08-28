@@ -9,7 +9,6 @@ import {
   StatusBar,
   Animated,
   Image,
-  FlatList,
   Share,
   Dimensions,
   Alert,
@@ -72,72 +71,8 @@ const SkeletonLoader = ({
   );
 };
 
-// Related Product Card Component
-interface RelatedProductCardProps {
-  product: Product;
-  onPress: (productId: string) => void;
-  onAddToCart: (product: Product) => void;
-  cartQuantity: number;
-}
-
-const RelatedProductCard = ({
-  product,
-  onPress,
-  onAddToCart,
-  cartQuantity,
-}: RelatedProductCardProps) => {
-  const [imageLoadError, setImageLoadError] = useState(false);
-
-  return (
-    <TouchableOpacity
-      style={styles.relatedProductCard}
-      onPress={() => onPress(product.id)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.relatedProductImageContainer}>
-        {product.imageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: product.imageUrl }}
-            style={styles.relatedProductImage}
-            resizeMode="cover"
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <View style={styles.relatedProductImagePlaceholder}>
-            <Ionicons name="image-outline" size={24} color="#E5E5E5" />
-          </View>
-        )}
-
-        {/* Quick Add Button */}
-        <TouchableOpacity
-          style={styles.quickAddButton}
-          onPress={() => onAddToCart(product)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color="#fff" />
-        </TouchableOpacity>
-
-        {cartQuantity > 0 && (
-          <View style={styles.cartQuantityBadge}>
-            <Text style={styles.cartQuantityText}>{cartQuantity}</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.relatedProductInfo}>
-        <Text style={styles.relatedProductName} numberOfLines={2}>
-          {product.name}
-        </Text>
-        <Text style={styles.relatedProductPrice}>
-          D{product.price.toFixed(2)}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-// Product Detail Skeleton
-const ProductDetailSkeleton = () => {
+// Menu Item Detail Skeleton
+const MenuItemDetailSkeleton = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
@@ -160,109 +95,105 @@ const ProductDetailSkeleton = () => {
 
       {/* Content Skeleton */}
       <View style={{ paddingHorizontal: 20 }}>
-        <SkeletonLoader width="80%" height={24} style={{ marginBottom: 12 }} />
+        <SkeletonLoader width="80%" height={28} style={{ marginBottom: 12 }} />
         <SkeletonLoader width="100%" height={16} style={{ marginBottom: 8 }} />
-        <SkeletonLoader width="60%" height={16} style={{ marginBottom: 20 }} />
-        <SkeletonLoader width={120} height={32} style={{ marginBottom: 30 }} />
-
-        {/* Related Items Skeleton */}
-        <SkeletonLoader width="50%" height={20} style={{ marginBottom: 16 }} />
-        <View style={{ flexDirection: "row", gap: 12 }}>
-          {[1, 2, 3].map((item) => (
-            <SkeletonLoader
-              key={item}
-              width={140}
-              height={180}
-              style={{ borderRadius: 12 }}
-            />
-          ))}
-        </View>
+        <SkeletonLoader width="70%" height={16} style={{ marginBottom: 16 }} />
+        
+        {/* Restaurant Info Skeleton */}
+        <SkeletonLoader width="60%" height={16} style={{ marginBottom: 8 }} />
+        <SkeletonLoader width="50%" height={16} style={{ marginBottom: 16 }} />
+        
+        {/* Details Skeleton */}
+        <SkeletonLoader width="40%" height={20} style={{ marginBottom: 12 }} />
+        <SkeletonLoader width="30%" height={16} style={{ marginBottom: 8 }} />
+        <SkeletonLoader width="35%" height={16} style={{ marginBottom: 20 }} />
+        
+        <SkeletonLoader width={120} height={36} style={{ marginBottom: 30 }} />
       </View>
     </SafeAreaView>
   );
 };
 
-// Product Interface
-interface Product {
+// Menu Item Interface
+interface MenuItem {
   id: string;
   name: string;
-  price: number;
   description?: string;
+  price: number;
   imageUrl?: string;
-  shopId: string;
-  shop?: {
+  preparationTime?: number;
+  mealTime?: string;
+  isAvailable: boolean;
+  menu: {
     id: string;
-    name: string;
+    title: string;
+    restaurant: {
+      id: string;
+      name: string;
+      description?: string;
+      address: string;
+      city: string;
+      phone: string;
+      rating: number;
+      totalReviews: number;
+      minimumOrderAmount: number;
+      acceptsOrders: boolean;
+      imageUrl?: string;
+    };
   };
   subCategory?: {
     id: string;
     name: string;
+    imageUrl?: string;
   };
-  stock?: number;
-  rating?: number;
-  totalReviews?: number;
 }
 
-export default function ProductDetail() {
+export default function MenuItemDetailPage() {
   const router = useRouter();
-  const { productId } = useLocalSearchParams<{ productId: string }>();
+  const { menuitem } = useLocalSearchParams<{ menuitem: string }>();
   const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
 
   const [loading, setLoading] = useState(true);
-  const [product, setProduct] = useState<Product | null>(null);
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [menuItem, setMenuItem] = useState<MenuItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
 
-  // Fetch product details
-  const fetchProductDetails = useCallback(async () => {
+  // Fetch menu item details
+  const fetchMenuItemDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_URL}/api/products/${productId}`);
-      console.log(response);
+      const response = await fetch(`${API_URL}/api/menuitem/${menuitem}`);
+      console.log("Fetching menu item:", response);
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch product: ${response.statusText}`);
+        throw new Error(`Failed to fetch menu item: ${response.statusText}`);
       }
 
       const data = await response.json();
-      setProduct(data);
-
-      // Fetch related products from the same shop or category
-      // if (data.shopId) {
-      //   try {
-      //     const relatedResponse = await fetch(
-      //       `${API_URL}/api/products?shopId=${data.shopId}&limit=10&exclude=${productId}`
-      //     );
-      //     if (relatedResponse.ok) {
-      //       const relatedData = await relatedResponse.json();
-      //       setRelatedProducts(relatedData.slice(0, 6)); // Show max 6 related items
-      //     }
-      //   } catch (relatedError) {
-      //     console.warn("Failed to fetch related products:", relatedError);
-      //   }
-      // }
+      console.log("Fetched menu item:", data);
+      setMenuItem(data);
     } catch (err: any) {
-      console.error("Error fetching product details:", err);
-      setError(err.message || "Failed to load product details");
+      console.error("Error fetching menu item details:", err);
+      setError(err.message || "Failed to load menu item details");
     } finally {
       setLoading(false);
     }
-  }, [productId]);
+  }, [menuitem]);
 
   useEffect(() => {
-    if (productId) {
-      fetchProductDetails();
+    if (menuitem) {
+      fetchMenuItemDetails();
     }
-  }, [productId, fetchProductDetails]);
+  }, [menuitem, fetchMenuItemDetails]);
 
-  // Fade in animation when product data loads
+  // Fade in animation when menu item data loads
   useEffect(() => {
-    if (product && !loading) {
+    if (menuItem && !loading) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -277,44 +208,44 @@ export default function ProductDetail() {
         }),
       ]).start();
     }
-  }, [product, loading, fadeAnim, scaleAnim]);
+  }, [menuItem, loading, fadeAnim, scaleAnim]);
 
-  const handleAddToCart = (item: Product) => {
-    if (!item.shop) return;
+  const handleAddToCart = (item: MenuItem) => {
+    if (!item.menu?.restaurant) return;
 
     const cartItem = {
       id: item.id,
       name: item.name,
       price: item.price,
       description: item.description || "",
-      vendorId: item.shop.id,
-      vendorName: item.shop.name,
+      vendorId: item.menu.restaurant.id,
+      vendorName: item.menu.restaurant.name,
       imageUrl: item.imageUrl || "",
-      entityType: "product", // Add the required entityType property
+      entityType: "restaurant" as const,
     };
 
     addToCart(cartItem);
   };
 
   const handleQuantityChange = (newQuantity: number) => {
-    if (!product) return;
+    if (!menuItem) return;
 
     if (newQuantity === 0) {
-      removeFromCart(product.id);
+      removeFromCart(menuItem.id);
     } else {
-      updateQuantity(product.id, newQuantity);
+      updateQuantity(menuItem.id, newQuantity);
     }
   };
 
   const handleShare = async () => {
-    if (!product) return;
+    if (!menuItem) return;
 
     try {
       await Share.share({
-        message: `Check out this product: ${
-          product.name
-        } - D${product.price.toFixed(2)}`,
-        title: product.name,
+        message: `Check out this delicious item: ${
+          menuItem.name
+        } from ${menuItem.menu.restaurant.name} - D${menuItem.price.toFixed(2)}`,
+        title: menuItem.name,
       });
     } catch (error) {
       console.error("Error sharing:", error);
@@ -323,17 +254,12 @@ export default function ProductDetail() {
 
   const handleToggleFavorite = () => {
     setIsFavorite(!isFavorite);
-    // Here you would typically make an API call to save/remove from favorites
     Alert.alert(
       isFavorite ? "Removed from Favorites" : "Added to Favorites",
       isFavorite
-        ? "Product removed from your favorites"
-        : "Product added to your favorites"
+        ? "Item removed from your favorites"
+        : "Item added to your favorites"
     );
-  };
-
-  const handleRelatedProductPress = (relatedProductId: string) => {
-    // router.push(`/(tabs)/product/${relatedProductId}`);
   };
 
   const getCartItemQuantity = (itemId: string): number => {
@@ -341,22 +267,23 @@ export default function ProductDetail() {
     return item ? item.quantity : 0;
   };
 
-  const currentQuantity = product ? getCartItemQuantity(product.id) : 0;
+  const currentQuantity = menuItem ? getCartItemQuantity(menuItem.id) : 0;
+  const canOrder = menuItem?.isAvailable && menuItem?.menu?.restaurant?.acceptsOrders;
 
   if (loading) {
-    return <ProductDetailSkeleton />;
+    return <MenuItemDetailSkeleton />;
   }
 
-  if (error || !product) {
+  if (error || !menuItem) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#EF4444" />
-          <Text style={styles.errorText}>{error || "Product not found"}</Text>
+          <Ionicons name="restaurant-outline" size={48} color="#EF4444" />
+          <Text style={styles.errorText}>{error || "Menu item not found"}</Text>
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={fetchProductDetails}
+            onPress={fetchMenuItemDetails}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
@@ -410,7 +337,7 @@ export default function ProductDetail() {
         showsVerticalScrollIndicator={false}
         bounces={true}
       >
-        {/* Product Image */}
+        {/* Menu Item Image */}
         <Animated.View
           style={[
             styles.imageContainer,
@@ -420,46 +347,60 @@ export default function ProductDetail() {
             },
           ]}
         >
-          {product.imageUrl && !imageLoadError ? (
+          {menuItem.imageUrl && !imageLoadError ? (
             <Image
-              source={{ uri: product.imageUrl }}
-              style={styles.productImage}
+              source={{ uri: menuItem.imageUrl }}
+              style={styles.menuItemImage}
               resizeMode="cover"
               onError={() => setImageLoadError(true)}
             />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={60} color="#E5E5E5" />
+              <Ionicons name="restaurant-outline" size={60} color="#E5E5E5" />
               <Text style={styles.imagePlaceholderText}>
                 No Image Available
               </Text>
             </View>
           )}
 
-          {/* Stock Badge */}
-          {product.stock !== undefined && (
-            <View style={styles.stockBadge}>
-              <View
-                style={[
-                  styles.stockDot,
-                  {
-                    backgroundColor: product.stock > 0 ? "#00C851" : "#FF6B6B",
-                  },
-                ]}
+          {/* Availability Badge */}
+          <View style={styles.availabilityBadge}>
+            <View
+              style={[
+                styles.availabilityDot,
+                {
+                  backgroundColor: canOrder ? "#00C851" : "#FF6B6B",
+                },
+              ]}
+            />
+            <Text style={styles.availabilityText}>
+              {canOrder ? "Available" : "Unavailable"}
+            </Text>
+          </View>
+
+          {/* Meal Time Badge */}
+          {menuItem.mealTime && (
+            <View style={styles.mealTimeBadge}>
+              <Ionicons 
+                name={
+                  menuItem.mealTime === "breakfast" ? "sunny-outline" :
+                  menuItem.mealTime === "lunch" ? "partly-sunny-outline" :
+                  menuItem.mealTime === "dinner" ? "moon-outline" : "time-outline"
+                } 
+                size={12} 
+                color="#fff" 
               />
-              <Text style={styles.stockText}>
-                {product.stock > 0
-                  ? `${product.stock} in stock`
-                  : "Out of stock"}
+              <Text style={styles.mealTimeText}>
+                {menuItem.mealTime.charAt(0).toUpperCase() + menuItem.mealTime.slice(1)}
               </Text>
             </View>
           )}
         </Animated.View>
 
-        {/* Product Info */}
+        {/* Menu Item Info */}
         <Animated.View
           style={[
-            styles.productInfo,
+            styles.menuItemInfo,
             {
               opacity: fadeAnim,
               transform: [
@@ -473,90 +414,102 @@ export default function ProductDetail() {
             },
           ]}
         >
-          <Text style={styles.productName}>{product.name}</Text>
+          <Text style={styles.menuItemName}>{menuItem.name}</Text>
 
-          {product.description && (
-            <Text style={styles.productDescription}>{product.description}</Text>
+          {menuItem.description && (
+            <Text style={styles.menuItemDescription}>{menuItem.description}</Text>
           )}
 
-          {/* Rating & Reviews */}
-          {product.rating && (
-            <View style={styles.ratingContainer}>
-              <View style={styles.rating}>
-                <Ionicons name="star" size={16} color="#FFD700" />
-                <Text style={styles.ratingText}>
-                  {product.rating.toFixed(1)}
-                </Text>
-                {product.totalReviews && (
-                  <Text style={styles.reviewsText}>
-                    ({product.totalReviews} reviews)
+          {/* Category Info */}
+          {menuItem.subCategory && (
+            <View style={styles.categoryInfo}>
+              <Ionicons name="pricetag-outline" size={16} color="#64748B" />
+              <Text style={styles.categoryName}>{menuItem.subCategory.name}</Text>
+            </View>
+          )}
+
+          {/* Restaurant Info */}
+          <TouchableOpacity 
+            style={styles.restaurantInfo}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to restaurant details
+              // router.push(`/restaurant/${menuItem.menu.restaurant.id}`);
+            }}
+          >
+            <View style={styles.restaurantImageContainer}>
+              {menuItem.menu.restaurant.imageUrl ? (
+                <Image
+                  source={{ uri: menuItem.menu.restaurant.imageUrl }}
+                  style={styles.restaurantImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.restaurantImagePlaceholder}>
+                  <Ionicons name="restaurant-outline" size={16} color="#94A3B8" />
+                </View>
+              )}
+            </View>
+            <View style={styles.restaurantDetails}>
+              <Text style={styles.restaurantName}>{menuItem.menu.restaurant.name}</Text>
+              <View style={styles.restaurantMeta}>
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={12} color="#FFD700" />
+                  <Text style={styles.ratingText}>
+                    {menuItem.menu.restaurant.rating > 0 
+                      ? menuItem.menu.restaurant.rating.toFixed(1) 
+                      : "New"}
                   </Text>
-                )}
+                </View>
+                <Text style={styles.separatorDot}>•</Text>
+                <Text style={styles.addressText}>
+                  {menuItem.menu.restaurant.city}
+                </Text>
               </View>
             </View>
-          )}
+            <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+          </TouchableOpacity>
 
-          {/* Shop Info */}
-          {product.shop && (
-            <View style={styles.shopInfo}>
-              <Ionicons name="storefront-outline" size={16} color="#64748B" />
-              <Text style={styles.shopName}>Sold by {product.shop.name}</Text>
+          {/* Details Section */}
+          <View style={styles.detailsSection}>
+            <View style={styles.detailItem}>
+              <Ionicons name="time-outline" size={18} color="#64748B" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Preparation Time</Text>
+                <Text style={styles.detailValue}>
+                  {menuItem.preparationTime ? `${menuItem.preparationTime} mins` : "Not specified"}
+                </Text>
+              </View>
             </View>
-          )}
+
+            <View style={styles.detailItem}>
+              <Ionicons name="card-outline" size={18} color="#64748B" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Minimum Order</Text>
+                <Text style={styles.detailValue}>
+                  D{menuItem.menu.restaurant.minimumOrderAmount.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.detailItem}>
+              <Ionicons name="location-outline" size={18} color="#64748B" />
+              <View style={styles.detailContent}>
+                <Text style={styles.detailLabel}>Location</Text>
+                <Text style={styles.detailValue}>
+                  {menuItem.menu.restaurant.address}
+                </Text>
+              </View>
+            </View>
+          </View>
 
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>D{product.price.toFixed(2)}</Text>
-            {/* Optional: Add previous price for discounts */}
+            <Text style={styles.price}>D{menuItem.price.toFixed(2)}</Text>
+            {!canOrder && (
+              <Text style={styles.unavailableText}>Currently unavailable</Text>
+            )}
           </View>
         </Animated.View>
-
-        {/* Related Products Section */}
-        {relatedProducts.length > 0 && (
-          <Animated.View
-            style={[
-              styles.relatedSection,
-              {
-                opacity: fadeAnim,
-                transform: [
-                  {
-                    translateY: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [30, 0],
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Related Items</Text>
-              <TouchableOpacity
-                // onPress={() => router.push(`/(tabs)/shop/${product.shopId}`)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.seeAllText}>See All</Text>
-              </TouchableOpacity>
-            </View>
-
-            <FlatList
-              data={relatedProducts}
-              renderItem={({ item }) => (
-                <RelatedProductCard
-                  product={item}
-                  onPress={handleRelatedProductPress}
-                  onAddToCart={handleAddToCart}
-                  cartQuantity={getCartItemQuantity(item.id)}
-                />
-              )}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.relatedProductsList}
-              ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
-              snapToInterval={160}
-              decelerationRate="fast"
-            />
-          </Animated.View>
-        )}
 
         {/* Bottom Spacing for Add to Cart Button */}
         <View style={{ height: 120 }} />
@@ -581,16 +534,22 @@ export default function ProductDetail() {
       >
         {currentQuantity === 0 ? (
           <TouchableOpacity
-            style={styles.addToCartButton}
-            onPress={() => handleAddToCart(product)}
+            style={[
+              styles.addToCartButton,
+              { opacity: canOrder ? 1 : 0.5 }
+            ]}
+            onPress={() => canOrder && handleAddToCart(menuItem)}
+            disabled={!canOrder}
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={[PrimaryColor, "#FF6B00"]}
+              colors={canOrder ? [PrimaryColor, "#FF6B00"] : ["#94A3B8", "#64748B"]}
               style={styles.addToCartGradient}
             >
-              <Ionicons name="cart-outline" size={20} color="#fff" />
-              <Text style={styles.addToCartText}>Add to Cart</Text>
+              <Ionicons name="restaurant-outline" size={20} color="#fff" />
+              <Text style={styles.addToCartText}>
+                {canOrder ? "Add to Cart" : "Unavailable"}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         ) : (
@@ -689,7 +648,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     position: "relative",
   },
-  productImage: {
+  menuItemImage: {
     width: "100%",
     height: "100%",
   },
@@ -704,7 +663,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 8,
   },
-  stockBadge: {
+  availabilityBadge: {
     position: "absolute",
     top: 16,
     right: 16,
@@ -720,23 +679,40 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  stockDot: {
+  availabilityDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     marginRight: 6,
   },
-  stockText: {
+  availabilityText: {
     color: "#0F172A",
     fontSize: 12,
     fontWeight: "600",
   },
-  productInfo: {
+  mealTimeBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  mealTimeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  menuItemInfo: {
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 16,
   },
-  productName: {
+  menuItemName: {
     fontSize: 24,
     fontWeight: "800",
     color: "#0F172A",
@@ -744,40 +720,111 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
     marginBottom: 12,
   },
-  productDescription: {
+  menuItemDescription: {
     fontSize: 16,
     color: "#64748B",
     lineHeight: 24,
     letterSpacing: -0.2,
     marginBottom: 16,
   },
-  ratingContainer: {
+  categoryInfo: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
-  rating: {
+  categoryName: {
+    fontSize: 14,
+    color: "#64748B",
+    marginLeft: 6,
+    fontWeight: "500",
+  },
+  restaurantInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  restaurantImageContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: "#E2E8F0",
+    marginRight: 12,
+  },
+  restaurantImage: {
+    width: "100%",
+    height: "100%",
+  },
+  restaurantImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#E2E8F0",
+  },
+  restaurantDetails: {
+    flex: 1,
+  },
+  restaurantName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#0F172A",
+    marginBottom: 4,
+  },
+  restaurantMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
   },
   ratingText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
-    color: "#0F172A",
-    marginLeft: 4,
-  },
-  reviewsText: {
-    fontSize: 14,
     color: "#64748B",
-    marginLeft: 8,
+    marginLeft: 2,
   },
-  shopInfo: {
+  separatorDot: {
+    color: "#CBD5E1",
+    fontSize: 12,
+    marginHorizontal: 8,
+  },
+  addressText: {
+    fontSize: 12,
+    color: "#64748B",
+    flex: 1,
+  },
+  detailsSection: {
+    backgroundColor: "#FAFAFA",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+  },
+  detailItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 12,
   },
-  shopName: {
+  detailContent: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: "#94A3B8",
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  detailValue: {
     fontSize: 14,
-    color: "#64748B",
-    marginLeft: 6,
+    color: "#0F172A",
+    fontWeight: "600",
   },
   priceContainer: {
     marginTop: 8,
@@ -788,109 +835,11 @@ const styles = StyleSheet.create({
     color: PrimaryColor,
     letterSpacing: -1,
   },
-  relatedSection: {
-    paddingTop: 32,
-    paddingBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#0F172A",
-    letterSpacing: -0.4,
-  },
-  seeAllText: {
+  unavailableText: {
     fontSize: 14,
-    color: PrimaryColor,
+    color: "#EF4444",
     fontWeight: "600",
-  },
-  relatedProductsList: {
-    paddingHorizontal: 20,
-  },
-  relatedProductCard: {
-    width: 140,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
-  },
-  relatedProductImageContainer: {
-    width: "100%",
-    height: 120,
-    position: "relative",
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#F8FAFC",
-  },
-  relatedProductImage: {
-    width: "100%",
-    height: "100%",
-  },
-  relatedProductImagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F1F5F9",
-  },
-  quickAddButton: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    backgroundColor: PrimaryColor,
-    borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  cartQuantityBadge: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "#EF4444",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  cartQuantityText: {
-    color: "#fff",
-    fontSize: 11,
-    fontWeight: "bold",
-  },
-  relatedProductInfo: {
-    padding: 12,
-  },
-  relatedProductName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#0F172A",
-    lineHeight: 18,
-    marginBottom: 6,
-  },
-  relatedProductPrice: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: PrimaryColor,
-    letterSpacing: -0.3,
+    marginTop: 4,
   },
   addToCartContainer: {
     position: "absolute",

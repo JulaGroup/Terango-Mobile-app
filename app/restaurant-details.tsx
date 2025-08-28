@@ -531,7 +531,7 @@ export default function RestaurantDetails() {
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#EF4444" />
           <Text style={styles.errorText}>
-            {error || "Restaurant not found"}
+            {String(error) || "Restaurant not found"}
           </Text>
           <TouchableOpacity
             style={styles.retryButton}
@@ -617,6 +617,9 @@ export default function RestaurantDetails() {
           ) : (
             <View style={styles.heroBackgroundPlaceholder}>
               <Ionicons name="restaurant" size={60} color="#ccc" />
+              <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
+                Restaurant image unavailable
+              </Text>
             </View>
           )}
 
@@ -658,17 +661,17 @@ export default function RestaurantDetails() {
 
                 {/* Enhanced Restaurant Meta */}
                 <View style={styles.restaurantMeta}>
-                  {restaurant.rating && (
+                  {typeof restaurant.rating === "number" && (
                     <View style={styles.metaItem}>
                       <Ionicons name="star" size={16} color="#FFD700" />
                       <Text style={styles.metaText}>
                         {restaurant.rating.toFixed(1)} (
-                        {restaurant.totalReviews || 0} reviews)
+                        {restaurant.totalReviews ?? 0} reviews)
                       </Text>
                     </View>
                   )}
 
-                  {restaurant.address && (
+                  {typeof restaurant.address === "string" && (
                     <View style={styles.metaItem}>
                       <Ionicons
                         name="location"
@@ -676,8 +679,10 @@ export default function RestaurantDetails() {
                         color="rgba(255,255,255,0.9)"
                       />
                       <Text style={styles.metaText}>
-                        {restaurant.city
-                          ? `${restaurant.city}, ${restaurant.state || ""}`
+                        {typeof restaurant.city === "string"
+                          ? `${restaurant.city}${
+                              restaurant.state ? `, ${restaurant.state}` : ""
+                            }`
                           : restaurant.address}
                       </Text>
                     </View>
@@ -701,7 +706,7 @@ export default function RestaurantDetails() {
                     </TouchableOpacity>
                   )}
 
-                  {restaurant.minimumOrderAmount &&
+                  {typeof restaurant.minimumOrderAmount === "number" &&
                     restaurant.minimumOrderAmount > 0 && (
                       <View style={styles.metaItem}>
                         <Ionicons
@@ -710,7 +715,8 @@ export default function RestaurantDetails() {
                           color="rgba(255,255,255,0.9)"
                         />
                         <Text style={styles.metaText}>
-                          Min. order: D{restaurant.minimumOrderAmount}
+                          Min. order: D
+                          {restaurant.minimumOrderAmount.toFixed(2)}
                         </Text>
                       </View>
                     )}
@@ -848,6 +854,12 @@ export default function RestaurantDetails() {
                         cartQuantity={getCartItemQuantity(item.id)}
                         onAddToCart={() => handleAddToCart(item)}
                         onRemoveFromCart={() => removeFromCart(item.id)}
+                        onPress={() =>
+                          router.push({
+                            pathname: "/menuitem/[menuitem]",
+                            params: { menuitem: item.id },
+                          })
+                        }
                       />
                     </View>
                   )}

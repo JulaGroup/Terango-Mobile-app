@@ -142,6 +142,13 @@ export default function RootLayout() {
                   }}
                 />
                 <Stack.Screen
+                  name="menuitem/[menuitem]"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
                   name="ViewAllRestaurants"
                   options={{
                     animation: "slide_from_right",

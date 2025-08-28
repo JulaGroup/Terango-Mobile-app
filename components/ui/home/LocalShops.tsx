@@ -178,7 +178,7 @@ const ShopCard = ({
             marginBottom: 8,
           }}
         >
-          {shop.rating && (
+          {typeof shop.rating === "number" && shop.rating >= 0 && (
             <View
               style={{
                 flexDirection: "row",
@@ -193,22 +193,25 @@ const ShopCard = ({
             </View>
           )}
 
-          {shop.city && (
+          {typeof shop.address === "string" && (
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="location" size={12} color="#6B7280" />
               <Text style={{ fontSize: 12, color: "#6B7280", marginLeft: 2 }}>
-                {shop.address}
+                {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
+                  shop.address ?? ""
+                }`}
               </Text>
             </View>
           )}
         </View>
 
         {/* Minimum Order */}
-        {shop.minimumOrderAmount && shop.minimumOrderAmount > 0 && (
-          <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
-            Min. order: D{shop.minimumOrderAmount.toFixed(2)}
-          </Text>
-        )}
+        {typeof shop.minimumOrderAmount === "number" &&
+          shop.minimumOrderAmount > 0 && (
+            <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
+              Min. order: D{shop.minimumOrderAmount.toFixed(2)}
+            </Text>
+          )}
       </View>
     </TouchableOpacity>
   );
@@ -232,11 +235,12 @@ export default function LocalShops() {
       }
 
       const data = await response.json();
-      console.log("Shops data:", data);
       setShops(data || []);
     } catch (err: any) {
       console.error("Error fetching shops:", err);
-      setError(err.message || "Failed to load shops");
+      setError(
+        typeof err?.message === "string" ? err.message : "Failed to load shops"
+      );
     } finally {
       setLoading(false);
     }
@@ -254,9 +258,13 @@ export default function LocalShops() {
     router.push("/ViewAllStores");
   };
 
-  const renderShopCard = ({ item }: { item: Shop }) => (
-    <ShopCard shop={item} onPress={handleShopPress} />
-  );
+  const renderShopCard = ({ item }: { item: Shop }) => {
+    if (!item || typeof item !== "object") {
+      console.warn("Invalid shop item:", item);
+      return <View />; // return an empty View instead of null/string
+    }
+    return <ShopCard shop={item} onPress={handleShopPress} />;
+  };
 
   const renderSkeletonCard = ({ item }: { item: number }) => (
     <View
@@ -362,7 +370,7 @@ export default function LocalShops() {
               lineHeight: 16,
             }}
           >
-            {error}
+            Please check your connection and try again.
           </Text>
         </View>
 

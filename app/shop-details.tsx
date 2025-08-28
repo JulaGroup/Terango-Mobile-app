@@ -697,7 +697,10 @@ export default function ShopDetails() {
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#EF4444" />
-          <Text style={styles.errorText}>{error || "Shop not found"}</Text>
+          <Text style={styles.errorText}>
+            {String(error) || "Shop not found"}
+          </Text>
+
           <TouchableOpacity
             style={styles.retryButton}
             onPress={fetchShopDetails}
@@ -782,6 +785,9 @@ export default function ShopDetails() {
           ) : (
             <View style={styles.heroBackgroundPlaceholder}>
               <Ionicons name="storefront" size={60} color="#ccc" />
+              <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
+                Shop image unavailable
+              </Text>
             </View>
           )}
 
@@ -828,11 +834,11 @@ export default function ShopDetails() {
 
                 {/* Enhanced Shop Meta */}
                 <View style={styles.restaurantMeta}>
-                  {shop.rating && (
+                  {typeof shop.rating === "number" && (
                     <View style={styles.metaItem}>
                       <Ionicons name="star" size={16} color="#FFD700" />
                       <Text style={styles.metaText}>
-                        {shop.rating.toFixed(1)} ({shop.totalReviews || 0}
+                        {shop.rating.toFixed(1)} ({shop.totalReviews ?? 0}{" "}
                         reviews)
                       </Text>
                     </View>
@@ -871,18 +877,19 @@ export default function ShopDetails() {
                     </TouchableOpacity>
                   )}
 
-                  {shop.minimumOrderAmount && shop.minimumOrderAmount > 0 && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="cash-outline"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>
-                        Min. order: ${shop.minimumOrderAmount}
-                      </Text>
-                    </View>
-                  )}
+                  {typeof shop.minimumOrderAmount === "number" &&
+                    shop.minimumOrderAmount > 0 && (
+                      <View style={styles.metaItem}>
+                        <Ionicons
+                          name="cash-outline"
+                          size={16}
+                          color="rgba(255,255,255,0.9)"
+                        />
+                        <Text style={styles.metaText}>
+                          Min. order: D{shop.minimumOrderAmount.toFixed(2)}
+                        </Text>
+                      </View>
+                    )}
 
                   {shop.shopType && (
                     <View style={styles.metaItem}>

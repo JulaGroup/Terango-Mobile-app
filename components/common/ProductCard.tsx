@@ -18,6 +18,7 @@ interface ProductCardProps {
   cartQuantity: number;
   onAddToCart: (product: UniversalProduct) => void;
   onRemoveFromCart: (product: UniversalProduct) => void;
+  onPress?: () => void;
 }
 
 const ProductCard = ({
@@ -25,6 +26,7 @@ const ProductCard = ({
   cartQuantity,
   onAddToCart,
   onRemoveFromCart,
+  onPress,
 }: ProductCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -71,7 +73,11 @@ const ProductCard = ({
   }, [cartQuantity]);
 
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.92}
+      onPress={onPress}
+    >
       <View style={styles.productImageContainer}>
         {product.image && !imageLoadError ? (
           <Image
@@ -139,7 +145,7 @@ const ProductCard = ({
           <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

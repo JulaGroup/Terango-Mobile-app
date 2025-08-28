@@ -24,6 +24,7 @@ import FreshFromFarm from "@/components/ui/home/FreshFromFarm";
 import PopularStores from "@/components/ui/home/PopularStores";
 import AdBanner from "@/components/ui/home/AdBanner";
 import { PrimaryColor } from "@/constants/Colors";
+import LocalShops from "@/components/ui/home/LocalShops";
 
 const { width } = Dimensions.get("window");
 
@@ -89,7 +90,7 @@ export default function BrowseScreen() {
             <Ionicons
               name="search"
               size={24}
-              color="#667eea"
+              color="#4B4B4BFF"
               style={{ marginRight: 12 }}
             />
             <TextInput
@@ -98,7 +99,7 @@ export default function BrowseScreen() {
               value={searchText}
               onChangeText={(text) => setSearchText(text)}
             />
-            <View
+            {/* <View
               style={{
                 backgroundColor: "#667eea",
                 borderRadius: 15,
@@ -108,7 +109,7 @@ export default function BrowseScreen() {
               }}
             >
               <Ionicons name="options" color="#FFFFFF" size={18} />
-            </View>
+            </View> */}
           </View>
         </TouchableWithoutFeedback>
         <Cart />
@@ -160,12 +161,12 @@ export default function BrowseScreen() {
                 value={searchText}
                 onChangeText={(text) => setSearchText(text)}
               />
-              <Ionicons
+              {/* <Ionicons
                 style={{ marginLeft: 10, alignSelf: "center" }}
                 name="options"
                 color="#4B4B4BFF"
                 size={24}
-              />
+              /> */}
             </View>
           </TouchableWithoutFeedback>
         </View>
@@ -175,36 +176,31 @@ export default function BrowseScreen() {
           style={{
             paddingHorizontal: 20,
             paddingVertical: 24,
-            backgroundColor: "#667eea",
+            backgroundColor: "#F3F4F6", // light grey background
             marginHorizontal: 16,
             borderRadius: 20,
-            marginBottom: 20,
-            shadowColor: "#667eea",
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: 0.25,
-            shadowRadius: 12,
-            elevation: 8,
           }}
         >
           <Text
             style={{
               fontSize: 28,
               fontWeight: "bold",
-              color: "#FFFFFF",
+              color: "#1F2937", // dark text for contrast
               marginBottom: 8,
             }}
           >
-            Explore The Gambia 🇬🇲
+            Explore Teran
+            <Text style={{ fontWeight: "bold", color: "#FF6A00" }}>GO</Text> 🇬🇲
           </Text>
           <Text
             style={{
               fontSize: 16,
-              color: "#E8E8FF",
-              lineHeight: 22,
+              color: "#4B5563", // medium grey text for readability
+              lineHeight: 24,
             }}
           >
-            Discover local flavors, traditional meals, fresh produce, and
-            everything you need - delivered across The Gambia with love.
+            Find the best meals, groceries, and fresh produce near you —
+            delivered quickly, safely, and with love across The Gambia.
           </Text>
         </View>
 
@@ -219,28 +215,13 @@ export default function BrowseScreen() {
           onPress={() => console.log("Explore local treasures")}
         />
 
-        {/* Great for Breakfast - Gambian Morning Favorites */}
-        <GreatForBreakfast />
-
-        {/* Traditional Meals - Authentic Gambian Cuisine */}
-        <TraditionalMeals />
-
-        {/* Local Beverages - Traditional & Modern Drinks */}
-        <LocalBeverages />
-
-        {/* Advertisement Banner */}
-        <AdBanner
-          title="🥗 Fresh & Healthy Living"
-          buttonText="Shop Fresh"
-          backgroundColor="#16A085"
-          onPress={() => console.log("Shop fresh products")}
-        />
-
         {/* Fresh from Farm - Local Produce */}
-        <FreshFromFarm />
+        {/* <FreshFromFarm /> */}
 
         {/* Restaurants Near You */}
         <RestaurantNearYou />
+        {/* Local Shops - Quality products near you */}
+        <LocalShops />
 
         {/* Advertisement Banner */}
         <AdBanner
@@ -248,20 +229,6 @@ export default function BrowseScreen() {
           buttonText="View Deals"
           backgroundColor="#E74C3C"
           onPress={() => console.log("View weekly deals")}
-        />
-
-        {/* Popular Stores */}
-        <PopularStores />
-
-        {/* Stores Near You */}
-        <StoresNearYou />
-
-        {/* Final Advertisement Banner */}
-        <AdBanner
-          title="📱 Download TeranGo App"
-          buttonText="Get App"
-          backgroundColor="#9C27B0"
-          onPress={() => console.log("Download app")}
         />
       </Animated.ScrollView>
     </SafeAreaView>

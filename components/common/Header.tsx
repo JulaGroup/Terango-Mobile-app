@@ -16,6 +16,7 @@ const { width } = Dimensions.get("window");
 
 const Header = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const { selectedAddress, setSelectedAddress } = useAddress();
   const handleLocationPress = () => {
     console.log("Location arrow pressed, showing modal");
@@ -128,7 +129,7 @@ const Header = () => {
               padding: 8,
               borderRadius: 8,
             }}
-            onPress={() => console.log("Notifications")}
+            onPress={() => setShowNotificationModal(true)}
           >
             <Ionicons name="notifications-outline" size={22} color="black" />
           </TouchableOpacity>
@@ -141,6 +142,63 @@ const Header = () => {
         onSelectAddress={handleSelectAddress}
         currentAddress={getDisplayAddress()}
       />
+
+      {/* Notification Modal */}
+      {showNotificationModal && (
+        <View
+          style={{
+            position: "absolute",
+            top: 80,
+            right: 30,
+            width: 240,
+            backgroundColor: "#fff",
+            borderRadius: 16,
+            padding: 24,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.15,
+            shadowRadius: 12,
+            elevation: 8,
+            alignItems: "center",
+            zIndex: 999,
+          }}
+        >
+          {/* Arrow pointer to bell icon */}
+          <View
+            style={{
+              position: "absolute",
+              top: -12,
+              right: 24,
+              width: 0,
+              height: 0,
+              borderLeftWidth: 10,
+              borderRightWidth: 10,
+              borderBottomWidth: 12,
+              borderLeftColor: "transparent",
+              borderRightColor: "transparent",
+              borderBottomColor: "#fff",
+            }}
+          />
+          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
+            Notifications
+          </Text>
+          <Text style={{ fontSize: 14, color: "#888" }}>
+            No notifications yet
+          </Text>
+          <TouchableOpacity
+            style={{
+              marginTop: 18,
+              backgroundColor: "#ff6b00",
+              paddingHorizontal: 24,
+              paddingVertical: 10,
+              borderRadius: 8,
+            }}
+            onPress={() => setShowNotificationModal(false)}
+          >
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </>
   );
 };
