@@ -346,7 +346,13 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
 };
 
 // Menu Item Card Component
-const MenuItemCard = ({ menuItem }: { menuItem: MenuItem }) => {
+const MenuItemCard = ({
+  menuItem,
+  onPress,
+}: {
+  menuItem: MenuItem;
+  onPress?: () => void;
+}) => {
   const { addToCart, cartItems, removeFromCart, updateQuantity } = useCart();
   const [imageLoadError, setImageLoadError] = useState(false);
 
@@ -389,7 +395,11 @@ const MenuItemCard = ({ menuItem }: { menuItem: MenuItem }) => {
   };
 
   return (
-    <View style={styles.menuItemCard}>
+    <TouchableOpacity
+      style={styles.menuItemCard}
+      activeOpacity={0.92}
+      onPress={onPress}
+    >
       <View style={styles.menuItemImageContainer}>
         {menuItem.imageUrl && !imageLoadError ? (
           <Image
@@ -451,7 +461,7 @@ const MenuItemCard = ({ menuItem }: { menuItem: MenuItem }) => {
         )}
         <Text style={styles.menuItemPrice}>D{menuItem.price.toFixed(2)}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 
@@ -460,8 +470,7 @@ export default function SubCategoryView() {
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const { subCategoryId, subCategoryName } = useLocalSearchParams();
-  const { cartItems } = useCart();
-
+  const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
   const [data, setData] = useState<SubCategoryData>({
     restaurants: [],
     shops: [],
@@ -474,13 +483,11 @@ export default function SubCategoryView() {
   const [activeTab, setActiveTab] = useState("all");
 
   const fetchSubCategoryData = useCallback(async () => {
-    console.log(subCategoryId);
     try {
       setError(null);
       const response = await fetch(
         `${API_URL}/api/subcategories/${subCategoryId}/entities`
       );
-      console.log("response############" + JSON.stringify(response));
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.statusText}`);
       }
@@ -500,9 +507,7 @@ export default function SubCategoryView() {
       setRefreshing(false);
     }
   }, [subCategoryId]);
-  useEffect(() => {
-    console.log("Updated data:", data);
-  }, [data]);
+  useEffect(() => {}, [data]);
   useEffect(() => {
     if (subCategoryId) {
       fetchSubCategoryData();
@@ -604,12 +609,35 @@ export default function SubCategoryView() {
                           cartItems.find((ci) => ci.id === item.id)?.quantity ||
                           0
                         }
-                        onAddToCart={() => {
-                          /* Handle add to cart */
+                        onAddToCart={(product) => {
+                          // Add product to cart
+                          const cartItem = {
+                            id: item.id,
+                            name: item.name,
+                            price: item.price,
+                            description: item.description || "",
+                            vendorId: item.shopId || "",
+                            vendorName: "Shop",
+                            imageUrl: item.imageUrl || "",
+                            entityType: "shop",
+                          };
+                          addToCart(cartItem);
                         }}
-                        onRemoveFromCart={() => {
-                          /* Handle remove from cart */
+                        onRemoveFromCart={(product) => {
+                          // Decrement quantity if > 1, else remove from cart
+                          const cartItem = cartItems.find(
+                            (ci) => ci.id === item.id
+                          );
+                          if (cartItem && cartItem.quantity > 1) {
+                            updateQuantity(
+                              String(item.id),
+                              cartItem.quantity - 1
+                            );
+                          } else {
+                            removeFromCart(item.id);
+                          }
                         }}
+                        onPress={() => router.push(`/product/${item.id}`)}
                       />
                     )}
                     showsHorizontalScrollIndicator={false}
@@ -631,7 +659,15 @@ export default function SubCategoryView() {
                     keyExtractor={(item) => `menu-${item.id}`}
                     renderItem={({ item }) => (
                       <View style={{ marginRight: 16 }}>
-                        <MenuItemCard menuItem={item} />
+                        <MenuItemCard
+                          menuItem={item}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/menuitem/[menuitem]",
+                              params: { menuitem: item.id },
+                            })
+                          }
+                        />
                       </View>
                     )}
                     showsHorizontalScrollIndicator={false}

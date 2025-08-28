@@ -320,7 +320,9 @@ export default function ProductDetail() {
       console.error("Error sharing:", error);
     }
   };
-
+  const getTotalCartItems = () => {
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
   const handleToggleFavorite = () => {
     setIsFavorite(!isFavorite);
     // Here you would typically make an API call to save/remove from favorites
@@ -401,6 +403,18 @@ export default function ProductDetail() {
             activeOpacity={0.7}
           >
             <Ionicons name="share-outline" size={24} color="#64748B" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cartButton}
+            onPress={() => router.push("/cart")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cart" size={22} color="#111827" />
+            {getTotalCartItems() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -974,5 +988,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginTop: 2,
+  },
+  cartButton: {
+    backgroundColor: "#F1F5F9",
+    height: 40,
+    width: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
 });
