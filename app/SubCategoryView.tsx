@@ -316,7 +316,7 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
           </View>
         )}
 
-        {shop.minimumOrderAmount && shop.minimumOrderAmount > 0 && (
+        {shop.minimumOrderAmount !== undefined && (
           <Text style={styles.minOrderText}>
             Min. order: D{shop.minimumOrderAmount.toFixed(2)}
           </Text>
@@ -326,7 +326,9 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
             <Text style={styles.locationText} numberOfLines={1}>
-              {shop.address || shop.city || "Location"}
+              {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
+                shop.address ?? "Location"
+              }`}
             </Text>
           </View>
           <Text style={styles.reviewText}>{reviewCount} reviews</Text>
