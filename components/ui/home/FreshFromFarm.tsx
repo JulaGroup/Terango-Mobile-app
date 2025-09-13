@@ -21,8 +21,9 @@ export default function FreshFromFarm() {
       description: `Fresh ${product.category.toLowerCase()} - ${
         product.organic ? "Organic" : "Farm Fresh"
       }`,
-      restaurantId: "7", // Default shop ID for farm products
-      restaurantName: "Fresh Farm Market",
+      vendorId: "7", // Default vendor ID for farm products
+      vendorName: "Fresh Farm Market",
+      entityType: "product",
       imageUrl: "", // Will be handled by ProductCard component
     };
 

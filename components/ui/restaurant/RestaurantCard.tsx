@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import React from "react";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 
 interface RestaurantCardProps {
   id: string;
@@ -23,16 +23,16 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   image,
   rating,
   description,
-  deliveryTime = '30-45',
+  deliveryTime = "30-45",
   minOrder = 0,
   isOpen = true,
-  distance = '2.3 km',
+  distance = "2.3 km",
   categories = [],
 }) => {
   return (
     <TouchableOpacity
       style={styles.container}
-      onPress={() => router.push(`/restaurant-details/${id}`)}
+      onPress={() => router.push(`/restaurant-details/${id}` as unknown as any)}
       activeOpacity={0.97}
     >
       <View style={styles.imageContainer}>
@@ -53,7 +53,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           </View>
         )}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.7)']}
+          colors={["transparent", "rgba(0,0,0,0.7)"]}
           style={styles.gradient}
         />
       </View>
@@ -68,7 +68,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             </View>
           </View>
           {categories.length > 0 && (
-            <Text style={styles.categories}>{categories.join(' • ')}</Text>
+            <Text style={styles.categories}>{categories.join(" • ")}</Text>
           )}
         </View>
 
@@ -103,55 +103,55 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: 16,
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
   imageContainer: {
     height: 200,
-    width: '100%',
-    backgroundColor: '#f3f4f6',
-    position: 'relative',
+    width: "100%",
+    backgroundColor: "#f3f4f6",
+    position: "relative",
   },
   image: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   placeholderContainer: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
   },
   closedOverlay: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 2,
   },
   closedText: {
-    color: '#fff',
+    color: "#fff",
     fontSize: 16,
-    fontWeight: '600',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    fontWeight: "600",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   gradient: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
@@ -165,22 +165,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   titleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 4,
   },
   name: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: "700",
+    color: "#1F2937",
     flex: 1,
     marginRight: 8,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF3C7",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -188,38 +188,38 @@ const styles = StyleSheet.create({
   rating: {
     marginLeft: 4,
     fontSize: 14,
-    fontWeight: '600',
-    color: '#92400E',
+    fontWeight: "600",
+    color: "#92400E",
   },
   categories: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginBottom: 4,
   },
   description: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     lineHeight: 20,
     marginBottom: 12,
   },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   infoText: {
     marginLeft: 4,
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: "#D1D5DB",
     marginHorizontal: 8,
   },
 });

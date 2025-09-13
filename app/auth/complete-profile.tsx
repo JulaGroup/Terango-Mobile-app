@@ -1,7 +1,7 @@
 // app/complete-profile.tsx
 import { completeProfile } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -40,7 +40,7 @@ export default function CompleteProfile() {
       }
 
       try {
-        const userId = await AsyncStorage.getItem("userId");
+        const userId = await SecureStore.getItemAsync("userId");
         if (!userId) throw new Error("User ID not found");
 
         await completeProfile({ userId, name, email });
@@ -53,7 +53,7 @@ export default function CompleteProfile() {
           isVerified: false, // New profiles start unverified
         });
 
-        await AsyncStorage.setItem("isLoggedIn", "true");
+        await SecureStore.setItemAsync("isLoggedIn", "true");
 
         console.log("✅ Profile completed and cached successfully");
         router.replace("/(tabs)");

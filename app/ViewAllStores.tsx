@@ -149,12 +149,7 @@ export default function ViewAllStores() {
                 key={shop.id}
                 style={styles.card}
                 activeOpacity={0.8}
-                onPress={() =>
-                  router.push({
-                    pathname: "/shop-details",
-                    params: { shopId: shop.id },
-                  })
-                }
+                onPress={() => router.push(`/shop-details?shopId=${shop.id}`)}
               >
                 {/* Image */}
                 <View style={styles.imageContainer}>
@@ -211,7 +206,7 @@ export default function ViewAllStores() {
                   )}
 
                   {/* Minimum Order */}
-                  {shop.minimumOrderAmount && shop.minimumOrderAmount > 0 && (
+                  {shop.minimumOrderAmount !== undefined && (
                     <Text style={styles.minOrderText}>
                       Min. order: D{shop.minimumOrderAmount.toFixed(2)}
                     </Text>
@@ -232,7 +227,9 @@ export default function ViewAllStores() {
                         color="#666"
                       />
                       <Text style={styles.locationText} numberOfLines={1}>
-                        {shop.address || shop.city || "Location"}
+                        {`${shop.city?.trim() ?? ""}${
+                          shop.city && shop.address ? ", " : ""
+                        }${shop.address?.trim() ?? "Location"}`}
                       </Text>
                     </View>
                     <Text style={styles.reviewText}>{reviewCount} reviews</Text>

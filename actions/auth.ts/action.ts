@@ -1,22 +1,23 @@
 import axios from "axios";
 import { API_URL } from "@/constants/config";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { jwtDecode } from "jwt-decode";
+import { registerForPushNotificationsAsync } from "@/utils/NotificationService";
 
 const safeSetItem = async (key: string, value: string) => {
   try {
-    await AsyncStorage.setItem(key, value);
+    await SecureStore.setItemAsync(key, value);
   } catch (e) {
-    console.log(`AsyncStorage setItem error (${key}):`, e);
+    console.log(`SecureStore setItem error (${key}):`, e);
   }
 };
 
 export const safeGetItem = async (key: string) => {
   try {
-    return await AsyncStorage.getItem(key);
+    return await SecureStore.getItemAsync(key);
   } catch (e) {
-    console.log(`AsyncStorage getItem error (${key}):`, e);
+    console.log(`SecureStore getItem error (${key}):`, e);
     return null;
   }
 };
@@ -70,6 +71,9 @@ export const verifyOtp = async ({
     const decoded: any = jwtDecode(token);
     const userId = decoded.userId;
     await safeSetItem("userId", userId);
+
+    // Register push token with backend when user verifies
+    registerForPushNotificationsAsync().catch(() => {});
 
     return isNewUser;
   } catch (err: any) {

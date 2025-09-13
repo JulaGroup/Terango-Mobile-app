@@ -1,9 +1,16 @@
 import React from "react";
-import { usePermissions } from "@/context/PermissionContext";
+import { PermissionContext } from "@/context/PermissionContext";
 import PermissionModal from "./PermissionModal";
 import { PrimaryColor } from "@/constants/Colors";
 
 const PermissionHandler: React.FC = () => {
+  // Use useContext directly so we don't throw if provider is missing
+  const context = React.useContext(PermissionContext);
+  if (!context) {
+    // If no provider, render nothing (inert)
+    return null;
+  }
+
   const {
     showLocationModal,
     showNotificationModal,
@@ -12,7 +19,7 @@ const PermissionHandler: React.FC = () => {
     dismissLocationModal,
     dismissNotificationModal,
     permissions,
-  } = usePermissions();
+  } = context;
 
   return (
     <>

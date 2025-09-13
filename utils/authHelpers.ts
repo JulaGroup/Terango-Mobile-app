@@ -1,5 +1,5 @@
 // Authentication helper utilities
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 export interface User {
   id: string;
@@ -13,7 +13,7 @@ export interface User {
 
 export const getCurrentUser = async (): Promise<User | null> => {
   try {
-    const userData = await AsyncStorage.getItem("userData");
+    const userData = await SecureStore.getItemAsync("userData");
     if (!userData) return null;
 
     return JSON.parse(userData);
@@ -25,8 +25,8 @@ export const getCurrentUser = async (): Promise<User | null> => {
 
 export const isLoggedIn = async (): Promise<boolean> => {
   try {
-    const loggedIn = await AsyncStorage.getItem("isLoggedIn");
-    const token = await AsyncStorage.getItem("token");
+    const loggedIn = await SecureStore.getItemAsync("isLoggedIn");
+    const token = await SecureStore.getItemAsync("token");
     return loggedIn === "true" && !!token;
   } catch (error) {
     console.error("Error checking login status:", error);
@@ -46,13 +46,25 @@ export const isVendor = async (): Promise<boolean> => {
 
 export const clearAuthData = async (): Promise<void> => {
   try {
-    await AsyncStorage.multiRemove([
-      "isLoggedIn",
-      "userData",
-      "userId",
-      "token",
-      "refreshToken",
-    ]);
+    try {
+      await SecureStore.deleteItemAsync("userData");
+      await SecureStore.deleteItemAsync("isLoggedIn");
+      await SecureStore.deleteItemAsync("token");
+      await SecureStore.deleteItemAsync("userId");
+      await SecureStore.deleteItemAsync("userPhone");
+    } catch (e) {
+      console.log("SecureStore clear failed, falling back to AsyncStorage:", e);
+      // @ts-ignore
+      const AS = (await import("@react-native-async-storage/async-storage"))
+        .default;
+      await AS.multiRemove([
+        "userData",
+        "isLoggedIn",
+        "token",
+        "userId",
+        "userPhone",
+      ]);
+    }
     console.log("Auth data cleared successfully");
   } catch (error) {
     console.error("Error clearing auth data:", error);
@@ -71,12 +83,26 @@ export const setTestUser = async (role: "USER" | "VENDOR" | "ADMIN") => {
     avatarUrl: "https://via.placeholder.com/100",
   };
 
-  await AsyncStorage.multiSet([
-    ["isLoggedIn", "true"],
-    ["userData", JSON.stringify(testUser)],
-    ["userId", testUser.id],
-    ["token", "test-token-" + role.toLowerCase()],
-  ]);
+  try {
+    const token = `test-token-${role.toLowerCase()}`;
+    await SecureStore.setItemAsync("userData", JSON.stringify(testUser));
+    await SecureStore.setItemAsync("isLoggedIn", "true");
+    await SecureStore.setItemAsync("token", token);
+    await SecureStore.setItemAsync("userId", testUser.id);
+    await SecureStore.setItemAsync("userPhone", testUser.phone);
+  } catch (e) {
+    console.log("SecureStore set failed, falling back to AsyncStorage:", e);
+    // @ts-ignore
+    const AS = (await import("@react-native-async-storage/async-storage"))
+      .default;
+    await AS.multiSet([
+      ["userData", JSON.stringify(testUser)],
+      ["isLoggedIn", "true"],
+      ["token", `test-token-${role.toLowerCase()}`],
+      ["userId", testUser.id],
+      ["userPhone", testUser.phone],
+    ]);
+  }
 
   console.log(`Test ${role} user set successfully`);
 };

@@ -1,6 +1,6 @@
 // React hook for managing home page data with optimization
 import { useState, useEffect, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { homeApi } from "@/lib/homeApi";
 
 export interface Product {
@@ -174,9 +174,9 @@ export const useHomeData = (): UseHomeDataReturn => {
   // Preload on app start
   useEffect(() => {
     const preloadData = async () => {
-      const isFirstLaunch = await AsyncStorage.getItem("hasLaunched");
+      const isFirstLaunch = await SecureStore.getItemAsync("hasLaunched");
       if (!isFirstLaunch) {
-        await AsyncStorage.setItem("hasLaunched", "true");
+        await SecureStore.setItemAsync("hasLaunched", "true");
         homeApi.preloadCriticalData();
       }
     };

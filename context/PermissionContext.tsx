@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 
@@ -27,12 +27,12 @@ interface PermissionContextType {
   checkLocationAccess: () => Promise<boolean>;
 }
 
-const PermissionContext = createContext<PermissionContextType | undefined>(
-  undefined
-);
+export const PermissionContext = createContext<
+  PermissionContextType | undefined
+>(undefined);
 
-const PERMISSION_STORAGE_KEY = "@teranggo_permissions";
-const MODALS_SHOWN_KEY = "@teranggo_modals_shown";
+const PERMISSION_STORAGE_KEY = "teranggo_permissions";
+const MODALS_SHOWN_KEY = "teranggo_modals_shown";
 
 export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
   children,
@@ -51,8 +51,8 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
     const loadPermissions = async () => {
       try {
         const [savedPermissions, modalsShown] = await Promise.all([
-          AsyncStorage.getItem(PERMISSION_STORAGE_KEY),
-          AsyncStorage.getItem(MODALS_SHOWN_KEY),
+          SecureStore.getItemAsync(PERMISSION_STORAGE_KEY),
+          SecureStore.getItemAsync(MODALS_SHOWN_KEY),
         ]);
 
         if (savedPermissions) {
@@ -110,7 +110,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
   const savePermissionState = async (newPermissions: PermissionState) => {
     try {
-      await AsyncStorage.setItem(
+      await SecureStore.setItemAsync(
         PERMISSION_STORAGE_KEY,
         JSON.stringify(newPermissions)
       );
@@ -164,7 +164,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
       setShowNotificationModal(false);
 
       // Mark that we've shown the permission modals
-      await AsyncStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
+      await SecureStore.setItemAsync(MODALS_SHOWN_KEY, JSON.stringify(true));
       setHasShownPermissionModals(true);
 
       // Re-check system permissions to update state and prevent repeat modal
@@ -181,7 +181,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
   const dismissLocationModal = () => {
     setShowLocationModal(false);
     // Mark that we've shown the permission modals
-    AsyncStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
+    SecureStore.setItemAsync(MODALS_SHOWN_KEY, JSON.stringify(true));
     setHasShownPermissionModals(true);
     // Do NOT show notification modal again if modals have been marked as shown
     // If you want to show notification modal only once, this prevents repeat popups
@@ -190,7 +190,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
   const dismissNotificationModal = async () => {
     setShowNotificationModal(false);
     // Mark that we've shown the permission modals
-    await AsyncStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
+    await SecureStore.setItemAsync(MODALS_SHOWN_KEY, JSON.stringify(true));
     setHasShownPermissionModals(true);
   };
 

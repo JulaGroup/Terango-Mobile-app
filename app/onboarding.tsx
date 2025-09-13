@@ -1,5 +1,5 @@
 import { PrimaryColor } from "@/constants/Colors";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -91,7 +91,7 @@ export default function Onboarding() {
         onPress={async () => {
           if (loading) return;
           setLoading(true);
-          await AsyncStorage.setItem("hasSeenOnboarding", "true");
+          await SecureStore.setItemAsync("hasSeenOnboarding", "true");
           router.replace("/(tabs)");
         }}
       >
@@ -164,7 +164,7 @@ export default function Onboarding() {
               onPress={async () => {
                 if (loading) return;
                 setLoading(true);
-                await AsyncStorage.setItem("hasSeenOnboarding", "true");
+                await SecureStore.setItemAsync("hasSeenOnboarding", "true");
                 router.replace("/(tabs)");
               }}
               activeOpacity={0.8}
@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
     // bottom: 80,
     // left: 0,
     paddingHorizontal: 24,
-    display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
   },

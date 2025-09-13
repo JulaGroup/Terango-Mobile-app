@@ -1,11 +1,11 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 export const debugAuthState = async () => {
   try {
-    const token = await AsyncStorage.getItem("token");
-    const userId = await AsyncStorage.getItem("userId");
-    const isLoggedIn = await AsyncStorage.getItem("isLoggedIn");
-    const userPhone = await AsyncStorage.getItem("userPhone");
+    const token = await SecureStore.getItemAsync("token");
+    const userId = await SecureStore.getItemAsync("userId");
+    const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
+    const userPhone = await SecureStore.getItemAsync("userPhone");
 
     console.log("🔍 Auth Debug State:");
     console.log("  - Token:", token ? "✅ Present" : "❌ Missing");

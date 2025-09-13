@@ -73,18 +73,14 @@ export default function PharmacyEssentials({
     subcategoryName: string
   ) => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
-      params: {
-        subcategoryId,
-        subcategoryName,
-        productId: product.id,
-      },
+      pathname: "/SubCategoryProductsPage" as any,
+      params: { subcategoryId, subcategoryName, productId: product.id },
     });
   };
 
   const handleViewAllMedicines = () => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "f41dd4c6-b7df-4df2-8190-36a02a152006",
         subcategoryName: "Medicines",
@@ -94,7 +90,7 @@ export default function PharmacyEssentials({
 
   const handleViewAllPersonalCare = () => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "91769bbc-c354-4b97-ae8f-3b8b27727d57",
         subcategoryName: "Personal Care",
@@ -325,7 +321,6 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
   },
   viewAllText: {
     fontSize: 12,
@@ -406,7 +401,6 @@ const styles = StyleSheet.create({
   storeInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
   },
   rating: {
     fontSize: 10,

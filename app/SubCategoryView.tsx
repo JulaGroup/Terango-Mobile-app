@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { TextInput } from "react-native";
 import {
   View,
   Text,
@@ -13,6 +12,7 @@ import {
   FlatList,
   RefreshControl,
   Dimensions,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -38,8 +38,8 @@ interface Restaurant {
   rating?: number;
   totalReviews?: number;
   openingHours?: any;
+  fullWidth?: boolean;
 }
-
 interface Shop {
   id: string;
   name: string;
@@ -55,6 +55,7 @@ interface Shop {
   shopType?: string;
   minimumOrderAmount?: number;
   acceptsOrders: boolean;
+  fullWidth?: boolean;
 }
 
 interface Product {
@@ -182,7 +183,7 @@ const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
   );
 };
 
-// Restaurant Card Component
+// Modern Restaurant Card Component
 const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
@@ -191,9 +192,24 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
   const reviewCount =
     restaurant.totalReviews || Math.floor(Math.random() * 450 + 50);
 
+  const CARD_WIDTH = width * 0.75;
   return (
     <TouchableOpacity
-      style={styles.restaurantCard}
+      style={{
+        width: CARD_WIDTH,
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        marginRight: 16,
+        marginVertical: 8,
+        elevation: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 15,
+        overflow: "hidden",
+        borderWidth: 0.5,
+        borderColor: "rgba(0, 0, 0, 0.08)",
+      }}
       onPress={() =>
         router.push({
           pathname: "/restaurant-details",
@@ -202,47 +218,56 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
       }
       activeOpacity={0.85}
     >
-      <View style={styles.restaurantImageContainer}>
+      <View style={styles.fullWidthImageContainer}>
         {restaurant.imageUrl && !imageLoadError ? (
           <Image
             source={{ uri: restaurant.imageUrl }}
-            style={styles.restaurantImage}
+            style={styles.fullWidthImage}
             onError={() => setImageLoadError(true)}
           />
         ) : (
-          <View style={styles.restaurantImagePlaceholder}>
-            <Ionicons name="restaurant-outline" size={40} color="#ccc" />
-          </View>
+          <LinearGradient
+            colors={["#667eea", "#764ba2"]}
+            style={styles.fullWidthImagePlaceholder}
+          >
+            <Ionicons name="restaurant-outline" size={40} color="#fff" />
+          </LinearGradient>
         )}
 
+        {/* Status Badge */}
         {restaurant.isActive && (
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>OPEN</Text>
+          <View style={styles.fullWidthActiveBadge}>
+            <Text style={styles.fullWidthActiveBadgeText}>OPEN</Text>
           </View>
         )}
 
-        <View style={styles.ratingBadge}>
+        {/* Rating Badge */}
+        <View style={styles.fullWidthRatingBadge}>
           <Ionicons name="star" size={12} color="#FFD700" />
-          <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+          <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
         </View>
       </View>
 
-      <View style={styles.restaurantInfo}>
-        <Text style={styles.restaurantName} numberOfLines={1}>
+      <View style={styles.fullWidthRestaurantInfo}>
+        <Text style={styles.fullWidthRestaurantName} numberOfLines={1}>
           {restaurant.name}
         </Text>
-        <Text style={styles.restaurantDesc} numberOfLines={2}>
-          {restaurant.description || "Delicious food served fresh"}
+
+        <Text style={styles.fullWidthRestaurantDesc} numberOfLines={2}>
+          {restaurant.description || "Fresh and delicious food"}
         </Text>
 
-        <View style={styles.restaurantFooter}>
-          <View style={styles.locationRow}>
+        <View style={styles.fullWidthRestaurantFooter}>
+          <View style={styles.fullWidthLocationRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {restaurant.address || restaurant.city || "Location"}
+            <Text style={styles.fullWidthLocationText} numberOfLines={1}>
+              {restaurant.city || "Nearby"}
             </Text>
           </View>
-          <Text style={styles.reviewText}>{reviewCount} reviews</Text>
+
+          <Text style={styles.fullWidthReviewText}>
+            ({reviewCount}) reviews
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -259,7 +284,20 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
 
   return (
     <TouchableOpacity
-      style={styles.shopCard}
+      style={{
+        width: 280,
+        backgroundColor: "#fff",
+        borderRadius: 16,
+        marginRight: 16,
+        elevation: 12,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 15,
+        overflow: "hidden",
+        borderWidth: 0.5,
+        borderColor: "rgba(0, 0, 0, 0.08)",
+      }}
       onPress={() =>
         router.push({
           pathname: "/shop-details",
@@ -268,76 +306,86 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
       }
       activeOpacity={0.8}
     >
-      <View style={styles.shopImageContainer}>
+      <View style={styles.fullWidthImageContainer}>
         {shop.imageUrl && !imageLoadError ? (
           <Image
             source={{ uri: shop.imageUrl }}
-            style={styles.shopImage}
+            style={styles.fullWidthImage}
             onError={() => setImageLoadError(true)}
           />
         ) : (
-          <View style={styles.shopImagePlaceholder}>
-            <Ionicons name="storefront" size={40} color="#ccc" />
-          </View>
+          <LinearGradient
+            colors={["#f8fafc", "#e2e8f0"]}
+            style={styles.fullWidthImagePlaceholder}
+          >
+            <Ionicons name="storefront" size={40} color="#94a3b8" />
+          </LinearGradient>
         )}
 
+        {/* Status Badge */}
         <View
           style={[
-            styles.statusBadge,
+            styles.fullWidthStatusBadge,
             {
               backgroundColor: shop.isActive
-                ? "rgba(0,200,81,0.9)"
-                : "rgba(239,68,68,0.9)",
+                ? "rgba(34,197,94,0.95)"
+                : "rgba(239,68,68,0.95)",
             },
           ]}
         >
-          <Text style={styles.statusBadgeText}>
+          <Text style={styles.fullWidthStatusBadgeText}>
             {shop.isActive ? "Open" : "Closed"}
           </Text>
         </View>
 
-        <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={12} color="#FFD700" />
-          <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+        {/* Rating Badge */}
+        <View style={styles.fullWidthRatingBadge}>
+          <Ionicons name="star" size={12} color="#fbbf24" />
+          <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
         </View>
       </View>
 
-      <View style={styles.shopInfo}>
-        <Text style={styles.shopName} numberOfLines={1}>
+      <View style={styles.fullWidthShopInfo}>
+        <Text style={styles.fullWidthShopName} numberOfLines={1}>
           {shop.name}
         </Text>
-        <Text style={styles.shopDesc} numberOfLines={2}>
+
+        <Text style={styles.fullWidthShopDesc} numberOfLines={2}>
           {shop.description || "Quality products served fresh"}
         </Text>
 
         {shop.shopType && (
-          <View style={styles.shopTypeBadge}>
-            <Text style={styles.shopTypeBadgeText}>{shop.shopType}</Text>
+          <View style={styles.fullWidthShopTypeBadge}>
+            <Text style={styles.fullWidthShopTypeBadgeText}>
+              {shop.shopType}
+            </Text>
           </View>
         )}
 
         {shop.minimumOrderAmount !== undefined && (
-          <Text style={styles.minOrderText}>
+          <Text style={styles.fullWidthMinOrderText}>
             Min. order: D{shop.minimumOrderAmount.toFixed(2)}
           </Text>
         )}
 
-        <View style={styles.shopFooter}>
-          <View style={styles.locationRow}>
+        <View style={styles.fullWidthShopFooter}>
+          <View style={styles.fullWidthLocationRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.locationText} numberOfLines={1}>
+            <Text style={styles.fullWidthLocationText} numberOfLines={1}>
               {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
                 shop.address ?? "Location"
               }`}
             </Text>
           </View>
-          <Text style={styles.reviewText}>{reviewCount} reviews</Text>
+          <Text style={styles.fullWidthReviewText}>{reviewCount} reviews</Text>
         </View>
 
         {shop.acceptsOrders && (
-          <View style={styles.acceptsOrdersBadge}>
+          <View style={styles.fullWidthAcceptsOrdersBadge}>
             <Ionicons name="checkmark-circle" size={12} color="#27AE60" />
-            <Text style={styles.acceptsOrdersText}>Accepts Orders</Text>
+            <Text style={styles.fullWidthAcceptsOrdersText}>
+              Accepts Orders
+            </Text>
           </View>
         )}
       </View>
@@ -355,11 +403,16 @@ const MenuItemCard = ({
 }) => {
   const { addToCart, cartItems, removeFromCart, updateQuantity } = useCart();
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const cartQuantity =
     cartItems.find((item) => item.id === menuItem.id)?.quantity || 0;
 
-  const handleAddToCart = () => {
+  // expand controls when item is added
+  const handleAdd = () => {
     // Determine entityType dynamically
     let entityType = "restaurant";
     if (menuItem.menu && menuItem.menu.restaurantId) {
@@ -384,6 +437,12 @@ const MenuItemCard = ({
       entityType,
     };
     addToCart(cartItem);
+    setExpanded(true);
+    if (timer) clearTimeout(timer);
+    const t = setTimeout(() => {
+      setExpanded(false);
+    }, 4000);
+    setTimer(t);
   };
 
   const handleRemove = () => {
@@ -391,75 +450,114 @@ const MenuItemCard = ({
       updateQuantity(menuItem.id, cartQuantity - 1);
     } else {
       removeFromCart(menuItem.id);
+      setExpanded(false);
+      if (timer) clearTimeout(timer);
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [timer]);
+
   return (
     <TouchableOpacity
-      style={styles.menuItemCard}
+      style={[styles.modernMenuCard, { width: (width - 56) / 2 }]}
       activeOpacity={0.92}
       onPress={onPress}
     >
-      <View style={styles.menuItemImageContainer}>
+      <View style={styles.modernMenuImageContainer}>
         {menuItem.imageUrl && !imageLoadError ? (
           <Image
             source={{ uri: menuItem.imageUrl }}
-            style={styles.menuItemImage}
+            style={styles.modernMenuImage}
             onError={() => setImageLoadError(true)}
           />
         ) : (
-          <View style={styles.menuItemImagePlaceholder}>
-            <Ionicons name="restaurant" size={32} color="#E5E5E5" />
-          </View>
+          <LinearGradient
+            colors={["#fef3c7", "#fde68a"]}
+            style={styles.modernMenuImagePlaceholder}
+          >
+            <Ionicons name="restaurant" size={28} color="#d97706" />
+          </LinearGradient>
         )}
 
+        {/* Availability Overlay */}
         {!menuItem.isAvailable && (
-          <View style={styles.unavailableOverlay}>
-            <Text style={styles.unavailableText}>Unavailable</Text>
+          <View style={styles.modernUnavailableOverlay}>
+            <View style={styles.unavailableBadge}>
+              <Text style={styles.modernUnavailableText}>Unavailable</Text>
+            </View>
           </View>
         )}
 
-        {/* Add/Quantity Controls */}
+        {/* Floating Add/Quantity Controls - ProductCard style */}
         {cartQuantity === 0 ? (
           <TouchableOpacity
             style={styles.floatingAddButton}
-            onPress={handleAddToCart}
+            onPress={() => {
+              handleAdd();
+            }}
             activeOpacity={0.8}
-            disabled={!menuItem.isAvailable}
           >
             <Ionicons name="add" size={18} color="#fff" />
           </TouchableOpacity>
-        ) : (
+        ) : expanded ? (
           <View style={styles.overlayControls}>
             <TouchableOpacity
               style={styles.quantityButton}
-              onPress={handleRemove}
+              onPress={() => {
+                handleRemove();
+              }}
               activeOpacity={0.8}
             >
               <Ionicons name="remove" size={14} color="#fff" />
             </TouchableOpacity>
+
             <Text style={styles.quantityText}>{cartQuantity}</Text>
+
             <TouchableOpacity
               style={styles.quantityButton}
-              onPress={handleAddToCart}
+              onPress={() => {
+                handleAdd();
+              }}
               activeOpacity={0.8}
             >
               <Ionicons name="add" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.floatingAddButton}
+            onPress={() => setExpanded(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
+          </TouchableOpacity>
         )}
       </View>
 
-      <View style={styles.menuItemInfo}>
-        <Text style={styles.menuItemName} numberOfLines={2}>
+      <View style={styles.modernMenuContent}>
+        <Text style={styles.modernMenuTitle} numberOfLines={2}>
           {menuItem.name}
         </Text>
         {menuItem.description && (
-          <Text style={styles.menuItemDesc} numberOfLines={2}>
+          <Text style={styles.modernMenuDescription} numberOfLines={2}>
             {menuItem.description}
           </Text>
         )}
-        <Text style={styles.menuItemPrice}>D{menuItem.price.toFixed(2)}</Text>
+        <View style={styles.modernMenuFooter}>
+          <Text style={styles.modernMenuPrice}>
+            D{menuItem.price.toFixed(2)}
+          </Text>
+          {cartQuantity > 0 && (
+            <View style={styles.cartIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={styles.cartIndicatorText}>In Cart</Text>
+            </View>
+          )}
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -535,19 +633,149 @@ export default function SubCategoryView() {
 
   const renderContent = () => {
     if (activeTab === "all") {
+      // Get popular items (mix of restaurants, shops, and menu items with high ratings or random selection)
+      const popularRestaurants = data.restaurants
+        .filter((r) => r.rating && r.rating >= 4.0)
+        .slice(0, 3);
+      const popularShops = data.shops
+        .filter((s) => s.rating && s.rating >= 4.0)
+        .slice(0, 3);
+      const popularMenuItems = data.menuItems
+        .filter((m) => m.isAvailable)
+        .slice(0, 4);
+
+      const hasPopularItems =
+        popularRestaurants.length > 0 ||
+        popularShops.length > 0 ||
+        popularMenuItems.length > 0;
+
       return (
         <FlatList
           data={[]}
           renderItem={() => null}
           ListHeaderComponent={
             <>
+              {/* Popular Section */}
+              {hasPopularItems && (
+                <View style={styles.popularSection}>
+                  <View style={styles.popularHeader}>
+                    <View style={styles.popularTitleRow}>
+                      <Ionicons name="trending-up" size={20} color="#f59e0b" />
+                      <Text style={styles.popularTitle}>Popular This Week</Text>
+                    </View>
+                    <Text style={styles.popularSubtitle}>
+                      Most loved by customers
+                    </Text>
+                  </View>
+
+                  {/* Popular Restaurants */}
+                  {popularRestaurants.length > 0 && (
+                    <View style={styles.popularSubsection}>
+                      <Text style={styles.popularSubsectionTitle}>
+                        ⭐ Top Restaurants
+                      </Text>
+                      <ScrollView
+                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {popularRestaurants.map((item) => (
+                          <RestaurantCard
+                            key={`popular-restaurant-${item.id}`}
+                            restaurant={item}
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+
+                  {/* Popular Menu Items */}
+                  {popularMenuItems.length > 0 && (
+                    <View style={styles.popularSubsection}>
+                      <Text style={styles.popularSubsectionTitle}>
+                        🔥 Trending Meals
+                      </Text>
+                      <FlatList
+                        data={popularMenuItems}
+                        horizontal
+                        keyExtractor={(item) => `popular-menu-${item.id}`}
+                        renderItem={({ item }) => (
+                          <View style={styles.popularItemWrapper}>
+                            <MenuItemCard
+                              menuItem={item}
+                              onPress={() =>
+                                router.push({
+                                  pathname: "/menuitem/[menuitem]",
+                                  params: { menuitem: item.id },
+                                })
+                              }
+                            />
+                          </View>
+                        )}
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                      />
+                    </View>
+                  )}
+
+                  {/* Popular Shops */}
+                  {popularShops.length > 0 && (
+                    <View style={styles.popularSubsection}>
+                      <Text style={styles.popularSubsectionTitle}>
+                        🏪 Featured Stores
+                      </Text>
+                      <ScrollView
+                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                        showsVerticalScrollIndicator={false}
+                      >
+                        {popularShops.map((item) => (
+                          <ShopCard
+                            key={`popular-shop-${item.id}`}
+                            shop={item}
+                          />
+                        ))}
+                      </ScrollView>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* All Categories Section */}
+              <View style={styles.allCategoriesHeader}>
+                <Text style={styles.allCategoriesTitle}>
+                  Browse All Categories
+                </Text>
+                <Text style={styles.allCategoriesSubtitle}>
+                  Discover everything we have to offer
+                </Text>
+              </View>
+
               {data.restaurants.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Restaurants</Text>
-                    <Text style={styles.sectionCount}>
-                      {data.restaurants.length}
-                    </Text>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons
+                        name="restaurant-outline"
+                        size={18}
+                        color="#64748b"
+                      />
+                      <Text style={styles.sectionTitle}>Restaurants</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.viewAllButton,
+                        { backgroundColor: "#F3F4F6" },
+                      ]}
+                      onPress={() => setActiveTab("restaurants")}
+                    >
+                      <Text style={[styles.viewAllText, { color: "#64748b" }]}>
+                        View All
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
                   </View>
                   <FlatList
                     data={data.restaurants}
@@ -566,8 +794,30 @@ export default function SubCategoryView() {
               {data.shops.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Stores</Text>
-                    <Text style={styles.sectionCount}>{data.shops.length}</Text>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons
+                        name="storefront-outline"
+                        size={18}
+                        color="#64748b"
+                      />
+                      <Text style={styles.sectionTitle}>Stores</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.viewAllButton,
+                        { backgroundColor: "#F3F4F6" },
+                      ]}
+                      onPress={() => setActiveTab("shops")}
+                    >
+                      <Text style={[styles.viewAllText, { color: "#64748b" }]}>
+                        View All
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
                   </View>
                   <FlatList
                     data={data.shops}
@@ -586,10 +836,21 @@ export default function SubCategoryView() {
               {data.products.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Products</Text>
-                    <Text style={styles.sectionCount}>
-                      {data.products.length}
-                    </Text>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons name="cube-outline" size={18} color="#64748b" />
+                      <Text style={styles.sectionTitle}>Products</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.viewAllButton}
+                      onPress={() => setActiveTab("products")}
+                    >
+                      <Text style={styles.viewAllText}>View All</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
                   </View>
                   <FlatList
                     data={data.products}
@@ -606,35 +867,32 @@ export default function SubCategoryView() {
                           inStock: true,
                         }}
                         cartQuantity={
-                          cartItems.find((ci) => ci.id === item.id)?.quantity ||
-                          0
+                          cartItems.find(
+                            (ci) => String(ci.id) === String(item.id)
+                          )?.quantity || 0
                         }
-                        onAddToCart={(product) => {
-                          // Add product to cart
+                        onAddToCart={() => {
                           const cartItem = {
-                            id: item.id,
+                            id: String(item.id),
+                            vendorName: "Shop",
                             name: item.name,
                             price: item.price,
                             description: item.description || "",
                             vendorId: item.shopId || "",
-                            vendorName: "Shop",
                             imageUrl: item.imageUrl || "",
                             entityType: "shop",
                           };
                           addToCart(cartItem);
                         }}
-                        onRemoveFromCart={(product) => {
-                          // Decrement quantity if > 1, else remove from cart
+                        onRemoveFromCart={() => {
+                          const id = String(item.id);
                           const cartItem = cartItems.find(
-                            (ci) => ci.id === item.id
+                            (ci) => String(ci.id) === id
                           );
                           if (cartItem && cartItem.quantity > 1) {
-                            updateQuantity(
-                              String(item.id),
-                              cartItem.quantity - 1
-                            );
+                            updateQuantity(id, cartItem.quantity - 1);
                           } else {
-                            removeFromCart(item.id);
+                            removeFromCart(id);
                           }
                         }}
                         onPress={() => router.push(`/product/${item.id}`)}
@@ -648,10 +906,25 @@ export default function SubCategoryView() {
               {data.menuItems.length > 0 && (
                 <View style={styles.section}>
                   <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Meals</Text>
-                    <Text style={styles.sectionCount}>
-                      {data.menuItems.length}
-                    </Text>
+                    <View style={styles.sectionTitleRow}>
+                      <Ionicons
+                        name="fast-food-outline"
+                        size={18}
+                        color="#64748b"
+                      />
+                      <Text style={styles.sectionTitle}>Meals</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.viewAllButton}
+                      onPress={() => setActiveTab("menuItems")}
+                    >
+                      <Text style={styles.viewAllText}>View All</Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={14}
+                        color="#64748b"
+                      />
+                    </TouchableOpacity>
                   </View>
                   <FlatList
                     data={data.menuItems}
@@ -699,22 +972,18 @@ export default function SubCategoryView() {
         );
       }
       return (
-        <FlatList
-          data={data.restaurants}
-          key={`restaurants-fullwidth`}
-          keyExtractor={(item) => `restaurant-${item.id}`}
-          renderItem={({ item }) => (
-            <View style={{ width: "100%", marginBottom: 16 }}>
-              <RestaurantCard restaurant={item} />
-            </View>
-          )}
+        <ScrollView
           contentContainerStyle={{
             paddingHorizontal: 20,
             paddingTop: 8,
             paddingBottom: 8,
           }}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {data.restaurants.map((item) => (
+            <RestaurantCard key={`restaurant-${item.id}`} restaurant={item} />
+          ))}
+        </ScrollView>
       );
     } else if (activeTab === "shops") {
       if (data.shops.length === 0) {
@@ -729,25 +998,18 @@ export default function SubCategoryView() {
         );
       }
       return (
-        <FlatList
-          data={data.shops}
-          numColumns={2}
-          key={`shops-2col`}
-          keyExtractor={(item) => `shop-${item.id}`}
-          renderItem={({ item }) => (
-            <View
-              style={{
-                width: (width - 48) / 2,
-                marginRight: 16,
-                marginBottom: 16,
-              }}
-            >
-              <ShopCard shop={item} />
-            </View>
-          )}
-          contentContainerStyle={{ padding: 20 }}
+        <ScrollView
+          contentContainerStyle={{
+            paddingHorizontal: 20,
+            paddingTop: 8,
+            paddingBottom: 8,
+          }}
           showsVerticalScrollIndicator={false}
-        />
+        >
+          {data.shops.map((item) => (
+            <ShopCard key={`shop-${item.id}`} shop={item} />
+          ))}
+        </ScrollView>
       );
     } else if (activeTab === "products") {
       if (data.products.length === 0) {
@@ -794,10 +1056,29 @@ export default function SubCategoryView() {
                   }}
                   cartQuantity={cartQuantity}
                   onAddToCart={() => {
-                    // Add to cart logic
+                    const cartItem = {
+                      id: String(item.id),
+                      vendorName: "Shop",
+                      name: item.name,
+                      price: item.price,
+                      description: item.description || "",
+                      vendorId: item.shopId || "",
+                      imageUrl: item.imageUrl || "",
+                      entityType: "shop",
+                    };
+                    addToCart(cartItem);
                   }}
                   onRemoveFromCart={() => {
-                    // Remove from cart logic
+                    const id = String(item.id);
+                    // Always use string id for cart lookup
+                    const cartItem = cartItems.find(
+                      (ci) => String(ci.id) === id
+                    );
+                    if (cartItem && cartItem.quantity > 1) {
+                      updateQuantity(id, cartItem.quantity - 1);
+                    } else {
+                      removeFromCart(id);
+                    }
                   }}
                 />
               </View>
@@ -1043,7 +1324,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#f8fafc",
   },
   header: {
     flexDirection: "row",
@@ -1107,60 +1388,88 @@ const styles = StyleSheet.create({
 
   // Tabs
   tabsContainer: {
-    backgroundColor: "#fff",
-    paddingVertical: 16,
+    backgroundColor: "#ffffff",
+    paddingVertical: 20,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#f1f5f9",
     marginBottom: 8,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   tabsContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
   },
   tabButton: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: "#f8fafc",
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderWidth: 1.5,
+    borderColor: "#e2e8f0",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
   tabButtonActive: {
     backgroundColor: PrimaryColor,
     borderColor: PrimaryColor,
+    elevation: 3,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   tabButtonText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#64748B",
+    fontWeight: "700",
+    color: "#475569",
+    letterSpacing: 0.2,
   },
   tabButtonTextActive: {
-    color: "#fff",
+    color: "#ffffff",
   },
   tabBadge: {
-    backgroundColor: "#E2E8F0",
+    backgroundColor: "#e2e8f0",
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    marginLeft: 8,
+    minWidth: 24,
+    alignItems: "center",
   },
   tabBadgeActive: {
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.25)",
   },
   tabBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#64748b",
   },
   tabBadgeTextActive: {
-    color: "#fff",
+    color: "#ffffff",
   },
 
   // Sections
   section: {
-    marginBottom: 32,
+    marginBottom: 24,
+    backgroundColor: "#ffffff",
+    paddingVertical: 16,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1168,11 +1477,13 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     marginBottom: 16,
+    paddingTop: 8,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     color: "#1E293B",
+    marginLeft: 6,
   },
   sectionCount: {
     fontSize: 14,
@@ -1544,5 +1855,673 @@ const styles = StyleSheet.create({
     color: "#64748B",
     textAlign: "center",
     lineHeight: 24,
+  },
+
+  // Modern Card Components
+  modernCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+
+  // Modern Restaurant Card Styles
+  modernRestaurantCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  modernImage: {
+    width: "100%",
+    height: 140,
+    resizeMode: "cover",
+  },
+  overlayBadges: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  openBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(34,197,94,0.95)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  openDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#ffffff",
+    marginRight: 4,
+  },
+  openText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#ffffff",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modernRestaurantInfo: {
+    padding: 12,
+  },
+  modernRestaurantName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+  },
+  modernRestaurantDesc: {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  modernFooter: {
+    marginBottom: 6,
+  },
+  deliveryInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  timeInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  timeText: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "500",
+    marginLeft: 3,
+  },
+  locationInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  reviewInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reviewCount: {
+    fontSize: 10,
+    color: "#94a3b8",
+    fontWeight: "500",
+    marginLeft: 2,
+  },
+
+  modernImageContainer: {
+    position: "relative",
+    height: 140,
+  },
+  modernCardImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  modernImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modernStatusBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    elevation: 2,
+  },
+  statusIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#ffffff",
+    marginRight: 4,
+  },
+  modernStatusText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#ffffff",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modernRatingBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.8)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  modernRatingText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#ffffff",
+    marginLeft: 2,
+  },
+  quickOrderButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: PrimaryColor,
+    borderRadius: 20,
+    padding: 6,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  modernCardContent: {
+    padding: 12,
+  },
+  modernCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  modernCardTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1e293b",
+    flex: 1,
+    marginRight: 8,
+  },
+  modernTypeBadge: {
+    backgroundColor: "#f1f5f9",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  modernTypeText: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modernCardDescription: {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  modernMinOrderText: {
+    fontSize: 11,
+    color: "#94a3b8",
+    fontWeight: "500",
+    marginBottom: 8,
+  },
+  modernCardFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  modernDeliveryInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  modernDeliveryTime: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "500",
+    marginLeft: 3,
+  },
+  modernLocationInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginLeft: 8,
+  },
+  modernLocationText: {
+    fontSize: 11,
+    color: "#64748b",
+    fontWeight: "400",
+    marginLeft: 3,
+    flex: 1,
+  },
+  modernReviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  modernStarsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  modernReviewCount: {
+    fontSize: 10,
+    color: "#94a3b8",
+    fontWeight: "500",
+  },
+
+  // Modern Menu Card Styles
+  modernMenuCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  modernMenuImageContainer: {
+    position: "relative",
+    height: 120,
+  },
+  modernMenuImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  modernMenuImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modernUnavailableOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  unavailableBadge: {
+    backgroundColor: "rgba(239,68,68,0.9)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  modernUnavailableText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#ffffff",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modernFloatingAddButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: PrimaryColor,
+    borderRadius: 16,
+    padding: 8,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  disabledButton: {
+    backgroundColor: "#94a3b8",
+  },
+  quantityBadgeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  modernQuantityControls: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.8)",
+    borderRadius: 16,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    elevation: 3,
+  },
+  modernQuantityButton: {
+    backgroundColor: PrimaryColor,
+    borderRadius: 12,
+    padding: 6,
+    marginHorizontal: 2,
+  },
+  modernQuantityBadge: {
+    backgroundColor: "#ffffff",
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginHorizontal: 2,
+  },
+  modernQuantityText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1e293b",
+  },
+  modernMenuContent: {
+    padding: 12,
+  },
+  modernMenuTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 4,
+    lineHeight: 20,
+  },
+  modernMenuDescription: {
+    fontSize: 12,
+    color: "#64748b",
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  modernMenuFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  modernMenuPrice: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: PrimaryColor,
+    letterSpacing: -0.3,
+  },
+  cartIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  cartIndicatorText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#10b981",
+    marginLeft: 2,
+  },
+
+  // Popular Section Styles
+  popularSection: {
+    backgroundColor: "#f8fafc",
+    paddingVertical: 20,
+    marginBottom: 16,
+  },
+  popularHeader: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  popularTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  popularTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#1e293b",
+    marginLeft: 8,
+  },
+  popularSubtitle: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+  popularSubsection: {
+    marginBottom: 0,
+  },
+  popularSubsectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#374151",
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  popularItemWrapper: {
+    marginRight: 16,
+  },
+  allCategoriesHeader: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#ffffff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  allCategoriesTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1e293b",
+    marginBottom: 2,
+  },
+  allCategoriesSubtitle: {
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "500",
+  },
+
+  // Enhanced Section Headers
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#eff6ff",
+    borderRadius: 12,
+  },
+  viewAllText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748b",
+    marginRight: 2,
+  },
+
+  // Full Width Restaurant Card Styles
+  fullWidthRestaurantCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 18,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: "#F3F4F6",
+  },
+  fullWidthImageContainer: {
+    height: 140,
+    backgroundColor: "#f8f8f8",
+    position: "relative",
+    overflow: "hidden",
+  },
+  fullWidthImage: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  fullWidthImagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
+  },
+  fullWidthActiveBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "#27AE60",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  fullWidthActiveBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  fullWidthRatingBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fullWidthRatingText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 2,
+  },
+  fullWidthRestaurantInfo: {
+    padding: 16,
+  },
+  fullWidthRestaurantName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 4,
+  },
+  fullWidthRestaurantDesc: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  fullWidthRestaurantFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  fullWidthLocationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fullWidthLocationText: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 4,
+  },
+  fullWidthReviewText: {
+    fontSize: 12,
+    color: "#666",
+  },
+
+  // Full Width Shop Card Styles
+  fullWidthShopCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    marginBottom: 18,
+    elevation: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
+    overflow: "hidden",
+    borderWidth: 0.5,
+    borderColor: "rgba(0, 0, 0, 0.08)",
+  },
+  fullWidthStatusBadge: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  fullWidthStatusBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "600",
+  },
+  fullWidthShopInfo: {
+    padding: 16,
+  },
+  fullWidthShopName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  fullWidthShopDesc: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginBottom: 8,
+    lineHeight: 16,
+  },
+  fullWidthShopTypeBadge: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    marginBottom: 8,
+  },
+  fullWidthShopTypeBadgeText: {
+    fontSize: 10,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  fullWidthMinOrderText: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginBottom: 8,
+  },
+  fullWidthShopFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  fullWidthAcceptsOrdersBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  fullWidthAcceptsOrdersText: {
+    fontSize: 10,
+    color: "#27AE60",
+    fontWeight: "500",
+    marginLeft: 4,
   },
 });

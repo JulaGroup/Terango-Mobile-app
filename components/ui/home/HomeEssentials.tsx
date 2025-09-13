@@ -80,7 +80,8 @@ export default function HomeEssentials({ onViewAll }: HomeEssentialsProps) {
     subcategoryName: string
   ) => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      // expo-router path typing can be strict; cast to any for now
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId,
         subcategoryName,
@@ -91,7 +92,7 @@ export default function HomeEssentials({ onViewAll }: HomeEssentialsProps) {
 
   const handleViewAllCleaning = () => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "b8f9cf07-7875-492d-8269-8ea393515ebe",
         subcategoryName: "Cleaning Supplies",
@@ -101,7 +102,7 @@ export default function HomeEssentials({ onViewAll }: HomeEssentialsProps) {
 
   const handleViewAllUtilities = () => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "4a72494c-3929-461b-ae0a-1f5f6e4be0fb",
         subcategoryName: "Home Utilities",
@@ -111,7 +112,7 @@ export default function HomeEssentials({ onViewAll }: HomeEssentialsProps) {
 
   const handleViewAllToiletries = () => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "d2633442-5433-4001-8611-3ec49c881482",
         subcategoryName: "Toiletries",
@@ -347,14 +348,12 @@ const styles = StyleSheet.create({
   },
   categoryNav: {
     flexDirection: "row",
-    gap: 8,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
   categoryChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
     backgroundColor: "#F9FAFB",
@@ -440,7 +439,6 @@ const styles = StyleSheet.create({
   storeInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
   },
   rating: {
     fontSize: 11,

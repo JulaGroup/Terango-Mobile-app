@@ -56,7 +56,7 @@ export default function LocalDishes({ onViewAll }: LocalDishesProps) {
 
   const handleProductPress = (product: Product) => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "557e0c1d-4e5f-4c3e-8477-987e5ab07d73",
         subcategoryName: "Local Dishes",
@@ -70,7 +70,7 @@ export default function LocalDishes({ onViewAll }: LocalDishesProps) {
       onViewAll();
     } else {
       router.push({
-        pathname: "/SubCategoryProductsPage",
+        pathname: "/SubCategoryProductsPage" as any,
         params: {
           subcategoryId: "557e0c1d-4e5f-4c3e-8477-987e5ab07d73",
           subcategoryName: "Local Dishes",
@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
   },
   viewAllText: {
     fontSize: 14,
@@ -274,7 +273,6 @@ const styles = StyleSheet.create({
   storeInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
   },
   rating: {
     fontSize: 11,

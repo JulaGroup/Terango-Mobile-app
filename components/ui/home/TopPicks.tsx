@@ -1,58 +1,29 @@
+import React, { useRef } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  FlatList,
+  Animated,
+  Easing,
+  StyleSheet,
+} from "react-native";
 import { PrimaryColor } from "@/constants/Colors";
 import { topPicks } from "@/constants/fakeData";
 import { useCart } from "@/context/CartContext";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useRef } from "react";
-import {
-  Animated,
-  Easing,
-  Image,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 
-const TopPicks = () => {
+const TopPicks: React.FC = () => {
   const { addToCart, removeFromCart, getQuantity } = useCart();
 
-  const increaseQuantity = (id: number, storeId: number) => {
-    initAnimation(id);
-    if (!getQuantity(id.toString())) animateIn(id);
-
-    // Find the product from topPicks data
-    const product = topPicks.find((pick) => pick.id === id);
-    if (product) {
-      addToCart({
-        id: product.id.toString(),
-        name: product.name,
-        price: product.price,
-        imageUrl: product.image,
-        vendorId: product.storeId.toString(),
-        vendorName: product.storeName,
-        description: product.description || "",
-      });
-    }
-  };
-
-  const decreaseQuantity = (id: number) => {
-    initAnimation(id);
-    const currentQty = getQuantity(id.toString());
-    if (currentQty <= 1) {
-      animateOut(id);
-    }
-    removeFromCart(id.toString());
-  };
-
-  const animatedScales = useRef<{ [key: number]: Animated.Value }>({}).current;
-  const animatedOpacities = useRef<{ [key: number]: Animated.Value }>(
-    {}
-  ).current;
+  const animatedScales = useRef<Record<number, Animated.Value>>({}).current;
+  const animatedOpacities = useRef<Record<number, Animated.Value>>({}).current;
 
   const initAnimation = (id: number) => {
     if (!animatedScales[id]) {
-      animatedScales[id] = new Animated.Value(0.8);
+      animatedScales[id] = new Animated.Value(0.9);
       animatedOpacities[id] = new Animated.Value(0);
     }
   };
@@ -62,13 +33,13 @@ const TopPicks = () => {
     Animated.parallel([
       Animated.timing(animatedScales[id], {
         toValue: 1,
-        duration: 200,
+        duration: 180,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
       Animated.timing(animatedOpacities[id], {
         toValue: 1,
-        duration: 200,
+        duration: 180,
         useNativeDriver: true,
         easing: Easing.out(Easing.ease),
       }),
@@ -79,132 +50,93 @@ const TopPicks = () => {
     if (!animatedScales[id] || !animatedOpacities[id]) return;
     Animated.parallel([
       Animated.timing(animatedScales[id], {
-        toValue: 0.8,
-        duration: 150,
+        toValue: 0.9,
+        duration: 140,
         useNativeDriver: true,
         easing: Easing.in(Easing.ease),
       }),
       Animated.timing(animatedOpacities[id], {
         toValue: 0,
-        duration: 150,
+        duration: 140,
         useNativeDriver: true,
         easing: Easing.in(Easing.ease),
       }),
     ]).start();
   };
 
+  const increaseQuantity = (pick: any) => {
+    initAnimation(pick.id);
+    if (!getQuantity(pick.id.toString())) animateIn(pick.id);
+    addToCart({
+      id: pick.id.toString(),
+      name: pick.name,
+      price: pick.price,
+      imageUrl: pick.image,
+      vendorId: pick.storeId.toString(),
+      vendorName: pick.storeName || "",
+      entityType: "product",
+      description: pick.description || "",
+    });
+  };
+
+  const decreaseQuantity = (pick: any) => {
+    initAnimation(pick.id);
+    const current = getQuantity(pick.id.toString());
+    if (current <= 1) animateOut(pick.id);
+    removeFromCart(pick.id.toString());
+  };
+
   return (
     <View>
-      <View style={{ paddingHorizontal: 15, marginTop: 15, marginBottom: 25 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 5,
-          }}
-        >
-          <Text
-            style={{
-              fontSize: 17,
-              fontWeight: "bold",
-              fontFamily: "Poppins",
-            }}
-          >
-            Top Picks
-          </Text>
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              gap: 5,
-              alignItems: "center",
-              marginBottom: 5,
-            }}
-          >
-            <Text style={{ color: "#A5A4A4FF" }}>See All</Text>
-            <Ionicons name="chevron-forward" size={20} color="#A5A4A4FF" />
-          </TouchableOpacity>
-        </View>
-        <Animated.FlatList
-          data={topPicks}
-          keyExtractor={(item) => item.id.toString()}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingVertical: 10,
-            flexDirection: "row",
-            gap: 5,
-          }}
-          renderItem={({ item: pick }) => (
-            <Pressable
-              key={pick.id}
-              style={{
-                marginRight: 10,
-                width: 250,
-                borderRadius: 10,
-                overflow: "hidden",
-                borderWidth: 1,
-                borderColor: "#E5E5E5",
-              }}
-            >
-              <Image
-                style={{
-                  width: 250,
-                  height: 150,
-                  objectFit: "cover",
-                  position: "relative",
-                }}
-                source={pick.image}
-              />
-              <Pressable
-                style={{
-                  position: "absolute",
-                  top: 10,
-                  right: 10,
-                  backgroundColor: "rgba(255, 255, 255, 0.8)",
-                  borderRadius: 50,
-                  padding: 5,
-                }}
-              >
-                <Ionicons name="heart-outline" size={22} color={PrimaryColor} />
-              </Pressable>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>Top Picks</Text>
+        <TouchableOpacity style={styles.seeAllRow} activeOpacity={0.8}>
+          <Text style={styles.seeAllText}>See All</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color="#A5A4A4"
+            style={{ marginLeft: 6 }}
+          />
+        </TouchableOpacity>
+      </View>
 
-              <View
-                style={{
-                  padding: 6,
-                  flexDirection: "column",
-                  gap: 5,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <View>
-                    <Text style={{ fontSize: 16, fontWeight: "600" }}>
-                      {pick.name}
-                    </Text>
-                    <View style={{ flexDirection: "row", gap: 10 }}>
-                      {pick.tags.map((tag, index) => (
-                        <Text
-                          key={index}
-                          style={{
-                            fontSize: 12,
-                            color: "grey",
-                            marginBottom: 2,
-                          }}
-                        >
-                          {tag}
-                        </Text>
-                      ))}
-                    </View>
+      <FlatList
+        data={topPicks}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={{
+          paddingVertical: 10,
+          paddingLeft: 15,
+          paddingRight: 15,
+        }}
+        renderItem={({ item: pick }) => (
+          <View style={styles.card}>
+            <Image source={pick.image} style={styles.image} />
+
+            <TouchableOpacity style={styles.heartButton} activeOpacity={0.8}>
+              <Ionicons name="heart-outline" size={20} color={PrimaryColor} />
+            </TouchableOpacity>
+
+            <View style={styles.cardBody}>
+              <View style={styles.cardTopRow}>
+                <View>
+                  <Text style={styles.itemName}>{pick.name}</Text>
+                  <View style={{ flexDirection: "row" }}>
+                    {pick.tags?.map((tag: any, idx: number) => (
+                      <Text key={idx} style={styles.tagText}>
+                        {tag}
+                      </Text>
+                    ))}
                   </View>
-                  {getQuantity(pick.id.toString()) ? (
-                    <Animated.View
-                      style={{
+                </View>
+
+                {getQuantity(pick.id.toString()) ? (
+                  <Animated.View
+                    style={[
+                      styles.qtyBox,
+                      {
                         transform: [
                           {
                             scale:
@@ -213,112 +145,131 @@ const TopPicks = () => {
                         ],
                         opacity:
                           animatedOpacities[pick.id] || new Animated.Value(1),
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#F5F5F5",
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 8,
-                      }}
-                    >
-                      <TouchableOpacity
-                        onPress={() => decreaseQuantity(pick.id)}
-                      >
-                        <Ionicons
-                          name="remove-circle-outline"
-                          size={30}
-                          color={PrimaryColor}
-                        />
-                      </TouchableOpacity>
-                      <Text style={{ marginHorizontal: 8, color: "#262626FF" }}>
-                        {getQuantity(pick.id.toString())}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => increaseQuantity(pick.id, pick.storeId)}
-                      >
-                        <Ionicons
-                          name="add-circle-outline"
-                          size={30}
-                          color={PrimaryColor}
-                        />
-                      </TouchableOpacity>
-                    </Animated.View>
-                  ) : (
-                    <TouchableOpacity
-                      onPress={() => {
-                        increaseQuantity(pick.id, pick.storeId);
-                        //   Vibration.vibrate(20);
-                      }}
-                    >
+                      },
+                    ]}
+                  >
+                    <TouchableOpacity onPress={() => decreaseQuantity(pick)}>
                       <Ionicons
-                        name="add-circle"
-                        size={35}
+                        name="remove-circle-outline"
+                        size={28}
                         color={PrimaryColor}
                       />
                     </TouchableOpacity>
-                  )}
-                </View>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-evenly",
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
+                    <Text style={styles.qtyText}>
+                      {getQuantity(pick.id.toString())}
+                    </Text>
+                    <TouchableOpacity onPress={() => increaseQuantity(pick)}>
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={28}
+                        color={PrimaryColor}
+                      />
+                    </TouchableOpacity>
+                  </Animated.View>
+                ) : (
+                  <TouchableOpacity onPress={() => increaseQuantity(pick)}>
                     <Ionicons
-                      name="star-outline"
-                      style={{ color: PrimaryColor }}
-                      size={16}
+                      name="add-circle"
+                      size={34}
+                      color={PrimaryColor}
                     />
-                    <Text style={{ fontSize: 14 }}>{pick.rating}</Text>
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name="truck-fast-outline"
-                      size={16}
-                      color="#ff6b00"
-                    />
-                    <Text style={{ fontSize: 14 }}>Free</Text>
-                  </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <MaterialCommunityIcons
-                      name="clock-time-four-outline"
-                      size={16}
-                      color="#ff6b00"
-                    />
-                    <Text style={{ fontSize: 14 }}>20 min</Text>
-                  </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <View style={styles.cardBottomRow}>
+                <View style={styles.metaItem}>
+                  <Ionicons
+                    name="star-outline"
+                    size={14}
+                    color={PrimaryColor}
+                  />
+                  <Text style={styles.metaText}>{pick.rating}</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <MaterialCommunityIcons
+                    name="truck-fast-outline"
+                    size={14}
+                    color="#ff6b00"
+                  />
+                  <Text style={styles.metaText}>Free</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <MaterialCommunityIcons
+                    name="clock-time-four-outline"
+                    size={14}
+                    color="#ff6b00"
+                  />
+                  <Text style={styles.metaText}>20 min</Text>
                 </View>
               </View>
-            </Pressable>
-          )}
-        />
-      </View>
+            </View>
+          </View>
+        )}
+      />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  headerRow: {
+    paddingHorizontal: 15,
+    marginTop: 15,
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  title: { fontSize: 17, fontWeight: "700" },
+  seeAllRow: { flexDirection: "row", alignItems: "center" },
+  seeAllText: { color: "#A5A4A4" },
+  card: {
+    marginRight: 12,
+    width: 250,
+    borderRadius: 10,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    backgroundColor: "#fff",
+  },
+  image: { width: 250, height: 140, resizeMode: "cover" },
+  heartButton: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderRadius: 20,
+    padding: 6,
+  },
+  cardBody: { padding: 8 },
+  cardTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  itemName: { fontSize: 15, fontWeight: "600" },
+  tagText: { fontSize: 12, color: "grey", marginRight: 8 },
+  qtyBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  qtyText: { marginHorizontal: 8, color: "#262626" },
+  cardBottomRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  metaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  metaText: { fontSize: 13, marginLeft: 6 },
+});
 
 export default TopPicks;

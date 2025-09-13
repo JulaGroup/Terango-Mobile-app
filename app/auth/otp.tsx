@@ -1,6 +1,6 @@
 import { verifyOtp } from "@/actions/auth.ts/action";
 import BackButton from "@/components/common/BackButton";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import OTPInputView from "@twotalltotems/react-native-otp-input";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
@@ -26,7 +26,7 @@ export default function OTP() {
       return;
     }
 
-    const phone = await AsyncStorage.getItem("userPhone");
+    const phone = await SecureStore.getItemAsync("userPhone");
     if (!phone) return alert("Missing phone number");
 
     try {

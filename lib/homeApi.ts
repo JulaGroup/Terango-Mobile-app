@@ -1,5 +1,5 @@
 // Enhanced API service for home page data fetching
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { API_URL } from "@/constants/config";
 
 // Types for home page data
@@ -84,7 +84,7 @@ class HomeApiService {
     lng: number;
   } | null> {
     try {
-      const savedLocation = await AsyncStorage.getItem("userLocation");
+      const savedLocation = await SecureStore.getItemAsync("userLocation");
       if (savedLocation) {
         return JSON.parse(savedLocation);
       }

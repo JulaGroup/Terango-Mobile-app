@@ -1,7 +1,7 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 interface CartItem {
   id: string;
@@ -57,8 +57,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   ) => {
     // Check if user is logged in before adding to cart
     try {
-      const token = await AsyncStorage.getItem("token");
-      const isLoggedIn = await AsyncStorage.getItem("isLoggedIn");
+      const token = await SecureStore.getItemAsync("token");
+      const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
+
+      console.debug(
+        "CartContext.addToCart: auth check -> token present:",
+        !!token,
+        "isLoggedIn:",
+        !!isLoggedIn
+      );
 
       if (!token || !isLoggedIn) {
         Alert.alert(
@@ -72,6 +79,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             },
           ]
         );
+        console.debug("CartContext.addToCart: aborting - user not logged in");
         return;
       }
     } catch (error) {
@@ -87,6 +95,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           },
         ]
       );
+      console.debug("CartContext.addToCart: aborting - SecureStore error");
       return;
     }
 
@@ -108,8 +117,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           },
         ]
       );
+      console.debug(
+        "CartContext.addToCart: aborting - vendor mismatch",
+        "existing:",
+        items[0]?.vendorId,
+        "new:",
+        newItem.vendorId
+      );
       return;
     }
+    console.debug(
+      "CartContext.addToCart: proceeding to add/update item",
+      newItem.id,
+      newItem.vendorId
+    );
 
     setItems((currentItems) => {
       // Always set entityType, default to 'shop' if missing
@@ -121,6 +142,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
       if (existingItem) {
         // Update quantity of existing item
+        console.debug(
+          "CartContext.addToCart: updating existing item",
+          existingItem.id
+        );
         return currentItems.map((item) =>
           item.id === newItem.id
             ? { ...item, quantity: item.quantity + (newItem.quantity || 1) }
@@ -129,6 +154,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Add new item
+      console.debug(
+        "CartContext.addToCart: adding new item",
+        safeNewItem.id,
+        "vendor:",
+        safeNewItem.vendorId
+      );
       return [
         ...currentItems,
         { ...safeNewItem, quantity: newItem.quantity || 1 },
@@ -156,7 +187,20 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearCart = () => {
+    console.log(
+      "CartContext: clearCart called, current items length:",
+      items.length
+    );
     setItems([]);
+    console.log("CartContext: setItems([]) executed");
+
+    // Store payment success flag to prevent cart from being restored
+    try {
+      SecureStore.setItemAsync("paymentSuccessCleared", "true");
+      console.log("CartContext: Payment success flag stored");
+    } catch (error) {
+      console.log("CartContext: Error storing payment success flag:", error);
+    }
   };
 
   const getCartTotal = () => {

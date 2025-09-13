@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Success - TeranGo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #FF6B35, #FF8F65);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 400px;
+            width: 90%;
+        }
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: #10B981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-size: 40px;
+        }
+        h1 {
+            color: #1F2937;
+            margin: 0 0 16px 0;
+            font-size: 28px;
+        }
+        .message {
+            color: #6B7280;
+            margin: 0 0 32px 0;
+            line-height: 1.6;
+        }
+        .button {
+            background: #FF6B35;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s ease;
+        }
+        .button:hover {
+            background: #E55A2B;
+        }
+        .secondary-button {
+            background: #F3F4F6;
+            color: #6B7280;
+            margin-top: 16px;
+        }
+        .loading {
+            display: none;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✓</div>
+        <h1>Payment Successful! 🎉</h1>
+        <p class="message">Your payment has been processed successfully. Redirecting you back to the TeranGo app...</p>
+
+        <div id="loading" class="loading">
+            <p>Opening TeranGo app...</p>
+        </div>
+
+        <div id="manual-actions">
+            <button class="button" onclick="openApp()">Open TeranGo App</button>
+            <button class="button secondary-button" onclick="continueToWeb()">Continue on Web</button>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderId = urlParams.get('orderId');
+        const status = urlParams.get('status');
+
+        console.log('Payment success page loaded', { orderId, status });
+
+        // Try to open the app immediately
+        function openApp() {
+            const appUrl = `teranggo://payment-success?orderId=${orderId || ''}&status=${status || 'success'}`;
+
+            // Show loading state
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('manual-actions').style.display = 'none';
+
+            // Try to open the app
+            window.location.href = appUrl;
+
+            // Fallback: if app doesn't open within 3 seconds, show manual options
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('manual-actions').style.display = 'block';
+            }, 3000);
+        }
+
+        function continueToWeb() {
+            // Redirect to a web version or order tracking page
+            window.location.href = `/order-tracking?orderId=${orderId || ''}`;
+        }
+
+        // Auto-attempt to open app after page loads
+        setTimeout(() => {
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                openApp();
+            }
+        }, 1000);
+
+        // Handle app not installed
+        window.addEventListener('blur', () => {
+            // If page loses focus, app might have opened
+            setTimeout(() => {
+                if (document.hasFocus()) {
+                    // App didn't open, show manual options
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('manual-actions').style.display = 'block';
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

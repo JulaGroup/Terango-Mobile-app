@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,11 +10,18 @@ import {
   Animated,
   RefreshControl,
   Alert,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+// Alert is imported above
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { on as socketOn, off as socketOff } from "@/services/SocketService";
+import {
+  storeSuccessfulOrder,
+  NotificationService,
+} from "@/services/NotificationService";
 
 const statusColors = {
   PENDING: "#F39C12",
@@ -74,27 +81,94 @@ export default function OrderDetailsPage() {
     return () => skeletonAnimation.stop();
   }, [loading, skeletonOpacity]);
 
-  const fetchOrderDetails = async (isRefresh = false) => {
-    try {
-      if (!isRefresh) setLoading(true);
-      setError(null);
+  const fetchOrderDetails = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (!isRefresh) setLoading(true);
+        setError(null);
 
-      const data = await orderApi.getOrderById(orderId as string);
-      setOrder(data);
-    } catch (err: any) {
-      console.error("Error fetching order details:", err);
-      setError(err.message || "Failed to load order details");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
+        const data = await orderApi.getOrderById(orderId as string);
+        setOrder(data);
+      } catch (err: any) {
+        console.error("Error fetching order details:", err);
+        setError(err.message || "Failed to load order details");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [orderId]
+  );
 
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
     }
-  }, [orderId]);
+  }, [orderId, fetchOrderDetails]);
+
+  // Socket listeners for order status updates
+  useEffect(() => {
+    const onOrderStatusUpdate = (data: any) => {
+      console.log("[Socket] orderStatusUpdate in order-details", data);
+      if (data?.orderId === orderId) {
+        // Refresh order details when status updates
+        fetchOrderDetails(true);
+
+        // If order is successfully placed (not pending), navigate to orders
+        if (data?.status && !["PENDING"].includes(data.status)) {
+          Alert.alert(
+            "Order Update",
+            `Your order status has been updated to ${data.status}`,
+            [
+              {
+                text: "View Orders",
+                onPress: () => router.replace("/(tabs)/orders"),
+              },
+              {
+                text: "Stay Here",
+                style: "cancel",
+              },
+            ]
+          );
+        }
+      }
+    };
+
+    const onPaymentSuccess = async (data: any) => {
+      console.log("[Socket] paymentSuccess in order-details", data);
+      if (data?.orderId === orderId) {
+        fetchOrderDetails(true);
+
+        // Store successful order data for modal on app reopen
+        await storeSuccessfulOrder({
+          orderId: data.orderId,
+          timestamp: Date.now(),
+          data: data,
+        });
+
+        // Send instant push notification
+        await NotificationService.scheduleOrderNotification({
+          orderId: data.orderId,
+          title: "Payment Successful! 🎉",
+          body: "Your order has been placed successfully. Tap to view details.",
+          data: { orderId: data.orderId, type: "payment_success" },
+        });
+
+        // Navigate away from order details when payment succeeds
+        setTimeout(() => {
+          router.replace("/(tabs)/orders");
+        }, 2000); // Give user time to see the success
+      }
+    };
+
+    socketOn("orderStatusUpdate", onOrderStatusUpdate);
+    socketOn("paymentSuccess", onPaymentSuccess);
+
+    return () => {
+      socketOff("orderStatusUpdate", onOrderStatusUpdate);
+      socketOff("paymentSuccess", onPaymentSuccess);
+    };
+  }, [orderId, fetchOrderDetails, router]);
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -339,6 +413,93 @@ export default function OrderDetailsPage() {
             </View>
           )}
         </View>
+
+        {/* QR Code Card - Prominent at top for delivery verification */}
+        {(order.status === "DISPATCHED" || order.status === "READY") &&
+          (order.qrCodeUrl || order.qrCode) && (
+            <View style={[styles.qrCodeCard, styles.qrCardElevated]}>
+              <View style={styles.qrCodeHeaderRow}>
+                <View style={styles.qrCodeLeft}>
+                  <Ionicons
+                    name="qr-code-outline"
+                    size={24}
+                    color={PrimaryColor}
+                  />
+                  <Text style={styles.qrCodeTitle}>Delivery QR Code</Text>
+                </View>
+                <View style={styles.qrActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      try {
+                        const parsed = order.qrCode
+                          ? JSON.parse(order.qrCode)
+                          : null;
+                        const code =
+                          parsed?.verificationCode ||
+                          parsed?.verification ||
+                          null;
+                        if (code) {
+                          if (
+                            typeof navigator !== "undefined" &&
+                            navigator.clipboard
+                          ) {
+                            navigator.clipboard.writeText(code as string);
+                            Alert.alert(
+                              "Copied",
+                              "Verification code copied to clipboard"
+                            );
+                          } else {
+                            Alert.alert("Verification Code", String(code));
+                          }
+                        }
+                      } catch (e) {
+                        void e;
+                      }
+                    }}
+                    style={styles.copyButton}
+                  >
+                    <Text style={styles.copyButtonText}>Copy code</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <Text style={styles.qrCodeSubtitle}>
+                Show this QR code to your driver or support for quick
+                verification
+              </Text>
+
+              <View style={styles.qrCodeContainerProminent}>
+                <View style={styles.qrCodeImageContainerProminent}>
+                  {order.qrCodeUrl ? (
+                    <Image
+                      source={{ uri: order.qrCodeUrl }}
+                      style={styles.qrCodeImageProminent}
+                      resizeMode="contain"
+                    />
+                  ) : (
+                    <View style={styles.qrPlaceholder}>
+                      <Ionicons
+                        name="image-outline"
+                        size={48}
+                        color="#CBD5E1"
+                      />
+                      <Text style={{ marginTop: 8, color: "#9CA3AF" }}>
+                        QR not available
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {/* <View style={styles.qrCodeInfoProminent}>
+                  <Text style={styles.qrCodeOrderId}>
+                    Order #{order.id.slice(-8).toUpperCase()}
+                  </Text>
+                  <Text style={styles.qrCodeAmount}>
+                    {formatAmount(order.totalAmount)}
+                  </Text>
+                </View> */}
+              </View>
+            </View>
+          )}
 
         {/* Vendor Info */}
         {vendor && (
@@ -903,5 +1064,177 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  // QR Code Styles
+  qrCodeCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  qrCodeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 12,
+  },
+  qrCodeTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  qrCodeSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  qrCodeContainer: {
+    alignItems: "center",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 20,
+  },
+  qrCodeImageContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  qrCodeImage: {
+    width: 200,
+    height: 200,
+  },
+  qrCardElevated: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  qrCodeHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  qrCodeLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  qrActions: {
+    alignItems: "flex-end",
+  },
+  qrCodeContainerProminent: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 16,
+  },
+  qrCodeImageContainerProminent: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  qrCodeImageProminent: {
+    width: 180,
+    height: 180,
+  },
+  qrPlaceholder: {
+    width: 180,
+    height: 180,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderRadius: 12,
+  },
+  qrCodeInfoProminent: {
+    alignItems: "flex-end",
+    marginLeft: 12,
+  },
+  qrCodeInfo: {
+    alignItems: "center",
+  },
+  qrCodeOrderId: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  qrCodeAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: PrimaryColor,
+  },
+  // Prominent QR styles
+  qrProminentCard: {
+    backgroundColor: PrimaryColor,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  qrProminentInner: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  qrProminentImage: {
+    width: 120,
+    height: 120,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 8,
+    marginRight: 16,
+  },
+  qrProminentMeta: {
+    flex: 1,
+  },
+  qrProminentTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  qrProminentSubtitle: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 13,
+    marginBottom: 12,
+  },
+  qrActionsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  copyButton: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+  },
+  copyButtonText: {
+    color: PrimaryColor,
+    fontWeight: "700",
   },
 });

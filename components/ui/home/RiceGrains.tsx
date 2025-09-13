@@ -56,7 +56,7 @@ export default function RiceGrains({ onViewAll }: RiceGrainsProps) {
 
   const handleProductPress = (product: Product) => {
     router.push({
-      pathname: "/SubCategoryProductsPage",
+      pathname: "/SubCategoryProductsPage" as any,
       params: {
         subcategoryId: "cca76ff8-bc4e-4544-acc1-872c119943a5",
         subcategoryName: "Rice & Grains",
@@ -70,7 +70,7 @@ export default function RiceGrains({ onViewAll }: RiceGrainsProps) {
       onViewAll();
     } else {
       router.push({
-        pathname: "/SubCategoryProductsPage",
+        pathname: "/SubCategoryProductsPage" as any,
         params: {
           subcategoryId: "cca76ff8-bc4e-4544-acc1-872c119943a5",
           subcategoryName: "Rice & Grains",
@@ -191,7 +191,6 @@ const styles = StyleSheet.create({
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
   },
   viewAllText: {
     fontSize: 14,
@@ -274,7 +273,6 @@ const styles = StyleSheet.create({
   storeInfo: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
   },
   rating: {
     fontSize: 11,

@@ -19,8 +19,9 @@ export default function LocalBeverages() {
       name: product.name,
       price: product.price,
       description: product.description || "",
-      restaurantId: (product.storeId || 8).toString(),
-      restaurantName: product.storeName || "Local Store",
+      vendorId: (product.storeId || 8).toString(),
+      vendorName: product.storeName || "Local Store",
+      entityType: "product",
       imageUrl: "", // Will be handled by ProductCard component
     };
 

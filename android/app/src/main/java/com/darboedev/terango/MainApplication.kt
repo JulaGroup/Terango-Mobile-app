@@ -1,4 +1,4 @@
-package com.terango
+package com.darboedev.terango
 
 import android.app.Application
 import android.content.res.Configuration

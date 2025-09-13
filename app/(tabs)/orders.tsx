@@ -12,10 +12,18 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { PrimaryColor } from "@/constants/Colors";
 import { orderApi, type Order } from "@/lib/api";
-import { setOrdersRefreshCallback } from "@/services/NotificationService";
+import {
+  setOrdersRefreshCallback,
+  setNavigateToOrderCallback,
+  getSuccessfulOrder,
+  clearSuccessfulOrder,
+} from "@/services/NotificationService";
+import { useRouter } from "expo-router";
+import OrderSuccessModal from "@/components/OrderSuccessModal";
+import * as SecureStore from "expo-secure-store";
 
 const statusColors = {
   PENDING: "#F39C12",
@@ -49,6 +57,14 @@ export default function Orders() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
+  // Order success modal state
+  const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
+  const [successfulOrderData, setSuccessfulOrderData] = useState<{
+    orderId: string;
+    data?: any;
+  } | null>(null);
+  const [hasShownModal, setHasShownModal] = useState(false);
+
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
@@ -81,7 +97,6 @@ export default function Orders() {
     try {
       setError(null);
       const ordersData = await orderApi.getCustomerOrders();
-      console.log(ordersData);
       setOrders(ordersData);
     } catch (error: any) {
       console.error("Failed to fetch orders:", error);
@@ -95,8 +110,8 @@ export default function Orders() {
 
   const checkAuthentication = useCallback(async () => {
     try {
-      const storedUserId = await AsyncStorage.getItem("userId");
-      const loggedInStatus = await AsyncStorage.getItem("isLoggedIn");
+      const storedUserId = await SecureStore.getItemAsync("userId");
+      const loggedInStatus = await SecureStore.getItemAsync("isLoggedIn");
 
       if (storedUserId && loggedInStatus === "true") {
         setUserId(storedUserId);
@@ -113,12 +128,96 @@ export default function Orders() {
     }
   }, [fetchOrders]);
 
+  // Check for successful order on page load
+  const checkSuccessfulOrder = useCallback(async () => {
+    console.log("[Orders] Checking for successful order");
+    if (hasShownModal) {
+      console.log("[Orders] Modal already shown, skipping");
+      return;
+    }
+    const orderData = await getSuccessfulOrder();
+    if (orderData) {
+      setSuccessfulOrderData(orderData);
+      setShowOrderSuccessModal(true);
+      setHasShownModal(true);
+    } else {
+      console.log("[Orders] No successful order found");
+    }
+  }, [hasShownModal]);
+
+  const handleCloseOrderSuccessModal = useCallback(() => {
+    console.log("[Orders] Closing order success modal");
+    const orderId = successfulOrderData?.orderId;
+    setShowOrderSuccessModal(false);
+    setSuccessfulOrderData(null);
+    setHasShownModal(false); // Reset flag so it can show again if needed
+
+    // Clear the successful order data after closing the modal
+    setTimeout(() => {
+      clearSuccessfulOrder();
+    }, 1000); // Delay clearing to prevent re-showing
+
+    // Navigate to the specific order after modal closes
+    if (orderId && orderId.trim()) {
+      setTimeout(() => {
+        router.push({
+          pathname: "/order-details",
+          params: { orderId: orderId },
+        });
+      }, 500); // Small delay to ensure modal is closed
+    }
+  }, [successfulOrderData, router]);
+
+  const handleNavigateToOrder = useCallback(
+    (orderId: string) => {
+      console.log("[Orders] Navigating to order:", orderId);
+      if (orderId && orderId.trim()) {
+        // Navigate to order details page with the orderId
+        router.push(`/order-details?orderId=${orderId}`);
+      } else {
+        // If no orderId provided, just refresh the orders list
+        fetchOrders();
+      }
+    },
+    [router, fetchOrders]
+  );
+
   useEffect(() => {
     checkAuthentication();
+    checkSuccessfulOrder();
     // Register callback to refresh orders on push notification
     setOrdersRefreshCallback(fetchOrders);
-    return () => setOrdersRefreshCallback(() => {});
-  }, [checkAuthentication, fetchOrders]);
+    // Register callback to navigate to order on notification tap
+    setNavigateToOrderCallback(handleNavigateToOrder);
+    return () => {
+      setOrdersRefreshCallback(() => {});
+      setNavigateToOrderCallback(() => {});
+    };
+  }, [
+    checkAuthentication,
+    checkSuccessfulOrder,
+    fetchOrders,
+    handleNavigateToOrder,
+  ]);
+
+  // Check for successful order after authentication is complete
+  useEffect(() => {
+    if (userId && isLoggedIn && !hasShownModal) {
+      checkSuccessfulOrder();
+    }
+  }, [userId, isLoggedIn, hasShownModal, checkSuccessfulOrder]);
+
+  // Refresh orders when page comes into focus (e.g., returning from payment)
+  useFocusEffect(
+    useCallback(() => {
+      if (userId && isLoggedIn) {
+        console.log("[Orders] Page focused, refreshing orders");
+        fetchOrders();
+        // Also check for successful orders when page comes into focus
+        checkSuccessfulOrder();
+      }
+    }, [userId, isLoggedIn, fetchOrders, checkSuccessfulOrder])
+  );
 
   const onRefresh = () => {
     if (userId) {
@@ -831,6 +930,12 @@ export default function Orders() {
           getFilteredOrders().map(renderOrderCard)
         )}
       </ScrollView>
+      <OrderSuccessModal
+        visible={showOrderSuccessModal}
+        onClose={handleCloseOrderSuccessModal}
+        orderId={successfulOrderData?.orderId || ""}
+        orderData={successfulOrderData?.data}
+      />
     </SafeAreaView>
   );
 }

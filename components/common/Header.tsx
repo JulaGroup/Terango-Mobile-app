@@ -1,15 +1,9 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useState } from "react";
-import {
-  Dimensions,
-  Pressable,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Dimensions, Text, TouchableOpacity, View } from "react-native";
 import Cart from "./Cart";
 import LocationModal from "./LocationModalNew";
-import { useAddress } from "@/context/AddressContext";
+import { AddressContext } from "@/context/AddressContext";
 import { Address } from "@/services/AddressService";
 
 const { width } = Dimensions.get("window");
@@ -17,14 +11,20 @@ const { width } = Dimensions.get("window");
 const Header = () => {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const { selectedAddress, setSelectedAddress } = useAddress();
+  const addressCtx = React.useContext(AddressContext);
+  const selectedAddress = addressCtx?.selectedAddress || null;
+  const setSelectedAddress = addressCtx?.setSelectedAddress || (() => {});
   const handleLocationPress = () => {
     console.log("Location arrow pressed, showing modal");
     setShowLocationModal(true);
   };
 
   const handleSelectAddress = (address: Address) => {
-    setSelectedAddress(address);
+    try {
+      setSelectedAddress(address);
+    } catch (e) {
+      console.warn("AddressContext not available, cannot set address", e);
+    }
   };
 
   // Truncate address for display
@@ -77,11 +77,10 @@ const Header = () => {
             <Ionicons name="location-sharp" size={20} color="#ff6b00" />
           </TouchableOpacity>
 
-          <View
-            style={{ marginLeft: 8, display: "flex", flexDirection: "column" }}
-          >
-            <Pressable
+          <View style={{ marginLeft: 8, flexDirection: "column" }}>
+            <TouchableOpacity
               onPress={handleLocationPress}
+              activeOpacity={0.8}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
@@ -104,7 +103,7 @@ const Header = () => {
                 size={19}
                 color="#262626FF"
               />
-            </Pressable>
+            </TouchableOpacity>
 
             <TouchableOpacity onPress={handleLocationPress} activeOpacity={0.7}>
               <Text
@@ -136,12 +135,14 @@ const Header = () => {
         </View>
       </View>
       {/* Location Modal */}
-      <LocationModal
-        visible={showLocationModal}
-        onClose={() => setShowLocationModal(false)}
-        onSelectAddress={handleSelectAddress}
-        currentAddress={getDisplayAddress()}
-      />
+      {showLocationModal && (
+        <LocationModal
+          visible={showLocationModal}
+          onClose={() => setShowLocationModal(false)}
+          onSelectAddress={handleSelectAddress}
+          currentAddress={getDisplayAddress()}
+        />
+      )}
 
       {/* Notification Modal */}
       {showNotificationModal && (

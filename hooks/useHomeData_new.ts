@@ -1,6 +1,6 @@
 // React hook for managing home page data with optimization
 import { useState, useEffect, useCallback } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 export interface Product {
   id: string;
@@ -107,7 +107,7 @@ export const useHomeData = (): UseHomeDataReturn => {
   // Get cached data
   const getCachedData = useCallback(async (): Promise<HomePageData | null> => {
     try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await SecureStore.getItemAsync(CACHE_KEY);
       if (cached) {
         const { data: cachedData, timestamp } = JSON.parse(cached);
         if (Date.now() - timestamp < CACHE_DURATION) {
@@ -125,7 +125,7 @@ export const useHomeData = (): UseHomeDataReturn => {
   const saveToCache = useCallback(
     async (homeData: HomePageData): Promise<void> => {
       try {
-        await AsyncStorage.setItem(
+        await SecureStore.setItemAsync(
           CACHE_KEY,
           JSON.stringify({
             data: homeData,

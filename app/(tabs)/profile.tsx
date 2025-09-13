@@ -11,12 +11,13 @@ import {
   RefreshControl,
   SafeAreaView,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { useRouter, useFocusEffect } from "expo-router";
 import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { Ionicons } from "@expo/vector-icons";
 import VendorApplicationAPI from "../../lib/vendorApplicationAPI";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{
@@ -43,9 +44,9 @@ export default function ProfilePage() {
   // Fetch user data function (extracted to be reusable)
   const fetchUserData = useCallback(async (isRefresh = false) => {
     try {
-      const userId = await AsyncStorage.getItem("userId");
-      const token = await AsyncStorage.getItem("token");
-      const userPhone = await AsyncStorage.getItem("userPhone");
+      const userId = await SecureStore.getItemAsync("userId");
+      const token = await SecureStore.getItemAsync("token");
+      const userPhone = await SecureStore.getItemAsync("userPhone");
 
       if (!userId || !token) {
         // Not logged in - set loading to false and user to null
@@ -70,7 +71,7 @@ export default function ProfilePage() {
         const userData = profileData.user;
 
         // Store user data for other parts of the app
-        await AsyncStorage.setItem("userData", JSON.stringify(userData));
+        await SecureStore.setItemAsync("userData", JSON.stringify(userData));
 
         setUser({
           fullName: userData?.fullName,
@@ -135,12 +136,12 @@ export default function ProfilePage() {
         ) {
           // Token is invalid/expired - clear auth data and redirect to login
           console.log("Authentication failed - clearing auth data");
-          await AsyncStorage.multiRemove([
-            "token",
-            "userId",
-            "userPhone",
-            "isLoggedIn",
-            "userData",
+          await Promise.all([
+            SecureStore.deleteItemAsync("token"),
+            SecureStore.deleteItemAsync("userId"),
+            SecureStore.deleteItemAsync("userPhone"),
+            SecureStore.deleteItemAsync("isLoggedIn"),
+            SecureStore.deleteItemAsync("userData"),
           ]);
           setUser(null);
           // Don't show error alert for auth failures - just silently handle it
@@ -235,14 +236,13 @@ export default function ProfilePage() {
       {
         text: "Logout",
         onPress: async () => {
-          await AsyncStorage.multiRemove([
-            "token",
-            "userId",
-            "userPhone",
-            "location",
-
-            "isLoggedIn",
-            "hasSeenOnboarding",
+          await Promise.all([
+            SecureStore.deleteItemAsync("token"),
+            SecureStore.deleteItemAsync("userId"),
+            SecureStore.deleteItemAsync("userPhone"),
+            SecureStore.deleteItemAsync("location"),
+            SecureStore.deleteItemAsync("isLoggedIn"),
+            SecureStore.deleteItemAsync("hasSeenOnboarding"),
           ]);
           router.replace("/(tabs)");
         },
@@ -361,7 +361,7 @@ export default function ProfilePage() {
       icon: "card-outline",
       title: "Payment Methods",
       subtitle: "Manage your payment options",
-      onPress: () => Alert.alert("Coming Soon", "Payment methods coming soon!"),
+      onPress: () => router.push("/payment-methods"),
     },
     {
       icon: "location-outline",

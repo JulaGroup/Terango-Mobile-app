@@ -55,7 +55,7 @@ export default function AuthScreen() {
         }}
       >
         <Image
-          source={require("../../assets/images/splash2.png")}
+          source={require("../../assets/images/splash.png")}
           style={{
             width: 200,
             height: 100,

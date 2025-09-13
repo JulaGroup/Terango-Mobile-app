@@ -1,4 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { API_URL } from "@/constants/config";
 
 // Types for vendor-related data
@@ -109,6 +109,8 @@ export interface Order {
   createdAt: string;
   estimatedDeliveryTime?: string;
   notes?: string;
+  qrCode?: string; // QR code data for delivery verification
+  qrCodeUrl?: string; // QR code image URL (base64)
 }
 
 export interface CreateOrderData {
@@ -127,9 +129,9 @@ export interface CreateOrderData {
 const getAuthToken = async (): Promise<string | null> => {
   try {
     // Try both token keys for compatibility
-    let token = await AsyncStorage.getItem("token");
+    let token = await SecureStore.getItemAsync("token");
     if (!token) {
-      token = await AsyncStorage.getItem("authToken");
+      token = await SecureStore.getItemAsync("authToken");
     }
     console.log(
       "🔐 Auth Token Retrieved:",
@@ -608,6 +610,13 @@ export const orderApi = {
   // Get order by ID
   getOrderById: async (orderId: string): Promise<Order> => {
     return apiCall(`/api/orders/${orderId}`);
+  },
+
+  // Get QR code for an order
+  getOrderQRCode: async (
+    orderId: string
+  ): Promise<{ qrCode: string; qrCodeUrl: string; orderInfo: any }> => {
+    return apiCall(`/api/qrcode/order/${orderId}`);
   },
 
   // Cancel an order

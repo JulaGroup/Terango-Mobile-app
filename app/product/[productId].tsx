@@ -20,6 +20,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import ProductCard from "@/components/common/ProductCard";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const IMAGE_HEIGHT = 300;
@@ -201,6 +202,7 @@ interface Product {
   stock?: number;
   rating?: number;
   totalReviews?: number;
+  brand?: string;
 }
 
 export default function ProductDetail() {
@@ -211,6 +213,9 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [similarBrandProducts, setSimilarBrandProducts] = useState<Product[]>(
+    []
+  );
   const [error, setError] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -232,20 +237,33 @@ export default function ProductDetail() {
       const data = await response.json();
       setProduct(data);
 
-      // Fetch related products from the same shop or category
-      // if (data.shopId) {
-      //   try {
-      //     const relatedResponse = await fetch(
-      //       `${API_URL}/api/products?shopId=${data.shopId}&limit=10&exclude=${productId}`
-      //     );
-      //     if (relatedResponse.ok) {
-      //       const relatedData = await relatedResponse.json();
-      //       setRelatedProducts(relatedData.slice(0, 6)); // Show max 6 related items
-      //     }
-      //   } catch (relatedError) {
-      //     console.warn("Failed to fetch related products:", relatedError);
-      //   }
-      // }
+      // Fetch related products from the same shop
+      if (data.shopId) {
+        try {
+          const relatedResponse = await fetch(
+            `${API_URL}/api/public/products/${productId}/related?limit=6`
+          );
+          if (relatedResponse.ok) {
+            const relatedData = await relatedResponse.json();
+            setRelatedProducts(relatedData);
+          }
+        } catch (relatedError) {
+          console.warn("Failed to fetch related products:", relatedError);
+        }
+      }
+
+      // Fetch similar brand products
+      try {
+        const similarResponse = await fetch(
+          `${API_URL}/api/public/products/${productId}/similar-brand?limit=6`
+        );
+        if (similarResponse.ok) {
+          const similarData = await similarResponse.json();
+          setSimilarBrandProducts(similarData);
+        }
+      } catch (similarError) {
+        console.warn("Failed to fetch similar brand products:", similarError);
+      }
     } catch (err: any) {
       console.error("Error fetching product details:", err);
       setError(err.message || "Failed to load product details");
@@ -543,9 +561,12 @@ export default function ProductDetail() {
             ]}
           >
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Related Items</Text>
+              <Text style={styles.sectionTitle}>You might also like</Text>
               <TouchableOpacity
-                // onPress={() => router.push(`/(tabs)/shop/${product.shopId}`)}
+                onPress={() =>
+                  product?.subCategory &&
+                  console.log("Navigate to subcategory:", product.subCategory)
+                }
                 activeOpacity={0.7}
               >
                 <Text style={styles.seeAllText}>See All</Text>
@@ -555,20 +576,143 @@ export default function ProductDetail() {
             <FlatList
               data={relatedProducts}
               renderItem={({ item }) => (
-                <RelatedProductCard
-                  product={item}
-                  onPress={handleRelatedProductPress}
-                  onAddToCart={handleAddToCart}
-                  cartQuantity={getCartItemQuantity(item.id)}
-                />
+                <View style={{ marginRight: 16 }}>
+                  <ProductCard
+                    product={{
+                      id: Number(item.id),
+                      name: item.name,
+                      price: item.price,
+                      image: item.imageUrl,
+                      description: item.description,
+                      inStock: true,
+                    }}
+                    cartQuantity={getCartItemQuantity(item.id)}
+                    onAddToCart={() => handleAddToCart(item)}
+                    onRemoveFromCart={() => {
+                      const cartItem = cartItems.find(
+                        (ci) => String(ci.id) === item.id
+                      );
+                      if (cartItem && cartItem.quantity > 1) {
+                        updateQuantity(item.id, cartItem.quantity - 1);
+                      } else {
+                        removeFromCart(item.id);
+                      }
+                    }}
+                    onPress={() => router.push(`/product/${item.id}`)}
+                  />
+                </View>
               )}
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.relatedProductsList}
-              ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
-              snapToInterval={160}
-              decelerationRate="fast"
+              keyExtractor={(item) => `related-${item.id}`}
             />
+          </Animated.View>
+        )}
+
+        {/* Similar Brand Products Section */}
+        {similarBrandProducts.length > 0 && (
+          <Animated.View
+            style={[
+              styles.relatedSection,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Similar Brand</Text>
+              <TouchableOpacity
+                onPress={() =>
+                  product?.brand &&
+                  console.log("Navigate to brand:", product.brand)
+                }
+                activeOpacity={0.7}
+              >
+                <Text style={styles.seeAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={similarBrandProducts}
+              renderItem={({ item }) => (
+                <View style={{ marginRight: 16 }}>
+                  <ProductCard
+                    product={{
+                      id: Number(item.id),
+                      name: item.name,
+                      price: item.price,
+                      image: item.imageUrl,
+                      description: item.description,
+                      inStock: true,
+                    }}
+                    cartQuantity={getCartItemQuantity(item.id)}
+                    onAddToCart={() => handleAddToCart(item)}
+                    onRemoveFromCart={() => {
+                      const cartItem = cartItems.find(
+                        (ci) => String(ci.id) === item.id
+                      );
+                      if (cartItem && cartItem.quantity > 1) {
+                        updateQuantity(item.id, cartItem.quantity - 1);
+                      } else {
+                        removeFromCart(item.id);
+                      }
+                    }}
+                    onPress={() => router.push(`/product/${item.id}`)}
+                  />
+                </View>
+              )}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.relatedProductsList}
+              keyExtractor={(item) => `similar-${item.id}`}
+            />
+          </Animated.View>
+        )}
+
+        {/* Empty State for No Related Items */}
+        {relatedProducts.length === 0 && similarBrandProducts.length === 0 && (
+          <Animated.View
+            style={[
+              styles.emptyRelatedSection,
+              {
+                opacity: fadeAnim,
+                transform: [
+                  {
+                    translateY: fadeAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="storefront-outline" size={48} color="#CBD5E1" />
+              <Text style={styles.emptyStateTitle}>No Related Items</Text>
+              <Text style={styles.emptyStateText}>
+                Explore other products from this shop or similar brands.
+              </Text>
+              <TouchableOpacity
+                style={styles.exploreButton}
+                onPress={() =>
+                  product?.shopId &&
+                  console.log("Explore shop:", product.shopId)
+                }
+                activeOpacity={0.8}
+              >
+                <Text style={styles.exploreButtonText}>Explore Shop</Text>
+              </TouchableOpacity>
+            </View>
           </Animated.View>
         )}
 
@@ -1013,5 +1157,46 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "bold",
+  },
+  emptyRelatedSection: {
+    paddingTop: 32,
+    paddingBottom: 16,
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 32,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  exploreButton: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    elevation: 2,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  exploreButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: 0.3,
   },
 });

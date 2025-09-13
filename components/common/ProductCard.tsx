@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
-import { useCart } from "@/context/CartContext";
 
 export interface UniversalProduct {
   id: number;
@@ -17,7 +16,7 @@ interface ProductCardProps {
   product: UniversalProduct;
   cartQuantity: number;
   onAddToCart: (product: UniversalProduct) => void;
-  onRemoveFromCart: (product: UniversalProduct) => void;
+  onRemoveFromCart: () => void;
   onPress?: () => void;
 }
 
@@ -33,7 +32,6 @@ const ProductCard = ({
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
-  const { updateQuantity } = useCart();
 
   // Expand controls when product is added
   const handleAdd = () => {
@@ -49,10 +47,8 @@ const ProductCard = ({
   };
 
   const handleRemove = () => {
-    if (cartQuantity > 1) {
-      updateQuantity(product.id.toString(), cartQuantity - 1);
-    } else {
-      onRemoveFromCart(product);
+    onRemoveFromCart();
+    if (cartQuantity <= 1) {
       setExpanded(false);
       if (timer) clearTimeout(timer);
     }
@@ -70,7 +66,7 @@ const ProductCard = ({
     if (cartQuantity > 0 && !expanded) {
       setExpanded(false); // Keep collapsed unless explicitly expanded
     }
-  }, [cartQuantity]);
+  }, [cartQuantity, expanded]);
 
   return (
     <TouchableOpacity
@@ -143,6 +139,12 @@ const ProductCard = ({
         )}
         <View style={styles.productPriceRow}>
           <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
+          {cartQuantity > 0 && (
+            <View style={styles.cartIndicator}>
+              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Text style={styles.cartIndicatorText}>In Cart</Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -164,6 +166,20 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     boxShadow:
       " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
+  },
+  cartIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  cartIndicatorText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#10b981",
+    marginLeft: 2,
   },
   productImageContainer: {
     width: "100%",

@@ -805,9 +805,9 @@ export default function ShopDetails() {
                   <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
 
-                <View style={{ display: "flex", gap: 9, flexDirection: "row" }}>
+                <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <TouchableOpacity
-                    style={styles.cartButtonHero}
+                    style={[styles.cartButtonHero, { marginRight: 9 }]}
                     onPress={() => router.push("/cart")}
                   >
                     <Ionicons name="cart" size={24} color="#fff" />

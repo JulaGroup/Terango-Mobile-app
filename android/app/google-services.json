@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "42113134499",
+    "project_id": "terango-af158",
+    "storage_bucket": "terango-af158.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42113134499:android:8666c64460a0826ec77416",
+        "android_client_info": {
+          "package_name": "com.darboedev.terango"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjMlfqUagEdYEjv1WV42dWquB-S5HYfVw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

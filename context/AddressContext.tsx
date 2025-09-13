@@ -6,7 +6,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { Address, AddressService } from "@/services/AddressService";
 
 interface AddressContextType {
@@ -25,9 +25,11 @@ interface AddressContextType {
   checkUserStatus: () => Promise<void>;
 }
 
-const AddressContext = createContext<AddressContextType | undefined>(undefined);
+export const AddressContext = createContext<AddressContextType | undefined>(
+  undefined
+);
 
-const SELECTED_ADDRESS_KEY = "@teranggo_selected_address";
+const SELECTED_ADDRESS_KEY = "teranggo_selected_address";
 
 export function AddressProvider({ children }: { children: ReactNode }) {
   const [selectedAddress, setSelectedAddressState] = useState<Address | null>(
@@ -42,12 +44,9 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     loadSelectedAddress();
   }, []);
 
-  useEffect(() => {
-    checkUserStatus();
-  }, []);
   const getUserId = async (): Promise<string | null> => {
     try {
-      const userId = await AsyncStorage.getItem("userId");
+      const userId = await SecureStore.getItemAsync("userId");
       return userId;
     } catch (error) {
       console.error("Failed to get user ID:", error);
@@ -57,7 +56,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
   const loadSelectedAddress = async () => {
     try {
-      const savedAddress = await AsyncStorage.getItem(SELECTED_ADDRESS_KEY);
+      const savedAddress = await SecureStore.getItemAsync(SELECTED_ADDRESS_KEY);
       if (savedAddress) {
         setSelectedAddressState(JSON.parse(savedAddress));
       }
@@ -69,12 +68,12 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     try {
       setSelectedAddressState(address);
       if (address) {
-        await AsyncStorage.setItem(
+        await SecureStore.setItemAsync(
           SELECTED_ADDRESS_KEY,
           JSON.stringify(address)
         );
       } else {
-        await AsyncStorage.removeItem(SELECTED_ADDRESS_KEY);
+        await SecureStore.deleteItemAsync(SELECTED_ADDRESS_KEY);
       }
     } catch (error) {
       console.error("Failed to save selected address:", error);
@@ -224,6 +223,9 @@ export function AddressProvider({ children }: { children: ReactNode }) {
       setIsFirstTime(true);
     }
   }, []);
+  useEffect(() => {
+    checkUserStatus();
+  }, [checkUserStatus]);
   return (
     <AddressContext.Provider
       value={{

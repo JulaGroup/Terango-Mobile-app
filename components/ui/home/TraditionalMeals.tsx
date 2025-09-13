@@ -19,8 +19,9 @@ export default function TraditionalMeals() {
       name: product.name,
       price: product.price,
       description: product.description || "",
-      restaurantId: (product.storeId || 5).toString(),
-      restaurantName: product.storeName || "Traditional Kitchen",
+      vendorId: (product.storeId || 5).toString(),
+      vendorName: product.storeName || "Traditional Kitchen",
+      entityType: "product",
       imageUrl: "", // Will be handled by ProductCard component
     };
 
