@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TextInput,
   FlatList,
@@ -17,6 +16,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import ProductCard from "@/components/common/ProductCard";
 import { useCart } from "@/context/CartContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 const NUM_COLUMNS = 3;

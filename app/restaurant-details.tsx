@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Animated,
   Platform,
@@ -19,6 +18,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import MealItemCard from "@/components/common/MealItemCard";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;

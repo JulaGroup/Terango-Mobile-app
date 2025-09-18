@@ -4,7 +4,6 @@ import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   TouchableOpacity,
   StyleSheet,
   ScrollView,

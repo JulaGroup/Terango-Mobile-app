@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Animated,
   Image,
@@ -19,6 +18,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const IMAGE_HEIGHT = 300;
@@ -98,16 +98,16 @@ const MenuItemDetailSkeleton = () => {
         <SkeletonLoader width="80%" height={28} style={{ marginBottom: 12 }} />
         <SkeletonLoader width="100%" height={16} style={{ marginBottom: 8 }} />
         <SkeletonLoader width="70%" height={16} style={{ marginBottom: 16 }} />
-        
+
         {/* Restaurant Info Skeleton */}
         <SkeletonLoader width="60%" height={16} style={{ marginBottom: 8 }} />
         <SkeletonLoader width="50%" height={16} style={{ marginBottom: 16 }} />
-        
+
         {/* Details Skeleton */}
         <SkeletonLoader width="40%" height={20} style={{ marginBottom: 12 }} />
         <SkeletonLoader width="30%" height={16} style={{ marginBottom: 8 }} />
         <SkeletonLoader width="35%" height={16} style={{ marginBottom: 20 }} />
-        
+
         <SkeletonLoader width={120} height={36} style={{ marginBottom: 30 }} />
       </View>
     </SafeAreaView>
@@ -169,7 +169,7 @@ export default function MenuItemDetailPage() {
 
       const response = await fetch(`${API_URL}/api/menuitem/${menuitem}`);
       console.log("Fetching menu item:", response);
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch menu item: ${response.statusText}`);
       }
@@ -242,9 +242,9 @@ export default function MenuItemDetailPage() {
 
     try {
       await Share.share({
-        message: `Check out this delicious item: ${
-          menuItem.name
-        } from ${menuItem.menu.restaurant.name} - D${menuItem.price.toFixed(2)}`,
+        message: `Check out this delicious item: ${menuItem.name} from ${
+          menuItem.menu.restaurant.name
+        } - D${menuItem.price.toFixed(2)}`,
         title: menuItem.name,
       });
     } catch (error) {
@@ -268,7 +268,8 @@ export default function MenuItemDetailPage() {
   };
 
   const currentQuantity = menuItem ? getCartItemQuantity(menuItem.id) : 0;
-  const canOrder = menuItem?.isAvailable && menuItem?.menu?.restaurant?.acceptsOrders;
+  const canOrder =
+    menuItem?.isAvailable && menuItem?.menu?.restaurant?.acceptsOrders;
 
   if (loading) {
     return <MenuItemDetailSkeleton />;
@@ -381,17 +382,22 @@ export default function MenuItemDetailPage() {
           {/* Meal Time Badge */}
           {menuItem.mealTime && (
             <View style={styles.mealTimeBadge}>
-              <Ionicons 
+              <Ionicons
                 name={
-                  menuItem.mealTime === "breakfast" ? "sunny-outline" :
-                  menuItem.mealTime === "lunch" ? "partly-sunny-outline" :
-                  menuItem.mealTime === "dinner" ? "moon-outline" : "time-outline"
-                } 
-                size={12} 
-                color="#fff" 
+                  menuItem.mealTime === "breakfast"
+                    ? "sunny-outline"
+                    : menuItem.mealTime === "lunch"
+                    ? "partly-sunny-outline"
+                    : menuItem.mealTime === "dinner"
+                    ? "moon-outline"
+                    : "time-outline"
+                }
+                size={12}
+                color="#fff"
               />
               <Text style={styles.mealTimeText}>
-                {menuItem.mealTime.charAt(0).toUpperCase() + menuItem.mealTime.slice(1)}
+                {menuItem.mealTime.charAt(0).toUpperCase() +
+                  menuItem.mealTime.slice(1)}
               </Text>
             </View>
           )}
@@ -417,19 +423,23 @@ export default function MenuItemDetailPage() {
           <Text style={styles.menuItemName}>{menuItem.name}</Text>
 
           {menuItem.description && (
-            <Text style={styles.menuItemDescription}>{menuItem.description}</Text>
+            <Text style={styles.menuItemDescription}>
+              {menuItem.description}
+            </Text>
           )}
 
           {/* Category Info */}
           {menuItem.subCategory && (
             <View style={styles.categoryInfo}>
               <Ionicons name="pricetag-outline" size={16} color="#64748B" />
-              <Text style={styles.categoryName}>{menuItem.subCategory.name}</Text>
+              <Text style={styles.categoryName}>
+                {menuItem.subCategory.name}
+              </Text>
             </View>
           )}
 
           {/* Restaurant Info */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.restaurantInfo}
             activeOpacity={0.7}
             onPress={() => {
@@ -446,18 +456,24 @@ export default function MenuItemDetailPage() {
                 />
               ) : (
                 <View style={styles.restaurantImagePlaceholder}>
-                  <Ionicons name="restaurant-outline" size={16} color="#94A3B8" />
+                  <Ionicons
+                    name="restaurant-outline"
+                    size={16}
+                    color="#94A3B8"
+                  />
                 </View>
               )}
             </View>
             <View style={styles.restaurantDetails}>
-              <Text style={styles.restaurantName}>{menuItem.menu.restaurant.name}</Text>
+              <Text style={styles.restaurantName}>
+                {menuItem.menu.restaurant.name}
+              </Text>
               <View style={styles.restaurantMeta}>
                 <View style={styles.ratingContainer}>
                   <Ionicons name="star" size={12} color="#FFD700" />
                   <Text style={styles.ratingText}>
-                    {menuItem.menu.restaurant.rating > 0 
-                      ? menuItem.menu.restaurant.rating.toFixed(1) 
+                    {menuItem.menu.restaurant.rating > 0
+                      ? menuItem.menu.restaurant.rating.toFixed(1)
                       : "New"}
                   </Text>
                 </View>
@@ -477,7 +493,9 @@ export default function MenuItemDetailPage() {
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Preparation Time</Text>
                 <Text style={styles.detailValue}>
-                  {menuItem.preparationTime ? `${menuItem.preparationTime} mins` : "Not specified"}
+                  {menuItem.preparationTime
+                    ? `${menuItem.preparationTime} mins`
+                    : "Not specified"}
                 </Text>
               </View>
             </View>
@@ -534,16 +552,15 @@ export default function MenuItemDetailPage() {
       >
         {currentQuantity === 0 ? (
           <TouchableOpacity
-            style={[
-              styles.addToCartButton,
-              { opacity: canOrder ? 1 : 0.5 }
-            ]}
+            style={[styles.addToCartButton, { opacity: canOrder ? 1 : 0.5 }]}
             onPress={() => canOrder && handleAddToCart(menuItem)}
             disabled={!canOrder}
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={canOrder ? [PrimaryColor, "#FF6B00"] : ["#94A3B8", "#64748B"]}
+              colors={
+                canOrder ? [PrimaryColor, "#FF6B00"] : ["#94A3B8", "#64748B"]
+              }
               style={styles.addToCartGradient}
             >
               <Ionicons name="restaurant-outline" size={20} color="#fff" />

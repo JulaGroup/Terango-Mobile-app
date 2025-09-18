@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Animated,
   Image,
@@ -21,6 +20,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/common/ProductCard";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const IMAGE_HEIGHT = 300;

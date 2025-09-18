@@ -9,7 +9,6 @@ import {
   Platform,
   KeyboardAvoidingView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Animated,
   Modal,
@@ -32,6 +31,7 @@ import {
   storeSuccessfulOrder,
   NotificationService,
 } from "@/services/NotificationService";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Checkout() {
   const router = useRouter();

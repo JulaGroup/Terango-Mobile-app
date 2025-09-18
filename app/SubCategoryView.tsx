@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Animated,
   Image,
@@ -21,6 +20,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/common/ProductCard";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
@@ -261,13 +261,9 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
           <View style={styles.fullWidthLocationRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
             <Text style={styles.fullWidthLocationText} numberOfLines={1}>
-              {restaurant.city || "Nearby"}
+              {restaurant.address || "Nearby"}
             </Text>
           </View>
-
-          <Text style={styles.fullWidthReviewText}>
-            ({reviewCount}) reviews
-          </Text>
         </View>
       </View>
     </TouchableOpacity>

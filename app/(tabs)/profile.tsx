@@ -9,7 +9,6 @@ import {
   ScrollView,
   Animated,
   RefreshControl,
-  SafeAreaView,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -17,7 +16,7 @@ import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { Ionicons } from "@expo/vector-icons";
 import VendorApplicationAPI from "../../lib/vendorApplicationAPI";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{

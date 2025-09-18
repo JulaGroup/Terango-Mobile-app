@@ -2,7 +2,6 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   ScrollView,
   TouchableOpacity,
   Animated,
@@ -24,6 +23,7 @@ import {
 import { useRouter } from "expo-router";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
 import * as SecureStore from "expo-secure-store";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
   PENDING: "#F39C12",

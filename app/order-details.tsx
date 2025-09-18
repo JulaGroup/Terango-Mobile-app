@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Animated,
   RefreshControl,
@@ -22,6 +21,7 @@ import {
   storeSuccessfulOrder,
   NotificationService,
 } from "@/services/NotificationService";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
   PENDING: "#F39C12",

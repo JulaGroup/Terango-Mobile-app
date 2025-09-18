@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   Image,
   Animated,
@@ -16,6 +15,7 @@ import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Cart() {
   const router = useRouter();

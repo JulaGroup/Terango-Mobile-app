@@ -2,7 +2,6 @@ import React, { useRef, useState } from "react";
 import {
   View,
   Text,
-  SafeAreaView,
   Animated,
   Dimensions,
   TextInput,
@@ -25,6 +24,7 @@ import PopularStores from "@/components/ui/home/PopularStores";
 import AdBanner from "@/components/ui/home/AdBanner";
 import { PrimaryColor } from "@/constants/Colors";
 import LocalShops from "@/components/ui/home/LocalShops";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 

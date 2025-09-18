@@ -29,7 +29,6 @@ import {
   Dimensions,
   Platform,
   Keyboard,
-  SafeAreaView,
   TextInput,
   TouchableWithoutFeedback,
   View,
@@ -41,6 +40,7 @@ import FreshFromFarm from "@/components/ui/home/FreshFromFarm";
 import GadgetTechZone from "@/components/ui/home/GadgetTechZone";
 import PopularStores from "@/components/ui/home/PopularStores";
 import SnackingCorner from "@/components/ui/home/SnackingCorner";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
