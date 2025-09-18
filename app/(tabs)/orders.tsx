@@ -11,7 +11,7 @@ import {
   StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+// AsyncStorage removed - not used in this file
 import { useFocusEffect } from "@react-navigation/native";
 import { PrimaryColor } from "@/constants/Colors";
 import { orderApi, type Order } from "@/lib/api";
@@ -428,7 +428,7 @@ export default function Orders() {
         </Text>
       </View>
 
-      {/* Address */}
+      {/* Address / Pickup info */}
       <View
         style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
       >
@@ -437,7 +437,14 @@ export default function Orders() {
           style={{ marginLeft: 8, color: "#666", flex: 1 }}
           numberOfLines={2}
         >
-          {order.deliveryAddress}
+          {order.orderType === "PICKUP"
+            ? order.pickupInstructions ||
+              order.address ||
+              order.deliveryAddress ||
+              "Pickup"
+            : order.deliveryAddress ||
+              order.address ||
+              "Delivery address not set"}
         </Text>
       </View>
 

@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 10, // Safe area replacement
+    paddingTop: 40, // Safe area replacement
   },
   header: {
     flexDirection: "row",

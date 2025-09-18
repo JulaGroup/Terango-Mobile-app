@@ -128,6 +128,8 @@ interface Restaurant {
   name: string;
   description?: string;
   imageUrl?: string;
+  address?: string;
+  city?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -249,7 +251,6 @@ const RestaurantNearYou = () => {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <View
               style={{
-                backgroundColor: PrimaryColor,
                 borderRadius: 8,
                 padding: 8,
                 marginRight: 12,
@@ -328,7 +329,6 @@ const RestaurantNearYou = () => {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <View
               style={{
-                backgroundColor: PrimaryColor,
                 borderRadius: 8,
                 padding: 8,
                 marginRight: 12,
@@ -412,7 +412,6 @@ const RestaurantNearYou = () => {
           <View style={{ flexDirection: "row", alignItems: "center" }}>
             <View
               style={{
-                backgroundColor: PrimaryColor,
                 borderRadius: 8,
                 padding: 8,
                 marginRight: 12,
@@ -517,7 +516,6 @@ const RestaurantNearYou = () => {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "#f0f0f0",
             borderRadius: 20,
             paddingHorizontal: 12,
             paddingVertical: 6,
@@ -525,15 +523,15 @@ const RestaurantNearYou = () => {
         >
           <Text
             style={{
-              fontSize: 12,
-              color: PrimaryColor,
-              fontWeight: "600",
+              fontSize: 14,
+              color: "#979797FF",
+              fontWeight: "500",
               marginRight: 4,
             }}
           >
             View All
           </Text>
-          <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
+          <Ionicons name="chevron-forward" size={14} color="#979797FF" />
         </TouchableOpacity>
       </View>
 
@@ -552,6 +550,10 @@ const RestaurantNearYou = () => {
           const rating = getRandomRating();
           const reviewCount = getRandomReviewCount();
           const cuisineTypes = getCuisineTypes(restaurant);
+
+          // Prefer explicit address (city + address) when available, otherwise fall back to service.location or a placeholder
+          const displayAddress =
+            restaurant.address || restaurant.service?.location || "Location";
 
           return (
             <TouchableOpacity
@@ -761,18 +763,9 @@ const RestaurantNearYou = () => {
                       }}
                       numberOfLines={1}
                     >
-                      {restaurant.service?.location || "Location"}
+                      {displayAddress}
                     </Text>
                   </View>
-
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: "#666",
-                    }}
-                  >
-                    {reviewCount} reviews
-                  </Text>
                 </View>
               </View>
             </TouchableOpacity>

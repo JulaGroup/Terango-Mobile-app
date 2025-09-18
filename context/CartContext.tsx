@@ -133,11 +133,34 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     );
 
     setItems((currentItems) => {
-      // Always set entityType, default to 'shop' if missing
-      const safeNewItem = {
+      // Normalize incoming item: ensure vendorId, vendorName, entityType exist
+      const safeNewItem: any = {
         ...newItem,
-        entityType: newItem.entityType || "shop",
+        entityType:
+          newItem.entityType &&
+          ["restaurant", "shop", "pharmacy"].includes(newItem.entityType)
+            ? newItem.entityType
+            : // map common non-standard values to 'shop'
+            newItem.entityType === "product" ||
+              newItem.entityType === "menuItem"
+            ? "shop"
+            : "shop",
+        vendorId:
+          (newItem as any).vendorId?.toString?.() ||
+          (newItem as any).storeId?.toString?.() ||
+          (newItem as any).vendorId ||
+          "",
+        vendorName:
+          (newItem as any).vendorName || (newItem as any).storeName || "",
       };
+
+      if (!safeNewItem.vendorId) {
+        console.warn(
+          "CartContext.addToCart: vendorId missing for item",
+          newItem,
+          "— defaulting to empty string; consider passing vendorId/vendorName/entityType"
+        );
+      }
       const existingItem = currentItems.find((item) => item.id === newItem.id);
 
       if (existingItem) {

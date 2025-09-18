@@ -40,16 +40,42 @@ export async function storeSuccessfulOrder(orderData: {
   orderId: string;
   timestamp: number;
   data?: any;
-}) {
+}): Promise<boolean> {
   try {
     console.log("[NotificationService] Storing successful order:", orderData);
+    // Check existing stored order and avoid overwriting the same order
+    const existingRaw = await AsyncStorage.getItem(SUCCESSFUL_ORDER_KEY);
+    if (existingRaw) {
+      try {
+        const existing = JSON.parse(existingRaw);
+        if (
+          existing &&
+          existing.orderId &&
+          existing.orderId === orderData.orderId
+        ) {
+          console.log(
+            "[NotificationService] Same order already stored, skipping store"
+          );
+          return false; // not new
+        }
+      } catch (e) {
+        // If parse fails, fall through and overwrite
+        console.warn(
+          "[NotificationService] Failed to parse existing successful order, will overwrite",
+          e
+        );
+      }
+    }
+
     await AsyncStorage.setItem(SUCCESSFUL_ORDER_KEY, JSON.stringify(orderData));
     console.log("[NotificationService] Successfully stored order data");
+    return true; // newly stored
   } catch (error) {
     console.warn(
       "[NotificationService] Failed to store successful order:",
       error
     );
+    return false;
   }
 }
 

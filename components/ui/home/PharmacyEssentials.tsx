@@ -133,7 +133,16 @@ export default function PharmacyEssentials({
               onPress={handleViewAllMedicines}
               style={styles.viewAllButton}
             >
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#666666",
+                  fontWeight: "500",
+                  marginRight: 4,
+                }}
+              >
+                View All
+              </Text>
               <Ionicons name="chevron-forward" size={14} color="#EF4444" />
             </TouchableOpacity>
           </View>
@@ -208,7 +217,16 @@ export default function PharmacyEssentials({
               onPress={handleViewAllPersonalCare}
               style={styles.viewAllButton}
             >
-              <Text style={styles.viewAllText}>View All</Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#666666",
+                  fontWeight: "500",
+                  marginRight: 4,
+                }}
+              >
+                View All
+              </Text>
               <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
             </TouchableOpacity>
           </View>

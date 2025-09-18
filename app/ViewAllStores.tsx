@@ -206,11 +206,11 @@ export default function ViewAllStores() {
                   )}
 
                   {/* Minimum Order */}
-                  {shop.minimumOrderAmount !== undefined && (
+                  {/* {shop.minimumOrderAmount !== undefined && (
                     <Text style={styles.minOrderText}>
                       Min. order: D{shop.minimumOrderAmount.toFixed(2)}
                     </Text>
-                  )}
+                  )} */}
 
                   {/* Footer */}
                   <View style={styles.footerRow}>
@@ -232,7 +232,7 @@ export default function ViewAllStores() {
                         }${shop.address?.trim() ?? "Location"}`}
                       </Text>
                     </View>
-                    <Text style={styles.reviewText}>{reviewCount} reviews</Text>
+                    {/* <Text style={styles.reviewText}>{reviewCount} reviews</Text> */}
                   </View>
 
                   {/* Accepts Orders Badge */}

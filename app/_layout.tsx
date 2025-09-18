@@ -9,7 +9,7 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, router } from "expo-router";
+import { Stack, router, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
@@ -43,6 +43,7 @@ export default function RootLayout() {
     orderId: string;
     data?: any;
   } | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -50,19 +51,27 @@ export default function RootLayout() {
       setUserId(id);
     };
     fetchUserId();
-  }, []);
+  }, [pathname]);
 
   // Check for successful order on app launch
   useEffect(() => {
     const checkSuccessfulOrder = async () => {
       const orderData = await getSuccessfulOrder();
-      if (orderData) {
+      // Only show the root-level order success modal when the user
+      // is on the app home route ("/") — avoid popping it on other pages
+      // such as the Orders page.
+      console.log("[RootLayout] current pathname:", pathname);
+      if (orderData && pathname === "/") {
         setSuccessfulOrderData(orderData);
         setShowOrderSuccessModal(true);
+      } else if (orderData) {
+        console.log(
+          "[RootLayout] Found successful order but not on home path, skipping modal"
+        );
       }
     };
     checkSuccessfulOrder();
-  }, []);
+  }, [pathname]);
 
   // Handle deep links for payment results
   useEffect(() => {
@@ -453,6 +462,13 @@ export default function RootLayout() {
                 />
                 <Stack.Screen
                   name="ViewAllStores"
+                  options={{
+                    animation: "slide_from_right",
+                    headerShown: false,
+                  }}
+                />
+                <Stack.Screen
+                  name="storeCategoryProducts"
                   options={{
                     animation: "slide_from_right",
                     headerShown: false,

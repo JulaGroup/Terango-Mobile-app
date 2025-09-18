@@ -81,7 +81,7 @@ export default function Cart() {
 
   // Calculate subtotal, delivery fee and total
   const subtotal = getTotalAmount();
-  const deliveryFee = 50; // Example delivery fee
+  const deliveryFee = 100; // Example delivery fee
   const total = subtotal + deliveryFee;
 
   const CartItemCard = ({

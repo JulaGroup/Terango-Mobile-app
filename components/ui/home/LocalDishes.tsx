@@ -104,7 +104,16 @@ export default function LocalDishes({ onViewAll }: LocalDishesProps) {
           <Text style={styles.subtitle}>Authentic Gambian cuisine</Text>
         </View>
         <TouchableOpacity onPress={handleViewAll} style={styles.viewAllButton}>
-          <Text style={styles.viewAllText}>View All</Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#666666",
+              fontWeight: "500",
+              marginRight: 4,
+            }}
+          >
+            View All
+          </Text>
           <Ionicons name="chevron-forward" size={16} color="#F97316" />
         </TouchableOpacity>
       </View>

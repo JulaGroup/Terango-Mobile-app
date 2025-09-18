@@ -342,13 +342,11 @@ export default function ProductDetail() {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
   const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
+    // setIsFavorite(!isFavorite);
     // Here you would typically make an API call to save/remove from favorites
     Alert.alert(
-      isFavorite ? "Removed from Favorites" : "Added to Favorites",
-      isFavorite
-        ? "Product removed from your favorites"
-        : "Product added to your favorites"
+      "Add to Favorites:",
+      "Coming soon! This feature is under development."
     );
   };
 

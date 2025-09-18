@@ -72,6 +72,11 @@ export interface Order {
   customerName: string;
   customerPhone: string;
   deliveryAddress: string;
+  // New fields to support pick-up orders
+  orderType?: "DELIVERY" | "PICKUP";
+  pickupInstructions?: string;
+  // Generic address field used by backend for either delivery or pickup location
+  address?: string;
   totalAmount: number;
   status:
     | "PENDING"

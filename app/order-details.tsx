@@ -48,6 +48,7 @@ const statusIcons = {
 export default function OrderDetailsPage() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams();
+  const { from } = useLocalSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -140,19 +141,25 @@ export default function OrderDetailsPage() {
         fetchOrderDetails(true);
 
         // Store successful order data for modal on app reopen
-        await storeSuccessfulOrder({
+        const storedNew = await storeSuccessfulOrder({
           orderId: data.orderId,
           timestamp: Date.now(),
           data: data,
         });
 
-        // Send instant push notification
-        await NotificationService.scheduleOrderNotification({
-          orderId: data.orderId,
-          title: "Payment Successful! 🎉",
-          body: "Your order has been placed successfully. Tap to view details.",
-          data: { orderId: data.orderId, type: "payment_success" },
-        });
+        // Only schedule notification if the store actually wrote new data
+        if (storedNew) {
+          await NotificationService.scheduleOrderNotification({
+            orderId: data.orderId,
+            title: "Payment Successful! 🎉",
+            body: "Your order has been placed successfully. Tap to view details.",
+            data: { orderId: data.orderId, type: "payment_success" },
+          });
+        } else {
+          console.log(
+            "order-details: successful order already stored, skipping notification"
+          );
+        }
 
         // Navigate away from order details when payment succeeds
         setTimeout(() => {
@@ -308,7 +315,11 @@ export default function OrderDetailsPage() {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={() => {
+              // If we were reached from the checkout modal, go to Orders tab
+              if (from === "checkout") return router.replace("/(tabs)/orders");
+              return router.back();
+            }}
             activeOpacity={0.7}
           >
             <Ionicons name="arrow-back" size={22} color="#111827" />
@@ -356,7 +367,10 @@ export default function OrderDetailsPage() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            if (from === "checkout") return router.replace("/(tabs)/orders");
+            return router.back();
+          }}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={22} color="#111827" />
@@ -390,17 +404,47 @@ export default function OrderDetailsPage() {
               </Text>
             </View>
             <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusColors[order.status] },
-              ]}
+              style={{
+                flexDirection: "column",
+                alignItems: "flex-end",
+                gap: 8,
+              }}
             >
-              <Ionicons
-                name={statusIcons[order.status] as any}
-                size={16}
-                color="#fff"
-              />
-              <Text style={styles.statusText}>{order.status}</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: statusColors[order.status],
+                    marginBottom: 4,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={statusIcons[order.status] as any}
+                  size={16}
+                  color="#fff"
+                />
+                <Text style={styles.statusText}>{order.status}</Text>
+              </View>
+
+              {/* Order type badge (stacked below status) */}
+              <View
+                style={{
+                  backgroundColor:
+                    order.orderType === "PICKUP" ? "#2563EB" : "#059669",
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 16,
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}
+                >
+                  {order.orderType === "PICKUP" ? "PICKUP" : "DELIVERY"}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -414,7 +458,7 @@ export default function OrderDetailsPage() {
           )}
         </View>
 
-        {/* QR Code Card - Prominent at top for delivery verification */}
+        {/* QR Code Card - Prominent at top for delivery verification (or pickup verification) */}
         {(order.status === "DISPATCHED" || order.status === "READY") &&
           (order.qrCodeUrl || order.qrCode) && (
             <View style={[styles.qrCodeCard, styles.qrCardElevated]}>
@@ -425,7 +469,11 @@ export default function OrderDetailsPage() {
                     size={24}
                     color={PrimaryColor}
                   />
-                  <Text style={styles.qrCodeTitle}>Delivery QR Code</Text>
+                  <Text style={styles.qrCodeTitle}>
+                    {order.orderType === "PICKUP"
+                      ? "Pickup QR Code"
+                      : "Delivery QR Code"}
+                  </Text>
                 </View>
                 <View style={styles.qrActions}>
                   <TouchableOpacity
@@ -526,9 +574,13 @@ export default function OrderDetailsPage() {
           </View>
         )}
 
-        {/* Delivery Info */}
+        {/* Delivery / Pickup Info */}
         <View style={styles.infoCard}>
-          <Text style={styles.sectionTitle}>Delivery Information</Text>
+          <Text style={styles.sectionTitle}>
+            {order.orderType === "PICKUP"
+              ? "Pickup Information"
+              : "Delivery Information"}
+          </Text>
 
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
@@ -555,8 +607,21 @@ export default function OrderDetailsPage() {
               <Ionicons name="location-outline" size={16} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Delivery Address</Text>
-              <Text style={styles.infoValue}>{order.deliveryAddress}</Text>
+              <Text style={styles.infoLabel}>
+                {order.orderType === "PICKUP"
+                  ? "Pickup Location / Instructions"
+                  : "Delivery Address"}
+              </Text>
+              <Text style={styles.infoValue}>
+                {order.orderType === "PICKUP"
+                  ? order.pickupInstructions ||
+                    order.address ||
+                    order.deliveryAddress ||
+                    "Pickup details not provided"
+                  : order.deliveryAddress ||
+                    order.address ||
+                    "Delivery address not set"}
+              </Text>
             </View>
           </View>
 
@@ -660,7 +725,11 @@ export default function OrderDetailsPage() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>D 0.00</Text>
+            <Text style={styles.summaryValue}>D 100.00</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Service Fee</Text>
+            <Text style={styles.summaryValue}>D 100.00</Text>
           </View>
 
           <View style={styles.summaryDivider} />
@@ -668,7 +737,7 @@ export default function OrderDetailsPage() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryTotalLabel}>Total Amount</Text>
             <Text style={styles.summaryTotalValue}>
-              {formatAmount(order.totalAmount)}
+              {formatAmount(order.totalAmount + 200)}
             </Text>
           </View>
         </View>

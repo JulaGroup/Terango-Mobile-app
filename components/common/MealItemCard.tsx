@@ -1,0 +1,301 @@
+import React, { useState, useEffect } from "react";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { PrimaryColor } from "@/constants/Colors";
+
+export interface UniversalProduct {
+  id: number;
+  name: string;
+  price: number;
+  image?: string;
+  description?: string;
+  inStock?: boolean;
+}
+
+interface MealItemCardProps {
+  product: UniversalProduct;
+  cartQuantity: number;
+  onAddToCart: (product: UniversalProduct) => void;
+  onRemoveFromCart: () => void;
+  onPress?: () => void;
+}
+
+const MealItemCard = ({
+  product,
+  cartQuantity,
+  onAddToCart,
+  onRemoveFromCart,
+  onPress,
+}: MealItemCardProps) => {
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+
+  // Expand controls when product is added
+  const handleAdd = () => {
+    onAddToCart(product);
+    setExpanded(true);
+
+    // Reset collapse timer
+    if (timer) clearTimeout(timer);
+    const t = setTimeout(() => {
+      setExpanded(false);
+    }, 4000);
+    setTimer(t);
+  };
+
+  const handleRemove = () => {
+    onRemoveFromCart();
+    if (cartQuantity <= 1) {
+      setExpanded(false);
+      if (timer) clearTimeout(timer);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [timer]);
+
+  // Show expanded state if item is in cart
+  useEffect(() => {
+    if (cartQuantity > 0 && !expanded) {
+      setExpanded(false); // Keep collapsed unless explicitly expanded
+    }
+  }, [cartQuantity, expanded]);
+
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.95}
+      onPress={onPress}
+    >
+      {/* Left side - Content */}
+      <View style={styles.contentContainer}>
+        <Text style={styles.name} numberOfLines={2}>
+          {product.name}
+        </Text>
+
+        {product.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {product.description}
+          </Text>
+        )}
+
+        <View style={styles.bottomRow}>
+          <Text style={styles.price}>D{product.price.toFixed(2)}</Text>
+          {cartQuantity > 0 && (
+            <View style={styles.cartIndicator}>
+              <Ionicons name="checkmark-circle" size={12} color="#10b981" />
+              <Text style={styles.cartIndicatorText}>In Cart</Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Right side - Image with cart controls */}
+      <View style={styles.imageContainer}>
+        {product.image && !imageLoadError ? (
+          <Image
+            source={{ uri: product.image }}
+            style={styles.image}
+            onError={() => setImageLoadError(true)}
+          />
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <Ionicons name="restaurant" size={32} color="#E5E5E5" />
+          </View>
+        )}
+      </View>
+
+      {/* Floating Add/Quantity Controls positioned relative to the whole card */}
+      {cartQuantity === 0 ? (
+        <TouchableOpacity
+          style={styles.floatingAddButton}
+          onPress={handleAdd}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={18} color="#fff" />
+        </TouchableOpacity>
+      ) : expanded ? (
+        <View style={styles.overlayControls}>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={handleRemove}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="remove" size={14} color="#fff" />
+          </TouchableOpacity>
+
+          <Text style={styles.quantityText}>{cartQuantity}</Text>
+
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={handleAdd}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={14} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.floatingAddButton}
+          onPress={() => setExpanded(true)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
+        </TouchableOpacity>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 12,
+    marginVertical: 1,
+    marginHorizontal: 0,
+    width: "100%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 0.5,
+    borderColor: "#DDDDDDFF",
+    flexDirection: "row",
+    alignItems: "center",
+    position: "relative",
+    minHeight: 92,
+  },
+  contentContainer: {
+    flex: 1,
+    justifyContent: "center",
+    paddingRight: 12,
+  },
+  imageContainer: {
+    width: 84,
+    height: 84,
+    position: "relative",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F8F8F8",
+    borderRadius: 10,
+  },
+  imagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
+    borderRadius: 12,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    lineHeight: 22,
+    marginBottom: 4,
+  },
+  description: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  bottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: PrimaryColor,
+    letterSpacing: -0.3,
+  },
+  cartIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  cartIndicatorText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#10b981",
+    marginLeft: 2,
+  },
+
+  // Cart controls - Exact same styles from your ProductCard
+  floatingAddButton: {
+    position: "absolute",
+    bottom: 10,
+    right: 12,
+    width: 36,
+    height: 36,
+    backgroundColor: PrimaryColor,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  overlayControls: {
+    position: "absolute",
+    bottom: 8,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.9)",
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  quantityButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: PrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quantityText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+    marginHorizontal: 8,
+    minWidth: 18,
+    textAlign: "center",
+  },
+  quantityBadgeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+});
+
+export default MealItemCard;

@@ -178,7 +178,7 @@ const ShopCard = ({
             marginBottom: 8,
           }}
         >
-          {typeof shop.rating === "number" && shop.rating >= 0 && (
+          {/* {typeof shop.rating === "number" && shop.rating >= 0 && (
             <View
               style={{
                 flexDirection: "row",
@@ -191,10 +191,16 @@ const ShopCard = ({
                 {shop.rating.toFixed(1)}
               </Text>
             </View>
-          )}
+          )} */}
 
           {typeof shop.address === "string" && (
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <Ionicons name="location" size={12} color="#6B7280" />
               <Text style={{ fontSize: 12, color: "#6B7280", marginLeft: 2 }}>
                 {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
@@ -439,7 +445,6 @@ export default function LocalShops() {
           style={{
             flexDirection: "row",
             alignItems: "center",
-            backgroundColor: "#f0f0f0",
             borderRadius: 20,
             paddingHorizontal: 12,
             paddingVertical: 6,
@@ -447,15 +452,15 @@ export default function LocalShops() {
         >
           <Text
             style={{
-              fontSize: 12,
-              color: PrimaryColor,
-              fontWeight: "600",
+              fontSize: 14,
+              color: "#979797FF",
+              fontWeight: "500",
               marginRight: 4,
             }}
           >
             View All
           </Text>
-          <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
+          <Ionicons name="chevron-forward" size={14} color="#979797FF" />
         </TouchableOpacity>
       </View>
 

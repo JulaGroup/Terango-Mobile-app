@@ -8,19 +8,25 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
-  Image,
   FlatList,
   Linking,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useRouter, useLocalSearchParams, router } from "expo-router";
+import ProductCard from "@/components/common/ProductCard";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import { Category } from "@/lib/homeApi";
 
 const HEADER_HEIGHT = 300;
-const STICKY_HEADER_HEIGHT = 80;
+const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;
+const STATUS_BAR_HEIGHT =
+  Platform.OS === "ios" ? 44 : StatusBar.currentHeight || 24;
+// Extra top padding so header controls sit lower when not scrolled
+const HEADER_TOP_PADDING = Platform.OS === "ios" ? 12 : 8;
 
 // Helper function to get category icons
 const getCategoryIcon = (category: string): any => {
@@ -102,154 +108,25 @@ const SkeletonLoader = ({
   );
 };
 
-// Product Card Component
-interface ProductCardProps {
-  product: Product;
-  onAddToCart: (product: Product) => void;
-  onRemoveFromCart: (productId: string) => void;
-  cartQuantity: number;
-}
-
-const ProductCard = ({
-  product,
-  onAddToCart,
-  onRemoveFromCart,
-  cartQuantity,
-}: ProductCardProps) => {
-  const router = useRouter();
-  const [imageLoadError, setImageLoadError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-
-  // expand controls when product is added
-  const handleAdd = () => {
-    onAddToCart(product);
-    setExpanded(true);
-
-    // reset collapse timer
-    if (timer) clearTimeout(timer);
-    const t = setTimeout(() => {
-      setExpanded(false);
-    }, 4000);
-    setTimer(t);
-  };
-
-  const { updateQuantity } = useCart();
-  const handleRemove = () => {
-    if (cartQuantity > 1) {
-      updateQuantity(product.id, cartQuantity - 1);
-    } else {
-      onRemoveFromCart(product.id);
-      setExpanded(false);
-      if (timer) clearTimeout(timer);
-    }
-  };
-
-  // cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [timer]);
-
-  return (
-    <TouchableOpacity
-      style={styles.productCard}
-      onPress={() => router.push(`/product/${product.id}` as any)}
-      activeOpacity={0.8}
-    >
-      {/* Product Image */}
-      <View style={styles.productImageContainer}>
-        {product.imageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: product.imageUrl }}
-            style={styles.productImage}
-            resizeMode="cover"
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <View style={styles.productImagePlaceholder}>
-            <Ionicons name="storefront" size={32} color="#E5E5E5" />
-          </View>
-        )}
-
-        {/* Discount Badge (optional - you can add discount logic) */}
-        <View style={styles.discountBadge}>
-          <Text style={styles.discountText}>-20%</Text>
-        </View>
-
-        {/* Floating Add/Quantity Controls */}
-        {cartQuantity === 0 ? (
-          <TouchableOpacity
-            style={styles.floatingAddButton}
-            onPress={(e) => {
-              e.stopPropagation(); // Prevent navigation when tapping add button
-              handleAdd();
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : expanded ? (
-          <View style={styles.overlayControls}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={handleRemove}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="remove" size={14} color="#fff" />
-            </TouchableOpacity>
-
-            <Text style={styles.quantityText}>{cartQuantity}</Text>
-
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={handleAdd}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={14} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.floatingAddButton}
-            onPress={() => setExpanded(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Product Info */}
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={2}>
-          {product.name}
-        </Text>
-        {product.description && (
-          <Text style={styles.productDescription} numberOfLines={2}>
-            {product.description}
-          </Text>
-        )}
-        <View style={styles.productPriceRow}>
-          <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
-          {/* Optional: Previous price for discounted items */}
-          {/* <Text style={styles.productPreviousPrice}>D{(product.price * 1.2).toFixed(2)}</Text> */}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+const handleCategoryPress = (category: Category) => {
+  // Navigate to category details page
+  router.push({
+    pathname: "/CategoryDetailsPage",
+    params: {
+      categoryId: category.id,
+      categoryName: category.name,
+    },
+  });
 };
 
-// Category Section Component
+// Updated Category Section Component - Uber Eats Style
 interface CategorySectionProps {
   category: string;
   products: Product[];
   onAddToCart: (product: Product) => void;
   onRemoveFromCart: (productId: string) => void;
   getCartQuantity: (productId: string) => number;
+  shopName?: string;
 }
 
 const CategorySection = ({
@@ -258,66 +135,92 @@ const CategorySection = ({
   onAddToCart,
   onRemoveFromCart,
   getCartQuantity,
+  shopName,
 }: CategorySectionProps) => {
-  const categoryIcon = getCategoryIcon(category);
+  // Use cart context directly to mirror storeCategoryProducts behavior
+  const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
+
+  const handleAdd = (item: Product) => {
+    if (!item) return;
+    const cartItem = {
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      description: item.description || "",
+      vendorId: item.shopId,
+      vendorName: "",
+      imageUrl: item.imageUrl || "",
+      entityType: "product",
+    } as any;
+    addToCart(cartItem);
+  };
+
+  const handleRemove = (productId: string) => {
+    const ci = cartItems.find((c) => c.id === productId);
+    if (ci && ci.quantity > 1) {
+      updateQuantity(productId, ci.quantity - 1);
+    } else {
+      removeFromCart(productId);
+    }
+  };
 
   const renderProductCard = ({ item }: { item: Product }) => (
     <View style={styles.productCardWrapper}>
       <ProductCard
-        product={item}
-        onAddToCart={onAddToCart}
-        onRemoveFromCart={onRemoveFromCart}
+        product={{
+          id: Number(item.id),
+          name: item.name,
+          price: item.price,
+          image: item.imageUrl,
+          description: item.description,
+          inStock: true,
+        }}
         cartQuantity={getCartQuantity(item.id)}
+        onAddToCart={() => handleAdd(item)}
+        onRemoveFromCart={() => handleRemove(item.id)}
+        onPress={() => router.push(`/product/${item.id}`)}
       />
     </View>
   );
 
   return (
     <View style={styles.categorySection}>
-      {/* Category Header */}
-      <View style={styles.categoryHeaderContainer}>
-        <View style={styles.categoryHeaderContent}>
-          <View style={styles.categoryIconWrapper}>
-            <LinearGradient
-              colors={["#FF8500", "#FF6B00"]}
-              style={styles.categoryIconContainer}
-            >
-              <Ionicons name={categoryIcon} size={20} color="#fff" />
-            </LinearGradient>
-          </View>
-          <View style={styles.categoryTextContainer}>
-            <Text style={styles.categoryTitle}>{category}</Text>
-            <Text style={styles.categorySubtitle}>
-              {products.length} {products.length === 1 ? "item" : "items"}{" "}
-              available
-            </Text>
-          </View>
-        </View>
+      {/* Uber Eats Style Category Header */}
+      <View style={styles.categoryHeader}>
+        <Text style={styles.categoryTitle}>{category}</Text>
 
-        {/* View All Button */}
-        <TouchableOpacity style={styles.viewAllButton} activeOpacity={0.7}>
-          <Text style={styles.viewAllText}>View all</Text>
-          <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
+        <TouchableOpacity
+          style={styles.viewAllButton}
+          activeOpacity={0.7}
+          onPress={() =>
+            router.push({
+              pathname: "/storeCategoryProducts",
+              params: {
+                shopId: String((products[0] && products[0].shopId) || ""),
+                subCategoryId: String(
+                  (products[0] && products[0].subCategory?.id) || ""
+                ),
+                shopName: String(shopName || ""),
+                subCategoryName: String(
+                  (products[0] && products[0].subCategory?.name) || ""
+                ),
+              },
+            })
+          }
+        >
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#666666",
+              fontWeight: "500",
+              marginRight: 4,
+            }}
+          >
+            View all
+          </Text>
+          <Ionicons name="chevron-forward" size={16} color="#666666" />
         </TouchableOpacity>
       </View>
-
-      {/* Quality Banner */}
-      {/* <View style={styles.qualityBanner}>
-        <View style={styles.qualityBannerLeft}>
-          <View style={styles.qualityIconContainer}>
-            <Ionicons name="checkmark-circle" size={16} color="#27AE60" />
-          </View>
-          <View>
-            <Text style={styles.qualityTitle}>Fresh & Quality Assured</Text>
-            <Text style={styles.qualitySubtitle}>
-              Handpicked • Best prices • Fast delivery
-            </Text>
-          </View>
-        </View>
-        <View style={styles.qualityBadge}>
-          <Text style={styles.qualityBadgeText}>Premium</Text>
-        </View>
-      </View> */}
 
       {/* Products Horizontal Slider */}
       <FlatList
@@ -326,8 +229,8 @@ const CategorySection = ({
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.productsListContainer}
-        ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-        snapToInterval={180}
+        ItemSeparatorComponent={() => <View style={{ width: 6 }} />}
+        snapToInterval={200}
         decelerationRate="fast"
         scrollEventThrottle={16}
       />
@@ -656,16 +559,25 @@ export default function ShopDetails() {
     );
   };
 
-  // Animated values for hero section
+  // Enhanced animated values for smoother transitions
   const headerOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT - STICKY_HEADER_HEIGHT],
+    inputRange: [
+      HEADER_HEIGHT - STICKY_HEADER_HEIGHT - 50,
+      HEADER_HEIGHT - STICKY_HEADER_HEIGHT,
+    ],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
+  const headerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT - STICKY_HEADER_HEIGHT],
+    outputRange: [0, -10],
+    extrapolate: "clamp",
+  });
+
   const heroOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [1, 0],
+    inputRange: [0, HEADER_HEIGHT - 100, HEADER_HEIGHT],
+    outputRange: [1, 0.3, 0],
     extrapolate: "clamp",
   });
 
@@ -677,7 +589,7 @@ export default function ShopDetails() {
 
   const containerTranslateY = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, -50],
+    outputRange: [0, -30],
     extrapolate: "clamp",
   });
 
@@ -714,37 +626,56 @@ export default function ShopDetails() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="transparent"
+        translucent={true}
+      />
 
-      {/* Sticky Header */}
-      <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity }]}>
-        <LinearGradient
-          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.4)"]}
-          style={styles.stickyHeaderGradient}
-        >
+      {/* Enhanced Sticky Header - Uber Eats Style */}
+      <Animated.View
+        style={[
+          styles.stickyHeader,
+          {
+            opacity: headerOpacity,
+            transform: [{ translateY: headerTranslateY }],
+          },
+        ]}
+      >
+        <View style={styles.stickyHeaderContent}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.stickyHeaderBackButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
 
-          <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
-            {shop.name}
-          </Text>
+          <View style={styles.stickyHeaderTitleContainer}>
+            <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
+              {shop.name}
+            </Text>
+            <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
+              {shop.isActive ? "Open now" : "Closed"} •{" "}
+              {shop.shopType || "Store"}
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.cartButton}
-            onPress={() => router.push("/cart")}
-          >
-            <Ionicons name="cart" size={24} color="#fff" />
-            {getTotalCartItems() > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
+          <View style={styles.stickyHeaderActions}>
+            <TouchableOpacity
+              style={styles.stickyHeaderButton}
+              onPress={() => router.push("/cart")}
+            >
+              <Ionicons name="cart-outline" size={22} color="#000" />
+              {getTotalCartItems() > 0 && (
+                <View style={styles.stickyCartBadge}>
+                  <Text style={styles.stickyCartBadgeText}>
+                    {getTotalCartItems()}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </Animated.View>
 
       <Animated.ScrollView
@@ -834,16 +765,6 @@ export default function ShopDetails() {
 
                 {/* Enhanced Shop Meta */}
                 <View style={styles.restaurantMeta}>
-                  {typeof shop.rating === "number" && (
-                    <View style={styles.metaItem}>
-                      <Ionicons name="star" size={16} color="#FFD700" />
-                      <Text style={styles.metaText}>
-                        {shop.rating.toFixed(1)} ({shop.totalReviews ?? 0}{" "}
-                        reviews)
-                      </Text>
-                    </View>
-                  )}
-
                   {shop.address && (
                     <View style={styles.metaItem}>
                       <Ionicons
@@ -852,9 +773,9 @@ export default function ShopDetails() {
                         color="rgba(255,255,255,0.9)"
                       />
                       <Text style={styles.metaText}>
-                        {shop.city
-                          ? `${shop.city}, ${shop.state || ""}`
-                          : shop.address}
+                        {shop.address
+                          ? `${shop.address}, ${shop.state || ""}`
+                          : shop.city}
                       </Text>
                     </View>
                   )}
@@ -934,6 +855,7 @@ export default function ShopDetails() {
               onAddToCart={handleAddToCart}
               onRemoveFromCart={handleRemoveFromCart}
               getCartQuantity={getCartItemQuantity}
+              shopName={shop?.name}
             />
           ))}
         </Animated.View>
@@ -999,7 +921,7 @@ export default function ShopDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#FFFFFF",
   },
   errorContainer: {
     flex: 1,
@@ -1032,22 +954,83 @@ const styles = StyleSheet.create({
     right: 0,
     height: STICKY_HEADER_HEIGHT,
     zIndex: 1000,
+    backgroundColor: "#fff",
+    elevation: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
   },
-  stickyHeaderGradient: {
+
+  stickyHeaderContent: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: STATUS_BAR_HEIGHT + HEADER_TOP_PADDING,
+    paddingBottom: 12,
   },
-  stickyHeaderTitle: {
+
+  stickyHeaderBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+
+  stickyHeaderTitleContainer: {
     flex: 1,
-    fontSize: 18,
-    fontWeight: "bold",
+    justifyContent: "center",
+  },
+
+  stickyHeaderTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#000",
+    letterSpacing: -0.3,
+  },
+
+  stickyHeaderSubtitle: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 1,
+    fontWeight: "500",
+  },
+
+  stickyHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  stickyHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+
+  stickyCartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: PrimaryColor,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+
+  stickyCartBadgeText: {
     color: "#fff",
-    textAlign: "center",
-    marginHorizontal: 20,
+    fontSize: 11,
+    fontWeight: "700",
   },
   scrollView: {
     flex: 1,
@@ -1091,7 +1074,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 10,
+  },
+
+  stickyHeaderGradient: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
   },
   backButton: {
     width: 40,
@@ -1196,28 +1188,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
+
+  // Updated Categories Container - Uber Eats Style
   categoriesContainer: {
-    backgroundColor: "#F8FAFC",
-    paddingTop: 12,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 20,
     paddingBottom: 120,
   },
 
+  // Updated Category Section - Clean Uber Eats Style
   categorySection: {
-    marginVertical: 12,
-    paddingVertical: 20,
+    marginBottom: 40,
     backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    marginHorizontal: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
   },
 
-  categoryHeaderContainer: {
+  // Simple Category Header - Black text, View all with arrow
+  categoryHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -1225,247 +1211,25 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
-  categoryHeaderContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-
-  categoryIconWrapper: {
-    marginRight: 16,
-  },
-
-  categoryIconContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-
-  categoryTextContainer: {
-    flex: 1,
-  },
-
   categoryTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#0F172A",
-    letterSpacing: -0.8,
-    marginBottom: 4,
-  },
-
-  categorySubtitle: {
-    fontSize: 15,
-    color: "#64748B",
-    fontWeight: "600",
-    letterSpacing: -0.2,
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#000000",
+    letterSpacing: -0.3,
   },
 
   viewAllButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
 
   viewAllText: {
-    fontSize: 12,
-    color: PrimaryColor,
-    fontWeight: "600",
+    fontSize: 14,
+    color: "#666666",
+    fontWeight: "500",
     marginRight: 4,
-  },
-
-  productsListContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 4,
-  },
-
-  productCardWrapper: {
-    width: 180,
-  },
-
-  productCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 8,
-    marginBottom: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
-    position: "relative",
-  },
-
-  productImageContainer: {
-    width: "100%",
-    height: 150,
-    position: "relative",
-    overflow: "hidden",
-    backgroundColor: "#F8FAFC",
-  },
-
-  productImage: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#F8FAFC",
-  },
-
-  productImagePlaceholder: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#F1F5F9",
-  },
-
-  discountBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    backgroundColor: "#EF4444",
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-
-  discountText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-
-  floatingAddButton: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    width: 40,
-    height: 40,
-    backgroundColor: PrimaryColor,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 10,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-  },
-
-  overlayControls: {
-    position: "absolute",
-    bottom: 12,
-    right: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(15, 23, 42, 0.95)",
-    borderRadius: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 12,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.1)",
-    backdropFilter: "blur(10px)",
-  },
-
-  quantityButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: PrimaryColor,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-
-  quantityText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-    marginHorizontal: 14,
-    minWidth: 24,
-    textAlign: "center",
-    letterSpacing: -0.2,
-  },
-
-  quantityBadgeText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "800",
-    letterSpacing: -0.2,
-  },
-
-  productInfo: {
-    padding: 16,
-    paddingTop: 14,
-  },
-
-  productName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#0F172A",
-    marginBottom: 6,
-    lineHeight: 22,
-    letterSpacing: -0.3,
-  },
-
-  productDescription: {
-    fontSize: 13,
-    color: "#64748B",
-    marginBottom: 12,
-    lineHeight: 18,
-    letterSpacing: -0.1,
-  },
-
-  productPriceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 2,
-  },
-
-  productPrice: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: PrimaryColor,
-    letterSpacing: -0.6,
-  },
-
-  productPreviousPrice: {
-    fontSize: 15,
-    color: "#94A3B8",
-    textDecorationLine: "line-through",
-    marginLeft: 10,
-    letterSpacing: -0.2,
   },
 
   // Enhanced cart summary styles
@@ -1575,5 +1339,181 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.6,
     marginRight: 10,
+  },
+
+  // Clean Product Cards Container
+  productsListContainer: {
+    paddingLeft: 10,
+    paddingRight: 4,
+  },
+
+  productCardWrapper: {
+    width: 140,
+  },
+
+  // Enhanced Product Card Styles for Uber Eats Look
+  productCard: {
+    backgroundColor: "#FFFFFF",
+    height: 280,
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: Platform.OS === "ios" ? "rgba(0, 0, 0, 0.06)" : "#000",
+    shadowOffset:
+      Platform.OS === "ios" ? { width: 0, height: 2 } : { width: 0, height: 1 },
+    shadowOpacity: Platform.OS === "ios" ? 0.06 : 0.1,
+    shadowRadius: Platform.OS === "ios" ? 8 : 4,
+    elevation: Platform.OS === "android" ? 3 : 0,
+    marginBottom: 4,
+    borderWidth: Platform.OS === "ios" ? 0.5 : 1,
+    borderColor: "rgba(0, 0, 0, 0.06)",
+  },
+
+  productImageContainer: {
+    width: "100%",
+    height: 160,
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: "#F8FAFC",
+  },
+
+  productImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F8FAFC",
+  },
+
+  productImagePlaceholder: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+  },
+
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#EF4444",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+
+  discountText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: -0.1,
+  },
+
+  floatingAddButton: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 36,
+    height: 36,
+    backgroundColor: PrimaryColor,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor:
+      Platform.OS === "ios" ? "rgba(255, 133, 0, 0.3)" : PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: Platform.OS === "ios" ? 0.2 : 0.25,
+    shadowRadius: 4,
+    elevation: Platform.OS === "android" ? 4 : 0,
+    borderWidth: 1.5,
+    borderColor: "#FFFFFF",
+  },
+
+  overlayControls: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.88)",
+    borderRadius: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    shadowColor: Platform.OS === "ios" ? "rgba(0, 0, 0, 0.2)" : "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: Platform.OS === "ios" ? 0.1 : 0.15,
+    shadowRadius: 8,
+    elevation: Platform.OS === "android" ? 6 : 0,
+  },
+
+  quantityButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: PrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  quantityText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginHorizontal: 12,
+    minWidth: 20,
+    textAlign: "center",
+    letterSpacing: -0.2,
+  },
+
+  quantityBadgeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    letterSpacing: -0.2,
+  },
+
+  // Clean Product Info
+  productInfo: {
+    padding: 12,
+    height: 120,
+    justifyContent: "space-between",
+  },
+
+  productName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#000000",
+    lineHeight: 18,
+    letterSpacing: -0.1,
+    marginBottom: 4,
+  },
+
+  productDescription: {
+    fontSize: 12,
+    color: "#666666",
+    lineHeight: 16,
+    letterSpacing: 0,
+    opacity: 0.8,
+    marginBottom: 8,
+  },
+
+  productPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: "auto",
+  },
+
+  productPrice: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000000",
+    letterSpacing: -0.2,
+  },
+
+  productPreviousPrice: {
+    fontSize: 12,
+    color: "#999999",
+    textDecorationLine: "line-through",
+    marginLeft: 6,
+    letterSpacing: 0,
+    opacity: 0.7,
   },
 });

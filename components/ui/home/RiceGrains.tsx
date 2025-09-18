@@ -104,7 +104,16 @@ export default function RiceGrains({ onViewAll }: RiceGrainsProps) {
           <Text style={styles.subtitle}>Premium quality staples</Text>
         </View>
         <TouchableOpacity onPress={handleViewAll} style={styles.viewAllButton}>
-          <Text style={styles.viewAllText}>View All</Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#666666",
+              fontWeight: "500",
+              marginRight: 4,
+            }}
+          >
+            View All
+          </Text>
           <Ionicons name="chevron-forward" size={16} color="#10B981" />
         </TouchableOpacity>
       </View>

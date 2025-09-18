@@ -188,7 +188,7 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
-  const rating = restaurant.rating || Math.random() * (5.0 - 3.5) + 3.5;
+  // rating not required here; use restaurant.rating directly where needed
   const reviewCount =
     restaurant.totalReviews || Math.floor(Math.random() * 450 + 50);
 
@@ -242,10 +242,10 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
         )}
 
         {/* Rating Badge */}
-        <View style={styles.fullWidthRatingBadge}>
+        {/* <View style={styles.fullWidthRatingBadge}>
           <Ionicons name="star" size={12} color="#FFD700" />
           <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
-        </View>
+        </View> */}
       </View>
 
       <View style={styles.fullWidthRestaurantInfo}>
@@ -279,7 +279,7 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
-  const rating = shop.rating || Math.random() * (5.0 - 3.5) + 3.5;
+  // rating not required here; use shop.rating directly where needed
   const reviewCount = shop.totalReviews || Math.floor(Math.random() * 450 + 50);
 
   return (
@@ -339,10 +339,10 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
         </View>
 
         {/* Rating Badge */}
-        <View style={styles.fullWidthRatingBadge}>
+        {/* <View style={styles.fullWidthRatingBadge}>
           <Ionicons name="star" size={12} color="#fbbf24" />
           <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
-        </View>
+        </View> */}
       </View>
 
       <View style={styles.fullWidthShopInfo}>
@@ -362,16 +362,16 @@ const ShopCard = ({ shop }: { shop: Shop }) => {
           </View>
         )}
 
-        {shop.minimumOrderAmount !== undefined && (
+        {/* {shop.minimumOrderAmount !== undefined && (
           <Text style={styles.fullWidthMinOrderText}>
             Min. order: D{shop.minimumOrderAmount.toFixed(2)}
           </Text>
-        )}
+        )} */}
 
         <View style={styles.fullWidthShopFooter}>
           <View style={styles.fullWidthLocationRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.fullWidthLocationText} numberOfLines={1}>
+            <Text style={styles.fullWidthLocationText} numberOfLines={2}>
               {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
                 shop.address ?? "Location"
               }`}
@@ -539,11 +539,11 @@ const MenuItemCard = ({
       </View>
 
       <View style={styles.modernMenuContent}>
-        <Text style={styles.modernMenuTitle} numberOfLines={2}>
+        <Text style={styles.modernMenuTitle} numberOfLines={1}>
           {menuItem.name}
         </Text>
         {menuItem.description && (
-          <Text style={styles.modernMenuDescription} numberOfLines={2}>
+          <Text style={styles.modernMenuDescription} numberOfLines={1}>
             {menuItem.description}
           </Text>
         )}
@@ -741,9 +741,7 @@ export default function SubCategoryView() {
 
               {/* All Categories Section */}
               <View style={styles.allCategoriesHeader}>
-                <Text style={styles.allCategoriesTitle}>
-                  Browse All Categories
-                </Text>
+                <Text style={styles.allCategoriesTitle}>Browse All</Text>
                 <Text style={styles.allCategoriesSubtitle}>
                   Discover everything we have to offer
                 </Text>
@@ -767,7 +765,14 @@ export default function SubCategoryView() {
                       ]}
                       onPress={() => setActiveTab("restaurants")}
                     >
-                      <Text style={[styles.viewAllText, { color: "#64748b" }]}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#666666",
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
                         View All
                       </Text>
                       <Ionicons
@@ -809,7 +814,14 @@ export default function SubCategoryView() {
                       ]}
                       onPress={() => setActiveTab("shops")}
                     >
-                      <Text style={[styles.viewAllText, { color: "#64748b" }]}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#666666",
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
                         View All
                       </Text>
                       <Ionicons
@@ -844,7 +856,16 @@ export default function SubCategoryView() {
                       style={styles.viewAllButton}
                       onPress={() => setActiveTab("products")}
                     >
-                      <Text style={styles.viewAllText}>View All</Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#666666",
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
+                        View All
+                      </Text>
                       <Ionicons
                         name="chevron-forward"
                         size={14}
@@ -857,46 +878,48 @@ export default function SubCategoryView() {
                     horizontal
                     keyExtractor={(item) => `product-${item.id}`}
                     renderItem={({ item }) => (
-                      <ProductCard
-                        product={{
-                          id: Number(item.id),
-                          name: item.name,
-                          price: item.price,
-                          image: item.imageUrl,
-                          description: item.description,
-                          inStock: true,
-                        }}
-                        cartQuantity={
-                          cartItems.find(
-                            (ci) => String(ci.id) === String(item.id)
-                          )?.quantity || 0
-                        }
-                        onAddToCart={() => {
-                          const cartItem = {
-                            id: String(item.id),
-                            vendorName: "Shop",
+                      <View style={{ marginRight: 16 }}>
+                        <ProductCard
+                          product={{
+                            id: Number(item.id),
                             name: item.name,
                             price: item.price,
-                            description: item.description || "",
-                            vendorId: item.shopId || "",
-                            imageUrl: item.imageUrl || "",
-                            entityType: "shop",
-                          };
-                          addToCart(cartItem);
-                        }}
-                        onRemoveFromCart={() => {
-                          const id = String(item.id);
-                          const cartItem = cartItems.find(
-                            (ci) => String(ci.id) === id
-                          );
-                          if (cartItem && cartItem.quantity > 1) {
-                            updateQuantity(id, cartItem.quantity - 1);
-                          } else {
-                            removeFromCart(id);
+                            image: item.imageUrl,
+                            description: item.description,
+                            inStock: true,
+                          }}
+                          cartQuantity={
+                            cartItems.find(
+                              (ci) => String(ci.id) === String(item.id)
+                            )?.quantity || 0
                           }
-                        }}
-                        onPress={() => router.push(`/product/${item.id}`)}
-                      />
+                          onAddToCart={() => {
+                            const cartItem = {
+                              id: String(item.id),
+                              vendorName: "Shop",
+                              name: item.name,
+                              price: item.price,
+                              description: item.description || "",
+                              vendorId: item.shopId || "",
+                              imageUrl: item.imageUrl || "",
+                              entityType: "shop",
+                            };
+                            addToCart(cartItem);
+                          }}
+                          onRemoveFromCart={() => {
+                            const id = String(item.id);
+                            const cartItem = cartItems.find(
+                              (ci) => String(ci.id) === id
+                            );
+                            if (cartItem && cartItem.quantity > 1) {
+                              updateQuantity(id, cartItem.quantity - 1);
+                            } else {
+                              removeFromCart(id);
+                            }
+                          }}
+                          onPress={() => router.push(`/product/${item.id}`)}
+                        />
+                      </View>
                     )}
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={{ paddingHorizontal: 20 }}
@@ -918,7 +941,16 @@ export default function SubCategoryView() {
                       style={styles.viewAllButton}
                       onPress={() => setActiveTab("menuItems")}
                     >
-                      <Text style={styles.viewAllText}>View All</Text>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          color: "#666666",
+                          fontWeight: "500",
+                          marginRight: 4,
+                        }}
+                      >
+                        View All
+                      </Text>
                       <Ionicons
                         name="chevron-forward"
                         size={14}
@@ -1024,7 +1056,9 @@ export default function SubCategoryView() {
         );
       }
       // Use same card width/height as MenuItemCard for consistency
-      const cardWidth = (width - 56) / 2;
+      // Use a horizontal gap between columns and compute card width accordingly
+      const H_GAP = 16; // horizontal gap between cards
+      const cardWidth = (width - 32 - H_GAP) / 2; // account for container padding (16 left + 16 right)
       return (
         <FlatList
           data={data.products}
@@ -1032,17 +1066,15 @@ export default function SubCategoryView() {
           key={`products-2col`}
           keyExtractor={(item) => `product-${item.id}`}
           renderItem={({ item, index }) => {
-            const isLeft = index % 2 === 0;
             const cartQuantity =
               cartItems.find((ci) => ci.id === item.id)?.quantity || 0;
             return (
               <View
                 style={{
                   width: cardWidth,
-                  marginLeft: isLeft ? 0 : 16,
-                  marginRight: isLeft ? 8 : 0,
-                  marginBottom: 20,
-                  // Match MenuItemCard style
+                  // give each card a half-gap padding so combined gap equals H_GAP
+                  paddingHorizontal: H_GAP / 2,
+                  marginBottom: H_GAP,
                 }}
               >
                 <ProductCard

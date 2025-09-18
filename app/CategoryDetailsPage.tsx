@@ -16,7 +16,7 @@ import { categoryApi } from "@/lib/api";
 
 const { width } = Dimensions.get("window");
 
-interface SubCategory {
+export interface SubCategory {
   id: string;
   name: string;
   imageUrl?: string;

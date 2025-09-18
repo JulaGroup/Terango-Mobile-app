@@ -143,7 +143,7 @@ export default function WavePaymentModal({
         body: JSON.stringify(body),
       });
 
-      if (res.status === 202) {
+      if (res.status === 201 || res.status === 202) {
         const data = await res.json();
         const { orderId, paymentId, paymentLink } = data;
 
@@ -155,9 +155,9 @@ export default function WavePaymentModal({
         });
 
         // Notify parent
-        onStarted(orderId);
+        if (orderId) onStarted(orderId);
 
-        // Open payment link if present
+        // If paymentLink is present (legacy), open it. For instant checkout, there won't be one.
         if (paymentLink) {
           try {
             await Linking.openURL(paymentLink);
@@ -166,7 +166,7 @@ export default function WavePaymentModal({
           }
         }
 
-        // Close modal; UI will show PENDING screen
+        // Close modal; UI will show order-created state
         onClose();
       } else if (res.status === 400) {
         const err = await res.json();

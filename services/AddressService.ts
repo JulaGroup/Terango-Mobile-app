@@ -63,7 +63,7 @@ export class AddressService {
   ): Promise<Address> {
     try {
       const response = await axios.put(
-        `${API_URL}/api/addresses/${addressId}`,
+        `${API_URL}/api/users/addresses/${addressId}`,
         addressData
       );
       return response.data;
@@ -75,7 +75,7 @@ export class AddressService {
 
   static async deleteAddress(addressId: string): Promise<void> {
     try {
-      await axios.delete(`${API_URL}/api/addresses/${addressId}`);
+      await axios.delete(`${API_URL}/api/users/addresses/${addressId}`);
     } catch (error) {
       console.error("Failed to delete address:", error);
       throw error;
@@ -84,8 +84,10 @@ export class AddressService {
 
   static async setDefaultAddress(addressId: string): Promise<Address> {
     try {
-      const response = await axios.patch(
-        `${API_URL}/api/addresses/${addressId}/default`
+      // No dedicated endpoint for setting default on backend; reuse update.
+      const response = await axios.put(
+        `${API_URL}/api/users/addresses/${addressId}`,
+        { isDefault: true }
       );
       return response.data;
     } catch (error) {

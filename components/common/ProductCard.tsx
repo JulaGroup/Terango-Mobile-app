@@ -18,6 +18,7 @@ interface ProductCardProps {
   onAddToCart: (product: UniversalProduct) => void;
   onRemoveFromCart: () => void;
   onPress?: () => void;
+  cardWidth?: number; // Optional prop for responsive width
 }
 
 const ProductCard = ({
@@ -26,6 +27,7 @@ const ProductCard = ({
   onAddToCart,
   onRemoveFromCart,
   onPress,
+  cardWidth,
 }: ProductCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -68,9 +70,25 @@ const ProductCard = ({
     }
   }, [cartQuantity, expanded]);
 
+  // Dynamic styles based on cardWidth
+  const dynamicStyles = StyleSheet.create({
+    card: {
+      width: cardWidth || 140, // Much narrower default width like Uber Eats
+      backgroundColor: "#fff",
+      borderRadius: 12,
+      overflow: "hidden",
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+      elevation: 4,
+      marginBottom: 2,
+    },
+  });
+
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, dynamicStyles.card]}
       activeOpacity={0.92}
       onPress={onPress}
     >
@@ -83,7 +101,7 @@ const ProductCard = ({
           />
         ) : (
           <View style={styles.imagePlaceholder}>
-            <Ionicons name="restaurant" size={32} color="#E5E5E5" />
+            <Ionicons name="restaurant" size={28} color="#E5E5E5" />
           </View>
         )}
 
@@ -94,7 +112,7 @@ const ProductCard = ({
             onPress={handleAdd}
             activeOpacity={0.8}
           >
-            <Ionicons name="add" size={18} color="#fff" />
+            <Ionicons name="add" size={16} color="#fff" />
           </TouchableOpacity>
         ) : expanded ? (
           <View style={styles.overlayControls}>
@@ -103,7 +121,7 @@ const ProductCard = ({
               onPress={handleRemove}
               activeOpacity={0.8}
             >
-              <Ionicons name="remove" size={14} color="#fff" />
+              <Ionicons name="remove" size={12} color="#fff" />
             </TouchableOpacity>
 
             <Text style={styles.quantityText}>{cartQuantity}</Text>
@@ -113,7 +131,7 @@ const ProductCard = ({
               onPress={handleAdd}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={14} color="#fff" />
+              <Ionicons name="add" size={12} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -129,19 +147,27 @@ const ProductCard = ({
 
       {/* Product Info */}
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={2}>
+        <Text style={styles.name} numberOfLines={1}>
           {product.name}
         </Text>
         {product.description && (
-          <Text style={styles.desc} numberOfLines={2}>
+          <Text style={styles.desc} numberOfLines={1}>
             {product.description}
           </Text>
         )}
-        <View style={styles.productPriceRow}>
-          <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <View style={styles.productPriceRow}>
+            <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
+          </View>
           {cartQuantity > 0 && (
             <View style={styles.cartIndicator}>
-              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+              <Ionicons name="checkmark-circle" size={12} color="#10b981" />
               <Text style={styles.cartIndicatorText}>In Cart</Text>
             </View>
           )}
@@ -153,37 +179,39 @@ const ProductCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    width: 190,
-    marginRight: 14,
+    // Base card styles (width will be overridden by dynamic styles)
+    marginRight: 0, // Remove marginRight since parent handles spacing
     backgroundColor: "#fff",
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 7,
     marginBottom: 2,
-    boxShadow:
-      " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
+    borderWidth: 0.8,
+    borderColor: "#DFDFDFFF",
   },
   cartIndicator: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ecfdf5",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+    marginTop: 4,
+    alignSelf: "flex-start",
   },
   cartIndicatorText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
     color: "#10b981",
     marginLeft: 2,
   },
   productImageContainer: {
     width: "100%",
-    height: 120,
+    height: 90, // Reduced height for more compact look
     position: "relative",
     overflow: "hidden",
   },
@@ -200,83 +228,86 @@ const styles = StyleSheet.create({
   },
   floatingAddButton: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
-    width: 36,
-    height: 36,
+    bottom: 6,
+    right: 6,
+    width: 30,
+    height: 30,
     backgroundColor: PrimaryColor,
-    borderRadius: 18,
+    borderRadius: 15,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
   overlayControls: {
     position: "absolute",
-    bottom: 8,
-    right: 8,
+    bottom: 6,
+    right: 6,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(0,0,0,0.85)",
-    borderRadius: 18,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    borderRadius: 15,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
   },
   quantityButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: PrimaryColor,
     justifyContent: "center",
     alignItems: "center",
   },
   quantityText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
-    marginHorizontal: 10,
-    minWidth: 20,
+    marginHorizontal: 8,
+    minWidth: 16,
     textAlign: "center",
   },
   quantityBadgeText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
   },
   info: {
-    padding: 10,
+    padding: 8, // Reduced padding for more compact look
   },
   name: {
     fontWeight: "600",
-    fontSize: 14,
-    marginBottom: 4,
+    fontSize: 13, // Slightly smaller for narrow cards
+    marginBottom: 2,
+    lineHeight: 16,
+    color: "#1F2937",
   },
   desc: {
-    color: "#888",
-    fontSize: 12,
+    color: "#6B7280",
+    fontSize: 10,
     marginBottom: 4,
+    lineHeight: 12,
   },
   productPriceRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     marginTop: 2,
   },
   productPrice: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "700",
     color: PrimaryColor,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
 });
 

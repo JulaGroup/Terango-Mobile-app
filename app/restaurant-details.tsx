@@ -8,8 +8,8 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
+  Platform,
   // Image removed, now handled by ProductCard
-  FlatList,
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,49 +18,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
-import ProductCard from "@/components/common/ProductCard";
+import MealItemCard from "@/components/common/MealItemCard";
 
 const HEADER_HEIGHT = 300;
-const STICKY_HEADER_HEIGHT = 80;
+const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;
+const STATUS_BAR_HEIGHT =
+  Platform.OS === "ios" ? 44 : StatusBar.currentHeight || 24;
+// Extra top padding so header controls sit lower when not scrolled
+const HEADER_TOP_PADDING = Platform.OS === "ios" ? 12 : 8;
 
-// Helper function to get category icons
-const getCategoryIcon = (category: string): any => {
-  const categoryLower = category.toLowerCase();
-  if (
-    categoryLower.includes("appetizer") ||
-    categoryLower.includes("starter")
-  ) {
-    return "leaf";
-  } else if (
-    categoryLower.includes("main") ||
-    categoryLower.includes("entree")
-  ) {
-    return "restaurant";
-  } else if (
-    categoryLower.includes("dessert") ||
-    categoryLower.includes("sweet")
-  ) {
-    return "ice-cream";
-  } else if (
-    categoryLower.includes("drink") ||
-    categoryLower.includes("beverage")
-  ) {
-    return "wine";
-  } else if (categoryLower.includes("pizza")) {
-    return "pizza";
-  } else if (
-    categoryLower.includes("burger") ||
-    categoryLower.includes("sandwich")
-  ) {
-    return "fast-food";
-  } else if (categoryLower.includes("salad")) {
-    return "nutrition";
-  } else if (categoryLower.includes("soup")) {
-    return "cafe";
-  } else {
-    return "restaurant-outline";
-  }
-};
+// (category icon helper removed - unused)
 
 // Skeleton Loader Component for Restaurant Details
 const SkeletonLoader = ({
@@ -184,7 +151,7 @@ const RestaurantDetailsSkeleton = () => {
                   width={80}
                   height={14}
                   style={{
-                    marginRight: 20,
+                    marginRight: 16,
                     backgroundColor: "rgba(255,255,255,0.2)",
                   }}
                 />
@@ -336,12 +303,12 @@ interface Restaurant {
 export default function RestaurantDetails() {
   const router = useRouter();
   const { restaurantId } = useLocalSearchParams();
-  const { addToCart, cartItems, removeFromCart } = useCart();
+  const { addToCart, cartItems, removeFromCart, updateQuantity } = useCart();
 
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<string>("");
+  const [activeSection, setActiveSection] = useState<string>("All");
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -353,6 +320,12 @@ export default function RestaurantDetails() {
   const [groupedMenuItems, setGroupedMenuItems] = useState<{
     [key: string]: MenuItem[];
   }>({});
+  const sectionRefs = useRef<{ key: string; y: number }[]>([]);
+
+  const handleTabPress = (category: string) => {
+    // only set the active filter; do not auto-scroll
+    setActiveSection(category);
+  };
 
   const fetchRestaurantDetails = useCallback(async () => {
     try {
@@ -385,11 +358,8 @@ export default function RestaurantDetails() {
 
       setGroupedMenuItems(grouped);
 
-      // Set first section as active
-      const firstSection = Object.keys(grouped)[1];
-      if (firstSection) {
-        setActiveSection("");
-      }
+      // Default to showing all sections
+      setActiveSection("All");
     } catch (err: any) {
       console.error("Error fetching restaurant details:", err);
       setError(err.message || "Failed to load restaurant details");
@@ -465,6 +435,14 @@ export default function RestaurantDetails() {
         useNativeDriver: true,
       }),
     ]).start();
+  };
+  const handleRemove = (productId: string) => {
+    const ci = cartItems.find((c) => c.id === productId);
+    if (ci && ci.quantity > 1) {
+      updateQuantity(productId, ci.quantity - 1);
+    } else {
+      removeFromCart(productId);
+    }
   };
 
   const getCartItemQuantity = (itemId: string): number => {
@@ -548,35 +526,42 @@ export default function RestaurantDetails() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
-      {/* Sticky Header */}
+      {/* Sticky Header (shop-style) */}
       <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity }]}>
-        <LinearGradient
-          colors={["rgba(0,0,0,0.8)", "rgba(0,0,0,0.4)"]}
-          style={styles.stickyHeaderGradient}
-        >
+        <View style={styles.stickyHeaderContent}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.stickyHeaderBackButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color="#fff" />
+            <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
 
-          <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
-            {restaurant.name}
-          </Text>
+          <View style={styles.stickyHeaderTitleContainer}>
+            <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
+              {restaurant.name}
+            </Text>
+            <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
+              {restaurant.isActive ? "Open now" : "Closed"} •{" "}
+              {restaurant.service?.category?.name || "Restaurant"}
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.cartButton}
-            onPress={() => router.push("/cart")}
-          >
-            <Ionicons name="cart" size={24} color="#fff" />
-            {getTotalCartItems() > 0 && (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
+          <View style={styles.stickyHeaderActions}>
+            <TouchableOpacity
+              style={styles.stickyHeaderButton}
+              onPress={() => router.push("/cart")}
+            >
+              <Ionicons name="cart-outline" size={22} color="#000" />
+              {getTotalCartItems() > 0 && (
+                <View style={styles.stickyCartBadge}>
+                  <Text style={styles.stickyCartBadgeText}>
+                    {getTotalCartItems()}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </Animated.View>
 
       <Animated.ScrollView
@@ -743,79 +728,49 @@ export default function RestaurantDetails() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Enhanced Menu Categories */}
-        <View style={styles.categoriesContainer}>
+        {/* Uber Eats-style Tabs (sticky below header) */}
+        <View style={styles.tabsContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            style={styles.categoriesScroll}
-            contentContainerStyle={styles.categoriesContent}
+            contentContainerStyle={styles.tabsContent}
           >
-            {/* All Categories Button */}
             <TouchableOpacity
+              key="All"
               style={[
-                styles.categoryButton,
-                (!activeSection || activeSection === "") &&
-                  styles.categoryButtonActive,
+                styles.tabButton,
+                activeSection === "All" && styles.tabButtonActive,
               ]}
-              onPress={() => setActiveSection("")}
+              onPress={() => handleTabPress("All")}
             >
-              <View style={styles.categoryIconContainer}>
-                <Ionicons
-                  name="grid"
-                  size={18}
-                  color={
-                    !activeSection || activeSection === "" ? "#fff" : "#007AFF"
-                  }
-                />
-              </View>
               <Text
                 style={[
-                  styles.categoryButtonText,
-                  (!activeSection || activeSection === "") &&
-                    styles.categoryButtonTextActive,
+                  styles.tabText,
+                  activeSection === "All" && styles.tabTextActive,
                 ]}
               >
                 All
               </Text>
             </TouchableOpacity>
-
-            {/* Individual Category Buttons with Icons */}
-            {Object.keys(groupedMenuItems).map((category, index) => {
-              const categoryIcon = getCategoryIcon(category);
-              const itemCount = groupedMenuItems[category]?.length || 0;
-
-              return (
-                <TouchableOpacity
-                  key={category}
+            {Object.keys(groupedMenuItems).map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.tabButton,
+                  activeSection === category && styles.tabButtonActive,
+                ]}
+                onPress={() => handleTabPress(category)}
+              >
+                <Text
                   style={[
-                    styles.categoryButton,
-                    activeSection === category && styles.categoryButtonActive,
+                    styles.tabText,
+                    activeSection === category && styles.tabTextActive,
                   ]}
-                  onPress={() => setActiveSection(category)}
                 >
-                  <View style={styles.categoryIconContainer}>
-                    <Ionicons
-                      name={categoryIcon}
-                      size={18}
-                      color={activeSection === category ? "#fff" : "#007AFF"}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.categoryButtonText,
-                      activeSection === category &&
-                        styles.categoryButtonTextActive,
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                  <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryBadgeText}>{itemCount}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </ScrollView>
         </View>
 
@@ -824,46 +779,44 @@ export default function RestaurantDetails() {
           {Object.entries(groupedMenuItems)
             .filter(
               ([category]) =>
-                !activeSection ||
-                activeSection === "" ||
-                activeSection === category
+                activeSection === "All" || activeSection === category
             )
-            .map(([category, items]) => (
-              <View key={category} style={styles.menuSection}>
+            .map(([category, items], idx) => (
+              <View
+                key={category}
+                style={styles.menuSection}
+                onLayout={(e) => {
+                  const layoutY = e.nativeEvent.layout.y;
+                  sectionRefs.current[idx] = { key: category, y: layoutY };
+                }}
+              >
                 <Text style={styles.menuSectionTitle}>{category}</Text>
-                <FlatList
-                  data={items}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingVertical: 4 }}
-                  keyExtractor={(item) => item.id}
-                  renderItem={({ item, index }) => (
-                    <View style={{ width: 200, marginRight: 6 }}>
-                      <ProductCard
-                        product={{
-                          id:
-                            typeof item.id === "number"
-                              ? item.id
-                              : Number(item.id) || index,
-                          name: item.name,
-                          price: item.price,
-                          image: item.imageUrl || "",
-                          description: item.description || "",
-                          inStock: item.isAvailable,
-                        }}
-                        cartQuantity={getCartItemQuantity(item.id)}
-                        onAddToCart={() => handleAddToCart(item)}
-                        onRemoveFromCart={() => removeFromCart(item.id)}
-                        onPress={() =>
-                          router.push({
-                            pathname: "/menuitem/[menuitem]",
-                            params: { menuitem: item.id },
-                          })
-                        }
-                      />
-                    </View>
-                  )}
-                />
+                <View style={styles.menuItemsList}>
+                  {items.map((item, j) => (
+                    <MealItemCard
+                      key={item.id}
+                      product={{
+                        id:
+                          typeof item.id === "number"
+                            ? item.id
+                            : Number(item.id) || j,
+                        name: item.name,
+                        price: item.price,
+                        image: item.imageUrl || undefined,
+                        description: item.description || undefined,
+                      }}
+                      cartQuantity={getCartItemQuantity(item.id)}
+                      onAddToCart={(p) => handleAddToCart(item)}
+                      onRemoveFromCart={() => handleRemove(item.id)}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/menuitem/[menuitem]",
+                          params: { menuitem: item.id },
+                        })
+                      }
+                    />
+                  ))}
+                </View>
               </View>
             ))}
         </Animated.View>
@@ -963,6 +916,10 @@ const styles = StyleSheet.create({
     right: 0,
     height: STICKY_HEADER_HEIGHT,
     zIndex: 1000,
+    backgroundColor: "#fff",
+    elevation: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
   },
   stickyHeaderGradient: {
     flex: 1,
@@ -970,15 +927,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: STATUS_BAR_HEIGHT + HEADER_TOP_PADDING,
   },
   stickyHeaderTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#fff",
-    textAlign: "center",
-    marginHorizontal: 20,
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#000",
+    letterSpacing: -0.3,
   },
   scrollView: {
     flex: 1,
@@ -1022,7 +977,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 40,
+    paddingTop: 10,
   },
   backButton: {
     width: 40,
@@ -1062,7 +1017,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: -5,
     right: -5,
-    backgroundColor: "#EF4444",
+    backgroundColor: PrimaryColor,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -1128,10 +1083,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   categoriesContainer: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.06)",
-    paddingBottom: 4,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 20,
+    paddingBottom: 120,
   },
   categoriesScroll: {
     paddingHorizontal: 20,
@@ -1174,8 +1128,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   menuContainer: {
-    padding: 24,
-    paddingTop: 16,
+    padding: 10,
+    paddingTop: 10,
   },
   menuSection: {
     marginBottom: 40,
@@ -1200,7 +1154,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 16,
     elevation: 6,
-    marginVertical: 2,
+    // marginVertical: 2,
     boxShadow:
       " rgba(0, 0, 0, 0.05) 0px 0px 0px 1px, rgb(209, 213, 219) 0px 0px 0px 1px inset",
   },
@@ -1432,5 +1386,97 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 10,
     fontWeight: "600",
+  },
+  // Tabs (Uber Eats style)
+  tabsContainer: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(0,0,0,0.04)",
+    paddingVertical: 10,
+  },
+  tabsContent: {
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+  tabButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginRight: 10,
+    borderRadius: 18,
+    backgroundColor: "#F8F9FA",
+  },
+  tabButtonActive: {
+    backgroundColor: PrimaryColor,
+    elevation: 4,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  tabTextActive: {
+    color: "#fff",
+  },
+  menuItemsList: {
+    // no horizontal padding so item cards can span full width
+  },
+  // Shop-style sticky header styles
+  stickyHeaderContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: STATUS_BAR_HEIGHT + HEADER_TOP_PADDING,
+    paddingBottom: 12,
+  },
+  stickyHeaderBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  stickyHeaderTitleContainer: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  stickyHeaderSubtitle: {
+    fontSize: 13,
+    color: "#666",
+    marginTop: 1,
+    fontWeight: "500",
+  },
+  stickyHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  stickyHeaderButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  stickyCartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: PrimaryColor,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  stickyCartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });

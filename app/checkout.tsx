@@ -12,22 +12,22 @@ import {
   SafeAreaView,
   StatusBar,
   Animated,
-  Linking,
-  AppState,
-  DeviceEventEmitter,
+  Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
-import { orderApi, userApi } from "@/lib/api";
+import { userApi, orderApi } from "@/lib/api";
 import { debugAuthState } from "@/utils/debugAuth";
 import * as SecureStore from "expo-secure-store";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { UserCacheManager } from "@/utils/userCache";
-import { API_URL } from "@/constants/config";
-import * as WebBrowser from "expo-web-browser";
+// API_URL no longer required in checkout since payments are skipped
+// WebBrowser was used by legacy hosted-payment flow; instant checkout removed it
 import { on as socketOn, off as socketOff } from "@/services/SocketService";
+import { useAddress } from "@/context/AddressContext";
+import LocationModal from "@/components/common/LocationModal";
 import {
   storeSuccessfulOrder,
   NotificationService,
@@ -49,326 +49,77 @@ export default function Checkout() {
   const headerScale = useRef(new Animated.Value(0.95)).current;
 
   const [loading, setLoading] = useState(false);
-  const [browserLoading, setBrowserLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "processing" | "completed" | "failed" | "cancelled" | null
   >(null);
-  const [pollingInterval, setPollingInterval] = useState<number | null>(null);
-  const [isPollingActive, setIsPollingActive] = useState(false);
-  const [paymentCancelled, setPaymentCancelled] = useState(false);
+  const [orderCreated, setOrderCreated] = useState<{
+    visible: boolean;
+    orderId?: string | null;
+  }>({ visible: false, orderId: null });
 
-  // Payment status polling function
-  const pollPaymentStatus = useCallback(async (paymentId: string) => {
-    try {
-      console.log("[Payment Polling] Checking status for payment:", paymentId);
+  // Order created handler: show modal and clear cart
+  const handleOrderCreated = useCallback(
+    async (orderId: string) => {
+      try {
+        const storedNew = await storeSuccessfulOrder({
+          orderId,
+          timestamp: Date.now(),
+          data: { orderId, status: "completed" },
+        });
 
-      const response = await fetch(
-        `${API_URL}/api/payments/${paymentId}/status`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const statusData = await response.json();
-        console.log("[Payment Polling] Status:", statusData);
-
-        setPaymentStatus(statusData.status);
-
-        if (
-          statusData.status === "completed" ||
-          statusData.status === "failed"
-        ) {
-          // Payment completed or failed, stop polling
-          stopPaymentPolling();
-          handlePaymentResult(statusData);
-        }
-      }
-    } catch (error) {
-      console.error("[Payment Polling] Error:", error);
-    }
-  }, []);
-
-  // Start payment polling
-  const startPaymentPolling = useCallback(
-    (paymentId: string) => {
-      console.log("[Payment Polling] Starting polling for payment:", paymentId);
-      setPaymentStatus("pending");
-      setIsPollingActive(true);
-
-      // Poll every 3 seconds for up to 5 minutes
-      const interval = setInterval(() => {
-        pollPaymentStatus(paymentId);
-      }, 3000);
-
-      setPollingInterval(interval);
-
-      // Auto-stop after 5 minutes
-      setTimeout(() => {
-        stopPaymentPolling();
-      }, 5 * 60 * 1000);
-    },
-    [pollPaymentStatus]
-  );
-
-  // Stop payment polling
-  const stopPaymentPolling = useCallback(() => {
-    if (pollingInterval) {
-      console.log("[Payment Polling] Stopping polling");
-      clearInterval(pollingInterval);
-      setPollingInterval(null);
-      setPaymentStatus(null);
-      setIsPollingActive(false);
-    }
-  }, [pollingInterval]);
-
-  // Handle payment result
-  const handlePaymentResult = useCallback(
-    async (statusData: any) => {
-      console.log("[Payment] handlePaymentResult called with:", statusData);
-
-      if (statusData.status === "completed") {
-        console.log(
-          "[Payment] ✅ Payment completed detected (polling) - orderId:",
-          statusData.orderId
-        );
-        // Store successful order data for modal on app reopen
-        if (statusData.orderId) {
-          await storeSuccessfulOrder({
-            orderId: statusData.orderId,
-            timestamp: Date.now(),
-            data: statusData,
-          });
-
-          // Send instant push notification
+        // Only schedule an in-app notification if this is newly stored
+        if (storedNew) {
           await NotificationService.scheduleOrderNotification({
-            orderId: statusData.orderId,
+            orderId,
             title: "Payment Successful! 🎉",
             body: "Your order has been placed successfully. Tap to view details.",
-            data: { orderId: statusData.orderId, type: "payment_success" },
+            data: { orderId, type: "payment_success" },
           });
-        }
-
-        console.log(
-          "[Payment] Payment successful, preparing to navigate to order details"
-        );
-
-        // Clear cart since payment was successful
-        console.log("[Cart] About to clear cart. Current items:", items.length);
-        clearCart();
-
-        // Use setTimeout to check if cart was actually cleared
-        setTimeout(() => {
+        } else {
           console.log(
-            "[Cart] Cart checked after clearCart (polling) - items.length:",
-            items.length
+            "handleOrderCreated: successful order already stored, skipping notification"
           );
-        }, 100);
-
-        console.log("[Cart] Cart cleared after successful payment (polling)");
-
-        // Show success message to user first
-        Alert.alert(
-          "Payment Successful! 🎉",
-          "Your payment has been processed successfully. The browser will close automatically.",
-          [
-            {
-              text: "View Order",
-              onPress: () => {
-                WebBrowser.dismissBrowser();
-                router.replace({
-                  pathname: "/order-details",
-                  params: { orderId: statusData.orderId },
-                });
-              },
-            },
-          ]
-        );
-
-        // Wait for alert to be seen, then dismiss browser
-        setTimeout(async () => {
-          try {
-            await WebBrowser.dismissBrowser();
-            console.log(
-              "[Browser] ✅ Browser dismissed successfully for payment completion (polling)"
-            );
-
-            // Navigate to specific order after browser is dismissed
-            setTimeout(() => {
-              router.replace({
-                pathname: "/order-details",
-                params: { orderId: statusData.orderId },
-              });
-            }, 500);
-          } catch (error) {
-            console.log(
-              "[Browser] ❌ Failed to dismiss browser (polling):",
-              error
-            );
-            // Even if browser dismiss fails, still navigate to order
-            setTimeout(() => {
-              router.replace({
-                pathname: "/order-details",
-                params: { orderId: statusData.orderId },
-              });
-            }, 500);
-          }
-        }, 1500); // 1.5 second delay to allow user to see success message
-
-        // Set success state for UI updates
-        setPaymentStatus("completed");
-      } else if (statusData.status === "failed") {
-        setPaymentStatus("failed");
-        Alert.alert(
-          "Payment Failed",
-          "Your payment could not be processed. Please try again.",
-          [
-            { text: "Try Again", onPress: () => router.replace("/checkout") },
-            { text: "Cancel", style: "cancel" },
-          ]
-        );
+        }
+      } catch (e) {
+        console.log("handleOrderCreated: auxiliary steps failed", e);
       }
+
+      // Clear cart and show modal
+      clearCart();
+      setOrderCreated({ visible: true, orderId });
+      setPaymentStatus("completed");
     },
-    [router, clearCart, items]
+    [clearCart]
   );
+
+  // Legacy polling/deeplink listeners removed for instant checkout
 
   // Socket listeners: react to backend events in real-time
   useEffect(() => {
-    console.log("[Socket] Setting up payment socket listeners");
+    console.log("[Socket] Setting up payment socket listeners (simplified)");
 
     const onPaymentSuccess = async (data: any) => {
-      console.log("[Socket] ✅ paymentSuccess received in checkout", data);
-      console.log(
-        "[Payment] ✅ Payment completed detected (socket) - orderId:",
-        data?.orderId
-      );
-      setPaymentStatus("completed");
-      stopPaymentPolling();
-
-      // Store successful order data for modal on app reopen
+      console.log("[Socket] paymentSuccess received in checkout", data);
       if (data && data.orderId) {
-        await storeSuccessfulOrder({
-          orderId: data.orderId,
-          timestamp: Date.now(),
-          data: data,
-        });
-
-        // Send instant push notification
-        await NotificationService.scheduleOrderNotification({
-          orderId: data.orderId,
-          title: "Payment Successful! 🎉",
-          body: "Your order has been placed successfully. Tap to view details.",
-          data: { orderId: data.orderId, type: "payment_success" },
-        });
+        // If we receive a socket success, ensure user sees the created order modal
+        handleOrderCreated(data.orderId);
       }
-
-      console.log(
-        "[Payment] Payment successful via socket, preparing to navigate"
-      );
-
-      // Clear cart since payment was successful
-      console.log("[Cart] About to clear cart. Current items:", items.length);
-      clearCart();
-
-      // Use setTimeout to check if cart was actually cleared
-      setTimeout(() => {
-        console.log(
-          "[Cart] Cart checked after clearCart (socket) - items.length:",
-          items.length
-        );
-      }, 100);
-
-      console.log("[Cart] Cart cleared after successful payment (socket)");
-
-      // Show success message to user first
-      Alert.alert(
-        "Payment Successful! 🎉",
-        "Your payment has been processed successfully. The browser will close automatically.",
-        [
-          {
-            text: "View Order",
-            onPress: () => {
-              WebBrowser.dismissBrowser();
-              router.replace({
-                pathname: "/order-details",
-                params: { orderId: data.orderId },
-              });
-            },
-          },
-        ]
-      );
-
-      // Wait for alert to be seen, then dismiss browser
-      setTimeout(async () => {
-        try {
-          await WebBrowser.dismissBrowser();
-          console.log(
-            "[Browser] ✅ Browser dismissed successfully for socket payment"
-          );
-
-          // Navigate to specific order after browser is dismissed
-          setTimeout(() => {
-            router.replace({
-              pathname: "/order-details",
-              params: { orderId: data.orderId },
-            });
-          }, 500);
-        } catch (error) {
-          console.log(
-            "[Browser] ❌ Failed to dismiss browser (socket):",
-            error
-          );
-          // Even if browser dismiss fails, still navigate to order
-          setTimeout(() => {
-            router.replace({
-              pathname: "/order-details",
-              params: { orderId: data.orderId },
-            });
-          }, 500);
-        }
-      }, 1500); // 1.5 second delay to allow user to see success message
     };
 
     const onPaymentFailed = async (data: any) => {
       console.log("[Socket] paymentFailed received in checkout", data);
       setPaymentStatus("failed");
-      stopPaymentPolling();
-
-      console.log("[Payment] Payment failed, preparing to handle failure");
-
-      // Dismiss browser immediately without delay
-      try {
-        await WebBrowser.dismissBrowser();
-        console.log(
-          "[Browser] Browser dismissed successfully for payment failure"
-        );
-      } catch (error) {
-        console.log("[Browser] Failed to dismiss browser:", error);
-      }
-
       Alert.alert("Payment Failed", "Your payment failed. Please try again.");
-    };
-
-    const onOrderStatusUpdate = (data: any) => {
-      console.log("[Socket] orderStatusUpdate in checkout", data);
-      if (data?.orderId) {
-        // optionally refresh order details or navigate
-      }
     };
 
     socketOn("paymentSuccess", onPaymentSuccess);
     socketOn("paymentFailed", onPaymentFailed);
-    socketOn("orderStatusUpdate", onOrderStatusUpdate);
 
     return () => {
       socketOff("paymentSuccess", onPaymentSuccess);
       socketOff("paymentFailed", onPaymentFailed);
-      socketOff("orderStatusUpdate", onOrderStatusUpdate);
     };
-  }, [router, stopPaymentPolling, clearCart, items]);
+  }, [handleOrderCreated]);
 
   const [form, setForm] = useState({
     name: "",
@@ -379,6 +130,20 @@ export default function Checkout() {
     orderType: "DELIVERY", // Default to delivery
     pickupInstructions: "",
   });
+
+  // Address context for selecting delivery address
+  const { addresses, selectedAddress, setSelectedAddress, fetchAddresses } =
+    useAddress();
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [addressPickerVisible, setAddressPickerVisible] = useState(false);
+  const [addressesLoaded, setAddressesLoaded] = useState(false);
+
+  // Use the explicitly selected address when present; otherwise fall back to the default/saved one
+  const currentAddress =
+    selectedAddress ||
+    (addresses && addresses.length > 0
+      ? addresses.find((a: any) => a.isDefault) || addresses[0]
+      : null);
 
   const [userProfile, setUserProfile] = useState<{
     fullName?: string;
@@ -397,126 +162,59 @@ export default function Checkout() {
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
-  const deliveryFee = form.orderType === "DELIVERY" ? 300 : 0;
-  const serviceFee = 25;
+  const deliveryFee = form.orderType === "DELIVERY" ? 100 : 0;
+  const serviceFee = 100;
   const total = subtotal + deliveryFee + serviceFee;
 
-  // AppState listener: detect when app comes back from background (e.g., from external browser)
+  // Disable placing order for DELIVERY if no address is selected
+  const isPlaceOrderDisabled =
+    loading || (form.orderType === "DELIVERY" && !form.address.trim());
+
+  // Auto-open location modal when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState: string) => {
-      console.log("[AppState] App state changed to:", nextAppState);
+    if (
+      form.orderType === "DELIVERY" &&
+      addressesLoaded &&
+      (!addresses || addresses.length === 0)
+    ) {
+      setShowLocationModal(true);
+    }
+  }, [form.orderType, addresses, addressesLoaded]);
 
-      // If app becomes active and we're waiting for payment, check for recent successful orders
-      // But only if payment wasn't explicitly cancelled
-      if (
-        nextAppState === "active" &&
-        isPollingActive &&
-        paymentStatus !== "completed" &&
-        !paymentCancelled
-      ) {
-        console.log(
-          "[AppState] App became active during payment - checking for recent orders"
-        );
-
-        // Add a small delay to ensure any webhook processing is complete
-        setTimeout(async () => {
-          try {
-            const orders = await orderApi.getCustomerOrders();
-            const recentOrder = orders.find((order) => {
-              const orderTime = new Date(order.createdAt).getTime();
-              const twoMinutesAgo = Date.now() - 2 * 60 * 1000; // Reduced to 2 minutes for more precision
-              return (
-                orderTime > twoMinutesAgo &&
-                order.totalAmount === total &&
-                order.status !== "CANCELLED"
-              );
-            });
-
-            if (recentOrder) {
-              console.log(
-                "[AppState] ✅ Found recent matching order:",
-                recentOrder.id
-              );
-              setPaymentStatus("completed");
-              stopPaymentPolling();
-
-              // Clear cart since payment was successful
-              console.log(
-                "[Cart] About to clear cart. Current items:",
-                items.length
-              );
-              clearCart();
-
-              // Use setTimeout to check if cart was actually cleared
-              setTimeout(() => {
-                console.log(
-                  "[Cart] Cart checked after clearCart (AppState) - items.length:",
-                  items.length
-                );
-              }, 100);
-
-              console.log(
-                "[Cart] Cart cleared after successful payment (AppState)"
-              );
-
-              // Store successful order data
-              await storeSuccessfulOrder({
-                orderId: recentOrder.id,
-                timestamp: Date.now(),
-                data: { orderId: recentOrder.id, status: "completed" },
-              });
-
-              // Show success message and navigate
-              Alert.alert(
-                "Payment Successful! 🎉",
-                "Your payment has been processed and your order has been placed successfully.",
-                [
-                  {
-                    text: "View Order",
-                    onPress: () =>
-                      router.push({
-                        pathname: "/order-details",
-                        params: { orderId: recentOrder.id },
-                      }),
-                  },
-                ]
-              );
-
-              // Clear cart and navigate to specific order
-              setTimeout(() => {
-                router.replace({
-                  pathname: "/order-details",
-                  params: { orderId: recentOrder.id },
-                });
-              }, 1000);
-            } else {
-              console.log("[AppState] No recent matching order found");
-            }
-          } catch (error) {
-            console.log("[AppState] Error checking for recent orders:", error);
-          }
-        }, 1000); // 1 second delay to allow webhook processing
+  // Ensure addresses are loaded once when checkout mounts to avoid false-empty state
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        await fetchAddresses();
+      } catch (e) {
+        console.warn("fetchAddresses failed on checkout mount:", e);
+      } finally {
+        if (mounted) setAddressesLoaded(true);
       }
-    };
-
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange
-    );
-
+    })();
     return () => {
-      subscription?.remove();
+      mounted = false;
     };
-  }, [
-    isPollingActive,
-    paymentStatus,
-    total,
-    router,
-    clearCart,
-    stopPaymentPolling,
-    paymentCancelled,
-    items,
-  ]);
+  }, [fetchAddresses]);
+
+  // If there is a default address available, prefill the form.address
+  useEffect(() => {
+    // Keep form.address synced with selectedAddress if available; otherwise prefill from default
+    if (selectedAddress && selectedAddress.addressLine) {
+      if (form.address !== selectedAddress.addressLine) {
+        setForm((prev) => ({ ...prev, address: selectedAddress.addressLine }));
+      }
+      return;
+    }
+
+    if (addresses && addresses.length > 0 && !form.address.trim()) {
+      const def = addresses.find((a: any) => a.isDefault) || addresses[0];
+      if (def) setForm((prev) => ({ ...prev, address: def.addressLine || "" }));
+    }
+  }, [addresses, form.address, selectedAddress]);
+
+  // AppState handling removed for instant checkout. Legacy hosted flow no longer used.
 
   const loadUserInfo = useCallback(async () => {
     try {
@@ -761,112 +459,7 @@ export default function Checkout() {
     };
   }, [items.length]);
 
-  // Listen for payment success events from _layout.tsx
-  useEffect(() => {
-    const handlePaymentSuccessEvent = (data: any) => {
-      console.log(
-        "🎉 [Event] Payment success event received in checkout:",
-        data
-      );
-
-      // Only process verified payment events
-      if (data.verified) {
-        console.log(
-          "[Cart] About to clear cart via verified event. Current items:",
-          items.length
-        );
-        clearCart();
-        console.log("[Cart] Cart cleared via verified payment success event");
-
-        // Set payment status to completed
-        setPaymentStatus("completed");
-        stopPaymentPolling();
-      } else {
-        console.log("⚠️ [Event] Ignoring unverified payment event");
-      }
-    };
-
-    // Add event listener
-    const subscription = DeviceEventEmitter.addListener(
-      "paymentSuccess",
-      handlePaymentSuccessEvent
-    );
-
-    // Cleanup subscription on unmount
-    return () => {
-      subscription.remove();
-    };
-  }, [items.length, clearCart, stopPaymentPolling]);
-
-  // Cleanup payment polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingInterval) {
-        console.log("[Payment Polling] Cleanup: stopping polling on unmount");
-        clearInterval(pollingInterval);
-      }
-    };
-  }, [pollingInterval]);
-
-  // Deep link listener for payment cancellation
-  useEffect(() => {
-    const handleDeepLink = async (url: string) => {
-      console.log("[Checkout] Deep link received:", url);
-
-      if (url.includes("payment-cancel")) {
-        console.log("[Checkout] Payment cancellation detected");
-        setPaymentCancelled(true);
-        setPaymentStatus("cancelled");
-        stopPaymentPolling();
-
-        // Send push notification for cancellation
-        await NotificationService.scheduleOrderNotification({
-          orderId: "cancelled",
-          title: "Payment Cancelled",
-          body: "Your payment was cancelled. You can try again anytime.",
-          data: { type: "payment_cancel", status: "cancelled" },
-        });
-
-        // Show cancellation alert
-        Alert.alert(
-          "Payment Cancelled",
-          "Your payment was cancelled. Your cart items are still saved.",
-          [
-            {
-              text: "Try Again",
-              onPress: () => {
-                // Reset states for retry
-                setPaymentCancelled(false);
-                setPaymentStatus(null);
-              },
-            },
-            {
-              text: "Back to Home",
-              onPress: () => router.replace("/"),
-            },
-          ]
-        );
-
-        console.log("[Checkout] Payment cancellation handled - cart preserved");
-      }
-    };
-
-    // Handle initial URL when app is launched from deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        handleDeepLink(url);
-      }
-    });
-
-    // Handle deep links when app is already running
-    const subscription = Linking.addEventListener("url", (event) => {
-      handleDeepLink(event.url);
-    });
-
-    return () => {
-      subscription?.remove();
-    };
-  }, [stopPaymentPolling, router]);
+  // Legacy polling / deep-link handlers removed: instant checkout handles order creation synchronously.
 
   const handlePlaceOrder = async () => {
     if (!form.name.trim() || !form.phone.trim()) {
@@ -913,134 +506,146 @@ export default function Checkout() {
         return;
       }
 
-      // Handle mobile payment (always required now)
-      if (!paymentMethods || !defaultPaymentMethod) {
-        Alert.alert("Payment Error", "No payment method configured.");
-        setLoading(false);
-        return;
-      }
-
-      const accountNumber = paymentMethods.methods[defaultPaymentMethod];
-      if (!accountNumber) {
-        Alert.alert("Payment Error", "Invalid payment method configuration.");
-        setLoading(false);
-        return;
-      }
-
+      // Skip ModemPay/payment flow: create orders directly on the server
       try {
-        const token = await SecureStore.getItemAsync("token");
+        const createdOrderIds: string[] = [];
+        let createdOrderIdsShown = false;
 
-        const paymentBody = {
-          orderData: {
+        // For each vendor (restaurant/shop/pharmacy), create a separate order
+        // Pre-validate vendor groups to ensure we can send correct entity ids
+        for (const vendorId of restaurantIds) {
+          const vendorItems = restaurantCarts[vendorId] || [];
+          if (!vendorItems.length) continue;
+
+          // Prefer explicit entityType on items, otherwise try to infer
+          let entityType: string | undefined = vendorItems[0].entityType;
+          if (!entityType) {
+            // Try to infer from any item
+            const found = vendorItems.find((it: any) => it.entityType);
+            entityType = found ? found.entityType : undefined;
+          }
+
+          if (!entityType) {
+            console.warn(
+              "Unable to determine entityType for vendor",
+              vendorId,
+              "- defaulting to 'restaurant'"
+            );
+            entityType = "restaurant";
+          }
+
+          // Prefer vendor-specific id on the item if present
+          const itemVendorId = vendorItems[0].vendorId || vendorId;
+
+          // Validation: ensure we resolved a vendor id and entityType is set
+          if (!itemVendorId) {
+            console.error(
+              "Checkout validation failed: missing vendor id for group",
+              vendorId,
+              vendorItems
+            );
+            Alert.alert(
+              "Checkout Error",
+              `Missing vendor id for items in cart for vendor group ${vendorId}. Cannot create order.`
+            );
+            setLoading(false);
+            return;
+          }
+          if (!entityType) {
+            console.error(
+              "Checkout validation failed: missing entityType for vendor group",
+              vendorId,
+              vendorItems
+            );
+            Alert.alert(
+              "Checkout Error",
+              `Unable to determine entity type (restaurant/shop/pharmacy) for vendor group ${vendorId}. Cannot create order.`
+            );
+            setLoading(false);
+            return;
+          }
+
+          const itemsPayload = vendorItems.map((it: any) => {
+            if (entityType === "restaurant")
+              return { menuItemId: it.id, quantity: it.quantity };
+            if (entityType === "shop")
+              return { productId: it.id, quantity: it.quantity };
+            if (entityType === "pharmacy")
+              return { medicineId: it.id, quantity: it.quantity };
+            return { productId: it.id, quantity: it.quantity };
+          });
+
+          const orderPayload: any = {
             customerName: form.name,
             customerPhone: form.phone,
-            address: form.address,
-            totalAmount: total,
-            currency: "GMD",
+            deliveryAddress:
+              form.orderType === "DELIVERY" ? form.address : null,
             orderType: form.orderType,
             pickupInstructions:
               form.orderType === "PICKUP" ? form.pickupInstructions : null,
+            items: itemsPayload,
             notes: form.notes,
-          },
-          payment: {
-            network: defaultPaymentMethod,
-            account_number: accountNumber,
-          },
-          webhookUrl: `${API_URL}/api/webhooks/modempay/payments`,
-          idempotencyKey: `order_${Date.now()}_${Math.random()
-            .toString(36)
-            .substr(2, 9)}`,
-        };
+          };
 
-        console.log("Processing mobile payment:", paymentBody);
+          if (entityType === "restaurant")
+            orderPayload.restaurantId = itemVendorId;
+          if (entityType === "shop") orderPayload.shopId = itemVendorId;
+          if (entityType === "pharmacy") orderPayload.pharmacyId = itemVendorId;
 
-        const paymentResponse = await fetch(
-          `${API_URL}/api/checkout/direct-charge`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(paymentBody),
-          }
-        );
+          console.log(
+            "Creating order for vendor",
+            vendorId,
+            "(itemVendorId:",
+            itemVendorId,
+            ")",
+            orderPayload
+          );
 
-        if (paymentResponse.status === 202) {
-          const paymentData = await paymentResponse.json();
-          console.log("Payment initiated:", paymentData);
-
-          // Extract payment ID for status polling
-          const extractedPaymentId = paymentData.paymentId || paymentData.id;
-          if (extractedPaymentId) {
-            console.log(
-              "[Payment Polling] Starting status polling for:",
-              extractedPaymentId
-            );
-            // Reset cancellation flag when starting new payment
-            setPaymentCancelled(false);
-            startPaymentPolling(extractedPaymentId);
-          }
-
-          // Open payment link in external browser with deep link return
-          // External browser provides better payment experience and proper deep link handling
-          if (paymentData.paymentLink) {
-            console.log(
-              "Opening payment link in external browser:",
-              paymentData.paymentLink
-            );
-            setBrowserLoading(true);
-
+          const created = await orderApi.createOrder(orderPayload);
+          if (created && created.id) {
+            createdOrderIds.push(created.id);
+            // Show the order-created modal immediately for the first created order
+            // so the user can view it or continue shopping without waiting for
+            // the rest of the vendor orders to finish.
             try {
-              // Use Linking.openURL to force external browser (phone's default browser)
-              await Linking.openURL(paymentData.paymentLink);
-
-              setBrowserLoading(false);
-              console.log("Payment link opened in external browser");
-
-              // With external browser, we continue payment polling regardless
-              // Deep links will handle bringing user back to app after payment
-              console.log(
-                "External browser opened, continuing payment polling"
-              );
-
-              // Show user-friendly message about external browser and deep link
-              Alert.alert(
-                "Complete Payment",
-                "Please complete your payment in the browser. You'll be automatically brought back to the app when finished.",
-                [
-                  {
-                    text: "Check Orders Later",
-                    onPress: () => router.push("/(tabs)/orders"),
-                  },
-                  { text: "OK", style: "cancel" },
-                ]
-              );
-            } catch (browserError) {
-              console.error("Failed to open external browser:", browserError);
-              setBrowserLoading(false);
-
-              Alert.alert(
-                "Payment Error",
-                "Unable to open payment link. Please try again."
-              );
+              if (createdOrderIds.length === 1) {
+                await handleOrderCreated(created.id);
+                createdOrderIdsShown = true;
+                // Route user to home immediately so the global OrderSuccessModal
+                // (root-level) can display the stored successful order.
+                try {
+                  router.replace("/");
+                } catch (e) {
+                  console.warn(
+                    "Failed to navigate home after order create:",
+                    e
+                  );
+                }
+              }
+            } catch (e) {
+              console.warn("handleOrderCreated immediate show failed:", e);
             }
-          } else {
-            console.log("No payment link found in response");
-            Alert.alert(
-              "Payment Error",
-              "No payment link received. Please try again."
-            );
+          }
+        }
+
+        if (createdOrderIds.length > 0) {
+          // If we already showed the modal when the first order was created,
+          // skip calling handleOrderCreated again. Otherwise show for the
+          // first created order now.
+          if (!createdOrderIdsShown) {
+            await handleOrderCreated(createdOrderIds[0]);
           }
         } else {
-          const errorData = await paymentResponse.json();
-          throw new Error(errorData.message || "Payment failed");
+          Alert.alert(
+            "Order Error",
+            "No orders were created. Please try again."
+          );
         }
-      } catch (paymentError: any) {
-        console.error("Payment error:", paymentError);
+      } catch (orderErr: any) {
+        console.error("Order creation error:", orderErr);
         Alert.alert(
-          "Payment Failed",
-          paymentError.message || "Unable to process payment. Please try again."
+          "Order Failed",
+          orderErr.message || "Unable to create order. Please try again."
         );
         setLoading(false);
         return;
@@ -1217,29 +822,7 @@ export default function Checkout() {
     );
   }
 
-  // Show processing screen when payment browser is loading
-  if (browserLoading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <View style={styles.successContainer}>
-          <View style={styles.successContent}>
-            <Ionicons name="card" size={80} color={PrimaryColor} />
-            <Text style={styles.successTitle}>Processing Payment...</Text>
-            <Text style={styles.successMessage}>
-              Please complete your payment in the browser.{"\n"}
-              Do not close this screen.
-            </Text>
-            <View style={styles.successLoader}>
-              <Text style={styles.successSubMessage}>
-                Waiting for payment confirmation...
-              </Text>
-            </View>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Order-created modal will appear when instant checkout succeeds
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1330,7 +913,7 @@ export default function Checkout() {
 
                   <View style={styles.restaurantTotal}>
                     <Text style={styles.restaurantTotalText}>
-                      Restaurant Total: D{restaurantTotal.toFixed(2)}
+                      Total: D{restaurantTotal.toFixed(2)}
                     </Text>
                   </View>
 
@@ -1579,15 +1162,64 @@ export default function Checkout() {
             {form.orderType === "DELIVERY" && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Delivery Address *</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Enter your complete delivery address"
-                  value={form.address}
-                  onChangeText={(text) => setForm({ ...form, address: text })}
-                  multiline
-                  numberOfLines={3}
-                  editable={!loading}
-                />
+                {/* If user has saved addresses show them; otherwise open LocationModal to add/select */}
+                <View style={{ marginBottom: 8 }}>
+                  {addresses && addresses.length > 0 ? (
+                    <View>
+                      {/* Compact selector that opens a modal dropdown */}
+                      <TouchableOpacity
+                        style={[
+                          styles.input,
+                          {
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          },
+                        ]}
+                        onPress={() => setAddressPickerVisible(true)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: "700" }}>
+                            {currentAddress?.label || "Choose delivery address"}
+                          </Text>
+                          <Text style={{ color: "#666" }}>
+                            {currentAddress?.addressLine ||
+                              "No address selected"}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-down"
+                          size={20}
+                          color="#6b7280"
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.addNewAddressButton}
+                      onPress={() => setShowLocationModal(true)}
+                    >
+                      <Ionicons name="location" size={18} color="#ff6b00" />
+                      <Text style={styles.addNewAddressText}>
+                        Add delivery address
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={{ marginBottom: 12 }}
+                  onPress={async () => {
+                    try {
+                      await fetchAddresses();
+                    } catch (e) {
+                      console.error("Failed to refresh addresses:", e);
+                    }
+                  }}
+                >
+                  <Text style={{ color: "#ff6b00", fontWeight: "600" }}>
+                    Refresh addresses
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
 
@@ -1617,10 +1249,10 @@ export default function Checkout() {
           >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Payment Method</Text>
-              {isPollingActive && (
+              {paymentStatus === "pending" && (
                 <View style={styles.pollingIndicator}>
                   <Ionicons name="radio-button-on" size={12} color="#10B981" />
-                  <Text style={styles.pollingText}>Checking payment...</Text>
+                  <Text style={styles.pollingText}>Processing payment...</Text>
                 </View>
               )}
             </View>
@@ -1703,6 +1335,138 @@ export default function Checkout() {
           ) : null}
         </ScrollView>
 
+        {/* Order Created Modal */}
+        <Modal visible={orderCreated.visible} animationType="slide" transparent>
+          <SafeAreaView style={styles.modalCentered}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Order placed 🎉</Text>
+              <Text style={styles.modalMessage}>
+                Your order has been placed successfully.
+              </Text>
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => {
+                    setOrderCreated({ visible: false, orderId: null });
+                    router.replace("/");
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Go Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalPrimary]}
+                  onPress={() => {
+                    const id = orderCreated.orderId;
+                    setOrderCreated({ visible: false, orderId: null });
+                    if (id)
+                      router.replace({
+                        pathname: "/order-details",
+                        params: { orderId: id, from: "checkout" },
+                      });
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: "#fff" }]}>
+                    View Order
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Location Modal (for adding/selecting address when none saved) */}
+        <LocationModal
+          visible={showLocationModal}
+          onClose={() => setShowLocationModal(false)}
+          onSelectAddress={(addr: any) => {
+            // Fill form and set selected address
+            setForm((prev) => ({
+              ...prev,
+              address: addr.addressLine || addr.street || "",
+            }));
+            setSelectedAddress(addr);
+            setShowLocationModal(false);
+          }}
+          currentAddress={form.address}
+        />
+
+        {/* Address Picker Modal (dropdown-like) */}
+        <Modal visible={addressPickerVisible} animationType="slide" transparent>
+          <SafeAreaView style={styles.modalCentered}>
+            <View
+              style={[styles.modalContainer, { maxHeight: 420, width: "95%" }]}
+            >
+              <Text style={styles.modalTitle}>Choose delivery address</Text>
+              <Text style={styles.modalMessage}>
+                Select one of your saved addresses
+              </Text>
+              <ScrollView style={{ width: "100%" }}>
+                {addresses.map((addr: any) => {
+                  const isSelected =
+                    (selectedAddress &&
+                      selectedAddress.id &&
+                      addr.id === selectedAddress.id) ||
+                    (!selectedAddress && addr.isDefault);
+
+                  return (
+                    <TouchableOpacity
+                      key={addr.id}
+                      style={{
+                        paddingVertical: 12,
+                        paddingHorizontal: 12,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: isSelected ? "#ff6b00" : "#EEE",
+                        backgroundColor: isSelected ? "#FFF8F0" : "#FFF",
+                        marginBottom: 8,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                      onPress={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          address: addr.addressLine,
+                        }));
+                        setSelectedAddress(addr);
+                        setAddressPickerVisible(false);
+                      }}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={{ fontWeight: isSelected ? "700" : "500" }}
+                        >
+                          {addr.label} {addr.isDefault ? "(Default)" : ""}
+                        </Text>
+                        <Text style={{ color: "#666" }}>
+                          {addr.addressLine}
+                        </Text>
+                      </View>
+                      {isSelected ? (
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={22}
+                          color="#ff6b00"
+                        />
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <View
+                style={{ flexDirection: "row", width: "100%", marginTop: 8 }}
+              >
+                <TouchableOpacity
+                  style={[styles.modalButton, { flex: 1 }]}
+                  onPress={() => setAddressPickerVisible(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+
         {/* Place Order Button */}
         <Animated.View
           style={[
@@ -1723,22 +1487,22 @@ export default function Checkout() {
           <TouchableOpacity
             style={[
               styles.placeOrderButton,
-              (loading || browserLoading) && styles.placeOrderButtonDisabled,
+              isPlaceOrderDisabled && styles.placeOrderButtonDisabled,
             ]}
             onPress={handlePlaceOrder}
-            disabled={loading || browserLoading}
+            disabled={isPlaceOrderDisabled}
             activeOpacity={0.8}
           >
             <LinearGradient
               colors={
-                loading || browserLoading
+                isPlaceOrderDisabled
                   ? ["#9CA3AF", "#6B7280"]
                   : [PrimaryColor, "#FF8F65"]
               }
               style={styles.placeOrderGradient}
             >
               <View style={styles.placeOrderContent}>
-                {loading || browserLoading ? (
+                {loading ? (
                   <Animated.View style={{ marginRight: 10 }}>
                     <Ionicons name="hourglass" size={20} color="#fff" />
                   </Animated.View>
@@ -1746,11 +1510,7 @@ export default function Checkout() {
                   <Ionicons name="checkmark-circle" size={20} color="#fff" />
                 )}
                 <Text style={styles.placeOrderText}>
-                  {browserLoading
-                    ? "Opening Payment..."
-                    : loading
-                    ? "Placing Order..."
-                    : "Place Order"}
+                  {loading ? "Placing Order..." : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>D{total.toFixed(2)}</Text>
@@ -1869,6 +1629,24 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: "#374151",
+    marginLeft: 8,
+  },
+  addNewAddressButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    borderWidth: 1.5,
+    borderColor: "#ff6b00",
+    borderStyle: "dashed",
+    borderRadius: 16,
+    marginTop: 16,
+    backgroundColor: "#FFF5EE",
+  },
+  addNewAddressText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ff6b00",
     marginLeft: 8,
   },
   orderItemPrice: {
@@ -2266,5 +2044,53 @@ const styles = StyleSheet.create({
   },
   orderTypeSubtitleSelected: {
     color: "rgba(255,255,255,0.8)",
+  },
+  modalCentered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    padding: 20,
+  },
+  modalContainer: {
+    width: "100%",
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1f2937",
+    marginBottom: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: "#f3f4f6",
+    marginHorizontal: 6,
+    alignItems: "center",
+  },
+  modalPrimary: {
+    backgroundColor: PrimaryColor,
+  },
+  modalButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f2937",
   },
 });

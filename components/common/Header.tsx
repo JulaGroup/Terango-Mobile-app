@@ -2,7 +2,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import React, { useState } from "react";
 import { Dimensions, Text, TouchableOpacity, View } from "react-native";
 import Cart from "./Cart";
-import LocationModal from "./LocationModalNew";
+import LocationModal from "./LocationModal";
 import { AddressContext } from "@/context/AddressContext";
 import { Address } from "@/services/AddressService";
 
