@@ -635,7 +635,7 @@ export default function ProductDetail() {
                 }
                 activeOpacity={0.7}
               >
-                <Text style={styles.seeAllText}>View All</Text>
+                <Text style={styles.seeAllText}>See All</Text>
               </TouchableOpacity>
             </View>
 

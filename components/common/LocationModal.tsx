@@ -47,6 +47,8 @@ import { useLocation } from "@/hooks/useLocation";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService, Address } from "@/services/AddressService";
 import { GOOGLE_PLACES_API_KEY } from "@/constants/config";
+import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 
 const { height } = Dimensions.get("window");
 
@@ -341,7 +343,23 @@ const LocationModal = ({
         styles.addressItem,
         address.isDefault ? styles.addressItemDefault : null,
       ]}
-      onPress={() => {
+      onPress={async () => {
+        const userId = await SecureStore.getItemAsync("userId");
+        const token = await SecureStore.getItemAsync("token");
+        const userPhone = await SecureStore.getItemAsync("userPhone");
+
+        if (!userId || !token || !userPhone) {
+          Alert.alert(
+            "Login Required",
+            "You must be logged in to select an address.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Login", onPress: () => router.push("/auth") },
+            ]
+          );
+          return;
+        }
+
         try {
           setSelectedAddress(address);
         } catch (e) {

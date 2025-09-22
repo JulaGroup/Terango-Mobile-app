@@ -112,7 +112,7 @@ export default function RiceGrains({ onViewAll }: RiceGrainsProps) {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color="#10B981" />
         </TouchableOpacity>

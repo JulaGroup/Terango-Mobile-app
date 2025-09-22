@@ -95,7 +95,7 @@ export default function LocalBeverages() {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => console.log("View all beverages")}
+          onPress={() => console.log("See All beverages")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -109,7 +109,7 @@ export default function LocalBeverages() {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
         </TouchableOpacity>

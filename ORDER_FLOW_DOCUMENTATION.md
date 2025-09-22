@@ -53,7 +53,7 @@ For the MVP version of TeranGo:
 
 1. **Order Oversight**:
 
-   - Admin can view all orders across all vendors
+   - Admin can See All orders across all vendors
    - Admin can intervene in case of issues
    - Admin can generate reports on orders
 

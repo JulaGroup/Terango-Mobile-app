@@ -529,7 +529,7 @@ const RestaurantNearYou = () => {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={14} color="#979797FF" />
         </TouchableOpacity>
@@ -660,7 +660,7 @@ const RestaurantNearYou = () => {
                 )}
 
                 {/* Rating Badge */}
-                <View
+                {/* <View
                   style={{
                     position: "absolute",
                     top: 12,
@@ -684,7 +684,7 @@ const RestaurantNearYou = () => {
                   >
                     {rating}
                   </Text>
-                </View>
+                </View> */}
               </View>
 
               {/* Restaurant Info */}

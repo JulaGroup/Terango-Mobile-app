@@ -72,7 +72,7 @@ export default function WeeklyDeals() {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => console.log("View all weekly deals")}
+          onPress={() => console.log("See All weekly deals")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -86,7 +86,7 @@ export default function WeeklyDeals() {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
         </TouchableOpacity>

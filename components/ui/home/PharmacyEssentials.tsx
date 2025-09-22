@@ -141,7 +141,7 @@ export default function PharmacyEssentials({
                   marginRight: 4,
                 }}
               >
-                View All
+                See All
               </Text>
               <Ionicons name="chevron-forward" size={14} color="#EF4444" />
             </TouchableOpacity>
@@ -225,7 +225,7 @@ export default function PharmacyEssentials({
                   marginRight: 4,
                 }}
               >
-                View All
+                See All
               </Text>
               <Ionicons name="chevron-forward" size={14} color="#8B5CF6" />
             </TouchableOpacity>

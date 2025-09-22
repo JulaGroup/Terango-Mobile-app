@@ -22,7 +22,7 @@ Orders go through the following states:
 
 - Access orders through the vendor dashboard
 - Navigate to "Orders" section
-- View all orders with current status
+- See All orders with current status
 - Filter by status (Pending, In Progress, Completed)
 
 #### 2. Accept/Reject Orders

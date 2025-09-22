@@ -216,7 +216,7 @@ const CategorySection = ({
               marginRight: 4,
             }}
           >
-            View all
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color="#666666" />
         </TouchableOpacity>
@@ -1202,7 +1202,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  // Simple Category Header - Black text, View all with arrow
+  // Simple Category Header - Black text, See All with arrow
   categoryHeader: {
     flexDirection: "row",
     justifyContent: "space-between",

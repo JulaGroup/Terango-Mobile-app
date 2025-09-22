@@ -46,6 +46,8 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [hasShownPermissionModals, setHasShownPermissionModals] =
     useState(false);
+  // Track when initial load / system permission check is finished
+  const [initialized, setInitialized] = useState(false);
   // Load saved permissions and modal state on app start
   useEffect(() => {
     const loadPermissions = async () => {
@@ -65,6 +67,8 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
         // Check current system permissions
         await checkCurrentPermissions();
+        // Initialization finished - allow modal logic to run
+        setInitialized(true);
       } catch (error) {
         console.error("Error loading permission state:", error);
       }
@@ -74,7 +78,10 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
   }, []);
 
   // Show notification modal after app loads if needed (removed auto location modal)
+  // Wait until we've finished initializing (loaded storage and checked system perms)
   useEffect(() => {
+    if (!initialized) return;
+
     if (!hasShownPermissionModals) {
       setTimeout(() => {
         if (permissions.notifications === "not-asked") {
@@ -82,7 +89,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
         }
       }, 1500); // Initial delay after home screen loads
     }
-  }, [hasShownPermissionModals, permissions]);
+  }, [initialized, hasShownPermissionModals, permissions]);
   const checkCurrentPermissions = async () => {
     try {
       // Check location permission
@@ -95,13 +102,13 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
         location: locationPermission.granted
           ? "granted"
           : locationPermission.canAskAgain
-          ? "not-asked"
-          : "denied",
+            ? "not-asked"
+            : "denied",
         notifications: notificationPermission.granted
           ? "granted"
           : notificationPermission.canAskAgain
-          ? "not-asked"
-          : "denied",
+            ? "not-asked"
+            : "denied",
       }));
     } catch (error) {
       console.error("Error checking current permissions:", error);

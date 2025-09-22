@@ -1,0 +1,46 @@
+diff --git a/node_modules/@react-native-community/clipboard/android/.gradle/nb-cache/trust/7F3F6015AB84BEB730A93F2F04D6947C5207AFC217CA6BE470CBA2065F4517DE b/node_modules/@react-native-community/clipboard/android/.gradle/nb-cache/trust/7F3F6015AB84BEB730A93F2F04D6947C5207AFC217CA6BE470CBA2065F4517DE
+new file mode 100644
+index 0000000..5a585e4
+--- /dev/null
++++ b/node_modules/@react-native-community/clipboard/android/.gradle/nb-cache/trust/7F3F6015AB84BEB730A93F2F04D6947C5207AFC217CA6BE470CBA2065F4517DE
+@@ -0,0 +1 @@
++B1D68FCB94380C07D6C18F1BCBE678204403116DD17B089C7A0DE4F3610F5984
+diff --git a/node_modules/@react-native-community/clipboard/android/src/main/java/com/reactnativecommunity/clipboard/ClipboardModule.java b/node_modules/@react-native-community/clipboard/android/src/main/java/com/reactnativecommunity/clipboard/ClipboardModule.java
+index 4ecb0cb..af0a131 100644
+--- a/node_modules/@react-native-community/clipboard/android/src/main/java/com/reactnativecommunity/clipboard/ClipboardModule.java
++++ b/node_modules/@react-native-community/clipboard/android/src/main/java/com/reactnativecommunity/clipboard/ClipboardModule.java
+@@ -11,7 +11,8 @@ import android.content.ClipboardManager;
+ import android.content.ClipData;
+ import android.content.Context;
+ 
+-import com.facebook.react.bridge.ContextBaseJavaModule;
++import com.facebook.react.bridge.BaseJavaModule;
++import com.facebook.react.bridge.ReactApplicationContext;
+ import com.facebook.react.bridge.ReactMethod;
+ import com.facebook.react.bridge.Promise;
+ import com.facebook.react.module.annotations.ReactModule;
+@@ -20,10 +21,12 @@ import com.facebook.react.module.annotations.ReactModule;
+  * A module that allows JS to get/set clipboard contents.
+  */
+ @ReactModule(name = ClipboardModule.NAME)
+-public class ClipboardModule extends ContextBaseJavaModule {
++public class ClipboardModule extends BaseJavaModule {
+ 
+-  public ClipboardModule(Context context) {
+-    super(context);
++  private final ReactApplicationContext reactContext;
++
++  public ClipboardModule(ReactApplicationContext reactContext) {
++    this.reactContext = reactContext;
+   }
+ 
+   public static final String NAME = "RNCClipboard";
+@@ -34,7 +37,7 @@ public class ClipboardModule extends ContextBaseJavaModule {
+   }
+ 
+   private ClipboardManager getClipboardService() {
+-    return (ClipboardManager) getContext().getSystemService(getContext().CLIPBOARD_SERVICE);
++    return (ClipboardManager) reactContext.getSystemService(reactContext.CLIPBOARD_SERVICE);
+   }
+ 
+   @ReactMethod

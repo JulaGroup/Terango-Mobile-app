@@ -72,7 +72,7 @@ export default function OrderSuccessModal({
               style={[styles.button, styles.secondaryButton]}
               onPress={handleViewOrders}
             >
-              <Text style={styles.secondaryButtonText}>View All Orders</Text>
+              <Text style={styles.secondaryButtonText}>See All Orders</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

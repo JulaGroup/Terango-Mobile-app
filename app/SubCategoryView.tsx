@@ -20,6 +20,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import ProductCard from "@/components/common/ProductCard";
+import MealItemCard from "@/components/common/MealItemCard";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -128,10 +129,10 @@ const SkeletonLoader = ({ width: w, height, style }: any) => {
 const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
   const tabs = [
     { key: "all", label: "All", count: counts.all },
-    { key: "restaurants", label: "Restaurants", count: counts.restaurants },
-    { key: "shops", label: "Stores", count: counts.shops },
     { key: "products", label: "Products", count: counts.products },
     { key: "menuItems", label: "Meals", count: counts.menuItems },
+    { key: "restaurants", label: "Restaurants", count: counts.restaurants },
+    { key: "shops", label: "Stores", count: counts.shops },
   ];
 
   return (
@@ -184,7 +185,13 @@ const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
 };
 
 // Modern Restaurant Card Component
-const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
+const RestaurantCard = ({
+  restaurant,
+  fullWidth,
+}: {
+  restaurant: Restaurant;
+  fullWidth?: boolean;
+}) => {
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
@@ -192,7 +199,7 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
   const reviewCount =
     restaurant.totalReviews || Math.floor(Math.random() * 450 + 50);
 
-  const CARD_WIDTH = width * 0.75;
+  const CARD_WIDTH = fullWidth ? width - 32 : width * 0.75;
   return (
     <TouchableOpacity
       style={{
@@ -271,20 +278,23 @@ const RestaurantCard = ({ restaurant }: { restaurant: Restaurant }) => {
 };
 
 // Shop Card Component
-const ShopCard = ({ shop }: { shop: Shop }) => {
+const ShopCard = ({ shop, fullWidth }: { shop: Shop; fullWidth?: boolean }) => {
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
   // rating not required here; use shop.rating directly where needed
   const reviewCount = shop.totalReviews || Math.floor(Math.random() * 450 + 50);
 
+  const cardWidth = fullWidth ? width - 32 : 280; // full width with 16px side padding when requested
+
   return (
     <TouchableOpacity
       style={{
-        width: 280,
+        width: cardWidth,
         backgroundColor: "#fff",
         borderRadius: 16,
-        marginRight: 16,
+        marginRight: fullWidth ? 0 : 16,
+        marginVertical: fullWidth ? 8 : 0,
         elevation: 12,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 8 },
@@ -769,7 +779,7 @@ export default function SubCategoryView() {
                           marginRight: 4,
                         }}
                       >
-                        View All
+                        See All
                       </Text>
                       <Ionicons
                         name="chevron-forward"
@@ -818,7 +828,7 @@ export default function SubCategoryView() {
                           marginRight: 4,
                         }}
                       >
-                        View All
+                        See All
                       </Text>
                       <Ionicons
                         name="chevron-forward"
@@ -860,7 +870,7 @@ export default function SubCategoryView() {
                           marginRight: 4,
                         }}
                       >
-                        View All
+                        See All
                       </Text>
                       <Ionicons
                         name="chevron-forward"
@@ -945,7 +955,7 @@ export default function SubCategoryView() {
                           marginRight: 4,
                         }}
                       >
-                        View All
+                        See All
                       </Text>
                       <Ionicons
                         name="chevron-forward"
@@ -1009,7 +1019,11 @@ export default function SubCategoryView() {
           showsVerticalScrollIndicator={false}
         >
           {data.restaurants.map((item) => (
-            <RestaurantCard key={`restaurant-${item.id}`} restaurant={item} />
+            <RestaurantCard
+              key={`restaurant-${item.id}`}
+              restaurant={item}
+              fullWidth
+            />
           ))}
         </ScrollView>
       );
@@ -1035,7 +1049,7 @@ export default function SubCategoryView() {
           showsVerticalScrollIndicator={false}
         >
           {data.shops.map((item) => (
-            <ShopCard key={`shop-${item.id}`} shop={item} />
+            <ShopCard key={`shop-${item.id}`} shop={item} fullWidth />
           ))}
         </ScrollView>
       );
@@ -1058,8 +1072,8 @@ export default function SubCategoryView() {
       return (
         <FlatList
           data={data.products}
-          numColumns={2}
-          key={`products-2col`}
+          numColumns={3}
+          key={`products-3col`}
           keyExtractor={(item) => `product-${item.id}`}
           renderItem={({ item, index }) => {
             const cartQuantity =
@@ -1136,24 +1150,44 @@ export default function SubCategoryView() {
       return (
         <FlatList
           data={data.menuItems}
-          numColumns={2}
-          key={`menuItems-2col`}
+          key={`menuItems-1col`}
           keyExtractor={(item) => `menu-${item.id}`}
-          renderItem={({ item, index }) => {
-            // Reduce card width and add more spacing to prevent overlap
-            const cardWidth = (width - 56) / 2;
-            const isLeft = index % 2 === 0;
+          renderItem={({ item }) => {
             return (
               <View
                 style={{
-                  width: cardWidth,
-                  marginLeft: isLeft ? 0 : 16,
-                  marginRight: isLeft ? 8 : 0,
-                  marginBottom: 20,
-                  //   padding: 2,
+                  width: "100%",
+                  marginBottom: 12,
                 }}
               >
-                <MenuItemCard menuItem={item} />
+                <MealItemCard
+                  product={{
+                    id: Number(item.id),
+                    name: item.name,
+                    price: item.price,
+                    image: item.imageUrl || "",
+                    description: item.description || "",
+                    inStock: item.isAvailable,
+                  }}
+                  cartQuantity={
+                    cartItems.find((ci) => String(ci.id) === String(item.id))
+                      ?.quantity || 0
+                  }
+                  onAddToCart={(product) =>
+                    addToCart({
+                      id: product.id.toString(),
+                      name: product.name,
+                      price: product.price,
+                      imageUrl: product.image || "",
+                      vendorId: item.menu?.restaurantId || "",
+                      vendorName: "",
+                      description: product.description || "",
+                      entityType: "menuItem",
+                    })
+                  }
+                  onRemoveFromCart={() => removeFromCart(String(item.id))}
+                  onPress={() => router.push(`/menuitem/${item.id}`)}
+                />
               </View>
             );
           }}
@@ -1162,7 +1196,6 @@ export default function SubCategoryView() {
             paddingTop: 8,
             paddingBottom: 8,
           }}
-          columnWrapperStyle={{ justifyContent: "space-between" }}
           showsVerticalScrollIndicator={false}
         />
       );

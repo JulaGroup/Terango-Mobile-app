@@ -458,7 +458,7 @@ export default function LocalShops() {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={14} color="#979797FF" />
         </TouchableOpacity>

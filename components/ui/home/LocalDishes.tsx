@@ -112,7 +112,7 @@ export default function LocalDishes({ onViewAll }: LocalDishesProps) {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color="#F97316" />
         </TouchableOpacity>

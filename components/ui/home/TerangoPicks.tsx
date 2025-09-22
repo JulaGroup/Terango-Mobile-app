@@ -72,7 +72,7 @@ export default function TerangoPicks() {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => console.log("View all TeranGo picks")}
+          onPress={() => console.log("See All TeranGo picks")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -86,7 +86,7 @@ export default function TerangoPicks() {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
         </TouchableOpacity>

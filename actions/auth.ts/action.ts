@@ -43,7 +43,7 @@ export const loginUser = async ({ phone }: { phone: string }) => {
   } catch (err: any) {
     console.log("Login error:", err);
     await safeSetItem("userPhone", `+220${phone}`);
-    router.push("/auth/otp");
+    router.replace("/auth/otp");
   }
 };
 

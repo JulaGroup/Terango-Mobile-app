@@ -77,7 +77,7 @@ export default function PopularStores() {
               marginRight: 4,
             }}
           >
-            View All
+            See All
           </Text>
           <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
         </TouchableOpacity>
