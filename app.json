@@ -22,7 +22,6 @@
         "foregroundImage": "./assets/images/splash.png",
         "backgroundColor": "#ffffff"
       },
-      "newArchEnabled": false,
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "package": "com.darboedev.terango",
