@@ -1,9 +1,9 @@
 import { verifyOtp } from "@/actions/auth.ts/action";
 import BackButton from "@/components/common/BackButton";
 import * as SecureStore from "expo-secure-store";
-import OTPInputView from "@twotalltotems/react-native-otp-input";
+import OTPTextInput from "react-native-otp-textinput";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   StatusBar,
   StyleSheet,
@@ -13,9 +13,9 @@ import {
 } from "react-native";
 
 export default function OTP() {
+  const otpInput = useRef<OTPTextInput>(null);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-
   const router = useRouter();
 
   const handleVerify = async () => {
@@ -23,14 +23,19 @@ export default function OTP() {
     setLoading(true);
     if (code.length !== 4) {
       alert("Please enter full OTP");
+      setLoading(false);
       return;
     }
 
     const phone = await SecureStore.getItemAsync("userPhone");
-    if (!phone) return alert("Missing phone number");
+    if (!phone) {
+      alert("Missing phone number");
+      setLoading(false);
+      return;
+    }
 
     try {
-      const isNewUser = await verifyOtp({ phone: phone, otp: code });
+      const isNewUser = await verifyOtp({ phone, otp: code });
       if (isNewUser === true) {
         router.replace("/auth/complete-profile");
       } else {
@@ -51,13 +56,14 @@ export default function OTP() {
         <Text style={styles.title}>Enter OTP</Text>
         <Text style={styles.subtitle}>We sent a code to your phone number</Text>
 
-        <OTPInputView
-          pinCount={4}
-          code={code}
-          onCodeChanged={setCode}
-          autoFocusOnLoad
-          codeInputFieldStyle={styles.otpInput}
-          style={{ width: "80%", height: 100, alignSelf: "center" }}
+        <OTPTextInput
+          ref={otpInput}
+          handleTextChange={setCode}
+          inputCount={4}
+          containerStyle={{ width: "80%", alignSelf: "center" }}
+          textInputStyle={styles.otpInput}
+          keyboardType="numeric"
+          autoFocus
         />
 
         <TouchableOpacity
@@ -65,11 +71,9 @@ export default function OTP() {
           style={styles.button}
           onPress={handleVerify}
         >
-          {loading ? (
-            <Text style={styles.buttonText}>Loading...</Text>
-          ) : (
-            <Text style={styles.buttonText}>Verify</Text>
-          )}
+          <Text style={styles.buttonText}>
+            {loading ? "Loading..." : "Verify"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -79,7 +83,6 @@ export default function OTP() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    // paddingTop: 80,
     paddingHorizontal: 24,
     backgroundColor: "#fff",
   },
@@ -87,7 +90,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    // Remove paddingTop so it doesn't push content down
   },
   title: {
     fontSize: 26,
