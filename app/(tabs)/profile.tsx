@@ -10,13 +10,19 @@ import {
   Animated,
   RefreshControl,
 } from "react-native";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { useRouter, useFocusEffect } from "expo-router";
 import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { Ionicons } from "@expo/vector-icons";
 import VendorApplicationAPI from "../../lib/vendorApplicationAPI";
 import { SafeAreaView } from "react-native-safe-area-context";
+import LocationModal from "@/components/common/LocationModal";
+import { AddressContext } from "@/context/AddressContext";
+import { Address } from "@/services/AddressService";
+import NotificationModal from "@/components/modals/NotificationModal";
+import HelpModal from "@/components/modals/HelpModal";
+import EditProfileModal from "@/components/modals/EditProfileModal";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{
@@ -35,7 +41,15 @@ export default function ProfilePage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Modal states
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+
   const router = useRouter();
+  const addressCtx = React.useContext(AddressContext);
 
   // Animated skeleton loader
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -43,9 +57,9 @@ export default function ProfilePage() {
   // Fetch user data function (extracted to be reusable)
   const fetchUserData = useCallback(async (isRefresh = false) => {
     try {
-      const userId = await SecureStore.getItemAsync("userId");
-      const token = await SecureStore.getItemAsync("token");
-      const userPhone = await SecureStore.getItemAsync("userPhone");
+      const userId = await SecureStorage.getItem("userId");
+      const token = await SecureStorage.getItem("token");
+      const userPhone = await SecureStorage.getItem("userPhone");
 
       if (!userId || !token) {
         // Not logged in - set loading to false and user to null
@@ -70,7 +84,7 @@ export default function ProfilePage() {
         const userData = profileData.user;
 
         // Store user data for other parts of the app
-        await SecureStore.setItemAsync("userData", JSON.stringify(userData));
+        await SecureStorage.setItem("userData", JSON.stringify(userData));
 
         setUser({
           fullName: userData?.fullName,
@@ -135,13 +149,7 @@ export default function ProfilePage() {
         ) {
           // Token is invalid/expired - clear auth data and redirect to login
           console.log("Authentication failed - clearing auth data");
-          await Promise.all([
-            SecureStore.deleteItemAsync("token"),
-            SecureStore.deleteItemAsync("userId"),
-            SecureStore.deleteItemAsync("userPhone"),
-            SecureStore.deleteItemAsync("isLoggedIn"),
-            SecureStore.deleteItemAsync("userData"),
-          ]);
+          await SecureStorage.clearAuthData();
           setUser(null);
           // Don't show error alert for auth failures - just silently handle it
         } else {
@@ -164,6 +172,10 @@ export default function ProfilePage() {
     setRefreshing(true);
     await fetchUserData(true);
     setRefreshing(false);
+  };
+
+  const handleProfileUpdated = (updatedUser: any) => {
+    setUser(updatedUser);
   };
 
   useEffect(() => {
@@ -235,14 +247,9 @@ export default function ProfilePage() {
       {
         text: "Logout",
         onPress: async () => {
-          await Promise.all([
-            SecureStore.deleteItemAsync("token"),
-            SecureStore.deleteItemAsync("userId"),
-            SecureStore.deleteItemAsync("userPhone"),
-            SecureStore.deleteItemAsync("location"),
-            SecureStore.deleteItemAsync("isLoggedIn"),
-            SecureStore.deleteItemAsync("hasSeenOnboarding"),
-          ]);
+          await SecureStorage.clearAuthData();
+          await SecureStorage.deleteItem("location");
+          await SecureStorage.deleteItem("hasSeenOnboarding");
           router.replace("/(tabs)");
         },
         style: "destructive",
@@ -353,8 +360,7 @@ export default function ProfilePage() {
       icon: "person-outline",
       title: "Edit Profile",
       subtitle: "Update your personal information",
-      onPress: () =>
-        Alert.alert("Coming Soon", "Profile editing feature coming soon!"),
+      onPress: () => setShowEditProfileModal(true),
     },
     {
       icon: "card-outline",
@@ -366,27 +372,19 @@ export default function ProfilePage() {
       icon: "location-outline",
       title: "Addresses",
       subtitle: "Manage delivery addresses",
-      onPress: () =>
-        Alert.alert("Coming Soon", "Address management coming soon!"),
+      onPress: () => setShowLocationModal(true),
     },
-    // {
-    //   icon: "receipt-outline",
-    //   title: "Order History",
-    //   subtitle: "View your past orders",
-    //   onPress: () => Alert.alert("Coming Soon", "Order history coming soon!"),
-    // },
-    // {
-    //   icon: "notifications-outline",
-    //   title: "Notifications",
-    //   subtitle: "Manage your notification preferences",
-    //   onPress: () =>
-    //     Alert.alert("Coming Soon", "Notification settings coming soon!"),
-    // },
+    {
+      icon: "notifications-outline",
+      title: "Notifications",
+      subtitle: "Manage your notification preferences",
+      onPress: () => setShowNotificationModal(true),
+    },
     {
       icon: "help-circle-outline",
       title: "Help & Support",
       subtitle: "Get help or contact support",
-      onPress: () => Alert.alert("Coming Soon", "Help center coming soon!"),
+      onPress: () => setShowHelpModal(true),
     },
   ];
 
@@ -837,6 +835,36 @@ export default function ProfilePage() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Modals */}
+      <EditProfileModal
+        visible={showEditProfileModal}
+        onClose={() => setShowEditProfileModal(false)}
+        user={user}
+        onProfileUpdated={handleProfileUpdated}
+      />
+
+      <LocationModal
+        visible={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+        onSelectAddress={(address: Address) => {
+          if (addressCtx?.setSelectedAddress) {
+            addressCtx.setSelectedAddress(address);
+          }
+          setShowLocationModal(false);
+        }}
+        currentAddress={user?.addresses?.[0]?.addressLine || "No address set"}
+      />
+
+      <NotificationModal
+        visible={showNotificationModal}
+        onClose={() => setShowNotificationModal(false)}
+      />
+
+      <HelpModal
+        visible={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+      />
     </SafeAreaView>
   );
 }

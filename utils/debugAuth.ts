@@ -1,17 +1,29 @@
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
+import { Platform } from "react-native";
 
 export const debugAuthState = async () => {
   try {
-    const token = await SecureStore.getItemAsync("token");
-    const userId = await SecureStore.getItemAsync("userId");
-    const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
-    const userPhone = await SecureStore.getItemAsync("userPhone");
+    console.log(`🔍 Auth Debug State (${Platform.OS}):`);
 
-    console.log("🔍 Auth Debug State:");
+    // Test SecureStorage availability first
+    const isSecureStoreAvailable = await SecureStorage.isAvailable();
+    console.log(
+      `  - SecureStore Available: ${
+        isSecureStoreAvailable ? "✅ Yes" : "❌ No"
+      }`
+    );
+
+    const token = await SecureStorage.getItem("token");
+    const userId = await SecureStorage.getItem("userId");
+    const isLoggedIn = await SecureStorage.getItem("isLoggedIn");
+    const userPhone = await SecureStorage.getItem("userPhone");
+    const userData = await SecureStorage.getItem("userData");
+
     console.log("  - Token:", token ? "✅ Present" : "❌ Missing");
     console.log("  - UserId:", userId || "❌ Missing");
     console.log("  - IsLoggedIn:", isLoggedIn || "❌ Missing");
     console.log("  - UserPhone:", userPhone || "❌ Missing");
+    console.log("  - UserData:", userData ? "✅ Present" : "❌ Missing");
 
     if (token) {
       try {
@@ -38,9 +50,44 @@ export const debugAuthState = async () => {
       }
     }
 
-    return { token, userId, isLoggedIn, userPhone };
+    return { token, userId, isLoggedIn, userPhone, userData };
   } catch (error) {
-    console.error("Error checking auth state:", error);
+    console.error(`❌ Error checking auth state on ${Platform.OS}:`, error);
     return null;
+  }
+};
+
+export const testStorageCompatibility = async () => {
+  console.log(`🔧 Testing Storage Compatibility (${Platform.OS}):`);
+
+  const testKey = "test_compatibility";
+  const testValue = "test_value_123";
+
+  try {
+    // Test write operation
+    await SecureStorage.setItem(testKey, testValue);
+    console.log("  - Write test: ✅ Success");
+
+    // Test read operation
+    const retrievedValue = await SecureStorage.getItem(testKey);
+    const readSuccess = retrievedValue === testValue;
+    console.log(`  - Read test: ${readSuccess ? "✅ Success" : "❌ Failed"}`);
+
+    if (!readSuccess) {
+      console.log(`    Expected: "${testValue}", Got: "${retrievedValue}"`);
+    }
+
+    // Test delete operation
+    await SecureStorage.deleteItem(testKey);
+    const afterDelete = await SecureStorage.getItem(testKey);
+    const deleteSuccess = afterDelete === null;
+    console.log(
+      `  - Delete test: ${deleteSuccess ? "✅ Success" : "❌ Failed"}`
+    );
+
+    return readSuccess && deleteSuccess;
+  } catch (error) {
+    console.log(`  - Storage test failed: ❌ ${error}`);
+    return false;
   }
 };

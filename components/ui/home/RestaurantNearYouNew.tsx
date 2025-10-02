@@ -162,7 +162,7 @@ interface Restaurant {
   }[];
 }
 
-const RestaurantNearYou = () => {
+const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
   const router = useRouter();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +170,7 @@ const RestaurantNearYou = () => {
 
   useEffect(() => {
     fetchRestaurants();
-  }, []);
+  }, [refreshKey]);
 
   const fetchRestaurants = async () => {
     try {
@@ -206,13 +206,7 @@ const RestaurantNearYou = () => {
     }
   };
 
-  const getRandomRating = () => {
-    return (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1);
-  };
-
-  const getRandomReviewCount = () => {
-    return Math.floor(Math.random() * (500 - 50) + 50);
-  };
+  
 
   const getCuisineTypes = (restaurant: Restaurant): string[] => {
     const types: string[] = [];
@@ -547,8 +541,6 @@ const RestaurantNearYou = () => {
         snapToAlignment="start"
       >
         {restaurants.slice(0, 8).map((restaurant, index) => {
-          const rating = getRandomRating();
-          const reviewCount = getRandomReviewCount();
           const cuisineTypes = getCuisineTypes(restaurant);
 
           // Prefer explicit address (city + address) when available, otherwise fall back to service.location or a placeholder

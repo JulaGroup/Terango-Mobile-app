@@ -1,24 +1,34 @@
 import axios from "axios";
 import { API_URL } from "@/constants/config";
-import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { jwtDecode } from "jwt-decode";
 import { registerForPushNotificationsAsync } from "@/utils/NotificationService";
+import { SecureStorage } from "@/utils/secureStorage";
 
+// Enhanced SecureStore operations using our custom utility
 const safeSetItem = async (key: string, value: string) => {
   try {
-    await SecureStore.setItemAsync(key, value);
-  } catch (e) {
-    console.log(`SecureStore setItem error (${key}):`, e);
+    await SecureStorage.setItem(key, value);
+  } catch (error) {
+    console.error(`Failed to store ${key}:`, error);
+    throw error;
   }
 };
 
 export const safeGetItem = async (key: string) => {
   try {
-    return await SecureStore.getItemAsync(key);
-  } catch (e) {
-    console.log(`SecureStore getItem error (${key}):`, e);
+    return await SecureStorage.getItem(key);
+  } catch (error) {
+    console.error(`Failed to get ${key}:`, error);
     return null;
+  }
+};
+
+const safeDeleteItem = async (key: string) => {
+  try {
+    await SecureStorage.deleteItem(key);
+  } catch (error) {
+    console.error(`Failed to delete ${key}:`, error);
   }
 };
 

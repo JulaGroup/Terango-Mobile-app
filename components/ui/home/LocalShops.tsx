@@ -223,7 +223,7 @@ const ShopCard = ({
   );
 };
 
-export default function LocalShops() {
+export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
   const router = useRouter();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -254,7 +254,7 @@ export default function LocalShops() {
 
   useEffect(() => {
     fetchShops();
-  }, []);
+  }, [refreshKey]);
 
   const handleShopPress = (shopId: string) => {
     router.push(`/shop-details?shopId=${shopId}`);

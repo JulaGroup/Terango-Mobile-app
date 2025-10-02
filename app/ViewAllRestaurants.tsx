@@ -2,16 +2,18 @@ import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   TextInput,
+  Image,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import RestaurantList from "@/components/common/RestaurantList";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL } from "@/constants/config";
 
 interface Restaurant {

@@ -2,25 +2,13 @@ import Cart from "@/components/common/Cart";
 import Header from "@/components/common/Header";
 import PermissionHandler from "@/components/common/PermissionHandler";
 import SearchBar from "@/components/common/SearchBar";
+import SearchModal from "@/components/common/SearchModal";
 import CategoryRow from "@/components/ui/home/CategoryRow";
 import AdvertCard from "@/components/ui/home/AdvertCard";
 
-// New Carrefour-style sections
-import HeroBanner from "@/components/ui/home/HeroBanner";
+// Active home sections
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
-import StoresNearYou from "@/components/ui/home/StoresNearYouNew";
-
-// New Gambian-specific sections
-import GreatForBreakfast from "@/components/ui/home/GreatForBreakfast";
-import TraditionalMeals from "@/components/ui/home/TraditionalMeals";
-import LocalBeverages from "@/components/ui/home/LocalBeverages";
 import LocalShops from "@/components/ui/home/LocalShops";
-
-// New sections based on actual subcategories
-import LocalDishes from "@/components/ui/home/LocalDishes";
-import RiceGrains from "@/components/ui/home/RiceGrains";
-import PharmacyEssentials from "@/components/ui/home/PharmacyEssentials";
-import HomeEssentials from "@/components/ui/home/HomeEssentials";
 
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
@@ -28,24 +16,21 @@ import {
   Animated,
   Dimensions,
   Platform,
-  Keyboard,
   TextInput,
   TouchableWithoutFeedback,
   View,
+  RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
-import AdBanner from "@/components/ui/home/AdBanner";
-import DealsSection from "@/components/ui/home/DealsSection";
-import FreshFromFarm from "@/components/ui/home/FreshFromFarm";
-import GadgetTechZone from "@/components/ui/home/GadgetTechZone";
-import PopularStores from "@/components/ui/home/PopularStores";
-import SnackingCorner from "@/components/ui/home/SnackingCorner";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 
 export default function HomeScreen() {
   const [searchText, setSearchText] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const showStickySearchBar = scrollY.interpolate({
@@ -85,7 +70,8 @@ export default function HomeScreen() {
           opacity: showStickySearchBar,
           backgroundColor: "#fff",
           flexDirection: "row",
-          padding: 10,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
           width: width,
           borderRadius: 8,
           alignItems: "center",
@@ -97,39 +83,15 @@ export default function HomeScreen() {
           elevation: 5,
         }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View
-            style={{
-              flexDirection: "row",
-              backgroundColor: "white",
-              borderColor: "#E0E0E0",
-              borderWidth: 1,
-              borderRadius: 30,
-              height: 50,
-              paddingHorizontal: 15,
-              width: "80%",
-            }}
-          >
-            <Ionicons
-              name="search"
-              size={24}
-              color="#4B4B4BFF"
-              style={{ marginRight: 10, alignSelf: "center" }}
-            />
-            <TextInput
-              style={{ flex: 1, fontSize: 16 }}
-              placeholder="Search here..."
-              value={searchText}
-              onChangeText={(text) => setSearchText(text)}
-            />
-            <Ionicons
-              style={{ marginLeft: 10, alignSelf: "center" }}
-              name="options"
-              color="#4B4B4BFF"
-              size={24}
-            />
-          </View>
-        </TouchableWithoutFeedback>
+        <View style={{ flex: 1 }}>
+          <SearchBar
+            onChangeText={(text) => setSearchText(text)}
+            value={searchText}
+            onPress={() => setSearchModalVisible(true)}
+            editable={false} // Make it non-editable to force modal usage
+            fullWidth={true} // Remove horizontal margins for full width
+          />
+        </View>
         <Cart />
       </Animated.View>
 
@@ -143,6 +105,18 @@ export default function HomeScreen() {
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
         )}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              // bump key to signal children to refresh
+              setRefreshKey((k) => k + 1);
+              // small timeout to show spinner briefly
+              setTimeout(() => setRefreshing(false), 700);
+            }}
+          />
+        }
       >
         {/* Header */}
         <Header />
@@ -151,22 +125,27 @@ export default function HomeScreen() {
         <SearchBar
           onChangeText={(text) => setSearchText(text)}
           value={searchText}
+          onPress={() => setSearchModalVisible(true)}
+          editable={false} // Make it non-editable to force modal usage
         />
 
         {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
         <AdvertCard />
 
-        {/* Categories - Now navigates on press */}
-        <CategoryRow onCategoryPress={handleCategoryPress} />
+        {/* Categories - Now navigates on press (supports pull-to-refresh) */}
+        <CategoryRow
+          onCategoryPress={handleCategoryPress}
+          refreshKey={refreshKey}
+        />
 
         {/* Restaurants Near You - Moved Higher */}
-        <RestaurantNearYou />
+        <RestaurantNearYou refreshKey={refreshKey} />
 
         {/* Stores Near You - Moved Higher */}
         {/* <StoresNearYou /> */}
 
         {/* Local Shops - Quality products near you */}
-        <LocalShops />
+        <LocalShops refreshKey={refreshKey} />
 
         {/* Hero Banner with Navigation Buttons */}
         {/* <HeroBanner /> */}
@@ -243,6 +222,13 @@ export default function HomeScreen() {
 
       {/* Permission Modals */}
       <PermissionHandler />
+
+      {/* Search Modal */}
+      <SearchModal
+        visible={searchModalVisible}
+        onClose={() => setSearchModalVisible(false)}
+        initialQuery={searchText}
+      />
     </SafeAreaView>
   );
 }

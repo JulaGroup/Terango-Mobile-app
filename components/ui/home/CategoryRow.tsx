@@ -20,8 +20,10 @@ interface Category {
 
 const CategoryRow = ({
   onCategoryPress,
+  refreshKey,
 }: {
   onCategoryPress: (categoryId: string, categoryName: string) => void;
+  refreshKey?: number;
 }) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,8 @@ const CategoryRow = ({
 
   useEffect(() => {
     fetchCategories();
-  }, []);
+    // re-fetch when parent triggers a refresh
+  }, [refreshKey]);
   const fetchCategories = async () => {
     try {
       setError(null);
@@ -151,6 +154,110 @@ const CategoryRow = ({
       />
     </View>
   );
+
+  // Small inline component to show friendly server-down UI with optional details
+  const ServerErrorCard = ({
+    error,
+    onRetry,
+  }: {
+    error: string | null;
+    onRetry: () => void;
+  }) => {
+    const [showDetails, setShowDetails] = useState(false);
+    return (
+      <View
+        style={{
+          alignItems: "center",
+          backgroundColor: "#FFF5EE",
+          padding: 20,
+          borderRadius: 16,
+          marginHorizontal: 10,
+          borderWidth: 1,
+          borderColor: "#ff6b00",
+        }}
+      >
+        <Ionicons name="warning-outline" size={32} color="#ff6b00" />
+        <Text
+          style={{
+            fontSize: 15,
+            color: "#333",
+            marginTop: 8,
+            textAlign: "center",
+            fontWeight: "700",
+          }}
+        >
+          Server is temporarily unavailable
+        </Text>
+        <Text
+          style={{
+            fontSize: 13,
+            color: "#6b6b6b",
+            marginTop: 8,
+            textAlign: "center",
+            lineHeight: 18,
+          }}
+        >
+          We are having trouble connecting to our servers. Please pull to
+          refresh or tap Retry.
+        </Text>
+
+        <View style={{ flexDirection: "row", marginTop: 14, gap: 8 }}>
+          <TouchableOpacity
+            style={{
+              backgroundColor: "#ff6b00",
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 8,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+            }}
+            onPress={onRetry}
+          >
+            <Ionicons name="refresh" size={16} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>
+              Retry
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: "#e6e6e6",
+              backgroundColor: "#fff",
+            }}
+            onPress={() => setShowDetails((s) => !s)}
+          >
+            <Text style={{ color: "#666", fontSize: 13 }}>
+              {showDetails ? "Hide details" : "Show details"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {showDetails && (
+          <View
+            style={{
+              marginTop: 12,
+              backgroundColor: "#fff",
+              padding: 10,
+              borderRadius: 8,
+              width: "100%",
+            }}
+          >
+            <Text
+              style={{ fontSize: 12, color: "#444", lineHeight: 16 }}
+              numberOfLines={6}
+            >
+              {String(error)}
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
   if (loading) {
     return renderSkeletonLoader();
   }
@@ -168,53 +275,7 @@ const CategoryRow = ({
         >
           Explore TeranGO
         </Text>
-        <View
-          style={{
-            alignItems: "center",
-            backgroundColor: "#FFF5EE",
-            padding: 20,
-            borderRadius: 16,
-            marginHorizontal: 10,
-            borderWidth: 1,
-            borderColor: "#ff6b00",
-          }}
-        >
-          <Ionicons name="warning-outline" size={32} color="#ff6b00" />
-          <Text
-            style={{
-              fontSize: 14,
-              color: "#ff6b00",
-              marginTop: 8,
-              textAlign: "center",
-              fontWeight: "500",
-            }}
-          >
-            {error}
-          </Text>
-          <TouchableOpacity
-            style={{
-              backgroundColor: "#ff6b00",
-              paddingHorizontal: 16,
-              paddingVertical: 8,
-              borderRadius: 8,
-              marginTop: 12,
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              shadowColor: "#ff6b00",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            onPress={handleRetry}
-          >
-            <Ionicons name="refresh" size={16} color="#fff" />
-            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
-              Retry
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <ServerErrorCard error={error} onRetry={handleRetry} />
       </View>
     );
   }

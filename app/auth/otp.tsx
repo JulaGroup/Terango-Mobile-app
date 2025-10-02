@@ -1,6 +1,5 @@
-import { verifyOtp } from "@/actions/auth.ts/action";
+import { verifyOtp, safeGetItem } from "@/actions/auth.ts/action";
 import BackButton from "@/components/common/BackButton";
-import * as SecureStore from "expo-secure-store";
 import OTPTextInput from "react-native-otp-textinput";
 import { useRouter } from "expo-router";
 import React, { useRef, useState } from "react";
@@ -27,9 +26,11 @@ export default function OTP() {
       return;
     }
 
-    const phone = await SecureStore.getItemAsync("userPhone");
+    const phone = await safeGetItem("userPhone");
     if (!phone) {
-      alert("Missing phone number");
+      alert(
+        "Missing phone number. Please go back and enter your phone number again."
+      );
       setLoading(false);
       return;
     }
