@@ -96,7 +96,7 @@ export default function BrowseScreen() {
     setMealsPage(1);
     await Promise.all([
       fetchTrendingProducts(1, false),
-      fetchTrendingMeals(1, false)
+      fetchTrendingMeals(1, false),
     ]);
     setRefreshing(false);
   };
@@ -151,19 +151,22 @@ export default function BrowseScreen() {
     }
   };
 
-  const fetchTrendingProducts = async (page: number = 1, append: boolean = false) => {
+  const fetchTrendingProducts = async (
+    page: number = 1,
+    append: boolean = false
+  ) => {
     try {
       if (append) {
         setLoadingMoreProducts(true);
       }
-      
+
       const response = await fetch(
         `${API_URL}/api/public/products?page=${page}&limit=10&sortBy=orders&sortOrder=desc&isAvailable=true`
       );
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Transform API data - API returns products in 'data.data' array
         const transformedProducts =
           data.data?.map((product: any) => ({
@@ -178,11 +181,11 @@ export default function BrowseScreen() {
           })) || [];
 
         if (append) {
-          setTrendingProducts(prev => [...prev, ...transformedProducts]);
+          setTrendingProducts((prev) => [...prev, ...transformedProducts]);
         } else {
           setTrendingProducts(transformedProducts);
         }
-        
+
         // Check if there's more data
         setHasMoreProducts(data.pagination?.hasMore || false);
       } else {
@@ -201,12 +204,15 @@ export default function BrowseScreen() {
     }
   };
 
-  const fetchTrendingMeals = async (page: number = 1, append: boolean = false) => {
+  const fetchTrendingMeals = async (
+    page: number = 1,
+    append: boolean = false
+  ) => {
     try {
       if (append) {
         setLoadingMoreMeals(true);
       }
-      
+
       // Fetch menu items directly from the menu-items endpoint
       const menuResponse = await fetch(
         `${API_URL}/api/menu-items?page=${page}&limit=10&sortBy=orders&sortOrder=desc`
@@ -214,7 +220,7 @@ export default function BrowseScreen() {
 
       if (menuResponse.ok) {
         const menuData = await menuResponse.json();
-        
+
         // Transform menu items
         const transformedMeals =
           menuData.data?.map((item: any) => ({
@@ -224,16 +230,19 @@ export default function BrowseScreen() {
             imageUrl:
               item.imageUrl ||
               "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
-            restaurantName: item.restaurant?.name || item.menu?.restaurant?.name || "Restaurant",
+            restaurantName:
+              item.restaurant?.name ||
+              item.menu?.restaurant?.name ||
+              "Restaurant",
             rating: item.rating || 4.5,
           })) || [];
 
         if (append) {
-          setTrendingMeals(prev => [...prev, ...transformedMeals]);
+          setTrendingMeals((prev) => [...prev, ...transformedMeals]);
         } else {
           setTrendingMeals(transformedMeals);
         }
-        
+
         // Check if there's more data
         setHasMoreMeals(menuData.pagination?.hasMore || false);
       } else {
@@ -506,7 +515,13 @@ export default function BrowseScreen() {
               onEndReachedThreshold={0.5}
               ListFooterComponent={
                 loadingMoreProducts ? (
-                  <View style={{ width: 50, justifyContent: 'center', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 50,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
                     <ActivityIndicator size="small" color={PrimaryColor} />
                   </View>
                 ) : null
@@ -537,7 +552,13 @@ export default function BrowseScreen() {
               onEndReachedThreshold={0.5}
               ListFooterComponent={
                 loadingMoreMeals ? (
-                  <View style={{ width: 50, justifyContent: 'center', alignItems: 'center' }}>
+                  <View
+                    style={{
+                      width: 50,
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
                     <ActivityIndicator size="small" color={PrimaryColor} />
                   </View>
                 ) : null
