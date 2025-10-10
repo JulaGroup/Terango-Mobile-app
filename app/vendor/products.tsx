@@ -126,14 +126,14 @@ export default function VendorProducts() {
 
     try {
       let response;
-      
+
       // Fetch based on business type
       if (currentBusiness.type === "SHOP") {
         console.log("🏪 Fetching SHOP products...");
         response = await orderApi.getShopProducts(currentBusiness.id);
-        
+
         console.log("🔍 API Response structure:", response);
-        
+
         // API returns array directly
         if (Array.isArray(response) && response.length > 0) {
           console.log(`✅ Found ${response.length} shop products`);
@@ -162,9 +162,9 @@ export default function VendorProducts() {
         console.log("🍽️ Fetching RESTAURANT menu items...");
         // For restaurants, fetch menu items and convert to product format
         response = await menuApi.getMenuItemsByRestaurant(currentBusiness.id);
-        
+
         console.log("🔍 API Response structure:", response);
-        
+
         // API returns array directly
         if (Array.isArray(response) && response.length > 0) {
           console.log(`✅ Found ${response.length} menu items`);
@@ -193,9 +193,9 @@ export default function VendorProducts() {
         console.log("💊 Fetching PHARMACY products...");
         // For pharmacies, use shop products endpoint (pharmacies might use same structure as shops)
         response = await orderApi.getShopProducts(currentBusiness.id);
-        
+
         console.log("🔍 API Response structure:", response);
-        
+
         // API returns array directly
         if (Array.isArray(response) && response.length > 0) {
           console.log(`✅ Found ${response.length} pharmacy products`);
@@ -232,7 +232,7 @@ export default function VendorProducts() {
 
   useEffect(() => {
     console.log("🔍 Products screen - Current business:", currentBusiness);
-    
+
     if (currentBusiness) {
       console.log("✅ Current business exists, fetching products...");
       console.log("📋 Business details:", {
@@ -521,7 +521,11 @@ export default function VendorProducts() {
           <View
             style={[
               styles.stockBadge,
-              item.stock === 0 ? styles.outOfStockBadge : item.stock < 5 ? styles.lowStockBadge : styles.inStockBadge,
+              item.stock === 0
+                ? styles.outOfStockBadge
+                : item.stock < 5
+                ? styles.lowStockBadge
+                : styles.inStockBadge,
             ]}
           >
             <Text style={styles.stockBadgeText}>
@@ -542,9 +546,7 @@ export default function VendorProducts() {
           )}
 
           <View style={styles.productDetails}>
-            <Text style={styles.productPrice}>
-              D{item.price.toFixed(2)}
-            </Text>
+            <Text style={styles.productPrice}>D{item.price.toFixed(2)}</Text>
             {item.stock < 5 && item.stock > 0 && (
               <View style={styles.lowStockWarning}>
                 <Ionicons name="warning" size={12} color="#F44336" />

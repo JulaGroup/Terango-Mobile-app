@@ -47,7 +47,11 @@ const TrendingSkeleton: React.FC<TrendingSkeletonProps> = ({ count = 3 }) => {
             <View style={styles.imageSkeleton}>
               <Animated.View style={[styles.shimmer, animatedStyle]}>
                 <LinearGradient
-                  colors={["transparent", "rgba(255,255,255,0.3)", "transparent"]}
+                  colors={[
+                    "transparent",
+                    "rgba(255,255,255,0.3)",
+                    "transparent",
+                  ]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.shimmerGradient}
@@ -55,34 +59,46 @@ const TrendingSkeleton: React.FC<TrendingSkeletonProps> = ({ count = 3 }) => {
               </Animated.View>
             </View>
           </View>
-          
+
           <View style={styles.infoContainer}>
             <View style={[styles.textSkeleton, styles.titleSkeleton]}>
               <Animated.View style={[styles.shimmer, animatedStyle]}>
                 <LinearGradient
-                  colors={["transparent", "rgba(255,255,255,0.3)", "transparent"]}
+                  colors={[
+                    "transparent",
+                    "rgba(255,255,255,0.3)",
+                    "transparent",
+                  ]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.shimmerGradient}
                 />
               </Animated.View>
             </View>
-            
+
             <View style={[styles.textSkeleton, styles.subtitleSkeleton]}>
               <Animated.View style={[styles.shimmer, animatedStyle]}>
                 <LinearGradient
-                  colors={["transparent", "rgba(255,255,255,0.3)", "transparent"]}
+                  colors={[
+                    "transparent",
+                    "rgba(255,255,255,0.3)",
+                    "transparent",
+                  ]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.shimmerGradient}
                 />
               </Animated.View>
             </View>
-            
+
             <View style={[styles.textSkeleton, styles.priceSkeleton]}>
               <Animated.View style={[styles.shimmer, animatedStyle]}>
                 <LinearGradient
-                  colors={["transparent", "rgba(255,255,255,0.3)", "transparent"]}
+                  colors={[
+                    "transparent",
+                    "rgba(255,255,255,0.3)",
+                    "transparent",
+                  ]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.shimmerGradient}

@@ -118,7 +118,7 @@ export default function VendorOrdersEnhanced() {
       console.log("📥 Fetching vendor orders for:", {
         vendorId: vendor.id,
         businessId: currentBusiness.id,
-        businessName: currentBusiness.name
+        businessName: currentBusiness.name,
       });
 
       // Server gets vendor from auth token, no need to pass vendor.id
@@ -158,7 +158,12 @@ export default function VendorOrdersEnhanced() {
 
   // Fetch orders when component mounts or when vendor/currentBusiness changes
   useEffect(() => {
-    console.log("🔄 Orders effect triggered - vendor:", vendor?.id, "business:", currentBusiness?.id);
+    console.log(
+      "🔄 Orders effect triggered - vendor:",
+      vendor?.id,
+      "business:",
+      currentBusiness?.id
+    );
     fetchOrders();
   }, [fetchOrders]); // fetchOrders already depends on vendor and currentBusiness
 
