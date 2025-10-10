@@ -49,6 +49,13 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
   const refreshVendorData = useCallback(async () => {
     try {
       console.log("🔄 Refreshing vendor data...");
+      
+      // CRITICAL: Clear ALL old cached data first before fetching new data
+      console.log("🗑️ Clearing old vendor cache...");
+      setVendor(null);
+      setCurrentBusiness(null);
+      await AsyncStorage.removeItem("@vendor_data");
+      
       const currentUser = await userApi.getCurrentUser();
       console.log("👤 Current user:", currentUser);
 
@@ -163,12 +170,28 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
   const checkVendorSession = useCallback(async () => {
     try {
       console.log("🔍 Checking vendor session...");
+      
+      // Get current user to verify cached vendor data matches
+      const currentUser = await userApi.getCurrentUser();
+      const currentUserId = currentUser?.user?.id;
+      
       const vendorData = await AsyncStorage.getItem("@vendor_data");
       const vendorToken = await AsyncStorage.getItem("@vendor_token");
 
       if (vendorData && vendorToken) {
         console.log("📦 Found stored vendor data");
         const parsedVendor = JSON.parse(vendorData);
+        
+        // CRITICAL CHECK: Verify cached vendor matches current user
+        if (currentUserId && parsedVendor.id !== currentUserId) {
+          console.log("⚠️ Cached vendor doesn't match current user! Clearing cache and refreshing...");
+          await AsyncStorage.removeItem("@vendor_data");
+          await AsyncStorage.removeItem("@vendor_token");
+          await refreshVendorData();
+          return;
+        }
+        
+        console.log("✅ Cached vendor matches current user");
         setVendor(parsedVendor);
 
         // Set current business (prioritize restaurants, then shops, then pharmacies)
@@ -271,10 +294,18 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
 
   const logoutVendor = async () => {
     try {
+      console.log("🚪 Logging out vendor...");
+      
+      // Clear all vendor-related storage
       await AsyncStorage.removeItem("@vendor_token");
       await AsyncStorage.removeItem("@vendor_data");
+      await AsyncStorage.removeItem("@auth_token"); // Clear main auth token too
+      
+      // Clear state
       setVendor(null);
       setCurrentBusiness(null);
+      
+      console.log("✅ Vendor logout complete");
     } catch (error) {
       console.error("Vendor logout error:", error);
     }

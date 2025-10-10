@@ -745,17 +745,17 @@ export const orderApi = {
     return apiCall(`/api/products/shop/${shopId}`);
   },
 
-  createShopProduct: async (productData: FormData) => {
+  createShopProduct: async (productData: any) => {
     return apiCall("/api/products", {
       method: "POST",
-      body: productData,
+      body: JSON.stringify(productData),
     });
   },
 
-  updateShopProduct: async (productId: string, productData: FormData) => {
+  updateShopProduct: async (productId: string, productData: any) => {
     return apiCall(`/api/products/${productId}`, {
       method: "PUT",
-      body: productData,
+      body: JSON.stringify(productData),
     });
   },
   deleteShopProduct: async (productId: string) => {

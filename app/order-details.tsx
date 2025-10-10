@@ -802,6 +802,14 @@ export default function OrderDetailsPage() {
               Pay Now - {formatAmount(order.totalAmount + 200)}
             </Text>
           </TouchableOpacity>
+        ) : order.status === "PENDING" ? (
+          /* Hide Track Order button when order is PENDING */
+          <View style={styles.pendingMessageContainer}>
+            <Ionicons name="time-outline" size={24} color="#FF9800" />
+            <Text style={styles.pendingMessageText}>
+              Waiting for order confirmation for payment
+            </Text>
+          </View>
         ) : (
           /* Show Track Order button for all other statuses */
           <TouchableOpacity
@@ -1148,6 +1156,24 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  // Pending Message (when waiting for payment)
+  pendingMessageContainer: {
+    backgroundColor: "#FFF3E0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#FF9800",
+  },
+  pendingMessageText: {
+    color: "#FF9800",
+    fontSize: 15,
+    fontWeight: "600",
   },
 
   // Error States

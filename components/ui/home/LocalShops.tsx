@@ -238,7 +238,6 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
       setLoading(true);
       setError(null);
 
-      console.log("Fetching shops from:", `${API_URL}/api/shops`);
       const response = await fetch(`${API_URL}/api/shops`);
 
       if (!response.ok) {
@@ -246,13 +245,11 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
       }
 
       const data = await response.json();
-      console.log("Shops data received:", data);
 
       // Handle both array and object responses
       const shopsArray = Array.isArray(data)
         ? data
         : data.shops || data.data || [];
-      console.log("Processed shops array:", shopsArray);
 
       setShops(shopsArray);
     } catch (err: any) {

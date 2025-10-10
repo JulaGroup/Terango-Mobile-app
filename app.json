@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "backgroundColor": "#ffffff",
-    "icon": "./assets/images/splash.png",
+    "icon": "./assets/App-Icon.jpg",
     "userInterfaceStyle": "light",
     "scheme": ["teranggo"],
     "ios": {
@@ -13,13 +13,13 @@
       "bundleIdentifier": "com.darboedev.terango"
     },
     "splash": {
-      "image": "./assets/images/splash.png",
+      "image": "./assets/images/splash-icon.jpg",
       "resizeMode": "contain",
-      "backgroundColor": "#FF6B00"
+      "backgroundColor": "#ffffff"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/splash.png",
+        "foregroundImage": "./assets/App-Icon.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

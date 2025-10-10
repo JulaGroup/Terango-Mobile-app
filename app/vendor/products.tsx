@@ -13,35 +13,37 @@ import {
   StatusBar,
   Animated,
   ScrollView,
-  Dimensions,
   ActivityIndicator,
-  Image,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useVendor } from "@/context/VendorContext";
-import { orderApi, subCategoryApi } from "@/lib/api";
+import { orderApi, subCategoryApi, menuApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
-import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 
 interface SubCategory {
   id: string;
   name: string;
 }
 
-interface Product extends UniversalProduct {
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  image?: string;
   stock: number;
   category?: string;
   subCategoryId?: string;
   isActive: boolean;
+  inStock?: boolean;
 }
 
-const { width } = Dimensions.get("window");
 const numColumns = 2;
-const cardWidth = (width - 60) / numColumns; // Account for padding and margins
 
 export default function VendorProducts() {
   const router = useRouter();
@@ -110,73 +112,137 @@ export default function VendorProducts() {
   }, []);
 
   const fetchProducts = useCallback(async () => {
-    if (!currentBusiness || currentBusiness.type !== "SHOP") {
+    if (!currentBusiness) {
+      console.log("❌ No current business found");
       setProducts([]);
       return;
     }
 
-    try {
-      const response = await orderApi.getShopProducts(currentBusiness.id);
+    console.log("🔄 Fetching products for business:", {
+      id: currentBusiness.id,
+      name: currentBusiness.name,
+      type: currentBusiness.type,
+    });
 
-      if (response && response.products) {
-        setProducts(
-          response.products.map((product: any) => ({
-            id: product.id,
-            name: product.name,
-            description: product.description,
-            price: product.price,
-            image: product.imageUrl,
-            stock: product.stock || 0,
-            category: product.category || "Others",
-            isActive: product.isActive !== false,
-            inStock: (product.stock || 0) > 0,
-          }))
-        );
+    try {
+      let response;
+      
+      // Fetch based on business type
+      if (currentBusiness.type === "SHOP") {
+        console.log("🏪 Fetching SHOP products...");
+        response = await orderApi.getShopProducts(currentBusiness.id);
+        
+        console.log("🔍 API Response structure:", response);
+        
+        // API returns array directly
+        if (Array.isArray(response) && response.length > 0) {
+          console.log(`✅ Found ${response.length} shop products`);
+          setProducts(
+            response.map((product: any) => ({
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              image: product.imageUrl,
+              stock: product.stock || 0,
+              category: product.category || "Others",
+              subCategoryId: product.subCategoryId,
+              isActive: product.isActive !== false,
+              inStock: (product.stock || 0) > 0,
+            }))
+          );
+        } else if (Array.isArray(response)) {
+          console.log("⚠️ Empty products array");
+          setProducts([]);
+        } else {
+          console.log("⚠️ Unexpected response format");
+          setProducts([]);
+        }
+      } else if (currentBusiness.type === "RESTAURANT") {
+        console.log("🍽️ Fetching RESTAURANT menu items...");
+        // For restaurants, fetch menu items and convert to product format
+        response = await menuApi.getMenuItemsByRestaurant(currentBusiness.id);
+        
+        console.log("🔍 API Response structure:", response);
+        
+        // API returns array directly
+        if (Array.isArray(response) && response.length > 0) {
+          console.log(`✅ Found ${response.length} menu items`);
+          setProducts(
+            response.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              description: item.description,
+              price: item.price,
+              image: item.imageUrl,
+              stock: 999, // Restaurants typically don't track stock
+              category: item.category || "Others",
+              subCategoryId: item.subCategoryId,
+              isActive: item.isAvailable !== false,
+              inStock: true, // Menu items are always "in stock"
+            }))
+          );
+        } else if (Array.isArray(response)) {
+          console.log("⚠️ Empty menu items array");
+          setProducts([]);
+        } else {
+          console.log("⚠️ Unexpected response format");
+          setProducts([]);
+        }
+      } else if (currentBusiness.type === "PHARMACY") {
+        console.log("💊 Fetching PHARMACY products...");
+        // For pharmacies, use shop products endpoint (pharmacies might use same structure as shops)
+        response = await orderApi.getShopProducts(currentBusiness.id);
+        
+        console.log("🔍 API Response structure:", response);
+        
+        // API returns array directly
+        if (Array.isArray(response) && response.length > 0) {
+          console.log(`✅ Found ${response.length} pharmacy products`);
+          setProducts(
+            response.map((product: any) => ({
+              id: product.id,
+              name: product.name,
+              description: product.description,
+              price: product.price,
+              image: product.imageUrl,
+              stock: product.stock || 0,
+              category: product.category || "Medications",
+              subCategoryId: product.subCategoryId,
+              isActive: product.isActive !== false,
+              inStock: (product.stock || 0) > 0,
+            }))
+          );
+        } else if (Array.isArray(response)) {
+          console.log("⚠️ Empty pharmacy products array");
+          setProducts([]);
+        } else {
+          console.log("⚠️ Unexpected response format");
+          setProducts([]);
+        }
       } else {
+        console.log("❌ Unknown business type:", currentBusiness.type);
         setProducts([]);
       }
     } catch (error) {
-      console.error("Error fetching products:", error);
-      // Demo data for testing
-      setProducts([
-        {
-          id: 1,
-          name: "Fresh Apples",
-          description: "Premium quality red apples",
-          price: 25000,
-          image: "https://via.placeholder.com/150",
-          stock: 50,
-          category: "Food & Beverages",
-          isActive: true,
-          inStock: true,
-        },
-        {
-          id: 2,
-          name: "Organic Bananas",
-          description: "Fresh organic bananas",
-          price: 15000,
-          stock: 0,
-          category: "Food & Beverages",
-          isActive: true,
-          inStock: false,
-        },
-        {
-          id: 3,
-          name: "Premium Rice 5kg",
-          description: "Premium jasmine rice",
-          price: 75000,
-          stock: 20,
-          category: "Food & Beverages",
-          isActive: false,
-          inStock: true,
-        },
-      ]);
+      console.error("❌ Error fetching products:", error);
+      setProducts([]);
     }
   }, [currentBusiness]);
 
   useEffect(() => {
-    if (currentBusiness?.type === "SHOP") {
+    console.log("🔍 Products screen - Current business:", currentBusiness);
+    
+    if (currentBusiness) {
+      console.log("✅ Current business exists, fetching products...");
+      console.log("📋 Business details:", {
+        id: currentBusiness.id,
+        name: currentBusiness.name,
+        type: currentBusiness.type,
+      });
       fetchProducts();
+    } else {
+      console.log("⚠️ No current business set yet");
     }
 
     // Animate in
@@ -200,7 +266,7 @@ export default function VendorProducts() {
     setRefreshing(false);
   };
 
-  const toggleProductStatus = async (productId: number, isActive: boolean) => {
+  const toggleProductStatus = async (productId: string, isActive: boolean) => {
     try {
       // API call would go here
       setProducts((prevProducts) =>
@@ -214,7 +280,7 @@ export default function VendorProducts() {
     }
   };
 
-  const updateStock = async (productId: number, newStock: number) => {
+  const updateStock = async (productId: string, newStock: number) => {
     try {
       // API call would go here
       setProducts((prevProducts) =>
@@ -228,6 +294,33 @@ export default function VendorProducts() {
       console.error("Error updating stock:", error);
       Alert.alert("Error", "Failed to update stock");
     }
+  };
+
+  const handleDelete = async (productId: string) => {
+    Alert.alert(
+      "Delete Product",
+      "Are you sure you want to delete this product?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // API call would go here
+              // await orderApi.deleteProduct(productId);
+              setProducts((prevProducts) =>
+                prevProducts.filter((product) => product.id !== productId)
+              );
+              Alert.alert("Success", "Product deleted successfully");
+            } catch (error) {
+              console.error("Error deleting product:", error);
+              Alert.alert("Error", "Failed to delete product");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleEdit = (product: Product) => {
@@ -267,25 +360,26 @@ export default function VendorProducts() {
     }
 
     try {
-      const productFormData = new FormData();
-      productFormData.append("name", formData.name);
-      productFormData.append("description", formData.description);
-      productFormData.append("price", formData.price);
-      productFormData.append("stock", formData.stock);
-      productFormData.append("isActive", formData.isActive.toString());
-
-      // Add subCategoryId if selected
-      if (formData.subCategoryId) {
-        productFormData.append("subCategoryId", formData.subCategoryId);
-      }
+      const productData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
+        isActive: formData.isActive,
+        shopId: currentBusiness.id,
+        imageUrl: formData.imageUrl || undefined,
+        subCategoryId: formData.subCategoryId || undefined,
+      };
 
       if (editMode && selectedProduct) {
+        // For update, use FormData or JSON depending on what backend expects
         await orderApi.updateShopProduct(
           selectedProduct.id.toString(),
-          productFormData
+          productData as any
         );
       } else {
-        await orderApi.createShopProduct(productFormData);
+        // For create, send JSON
+        await orderApi.createShopProduct(productData as any);
       }
 
       setModalVisible(false);
@@ -400,77 +494,99 @@ export default function VendorProducts() {
     }
   };
 
-  // Dummy functions for ProductCard (not used in vendor context)
-  const handleAddToCart = () => {};
-  const handleRemoveFromCart = () => {};
-
-  const renderProduct = ({ item }: { item: Product }) => (
-    <View style={styles.productWrapper}>
-      <ProductCard
-        product={item}
-        cartQuantity={0}
-        onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        onPress={() => handleEdit(item)}
-        cardWidth={cardWidth}
-      />
-
-      {/* Vendor Controls Overlay */}
-      <View style={styles.vendorControls}>
-        <View style={styles.stockInfo}>
-          <Text
+  // Vendor Product Card Component (similar to Menu Items)
+  const VendorProductCard = React.memo(function VendorProductCard({
+    item,
+  }: {
+    item: Product;
+  }) {
+    return (
+      <View style={styles.productCard}>
+        {/* Product Image */}
+        <View style={styles.productImageContainer}>
+          {item.image ? (
+            <Image
+              source={{ uri: item.image }}
+              style={styles.productImage}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={styles.productImagePlaceholder}>
+              <Ionicons name="cube" size={40} color="#ccc" />
+            </View>
+          )}
+          {/* Stock Badge - Small badge at top left */}
+          <View
             style={[
-              styles.stockText,
-              item.stock < 5 ? styles.lowStock : styles.normalStock,
+              styles.stockBadge,
+              item.stock === 0 ? styles.outOfStockBadge : item.stock < 5 ? styles.lowStockBadge : styles.inStockBadge,
             ]}
           >
-            Stock: {item.stock}
-          </Text>
-          {item.stock < 5 && (
-            <Ionicons name="warning" size={14} color="#F44336" />
-          )}
+            <Text style={styles.stockBadgeText}>
+              {item.stock === 0 ? "Out" : `${item.stock}`}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.controlButtons}>
-          <TouchableOpacity
-            style={[
-              styles.statusToggle,
-              item.isActive ? styles.activeToggle : styles.inactiveToggle,
-            ]}
-            onPress={() => toggleProductStatus(item.id, !item.isActive)}
-          >
-            <Text
-              style={[
-                styles.statusText,
-                { color: item.isActive ? "#4CAF50" : "#666" },
-              ]}
-            >
-              {item.isActive ? "Active" : "Inactive"}
+        {/* Product Info */}
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {item.description && (
+            <Text style={styles.productDescription} numberOfLines={2}>
+              {item.description}
             </Text>
-          </TouchableOpacity>
+          )}
 
-          <TouchableOpacity
-            style={styles.stockButton}
-            onPress={() => {
-              Alert.prompt(
-                "Update Stock",
-                "Enter new stock quantity:",
-                (text) => {
-                  const newStock = parseInt(text || "0");
-                  if (!isNaN(newStock) && newStock >= 0) {
-                    updateStock(item.id, newStock);
-                  }
-                },
-                "plain-text",
-                item.stock.toString()
-              );
-            }}
-          >
-            <Ionicons name="cube" size={16} color={PrimaryColor} />
-          </TouchableOpacity>
+          <View style={styles.productDetails}>
+            <Text style={styles.productPrice}>
+              D{item.price.toFixed(2)}
+            </Text>
+            {item.stock < 5 && item.stock > 0 && (
+              <View style={styles.lowStockWarning}>
+                <Ionicons name="warning" size={12} color="#F44336" />
+                <Text style={styles.lowStockText}>Low Stock</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.productActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.toggleButton]}
+              onPress={() => toggleProductStatus(item.id, !item.isActive)}
+            >
+              <Ionicons
+                name={item.isActive ? "eye-off-outline" : "eye-outline"}
+                size={16}
+                color={item.isActive ? "#F44336" : "#4CAF50"}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEdit(item)}
+            >
+              <Ionicons name="create-outline" size={16} color="#2196F3" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Ionicons name="trash-outline" size={16} color="#F44336" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
-    </View>
+    );
+  });
+
+  const renderProduct = ({ item }: { item: Product }) => (
+    <VendorProductCard item={item} />
   );
 
   if (currentBusiness?.type !== "SHOP") {
@@ -958,62 +1074,123 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 10,
   },
-  productWrapper: {
+  // Product Card Styles (similar to menu items)
+  productCard: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    marginBottom: 15,
+    marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: "hidden",
     flex: 1,
-    margin: 5,
+  },
+  productImageContainer: {
+    width: "100%",
+    height: 140,
     position: "relative",
   },
-  vendorControls: {
+  productImage: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F8F8F8",
+  },
+  productImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F8F8F8",
+  },
+  stockBadge: {
     position: "absolute",
-    top: 8,
-    left: 8,
-    right: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    top: 6,
+    left: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 8,
-    padding: 8,
-    zIndex: 10,
-  },
-  stockInfo: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
   },
-  stockText: {
+  inStockBadge: {
+    backgroundColor: "#4CAF50",
+  },
+  lowStockBadge: {
+    backgroundColor: "#FF9800",
+  },
+  outOfStockBadge: {
+    backgroundColor: "#F44336",
+  },
+  stockBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  productInfo: {
+    padding: 12,
+  },
+  productName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  productDescription: {
     fontSize: 12,
-    fontWeight: "600",
-    marginRight: 5,
+    color: "#6B7280",
+    marginBottom: 8,
+    lineHeight: 16,
   },
-  lowStock: {
-    color: "#F44336",
-  },
-  normalStock: {
-    color: "#4CAF50",
-  },
-  controlButtons: {
+  productDetails: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
-  statusToggle: {
+  productPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: PrimaryColor,
+  },
+  lowStockWarning: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFEBEE",
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: 8,
   },
-  activeToggle: {
-    borderColor: "#4CAF50",
-    backgroundColor: "rgba(76, 175, 80, 0.1)",
-  },
-  inactiveToggle: {
-    borderColor: "#666",
-    backgroundColor: "rgba(102, 102, 102, 0.1)",
-  },
-  statusText: {
-    fontSize: 10,
+  lowStockText: {
+    fontSize: 11,
+    color: "#F44336",
     fontWeight: "600",
+    marginLeft: 4,
   },
-  stockButton: {
-    padding: 6,
+  productActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    paddingTop: 8,
+  },
+  actionButton: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    marginHorizontal: 2,
+    borderRadius: 6,
+  },
+  toggleButton: {
+    backgroundColor: "rgba(255, 152, 0, 0.1)",
+  },
+  editButton: {
+    backgroundColor: "rgba(33, 150, 243, 0.1)",
+  },
+  deleteButton: {
+    backgroundColor: "rgba(244, 67, 54, 0.1)",
   },
   emptyState: {
     flex: 1,

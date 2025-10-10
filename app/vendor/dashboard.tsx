@@ -8,6 +8,7 @@ import {
   RefreshControl,
   StatusBar,
   Dimensions,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,8 +36,9 @@ export default function VendorDashboard() {
     totalMenuItems: 0,
     averageOrderValue: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true
   const [refreshing, setRefreshing] = useState(false);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
 
   // Get business name for header
   const getBusinessName = () => {
@@ -65,40 +67,65 @@ export default function VendorDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     if (!vendor) {
-      console.log("No vendor data available");
-      setIsLoading(false);
+      console.log("⏳ No vendor data available yet, waiting...");
       return;
     }
 
     try {
       setIsLoading(true);
-      console.log("Fetching vendor stats for vendor:", vendor.id);
+      console.log("📊 Fetching vendor stats for vendor:", vendor.id);
 
       // Get vendor stats from server - UPDATED to use server endpoint
       const vendorStats = await vendorApi.getVendorStats();
-      console.log("Vendor stats received:", vendorStats);
+      console.log("✅ Vendor stats received:", vendorStats);
       setMetrics(vendorStats);
+      setHasAttemptedLoad(true);
     } catch (error) {
-      console.error("Error fetching dashboard data:", error);
+      console.error("⚠️ Error fetching dashboard data:", error);
+
       // Fallback to client-side calculation if server fails
       console.log(
-        "Using fallback calculation with businesses:",
+        "🔄 Server failed, using fallback calculation with businesses:",
         vendor.businesses
       );
-      const vendorStats = vendorApi.calculateVendorStats(vendor.businesses);
-      setMetrics(vendorStats);
+
+      try {
+        const vendorStats = vendorApi.calculateVendorStats(vendor.businesses);
+        console.log("📊 Fallback stats calculated:", vendorStats);
+        setMetrics(vendorStats);
+        setHasAttemptedLoad(true);
+      } catch (fallbackError) {
+        console.error("❌ Fallback calculation also failed:", fallbackError);
+        // Set default empty metrics
+        setMetrics({
+          totalOrders: 0,
+          completedOrders: 0,
+          pendingOrders: 0,
+          totalRevenue: 0,
+          todayRevenue: 0,
+          todayOrders: 0,
+          activeBusinesses:
+            vendor.businesses?.filter((b) => b.isActive).length || 0,
+          totalBusinesses: vendor.businesses?.length || 0,
+          totalMenuItems: 0,
+          averageOrderValue: 0,
+        });
+        setHasAttemptedLoad(true);
+      }
     } finally {
       setIsLoading(false);
     }
   }, [vendor]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (vendor) {
+      fetchDashboardData();
+    }
+  }, [vendor, fetchDashboardData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchDashboardData();
+    await Promise.all([refreshVendorData(), fetchDashboardData()]);
     setRefreshing(false);
   };
 
@@ -180,26 +207,48 @@ export default function VendorDashboard() {
     </TouchableOpacity>
   );
 
-  if (isVendorLoading) {
+  // Show loading spinner while vendor data is being fetched OR hasn't attempted to load yet
+  if (isVendorLoading || isLoading || !hasAttemptedLoad) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <Text>Loading vendor data...</Text>
+        <View style={styles.loadingContent}>
+          <LinearGradient
+            colors={[PrimaryColor, "#1976D2"]}
+            style={styles.loadingSpinner}
+          >
+            <Ionicons name="storefront" size={40} color="white" />
+          </LinearGradient>
+          <ActivityIndicator
+            size="large"
+            color={PrimaryColor}
+            style={styles.activityIndicator}
+          />
+          <Text style={styles.loadingTitle}>Loading Vendor Dashboard...</Text>
+          <Text style={styles.loadingSubtitle}>Please wait a moment</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  if (!vendor) {
+  // Only show error if vendor data failed to load AND we've attempted to load
+  if (!vendor && !isVendorLoading && hasAttemptedLoad) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
-        <Text>No vendor data found. Please try again.</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <Text>Loading dashboard...</Text>
+        <View style={styles.loadingContent}>
+          <View style={styles.errorIcon}>
+            <Ionicons name="alert-circle" size={60} color="#FF6B6B" />
+          </View>
+          <Text style={styles.errorTitle}>No Vendor Data Found</Text>
+          <Text style={styles.errorSubtitle}>
+            Unable to load vendor information. Please try again.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={refreshVendorData}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -215,7 +264,7 @@ export default function VendorDashboard() {
             <View style={styles.headerLeft}>
               <TouchableOpacity
                 style={styles.backToAppButton}
-                onPress={() => router.push("/(tabs)")}
+                onPress={() => router.back()}
               >
                 <Ionicons name="arrow-back" size={24} color="white" />
               </TouchableOpacity>
@@ -366,6 +415,70 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f8f9fa",
+  },
+  loadingContent: {
+    alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  loadingSpinner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  activityIndicator: {
+    marginBottom: 16,
+  },
+  loadingTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  loadingSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+  },
+  errorIcon: {
+    marginBottom: 20,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
   header: {
     paddingHorizontal: 20,

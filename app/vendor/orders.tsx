@@ -108,11 +108,18 @@ export default function VendorOrdersEnhanced() {
   });
 
   const fetchOrders = useCallback(async () => {
-    if (!vendor) return;
+    if (!vendor || !currentBusiness) {
+      console.log("⚠️ No vendor or business, skipping fetch");
+      return;
+    }
 
     try {
       setIsLoading(true);
-      console.log("📥 Fetching vendor orders...");
+      console.log("📥 Fetching vendor orders for:", {
+        vendorId: vendor.id,
+        businessId: currentBusiness.id,
+        businessName: currentBusiness.name
+      });
 
       // Server gets vendor from auth token, no need to pass vendor.id
       const response = await vendorApi.getVendorOrders();
@@ -141,7 +148,7 @@ export default function VendorOrdersEnhanced() {
     } finally {
       setIsLoading(false);
     }
-  }, [vendor]);
+  }, [vendor, currentBusiness]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -149,9 +156,11 @@ export default function VendorOrdersEnhanced() {
     setRefreshing(false);
   }, [fetchOrders]);
 
+  // Fetch orders when component mounts or when vendor/currentBusiness changes
   useEffect(() => {
+    console.log("🔄 Orders effect triggered - vendor:", vendor?.id, "business:", currentBusiness?.id);
     fetchOrders();
-  }, [fetchOrders]);
+  }, [fetchOrders]); // fetchOrders already depends on vendor and currentBusiness
 
   useEffect(() => {
     const filtered = orders.filter((order) => {
