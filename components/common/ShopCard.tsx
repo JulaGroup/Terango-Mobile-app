@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, Dimensions } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -66,6 +67,9 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
           <Image
             source={{ uri: shop.imageUrl }}
             style={styles.image}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}
           />
         ) : (

@@ -1,0 +1,1467 @@
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Modal,
+  TextInput,
+  Switch,
+  ScrollView,
+  StatusBar,
+  Animated,
+  FlatList,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
+import { useVendor } from "@/context/VendorContext";
+import { menuApi, subCategoryApi } from "@/lib/api";
+import { PrimaryColor } from "@/constants/Colors";
+import { useRealTime } from "@/hooks/useRealTime";
+import { MEAL_TIMES, getSelectableMealTimes } from "@/constants/MealTimes";
+
+const { width } = Dimensions.get("window");
+
+interface SubCategory {
+  id: string;
+  name: string;
+  imageUrl?: string;
+}
+
+interface MenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+  isAvailable: boolean;
+  mealTime?: string; // This is what the schema has instead of "category"
+  preparationTime?: number;
+  menuId?: string; // Required in schema but optional here for display
+  subCategoryId?: string;
+}
+
+export default function VendorMenuEnhanced() {
+  const router = useRouter();
+  const { currentBusiness } = useVendor();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
+  const [loadingSubCategories, setLoadingSubCategories] = useState(true);
+
+  // Animation values
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
+  const slideAnim = useMemo(() => new Animated.Value(50), []);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price: "",
+    mealTime: "", // Changed from category to mealTime
+    subCategoryId: "",
+    preparationTime: "",
+    imageUrl: "",
+    isAvailable: true,
+  });
+
+  // Fetch subcategories on component mount
+  useEffect(() => {
+    const fetchSubCategories = async () => {
+      try {
+        setLoadingSubCategories(true);
+        const response = await subCategoryApi.getAllSubCategories();
+        console.log("📂 Fetched subcategories:", response);
+
+        if (response?.data) {
+          setSubCategories(response.data);
+        } else if (Array.isArray(response)) {
+          setSubCategories(response);
+        } else {
+          setSubCategories([]);
+        }
+      } catch (error) {
+        console.error("❌ Error fetching subcategories:", error);
+        setSubCategories([]);
+      } finally {
+        setLoadingSubCategories(false);
+      }
+    };
+    fetchSubCategories();
+  }, []);
+
+  // 🔥 Real-time integration for menu updates
+  useRealTime({
+    enablePushNotifications: false, // Menu doesn't need push notifications
+    enableWebSocket: true,
+    enablePolling: false,
+    onMenuUpdate: async (menuData) => {
+      console.log("🍔 Menu updated via WebSocket:", menuData);
+      // Refresh menu items when updates occur
+      await fetchMenuItems();
+    },
+  });
+
+  const fetchMenuItems = useCallback(async () => {
+    if (!currentBusiness || currentBusiness.type !== "RESTAURANT") {
+      console.log(
+        "🏪 No current business or not a restaurant:",
+        currentBusiness
+      );
+      setMenuItems([]);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      console.log("🍽️ Fetching menu items for restaurant:", currentBusiness.id);
+
+      // Use the correct API endpoint that matches your VM system
+      const response = await menuApi.getMenuItemsByRestaurant(
+        currentBusiness.id
+      );
+      console.log("📋 Menu items response:", response);
+
+      if (response?.data) {
+        const menuItemsData = Array.isArray(response.data) ? response.data : [];
+        console.log(
+          "✅ Menu items data (from response.data):",
+          menuItemsData.length,
+          "items"
+        );
+        setMenuItems(menuItemsData);
+      } else if (Array.isArray(response)) {
+        console.log(
+          "✅ Menu items data (direct array):",
+          response.length,
+          "items"
+        );
+        setMenuItems(response);
+      } else {
+        console.log("⚠️ No valid menu items found in response");
+        setMenuItems([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching menu items:", error);
+      setMenuItems([]);
+      Alert.alert("Error", "Failed to load menu items. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentBusiness]);
+
+  useEffect(() => {
+    console.log("🏢 Current business in menu screen:", currentBusiness);
+
+    if (currentBusiness?.type === "RESTAURANT") {
+      fetchMenuItems();
+    }
+
+    // Animate in
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [fetchMenuItems, currentBusiness, fadeAnim, slideAnim]);
+
+  const toggleAvailability = async (itemId: string, isAvailable: boolean) => {
+    try {
+      // Use the correct menuApi method
+      await menuApi.updateMenuItemAvailability(itemId, isAvailable);
+      setMenuItems((prevItems) =>
+        prevItems.map((item) =>
+          item.id === itemId ? { ...item, isAvailable } : item
+        )
+      );
+    } catch (error) {
+      console.error("Error updating availability:", error);
+      Alert.alert("Error", "Failed to update item availability");
+    }
+  };
+
+  const handleEdit = (item: MenuItem) => {
+    setSelectedItem(item);
+    setFormData({
+      name: item.name,
+      description: item.description || "",
+      price: item.price.toString(),
+      mealTime: item.mealTime || "Main Course", // Use mealTime from schema
+      subCategoryId: item.subCategoryId || "",
+      preparationTime: item.preparationTime?.toString() || "",
+      imageUrl: item.imageUrl || "",
+      isAvailable: item.isAvailable,
+    });
+    setEditMode(true);
+    setModalVisible(true);
+  };
+
+  const handleAdd = () => {
+    setSelectedItem(null);
+    setFormData({
+      name: "",
+      description: "",
+      price: "",
+      mealTime: "Main Course",
+      subCategoryId: "",
+      preparationTime: "",
+      imageUrl: "",
+      isAvailable: true,
+    });
+    setEditMode(false);
+    setModalVisible(true);
+  };
+
+  const handleSave = async () => {
+    if (!currentBusiness || currentBusiness.type !== "RESTAURANT") {
+      Alert.alert("Error", "Menu items can only be managed for restaurants");
+      return;
+    }
+
+    try {
+      // Build item data matching the MenuItem Prisma schema
+      const itemData = {
+        name: formData.name,
+        description: formData.description,
+        price: parseFloat(formData.price),
+        preparationTime: formData.preparationTime
+          ? parseInt(formData.preparationTime)
+          : 15,
+        isAvailable: formData.isAvailable,
+        ...(formData.imageUrl && { imageUrl: formData.imageUrl }),
+        // mealTime is used in the schema
+        ...(formData.mealTime && { mealTime: formData.mealTime }),
+        // Add subCategoryId if selected
+        ...(formData.subCategoryId && {
+          subCategoryId: formData.subCategoryId,
+        }),
+      };
+
+      if (editMode && selectedItem) {
+        // Use the correct menuApi method for updating
+        await menuApi.updateMenuItem(selectedItem.id, itemData);
+      } else {
+        // For creating, we need to provide restaurantId
+        // Server will auto-create/get the menu for this restaurant
+        await menuApi.createMenuItem({
+          ...itemData,
+          restaurantId: currentBusiness.id,
+        });
+      }
+
+      setModalVisible(false);
+      await fetchMenuItems();
+      Alert.alert(
+        "Success",
+        `Menu item ${editMode ? "updated" : "added"} successfully`
+      );
+    } catch (error) {
+      console.error("Error saving menu item:", error);
+      Alert.alert(
+        "Error",
+        `Failed to ${editMode ? "update" : "add"} menu item`
+      );
+    }
+  };
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      filterCategory === "" ||
+      filterCategory === "All" ||
+      item.mealTime === filterCategory; // Use mealTime from schema
+    return matchesSearch && matchesCategory;
+  });
+
+  const getMenuSummary = () => {
+    const availableItems = menuItems.filter((item) => item.isAvailable).length;
+    const unavailableItems = menuItems.filter(
+      (item) => !item.isAvailable
+    ).length;
+    const totalItems = menuItems.length;
+    return { availableItems, unavailableItems, totalItems };
+  };
+
+  const { availableItems, unavailableItems, totalItems } = getMenuSummary();
+
+  // Cloudinary configuration - matching Next.js VM format exactly
+  const CLOUDINARY_CLOUD_NAME = "dkpi5ij2t";
+  const CLOUDINARY_UPLOAD_PRESET = "unsigned_preset";
+
+  // 🚀 Image compression before upload
+  const compressImage = async (uri: string): Promise<string> => {
+    try {
+      console.log("📸 Compressing image...");
+
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [
+          { resize: { width: 1200 } }, // Resize to max 1200px width (maintains aspect ratio)
+        ],
+        {
+          compress: 0.7, // 70% quality (good balance between quality and size)
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      console.log("✅ Image compressed successfully");
+      return manipResult.uri;
+    } catch (error) {
+      console.error("❌ Error compressing image:", error);
+      // Return original URI if compression fails
+      return uri;
+    }
+  };
+
+  const handleImageUpload = async (uri: string): Promise<string> => {
+    try {
+      setImageLoading(true);
+
+      // 🚀 Compress image before uploading
+      const compressedUri = await compressImage(uri);
+
+      // Create FormData for Cloudinary upload
+      const formData = new FormData();
+      formData.append("file", {
+        uri: compressedUri,
+        type: "image/jpeg",
+        name: "menu-item.jpg",
+      } as any);
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+      console.log("☁️ Uploading to Cloudinary...");
+      const uploadResponse = await fetch(cloudinaryUrl, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await uploadResponse.json();
+      console.log("✅ Upload successful:", data.secure_url);
+      setImageLoading(false);
+      return data.secure_url;
+    } catch (error) {
+      console.error("❌ Error uploading to Cloudinary:", error);
+      setImageLoading(false);
+      Alert.alert("Upload Error", "Failed to upload image. Please try again.");
+      return "";
+    }
+  };
+
+  const handleImagePicker = async () => {
+    try {
+      const permissionResult =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (permissionResult.granted === false) {
+        Alert.alert(
+          "Permission Required",
+          "Permission to access camera roll is required!"
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        // Upload to Cloudinary and get secure URL
+        const cloudinaryUrl = await handleImageUpload(result.assets[0].uri);
+
+        if (cloudinaryUrl) {
+          setFormData({ ...formData, imageUrl: cloudinaryUrl });
+          Alert.alert("Success", "Image uploaded successfully to Cloudinary!");
+        }
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      setImageLoading(false);
+      Alert.alert("Error", "Failed to select image");
+    }
+  };
+
+  const handleDelete = async (itemId: string) => {
+    Alert.alert(
+      "Delete Menu Item",
+      "Are you sure you want to delete this menu item?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await menuApi.deleteMenuItem(itemId);
+              await fetchMenuItems();
+              Alert.alert("Success", "Menu item deleted successfully");
+            } catch (error) {
+              console.error("Error deleting menu item:", error);
+              Alert.alert("Error", "Failed to delete menu item");
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // 🚀 Performance: Memoized render function with React.memo
+  const MenuItemCard = React.memo(function MenuItemCard({
+    item,
+  }: {
+    item: MenuItem;
+  }) {
+    return (
+      <View style={styles.menuItemCard}>
+        {/* Item Image */}
+        <View style={styles.itemImageContainer}>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.itemImage}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+              accessibilityLabel={`Image of ${item.name}`}
+            />
+          ) : (
+            <View
+              style={styles.itemImagePlaceholder}
+              accessibilityLabel={`No image for ${item.name}`}
+            >
+              <Ionicons name="restaurant" size={40} color="#ccc" />
+            </View>
+          )}
+          {/* Availability Badge */}
+          <View
+            style={[
+              styles.availabilityBadge,
+              item.isAvailable
+                ? styles.availableBadge
+                : styles.unavailableBadge,
+            ]}
+            accessibilityLabel={`Item is ${
+              item.isAvailable ? "available" : "unavailable"
+            }`}
+          >
+            <Ionicons
+              name={item.isAvailable ? "checkmark-circle" : "close-circle"}
+              size={14}
+              color="white"
+            />
+            <Text style={styles.availabilityBadgeText}>
+              {item.isAvailable ? "Available" : "Unavailable"}
+            </Text>
+          </View>
+        </View>
+
+        {/* Item Info */}
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemName} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {item.description && (
+            <Text style={styles.itemDescription} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+
+          <View style={styles.itemDetails}>
+            <Text
+              style={styles.itemPrice}
+              accessibilityLabel={`Price: ${item.price.toLocaleString()} GMD`}
+            >
+              GMD {item.price.toLocaleString()}
+            </Text>
+            {item.preparationTime && (
+              <View
+                style={styles.prepTimeContainer}
+                accessibilityLabel={`Preparation time: ${item.preparationTime} minutes`}
+              >
+                <Ionicons name="time-outline" size={14} color="#666" />
+                <Text style={styles.prepTimeText}>
+                  {item.preparationTime} min
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.itemActions}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.toggleButton]}
+              onPress={() => toggleAvailability(item.id, !item.isAvailable)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                item.isAvailable ? "Disable item" : "Enable item"
+              }
+              accessibilityHint={`${
+                item.isAvailable
+                  ? "Makes this item unavailable"
+                  : "Makes this item available"
+              } for customers to order`}
+            >
+              <Ionicons
+                name={item.isAvailable ? "eye-off-outline" : "eye-outline"}
+                size={18}
+                color={item.isAvailable ? "#F44336" : "#4CAF50"}
+              />
+              {/* <Text style={styles.actionButtonText}>
+                {item.isAvailable ? "Disable" : "Enable"}
+              </Text> */}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.editButton]}
+              onPress={() => handleEdit(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit item"
+              accessibilityHint="Opens form to edit this menu item"
+            >
+              <Ionicons name="create-outline" size={18} color="#2196F3" />
+              {/* <Text style={styles.actionButtonText}>Edit</Text> */}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.deleteButton]}
+              onPress={() => handleDelete(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Delete item"
+              accessibilityHint="Permanently removes this menu item"
+            >
+              <Ionicons name="trash-outline" size={18} color="#F44336" />
+              {/* <Text style={styles.actionButtonText}>Delete</Text> */}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  });
+
+  // 🚀 Performance: Memoized renderItem
+  const renderMenuItem = useCallback(
+    ({ item }: { item: MenuItem }) => <MenuItemCard item={item} />,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  if (currentBusiness?.type !== "RESTAURANT") {
+    return (
+      <SafeAreaView style={styles.container}>
+        <LinearGradient
+          colors={[PrimaryColor, "#1976D2"]}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerContent}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Menu Management</Text>
+            <View style={styles.headerRight} />
+          </View>
+        </LinearGradient>
+
+        <View style={styles.emptyState}>
+          <Ionicons name="restaurant-outline" size={80} color="#ccc" />
+          <Text style={styles.emptyTitle}>Restaurant Only</Text>
+          <Text style={styles.emptyDescription}>
+            Menu management is only available for restaurant businesses
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const getBusinessName = () => {
+    if (currentBusiness?.name) {
+      return currentBusiness.name;
+    }
+    return "Your Restaurant";
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
+
+      {/* Modern Header with Gradient */}
+      <LinearGradient
+        colors={[PrimaryColor, "#1976D2"]}
+        style={styles.headerGradient}
+      >
+        <Animated.View
+          style={[
+            styles.headerContent,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <View style={styles.headerTop}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              accessibilityHint="Returns to previous screen"
+            >
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Menu Management</Text>
+              <Text style={styles.headerSubtitle}>{getBusinessName()}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={handleAdd}
+              accessibilityRole="button"
+              accessibilityLabel="Add new menu item"
+              accessibilityHint="Opens form to create a new menu item"
+            >
+              <Ionicons name="add" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Stats Cards */}
+          <View
+            style={styles.statsContainer}
+            accessibilityLabel={`Menu statistics: ${totalItems} total items, ${availableItems} available, ${unavailableItems} unavailable`}
+          >
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalItems}</Text>
+              <Text style={styles.statLabel}>Total Items</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: "#4CAF50" }]}>
+                {availableItems}
+              </Text>
+              <Text style={styles.statLabel}>Available</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: "#F44336" }]}>
+                {unavailableItems}
+              </Text>
+              <Text style={styles.statLabel}>Unavailable</Text>
+            </View>
+          </View>
+        </Animated.View>
+      </LinearGradient>
+
+      {/* Search and Filter */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color="#666" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search menu items..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            accessibilityLabel="Search menu items"
+            accessibilityHint="Type to filter menu items by name"
+            accessibilityRole="search"
+          />
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.filterContainer}
+          accessibilityLabel="Category filters"
+          accessibilityHint="Swipe to browse and select categories"
+        >
+          <TouchableOpacity
+            key="all"
+            style={[
+              styles.filterChip,
+              filterCategory === "" && styles.filterChipActive,
+            ]}
+            onPress={() => setFilterCategory("")}
+            accessibilityRole="button"
+            accessibilityLabel="Show all items"
+            accessibilityState={{ selected: filterCategory === "" }}
+          >
+            <Text
+              style={[
+                styles.filterChipText,
+                filterCategory === "" && styles.filterChipTextActive,
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
+          {subCategories.map((subCat) => (
+            <TouchableOpacity
+              key={subCat.id}
+              style={[
+                styles.filterChip,
+                filterCategory === subCat.name && styles.filterChipActive,
+              ]}
+              onPress={() => setFilterCategory(subCat.name)}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${subCat.name}`}
+              accessibilityHint={`${
+                filterCategory === subCat.name
+                  ? "Currently selected"
+                  : "Tap to filter by this category"
+              }`}
+              accessibilityState={{ selected: filterCategory === subCat.name }}
+            >
+              <Text
+                style={[
+                  styles.filterChipText,
+                  filterCategory === subCat.name && styles.filterChipTextActive,
+                ]}
+              >
+                {subCat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {/* Menu Items List with Enhanced Controls */}
+      <View style={styles.listContainer}>
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={PrimaryColor} />
+            <Text style={styles.loadingText}>Loading menu items...</Text>
+          </View>
+        ) : filteredMenuItems.length > 0 ? (
+          <FlatList
+            data={filteredMenuItems}
+            renderItem={renderMenuItem}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.flatListContent}
+            numColumns={2}
+            columnWrapperStyle={styles.columnWrapper}
+            // 🚀 Performance optimizations
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            updateCellsBatchingPeriod={50}
+            initialNumToRender={6}
+            windowSize={5}
+            // ♿ Accessibility
+            accessibilityLabel="Menu items list"
+            accessibilityHint={`Showing ${filteredMenuItems.length} menu items`}
+          />
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="restaurant-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Menu Items</Text>
+            <Text style={styles.emptyDescription}>
+              {searchQuery || filterCategory
+                ? "No items match your search criteria"
+                : "Start by adding your first menu item"}
+            </Text>
+            {!searchQuery && !filterCategory && (
+              <TouchableOpacity style={styles.emptyAction} onPress={handleAdd}>
+                <Text style={styles.emptyActionText}>Add First Item</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Enhanced Modal */}
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={[PrimaryColor, "#1976D2"]}
+              style={styles.modalHeader}
+            >
+              <Text style={styles.modalTitle}>
+                {editMode ? "Edit Menu Item" : "Add Menu Item"}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="white" />
+              </TouchableOpacity>
+            </LinearGradient>
+
+            <ScrollView style={styles.form}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Item Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter item name"
+                  value={formData.name}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, name: text })
+                  }
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Describe your dish"
+                  value={formData.description}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, description: text })
+                  }
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              {/* Image Upload Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Item Image</Text>
+                <TouchableOpacity
+                  style={styles.imagePickerContainer}
+                  onPress={handleImagePicker}
+                >
+                  {formData.imageUrl ? (
+                    <View style={styles.selectedImageContainer}>
+                      <Image
+                        source={{ uri: formData.imageUrl }}
+                        style={styles.selectedImage}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                      />
+                      {imageLoading && (
+                        <View style={styles.imageOverlay}>
+                          <ActivityIndicator
+                            size="large"
+                            color={PrimaryColor}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <Ionicons name="camera" size={40} color="#ccc" />
+                      <Text style={styles.imagePlaceholderText}>
+                        {imageLoading ? "Uploading..." : "Add Image"}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                  <Text style={styles.inputLabel}>Price (GMD) *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    value={formData.price}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, price: text })
+                    }
+                    keyboardType="numeric"
+                  />
+                </View>
+
+                <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
+                  <Text style={styles.inputLabel}>Prep Time (min)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="15"
+                    value={formData.preparationTime}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, preparationTime: text })
+                    }
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
+
+              {/* Meal Time Selector */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Meal Time *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categorySelector}>
+                    {getSelectableMealTimes().map((mealTime) => (
+                      <TouchableOpacity
+                        key={mealTime.id}
+                        style={[
+                          styles.categoryOption,
+                          formData.mealTime === mealTime.name &&
+                            styles.categoryOptionActive,
+                        ]}
+                        onPress={() =>
+                          setFormData({
+                            ...formData,
+                            mealTime: mealTime.name,
+                          })
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            formData.mealTime === mealTime.name &&
+                              styles.categoryOptionTextActive,
+                          ]}
+                        >
+                          {mealTime.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+              </View>
+
+              {/* Subcategory Selector (Optional) */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Category (Subcategory - Optional)</Text>
+                {loadingSubCategories ? (
+                  <ActivityIndicator size="small" color={PrimaryColor} />
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={styles.categorySelector}>
+                      <TouchableOpacity
+                        style={[
+                          styles.categoryOption,
+                          !formData.subCategoryId &&
+                            styles.categoryOptionActive,
+                        ]}
+                        onPress={() =>
+                          setFormData({
+                            ...formData,
+                            subCategoryId: "",
+                          })
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.categoryOptionText,
+                            !formData.subCategoryId &&
+                              styles.categoryOptionTextActive,
+                          ]}
+                        >
+                          None
+                        </Text>
+                      </TouchableOpacity>
+                      {subCategories.map((subCat) => (
+                        <TouchableOpacity
+                          key={subCat.id}
+                          style={[
+                            styles.categoryOption,
+                            formData.subCategoryId === subCat.id &&
+                              styles.categoryOptionActive,
+                          ]}
+                          onPress={() =>
+                            setFormData({
+                              ...formData,
+                              subCategoryId: subCat.id,
+                            })
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.categoryOptionText,
+                              formData.subCategoryId === subCat.id &&
+                                styles.categoryOptionTextActive,
+                            ]}
+                          >
+                            {subCat.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </View>
+
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Available for Order</Text>
+                <Switch
+                  value={formData.isAvailable}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, isAvailable: value })
+                  }
+                  trackColor={{ false: "#767577", true: PrimaryColor }}
+                />
+              </View>
+
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                <LinearGradient
+                  colors={[PrimaryColor, "#1976D2"]}
+                  style={styles.saveButtonGradient}
+                >
+                  <Text style={styles.saveButtonText}>
+                    {editMode ? "Update Item" : "Add Item"}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+  },
+  headerGradient: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerContent: {
+    marginTop: 10,
+  },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: "center",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 2,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  headerRight: {
+    width: 40,
+  },
+  addButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  statCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    flex: 1,
+    marginHorizontal: 5,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "white",
+    marginBottom: 5,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  searchContainer: {
+    backgroundColor: "white",
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginBottom: 15,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+    color: "#333",
+  },
+  filterContainer: {},
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+    marginRight: 10,
+  },
+  filterChipActive: {
+    backgroundColor: PrimaryColor,
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  filterChipTextActive: {
+    color: "white",
+  },
+  listContainer: {
+    flex: 1,
+    padding: 15,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 40,
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#333",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  emptyDescription: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 24,
+    marginBottom: 30,
+  },
+  emptyAction: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+  },
+  emptyActionText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    maxHeight: "90%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "white",
+  },
+  form: {
+    padding: 20,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 16,
+    backgroundColor: "white",
+  },
+  textArea: {
+    height: 80,
+    textAlignVertical: "top",
+  },
+  row: {
+    flexDirection: "row",
+  },
+  categorySelector: {
+    flexDirection: "row",
+  },
+  categoryOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+    marginRight: 10,
+  },
+  categoryOptionActive: {
+    backgroundColor: PrimaryColor,
+  },
+  categoryOptionText: {
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  categoryOptionTextActive: {
+    color: "white",
+  },
+  switchContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: "#f0f0f0",
+    marginBottom: 30,
+  },
+  switchLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  saveButton: {
+    borderRadius: 12,
+    overflow: "hidden",
+    marginBottom: 10,
+  },
+  saveButtonGradient: {
+    padding: 18,
+    alignItems: "center",
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  // Image upload styles
+  imagePickerContainer: {
+    borderWidth: 2,
+    borderColor: "#e0e0e0",
+    borderStyle: "dashed",
+    borderRadius: 12,
+    height: 120,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+  },
+  selectedImageContainer: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 10,
+    overflow: "hidden",
+    position: "relative",
+  },
+  selectedImage: {
+    width: "100%",
+    height: "100%",
+  },
+  imageOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imagePlaceholder: {
+    alignItems: "center",
+  },
+  imagePlaceholderText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: "#666",
+    fontWeight: "500",
+  },
+  // Menu item card styles
+  flatListContent: {
+    paddingBottom: 20,
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 15,
+    fontSize: 16,
+    color: "#666",
+  },
+  menuItemCard: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    marginBottom: 15,
+    width: (width - 45) / 2, // 2 columns with padding
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+    overflow: "hidden",
+  },
+  itemImageContainer: {
+    width: "100%",
+    height: 120,
+    position: "relative",
+  },
+  itemImage: {
+    width: "100%",
+    height: "100%",
+  },
+  itemImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  availabilityBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  availableBadge: {
+    backgroundColor: "rgba(76, 175, 80, 0.9)",
+  },
+  unavailableBadge: {
+    backgroundColor: "rgba(244, 67, 54, 0.9)",
+  },
+  availabilityBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+  },
+  itemInfo: {
+    padding: 12,
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 4,
+  },
+  itemDescription: {
+    fontSize: 12,
+    color: "#666",
+    lineHeight: 16,
+    marginBottom: 8,
+  },
+  itemDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: PrimaryColor,
+  },
+  prepTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  prepTimeText: {
+    fontSize: 12,
+    color: "#666",
+    marginLeft: 4,
+  },
+  itemActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 4,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  toggleButton: {
+    borderColor: "#E0E0E0",
+    backgroundColor: "#F5F5F5",
+  },
+  editButton: {
+    borderColor: "#2196F3",
+    backgroundColor: "rgba(33, 150, 243, 0.05)",
+  },
+  deleteButton: {
+    borderColor: "#F44336",
+    backgroundColor: "rgba(244, 67, 54, 0.05)",
+  },
+  actionButtonText: {
+    fontSize: 10,
+    fontWeight: "600",
+    marginLeft: 4,
+    color: "#666",
+  },
+});

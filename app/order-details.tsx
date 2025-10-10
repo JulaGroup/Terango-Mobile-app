@@ -190,6 +190,51 @@ export default function OrderDetailsPage() {
     );
   };
 
+  const handlePayNow = async () => {
+    if (!order) return;
+
+    Alert.alert(
+      "Confirm Payment",
+      `Proceed with payment of ${formatAmount(order.totalAmount + 200)}?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Pay Now",
+          onPress: async () => {
+            try {
+              setLoading(true);
+              const updatedOrder = await orderApi.payForOrder(order.id);
+              setOrder(updatedOrder);
+
+              Alert.alert(
+                "Payment Successful! 🎉",
+                "Your payment has been processed. The vendor will now prepare your order.",
+                [
+                  {
+                    text: "OK",
+                    onPress: () => fetchOrderDetails(true),
+                  },
+                ]
+              );
+            } catch (error: any) {
+              console.error("Payment error:", error);
+              Alert.alert(
+                "Payment Failed",
+                error.message || "Failed to process payment. Please try again.",
+                [{ text: "OK" }]
+              );
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const SkeletonBox = ({
     width,
     height,
@@ -743,16 +788,31 @@ export default function OrderDetailsPage() {
         </View>
       </ScrollView>
 
-      {/* Fixed Track Button */}
+      {/* Fixed Action Buttons */}
       <View style={styles.trackButtonContainer}>
-        <TouchableOpacity
-          style={styles.trackButton}
-          onPress={handleTrackOrder}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="location" size={20} color="#fff" />
-          <Text style={styles.trackButtonText}>Track Order</Text>
-        </TouchableOpacity>
+        {/* Show Pay Now button if order is ACCEPTED and UNPAID */}
+        {order.status === "ACCEPTED" && order.paymentStatus === "UNPAID" ? (
+          <TouchableOpacity
+            style={styles.payNowButton}
+            onPress={handlePayNow}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="card-outline" size={20} color="#fff" />
+            <Text style={styles.payNowButtonText}>
+              Pay Now - {formatAmount(order.totalAmount + 200)}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          /* Show Track Order button for all other statuses */
+          <TouchableOpacity
+            style={styles.trackButton}
+            onPress={handleTrackOrder}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="location" size={20} color="#fff" />
+            <Text style={styles.trackButtonText}>Track Order</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -1059,14 +1119,35 @@ const styles = StyleSheet.create({
     gap: 8,
     shadowColor: PrimaryColor,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 4,
   },
   trackButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+
+  // 💳 Pay Now Button (prominent green button)
+  payNowButton: {
+    backgroundColor: "#10B981", // Green color for payment
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+    shadowColor: "#10B981",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  payNowButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
   },
 
   // Error States

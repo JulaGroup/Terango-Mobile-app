@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Image, Dimensions } from "react-native";
+import { View, Text, TouchableOpacity, Dimensions } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,6 +40,36 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
   const CARD_WIDTH = fullWidth ? width - 32 : width * 0.75;
 
+  // Check if restaurant is currently open based on day and time
+  const isCurrentlyOpen = () => {
+    if (!restaurant.isActive) return false;
+    if (!restaurant.openingHours) return true; // Assume open if no hours set
+
+    try {
+      const now = new Date();
+      const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+      
+      const dayHours = restaurant.openingHours[currentDay];
+      
+      if (!dayHours) return true; // Assume open if no data for this day
+      if (dayHours.closed) return false; // Explicitly closed
+      
+      // Check if current time is within opening hours
+      const openTime = dayHours.open;
+      const closeTime = dayHours.close;
+      
+      if (!openTime || !closeTime) return true; // Assume open if times not set
+      
+      return currentTime >= openTime && currentTime <= closeTime;
+    } catch (error) {
+      console.error('Error checking opening hours:', error);
+      return true; // Default to open on error
+    }
+  };
+
+  const currentlyOpen = isCurrentlyOpen();
+
   return (
     <TouchableOpacity
       style={{
@@ -69,6 +100,9 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           <Image
             source={{ uri: restaurant.imageUrl }}
             style={styles.image}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}
           />
         ) : (
@@ -80,12 +114,15 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           </LinearGradient>
         )}
 
-        {/* Status Badge */}
-        {restaurant.isActive && (
-          <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>OPEN</Text>
-          </View>
-        )}
+        {/* Status Badge - Show OPEN or CLOSED based on current time */}
+        <View style={[
+          styles.activeBadge,
+          { backgroundColor: currentlyOpen ? "#27AE60" : "#E74C3C" }
+        ]}>
+          <Text style={styles.activeBadgeText}>
+            {currentlyOpen ? "OPEN" : "CLOSED"}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.restaurantInfo}>

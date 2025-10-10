@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Dimensions, FlatList, Image, StyleSheet, View } from "react-native";
+import { Dimensions, FlatList, StyleSheet, View } from "react-native";
+import { Image } from "expo-image";
 
 const ads = [
   { id: 1, image: require("../../../assets/images/adverts/advert1.jpg") },
@@ -47,7 +48,9 @@ const AdvertCard = () => {
               <Image
                 source={item.image}
                 style={styles.image}
-                resizeMode="cover"
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
               />
               {/* Dots inside card, bottom right */}
               <View style={styles.dotsContainer}>

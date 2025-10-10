@@ -1,7 +1,8 @@
 import { stores } from "@/constants/fakeData";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import React from "react";
-import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
 
 const StoresNearYou = () => {
   return (
@@ -60,6 +61,9 @@ const StoresNearYou = () => {
                   borderRadius: 50,
                 }}
                 source={store.image}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory-disk"
               />
               <Text
                 style={{

@@ -99,14 +99,20 @@ export default function ProfilePage() {
 
         // Fetch vendor application status if user is not already a vendor
         if (userData?.role !== "VENDOR") {
+          console.log("🔍 Fetching vendor application status...");
           try {
             const applicationResponse =
               await VendorApplicationAPI.getUserApplication(token);
+            console.log("📋 Vendor application response:", applicationResponse);
             if (applicationResponse?.application) {
               const applicationData = {
                 status: applicationResponse.application.status,
                 businessName: applicationResponse.application.businessName,
               };
+              console.log(
+                "✅ Setting vendor application data:",
+                applicationData
+              );
               setVendorApplication(applicationData);
 
               // Show notification for approved vendors about web portal
@@ -131,13 +137,30 @@ export default function ProfilePage() {
                   ]
                 );
               }
+            } else {
+              // No application data returned
+              console.log(
+                "❌ No vendor application data found, setting to null"
+              );
+              setVendorApplication(null);
             }
           } catch (error: any) {
             // If no application found (404), that's fine - user hasn't applied yet
-            if (!error.message?.includes("No application found")) {
-              console.log("Error fetching vendor application:", error);
+            if (error.message?.includes("No application found")) {
+              console.log(
+                "❌ No vendor application found (404), setting to null"
+              );
+              setVendorApplication(null);
+            } else {
+              console.log("🚨 Error fetching vendor application:", error);
             }
           }
+        } else {
+          // User is already a vendor, clear any application status
+          console.log(
+            "👑 User is already a vendor, clearing application status"
+          );
+          setVendorApplication(null);
         }
       } catch (apiError: any) {
         console.log("API call failed:", apiError);
@@ -268,23 +291,8 @@ export default function ProfilePage() {
           );
           break;
         case "APPROVED":
-          // Redirect approved vendors to web portal information
-          Alert.alert(
-            "Vendor Account Approved!",
-            `Congratulations! Your vendor account for "${vendorApplication.businessName}" is active. Please visit our vendor web portal to manage your business.`,
-            [
-              {
-                text: "Learn More",
-                onPress: () =>
-                  Alert.alert(
-                    "Vendor Web Portal",
-                    "Visit our vendor web portal on your computer or tablet to:\n\n• Manage your products and inventory\n• View and process orders\n• Track sales and analytics\n• Update store settings\n\nThe web portal provides better tools for business management than the mobile app.",
-                    [{ text: "Got it!" }]
-                  ),
-              },
-              { text: "OK" },
-            ]
-          );
+          // Redirect approved vendors to vendor dashboard
+          router.push("/vendor/dashboard");
           break;
         case "REJECTED":
           Alert.alert(
@@ -333,22 +341,7 @@ export default function ProfilePage() {
         {
           text: "Apply Now",
           onPress: () => {
-            Alert.alert(
-              "Vendor Application",
-              "To become a vendor on TeranGo, please contact our team who will guide you through the application process and requirements.",
-              [
-                {
-                  text: "Contact Support",
-                  onPress: () =>
-                    Alert.alert(
-                      "Contact Information",
-                      "Please contact us at:\n\nEmail: vendors@terango.gm\nPhone: +220 XXX XXXX\n\nOur team will help you get started!",
-                      [{ text: "Got it!" }]
-                    ),
-                },
-                { text: "Cancel", style: "cancel" },
-              ]
-            );
+            router.push("/vendor-application");
           },
         },
       ]
@@ -387,6 +380,16 @@ export default function ProfilePage() {
       onPress: () => setShowHelpModal(true),
     },
   ];
+
+  // Add vendor access menu item if user is a vendor or has approved application
+  if (user?.role === "VENDOR" || vendorApplication?.status === "APPROVED") {
+    menuItems.unshift({
+      icon: "storefront-outline",
+      title: "Vendor Dashboard",
+      subtitle: "Manage your business and orders",
+      onPress: () => router.push("/vendor/dashboard"),
+    });
+  }
 
   if (loading) {
     return (

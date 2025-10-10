@@ -19,6 +19,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import MealItemCard from "@/components/common/MealItemCard";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { MEAL_TIMES } from "@/constants/MealTimes";
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;
@@ -308,7 +309,7 @@ export default function RestaurantDetails() {
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeSection, setActiveSection] = useState<string>("All");
+  const [activeSection, setActiveSection] = useState<string>("all");
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -316,15 +317,39 @@ export default function RestaurantDetails() {
     [key: string]: boolean;
   }>({});
 
-  // Group menu items by meal time
-  const [groupedMenuItems, setGroupedMenuItems] = useState<{
-    [key: string]: MenuItem[];
-  }>({});
+  // All menu items (flat list)
+  const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
   const sectionRefs = useRef<{ key: string; y: number }[]>([]);
 
-  const handleTabPress = (category: string) => {
+  const handleTabPress = (categoryId: string) => {
     // only set the active filter; do not auto-scroll
-    setActiveSection(category);
+    setActiveSection(categoryId);
+  };
+
+  // Filter menu items by selected meal time
+  const getFilteredMenuItems = (): { [key: string]: MenuItem[] } => {
+    if (activeSection === "all") {
+      // Group all items by their meal time
+      const grouped: { [key: string]: MenuItem[] } = {};
+      allMenuItems.forEach((item) => {
+        const mealTime = item.mealTime || "Main Course";
+        if (!grouped[mealTime]) {
+          grouped[mealTime] = [];
+        }
+        grouped[mealTime].push(item);
+      });
+      return grouped;
+    } else {
+      // Show only items matching the selected meal time
+      const mealTimeCategory = MEAL_TIMES.find(mt => mt.id === activeSection);
+      if (!mealTimeCategory) return {};
+      
+      const filtered = allMenuItems.filter(
+        (item) => item.mealTime?.toLowerCase() === mealTimeCategory.name.toLowerCase()
+      );
+      
+      return filtered.length > 0 ? { [mealTimeCategory.name]: filtered } : {};
+    }
   };
 
   const fetchRestaurantDetails = useCallback(async () => {
@@ -343,23 +368,19 @@ export default function RestaurantDetails() {
       const data = await response.json();
 
       setRestaurant(data);
-      // Group menu items by meal time
-      const grouped: { [key: string]: MenuItem[] } = {};
-
+      
+      // Flatten all menu items into a single array
+      const allItems: MenuItem[] = [];
       data.menus?.forEach((menu: Menu) => {
         menu.items?.forEach((item: MenuItem) => {
-          const mealTime = item.mealTime || menu.name || "All Items";
-          if (!grouped[mealTime]) {
-            grouped[mealTime] = [];
-          }
-          grouped[mealTime].push(item);
+          allItems.push(item);
         });
       });
 
-      setGroupedMenuItems(grouped);
+      setAllMenuItems(allItems);
 
       // Default to showing all sections
-      setActiveSection("All");
+      setActiveSection("all");
     } catch (err: any) {
       console.error("Error fetching restaurant details:", err);
       setError(err.message || "Failed to load restaurant details");
@@ -728,85 +749,63 @@ export default function RestaurantDetails() {
           </LinearGradient>
         </Animated.View>
 
-        {/* Uber Eats-style Tabs (sticky below header) */}
+        {/* Professional Meal Time Tabs */}
         <View style={styles.tabsContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabsContent}
           >
-            <TouchableOpacity
-              key="All"
-              style={[
-                styles.tabButton,
-                activeSection === "All" && styles.tabButtonActive,
-              ]}
-              onPress={() => handleTabPress("All")}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  activeSection === "All" && styles.tabTextActive,
-                ]}
-              >
-                All
-              </Text>
-            </TouchableOpacity>
-            {Object.keys(groupedMenuItems).map((category) => (
+            {MEAL_TIMES.map((mealTime) => (
               <TouchableOpacity
-                key={category}
+                key={mealTime.id}
                 style={[
                   styles.tabButton,
-                  activeSection === category && styles.tabButtonActive,
+                  activeSection === mealTime.id && styles.tabButtonActive,
                 ]}
-                onPress={() => handleTabPress(category)}
+                onPress={() => handleTabPress(mealTime.id)}
               >
                 <Text
                   style={[
                     styles.tabText,
-                    activeSection === category && styles.tabTextActive,
+                    activeSection === mealTime.id && styles.tabTextActive,
                   ]}
                 >
-                  {category}
+                  {mealTime.name}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-        {/* Menu Items - Horizontal Sliders per Category */}
+        {/* Menu Items - Grouped by Meal Time */}
         <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
-          {Object.entries(groupedMenuItems)
-            .filter(
-              ([category]) =>
-                activeSection === "All" || activeSection === category
-            )
-            .map(([category, items], idx) => (
-              <View
-                key={category}
-                style={styles.menuSection}
-                onLayout={(e) => {
-                  const layoutY = e.nativeEvent.layout.y;
-                  sectionRefs.current[idx] = { key: category, y: layoutY };
-                }}
-              >
-                <Text style={styles.menuSectionTitle}>{category}</Text>
-                <View style={styles.menuItemsList}>
-                  {items.map((item, j) => (
-                    <MealItemCard
-                      key={item.id}
-                      product={{
-                        id:
-                          typeof item.id === "number"
-                            ? item.id
-                            : Number(item.id) || j,
-                        name: item.name,
-                        price: item.price,
-                        image: item.imageUrl || undefined,
-                        description: item.description || undefined,
-                      }}
-                      cartQuantity={getCartItemQuantity(item.id)}
-                      onAddToCart={(p) => handleAddToCart(item)}
+          {Object.entries(getFilteredMenuItems()).map(([category, items], idx) => (
+            <View
+              key={category}
+              style={styles.menuSection}
+              onLayout={(e) => {
+                const layoutY = e.nativeEvent.layout.y;
+                sectionRefs.current[idx] = { key: category, y: layoutY };
+              }}
+            >
+              <Text style={styles.menuSectionTitle}>{category}</Text>
+              <View style={styles.menuItemsList}>
+                {items.map((item: MenuItem, j: number) => (
+                  <MealItemCard
+                    key={item.id}
+                    product={{
+                      id:
+                        typeof item.id === "number"
+                          ? item.id
+                          : Number(item.id) || j,
+                      name: item.name,
+                      price: item.price,
+                      image: item.imageUrl || undefined,
+                      description: item.description || undefined,
+                    }}
+                    cartQuantity={getCartItemQuantity(item.id)}
+                    onAddToCart={(p) => handleAddToCart(item)}
                       onRemoveFromCart={() => handleRemove(item.id)}
                       onPress={() =>
                         router.push({

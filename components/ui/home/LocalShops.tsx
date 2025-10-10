@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, FlatList, Image } from "react-native";
+import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
@@ -88,7 +89,10 @@ const ShopCard = ({
         {shop.imageUrl ? (
           <Image
             source={{ uri: shop.imageUrl }}
-            style={{ width: "100%", height: "100%", resizeMode: "cover" }}
+            style={{ width: "100%", height: "100%" }}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
           />
         ) : (
           <View
@@ -234,6 +238,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
       setLoading(true);
       setError(null);
 
+      console.log("Fetching shops from:", `${API_URL}/api/shops`);
       const response = await fetch(`${API_URL}/api/shops`);
 
       if (!response.ok) {
@@ -241,7 +246,15 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
       }
 
       const data = await response.json();
-      setShops(data || []);
+      console.log("Shops data received:", data);
+
+      // Handle both array and object responses
+      const shopsArray = Array.isArray(data)
+        ? data
+        : data.shops || data.data || [];
+      console.log("Processed shops array:", shopsArray);
+
+      setShops(shopsArray);
     } catch (err: any) {
       console.error("Error fetching shops:", err);
       setError(
@@ -513,7 +526,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
           }}
           keyExtractor={(item, index) => index.toString()}
         />
-      ) : (
+      ) : shops.length > 0 ? (
         <FlatList
           data={shops}
           renderItem={renderShopCard}
@@ -526,6 +539,36 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
           }}
           keyExtractor={(item) => item.id}
         />
+      ) : (
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 20,
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name="storefront-outline" size={48} color="#9CA3AF" />
+          <Text
+            style={{
+              fontSize: 16,
+              color: "#6B7280",
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            No shops available
+          </Text>
+          <Text
+            style={{
+              fontSize: 14,
+              color: "#9CA3AF",
+              marginTop: 4,
+              textAlign: "center",
+            }}
+          >
+            Check back later for local shops
+          </Text>
+        </View>
       )}
     </View>
   );

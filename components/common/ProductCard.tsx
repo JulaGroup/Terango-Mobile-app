@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 
@@ -97,6 +98,9 @@ const ProductCard = ({
           <Image
             source={{ uri: product.image }}
             style={styles.image}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}
           />
         ) : (

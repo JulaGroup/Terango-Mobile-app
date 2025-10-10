@@ -2,6 +2,7 @@ import "react-native-get-random-values";
 import { CartProvider } from "@/context/CartContext";
 import { PermissionProvider } from "@/context/PermissionContext";
 import { AddressProvider } from "@/context/AddressContext";
+import { VendorProvider } from "@/context/VendorContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
   DarkTheme,
@@ -344,150 +345,198 @@ export default function RootLayout() {
       <PermissionProvider>
         <AddressProvider>
           <CartProvider>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <Stack>
-                <Stack.Screen
-                  name="onboarding"
-                  options={{
-                    headerShown: false,
-                    animation: "fade_from_bottom",
-                  }}
-                />
-                <Stack.Screen
-                  name="index"
-                  options={{
-                    headerShown: false,
-                    animation: "fade_from_bottom",
-                  }}
-                />
-                <Stack.Screen
-                  name="auth/index"
-                  options={{
-                    headerShown: false,
-                    animation: "fade_from_bottom",
-                  }}
-                />
-                <Stack.Screen
-                  name="auth/otp"
-                  options={{
-                    headerShown: false,
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen
-                  name="auth/complete-profile"
-                  options={{
-                    headerShown: false,
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen
-                  name="CategoryDetailsPage"
-                  options={{
-                    headerShown: false,
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen
-                  name="AllCategoriesPage"
-                  options={{
-                    headerShown: false,
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen
-                  name="SubCategoryView"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="cart"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="restaurant-details"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="shop-details"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
+            <VendorProvider>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <Stack>
+                  <Stack.Screen
+                    name="onboarding"
+                    options={{
+                      headerShown: false,
+                      animation: "fade_from_bottom",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="index"
+                    options={{
+                      headerShown: false,
+                      animation: "fade_from_bottom",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="auth/index"
+                    options={{
+                      headerShown: false,
+                      animation: "fade_from_bottom",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="auth/otp"
+                    options={{
+                      headerShown: false,
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="auth/complete-profile"
+                    options={{
+                      headerShown: false,
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="(tabs)"
+                    options={{ headerShown: false }}
+                  />
+                  <Stack.Screen
+                    name="CategoryDetailsPage"
+                    options={{
+                      headerShown: false,
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="AllCategoriesPage"
+                    options={{
+                      headerShown: false,
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="SubCategoryView"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="cart"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="restaurant-details"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="shop-details"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
 
-                <Stack.Screen
-                  name="checkout"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="product/[productId]"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="menuitem/[menuitem]"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="ViewAllRestaurants"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="order-details"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="ViewAllStores"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="storeCategoryProducts"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="payment-methods"
-                  options={{
-                    animation: "slide_from_right",
-                    headerShown: false,
-                  }}
-                />
-                <Stack.Screen
-                  name="+not-found"
-                  options={{ headerShown: false }}
-                />
-              </Stack>
-              <StatusBar style="auto" />
-            </GestureHandlerRootView>
+                  <Stack.Screen
+                    name="checkout"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="product/[productId]"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="menuitem/[menuitem]"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="ViewAllRestaurants"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="order-details"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="ViewAllStores"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="storeCategoryProducts"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="payment-methods"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor-application"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/dashboard"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/products"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/orders"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/profile"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+                  <Stack.Screen
+                    name="vendor/menu"
+                    options={{
+                      animation: "slide_from_right",
+                      headerShown: false,
+                    }}
+                  />
+
+                  <Stack.Screen
+                    name="+not-found"
+                    options={{ headerShown: false }}
+                  />
+                </Stack>
+                <StatusBar style="auto" />
+              </GestureHandlerRootView>
+            </VendorProvider>
           </CartProvider>
         </AddressProvider>
       </PermissionProvider>

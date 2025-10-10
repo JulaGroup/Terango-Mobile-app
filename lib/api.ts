@@ -4,11 +4,35 @@ import { API_URL } from "@/constants/config";
 // Types for vendor-related data
 export interface VendorStats {
   totalRevenue: number;
+  todayRevenue: number; // Added to match server interface
   todayOrders: number;
   totalOrders: number;
   activeBusinesses: number;
+  totalBusinesses: number; // Added to match server interface
   pendingOrders: number;
   completedOrders: number;
+  totalMenuItems: number; // Added to match server interface
+  averageOrderValue: number; // Added to match server interface
+  // Optional detailed stats from server
+  topSellingItems?: {
+    id: string;
+    name: string;
+    sales: number;
+    revenue: number;
+  }[];
+  recentOrders?: {
+    id: string;
+    totalAmount: number;
+    status: string;
+    createdAt: Date;
+    customerName: string;
+    itemCount: number;
+  }[];
+  dailyStats?: {
+    date: string;
+    orders: number;
+    revenue: number;
+  }[];
 }
 
 export interface Business {
@@ -17,6 +41,8 @@ export interface Business {
   type: "RESTAURANT" | "SHOP" | "PHARMACY";
   isActive: boolean;
   todayOrders: number;
+  website?: string;
+  email?: string;
   revenue: number;
   address?: string;
   phone?: string;
@@ -86,6 +112,7 @@ export interface Order {
     | "DISPATCHED"
     | "DELIVERED"
     | "CANCELLED";
+  paymentStatus?: "UNPAID" | "PAID" | "REFUNDED" | "FAILED"; // 💳 Payment status tracking
   items: OrderItem[];
   restaurantId: string;
   restaurant?: {
@@ -213,7 +240,10 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     throw new Error(`API Error: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log(`✅ API Response for ${endpoint}:`, Array.isArray(data) ? `Array[${data.length}]` : typeof data);
+  
+  return data;
 };
 
 // Vendor API functions
@@ -228,68 +258,91 @@ export const vendorApi = {
     return apiCall(`/api/vendors/user/${userId}`);
   },
 
-  // Get vendor businesses (restaurants, shops, pharmacies)
+  // Get vendor businesses (restaurants, shops, pharmacies) - UPDATED to use vendor endpoint
   getVendorBusinesses: async (userId: string): Promise<Business[]> => {
     try {
-      const [restaurants, shops, pharmacies] = await Promise.all([
-        apiCall(`/api/restaurant/vendor/${userId}`).catch(() => []),
-        apiCall(`/api/shop/vendor/${userId}`).catch(() => []),
-        apiCall(`/api/pharmacy/vendor/${userId}`).catch(() => []),
-      ]);
+      console.log("🔍 Getting vendor businesses for user:", userId);
 
-      const businesses: Business[] = [
-        ...restaurants.map((r: any) => ({
+      // Use the vendor endpoint to get complete vendor data with restaurants and shops
+      const vendorData = await apiCall(`/api/vendors/user/${userId}`);
+      console.log("📍 Vendor data response:", vendorData);
+
+      if (!vendorData) {
+        console.log("❌ No vendor data found for user");
+        return [];
+      }
+
+      const businesses: Business[] = [];
+
+      // Add restaurants
+      if (vendorData.restaurants && Array.isArray(vendorData.restaurants)) {
+        const restaurants = vendorData.restaurants.map((r: any) => ({
           id: r.id,
           name: r.name,
           type: "RESTAURANT" as const,
-          isActive: r.isActive,
+          isActive: r.isActive !== false,
           todayOrders: r.todayOrders || 0,
           revenue: r.revenue || 0,
           address: r.address,
           phone: r.phone,
           description: r.description,
-          logoUrl: r.logoUrl,
+          logoUrl: r.imageUrl, // Database uses imageUrl, map to logoUrl for consistency
+          email: r.email,
+          website: r.website,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt,
-        })),
-        ...shops.map((s: any) => ({
+        }));
+        businesses.push(...restaurants);
+        console.log("✅ Found vendor restaurants:", restaurants);
+      }
+
+      // Add shops
+      if (vendorData.shops && Array.isArray(vendorData.shops)) {
+        const shops = vendorData.shops.map((s: any) => ({
           id: s.id,
           name: s.name,
           type: "SHOP" as const,
-          isActive: s.isActive,
+          isActive: s.isActive !== false,
           todayOrders: s.todayOrders || 0,
           revenue: s.revenue || 0,
           address: s.address,
           phone: s.phone,
           description: s.description,
-          logoUrl: s.logoUrl,
+          logoUrl: s.imageUrl, // Database uses imageUrl, map to logoUrl for consistency
+          email: s.email,
+          website: s.website,
           createdAt: s.createdAt,
           updatedAt: s.updatedAt,
-        })),
-        ...pharmacies.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          type: "PHARMACY" as const,
-          isActive: p.isActive,
-          todayOrders: p.todayOrders || 0,
-          revenue: p.revenue || 0,
-          address: p.address,
-          phone: p.phone,
-          description: p.description,
-          logoUrl: p.logoUrl,
-          createdAt: p.createdAt,
-          updatedAt: p.updatedAt,
-        })),
-      ];
+        }));
+        businesses.push(...shops);
+        console.log("✅ Found vendor shops:", shops);
+      }
 
+      console.log("✅ Total vendor businesses found:", businesses);
       return businesses;
     } catch (error) {
-      console.error("Error fetching vendor businesses:", error);
+      console.error("🚨 Error in getVendorBusinesses:", error);
       return [];
     }
   },
 
-  // Calculate vendor statistics from businesses
+  // Get vendor statistics from server - UPDATED to use server endpoint
+  getVendorStats: async (): Promise<VendorStats> => {
+    const response = await apiCall("/api/vendor-stats/dashboard");
+    console.log("📊 Raw vendor stats response:", response);
+
+    // Server returns {success: true, data: stats} format
+    if (response.success && response.data) {
+      console.log("✅ Extracted vendor stats data:", response.data);
+      return response.data;
+    }
+
+    // Fallback to direct response if format is different
+    console.log("⚠️ Using fallback vendor stats format");
+    return response;
+  },
+
+  // Calculate vendor statistics from businesses - DEPRECATED: Use getVendorStats instead
   calculateVendorStats: (businesses: Business[]): VendorStats => {
     const totalRevenue = businesses.reduce((acc, b) => acc + b.revenue, 0);
     const todayOrders = businesses.reduce((acc, b) => acc + b.todayOrders, 0);
@@ -297,11 +350,15 @@ export const vendorApi = {
 
     return {
       totalRevenue,
+      todayRevenue: totalRevenue * 0.1, // Estimated 10% is today's revenue
       todayOrders,
       totalOrders: todayOrders * 30, // Estimated based on daily average
       activeBusinesses,
+      totalBusinesses: businesses.length,
       pendingOrders: Math.floor(todayOrders * 0.3), // Estimated
       completedOrders: Math.floor(todayOrders * 0.7), // Estimated
+      totalMenuItems: 0, // Not available in client-side calculation
+      averageOrderValue: todayOrders > 0 ? totalRevenue / todayOrders : 0,
     };
   },
 
@@ -323,7 +380,6 @@ export const vendorApi = {
 
   // Get vendor orders
   getVendorOrders: async (
-    userId: string,
     filters?: {
       status?: string;
       businessType?: string;
@@ -339,7 +395,9 @@ export const vendorApi = {
       });
     }
 
-    const endpoint = `/api/order/vendor/${userId}${
+    // Server uses verifyVendorToken middleware to get vendor from auth token
+    // No need to pass userId in URL
+    const endpoint = `/api/orders/vendor${
       queryParams.toString() ? `?${queryParams.toString()}` : ""
     }`;
     return apiCall(endpoint);
@@ -428,18 +486,49 @@ export const vendorApi = {
       body: JSON.stringify({ openingHours }),
     });
   },
+
+  // Update shop details
+  updateShop: async (
+    shopId: string,
+    details: {
+      name?: string;
+      description?: string;
+      phone?: string;
+      email?: string;
+      website?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      imageUrl?: string;
+      isActive?: boolean;
+      acceptsOrders?: boolean;
+    }
+  ) => {
+    return apiCall(`/api/shops/${shopId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(details),
+    });
+  },
 };
 
 // Menu API functions
 export const menuApi = {
   // Get menus for a restaurant
   getMenusByRestaurant: async (restaurantId: string) => {
-    return apiCall(`/api/menu/${restaurantId}`);
+    return apiCall(`/api/menus/${restaurantId}`);
+  },
+
+  // Get menu items by restaurant - ADD THIS MISSING ENDPOINT
+  getMenuItemsByRestaurant: async (restaurantId: string) => {
+    return apiCall(`/api/menuItem/restaurant/${restaurantId}`);
   },
 
   // Create a new menu
   createMenu: async (title: string, restaurantId: string) => {
-    return apiCall("/api/menu", {
+    return apiCall("/api/menus", {
       method: "POST",
       body: JSON.stringify({ title, restaurantId }),
     });
@@ -456,15 +545,17 @@ export const menuApi = {
   },
 
   // Create a new menu item
+  // Server accepts restaurantId and will auto-create/get the menu
   createMenuItem: async (menuItemData: {
     name: string;
-    description: string;
+    description?: string;
     price: number;
-    category: string;
-    preparationTime: number;
-    isAvailable: boolean;
-    ingredients?: string[];
-    restaurantId: string;
+    mealTime?: string; // Used instead of "category"
+    preparationTime?: number;
+    isAvailable?: boolean;
+    imageUrl?: string;
+    restaurantId?: string; // Server will convert to menuId
+    menuId?: string; // Or provide menuId directly
     subCategoryId?: string;
   }) => {
     return apiCall("/api/menuItem", {
@@ -478,6 +569,14 @@ export const menuApi = {
     return apiCall(`/api/menuItem/${itemId}`, {
       method: "PUT",
       body: JSON.stringify(data),
+    });
+  },
+
+  // Update menu item availability - ADD THIS MISSING ENDPOINT
+  updateMenuItemAvailability: async (itemId: string, isAvailable: boolean) => {
+    return apiCall(`/api/menuItem/${itemId}`, {
+      method: "PUT",
+      body: JSON.stringify({ isAvailable }),
     });
   },
 
@@ -632,33 +731,40 @@ export const orderApi = {
     });
   },
 
-  // Shop Products Management
+  // 💳 Pay for an accepted order
+  payForOrder: async (orderId: string): Promise<Order> => {
+    console.log("💳 Processing payment for order:", orderId);
+    return apiCall(`/api/orders/${orderId}/pay`, {
+      method: "POST",
+    });
+  },
+
+  // Shop Products Management - FIX: Use correct endpoint
   getShopProducts: async (shopId: string) => {
-    return apiCall(`/api/product/shop/${shopId}`);
+    return apiCall(`/api/products/shop/${shopId}`);
   },
 
   createShopProduct: async (productData: FormData) => {
-    return apiCall("/api/product", {
+    return apiCall("/api/products", {
       method: "POST",
       body: productData,
     });
   },
 
   updateShopProduct: async (productId: string, productData: FormData) => {
-    return apiCall(`/api/product/${productId}`, {
+    return apiCall(`/api/products/${productId}`, {
       method: "PUT",
       body: productData,
     });
   },
-
   deleteShopProduct: async (productId: string) => {
-    return apiCall(`/api/product/${productId}`, {
+    return apiCall(`/api/products/${productId}`, {
       method: "DELETE",
     });
   },
 
   getShopProductById: async (productId: string) => {
-    return apiCall(`/api/product/${productId}`);
+    return apiCall(`/api/products/${productId}`);
   },
 
   // Shop Orders Management
