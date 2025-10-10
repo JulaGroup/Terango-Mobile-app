@@ -47,23 +47,25 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
     try {
       const now = new Date();
-      const currentDay = now.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+      const currentDay = now
+        .toLocaleDateString("en-US", { weekday: "long" })
+        .toLowerCase();
       const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
-      
+
       const dayHours = restaurant.openingHours[currentDay];
-      
+
       if (!dayHours) return true; // Assume open if no data for this day
       if (dayHours.closed) return false; // Explicitly closed
-      
+
       // Check if current time is within opening hours
       const openTime = dayHours.open;
       const closeTime = dayHours.close;
-      
+
       if (!openTime || !closeTime) return true; // Assume open if times not set
-      
+
       return currentTime >= openTime && currentTime <= closeTime;
     } catch (error) {
-      console.error('Error checking opening hours:', error);
+      console.error("Error checking opening hours:", error);
       return true; // Default to open on error
     }
   };
@@ -115,10 +117,12 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
         )}
 
         {/* Status Badge - Show OPEN or CLOSED based on current time */}
-        <View style={[
-          styles.activeBadge,
-          { backgroundColor: currentlyOpen ? "#27AE60" : "#E74C3C" }
-        ]}>
+        <View
+          style={[
+            styles.activeBadge,
+            { backgroundColor: currentlyOpen ? "#27AE60" : "#E74C3C" },
+          ]}
+        >
           <Text style={styles.activeBadgeText}>
             {currentlyOpen ? "OPEN" : "CLOSED"}
           </Text>

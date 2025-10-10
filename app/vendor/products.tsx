@@ -273,7 +273,7 @@ export default function VendorProducts() {
       productFormData.append("price", formData.price);
       productFormData.append("stock", formData.stock);
       productFormData.append("isActive", formData.isActive.toString());
-      
+
       // Add subCategoryId if selected
       if (formData.subCategoryId) {
         productFormData.append("subCategoryId", formData.subCategoryId);

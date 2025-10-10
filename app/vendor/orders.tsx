@@ -215,17 +215,17 @@ export default function VendorOrdersEnhanced() {
     if (order.status === "PENDING") {
       actions.push({ label: "Accept", status: "ACCEPTED", color: "#2196F3" });
       actions.push({ label: "Cancel", status: "CANCELLED", color: "#F44336" });
-    } 
+    }
     // ACCEPTED: Shows "Waiting for Payment" - no action button, automatic transition after payment
     // Payment happens on customer side, then automatically becomes PREPARING
     else if (order.status === "ACCEPTED") {
       // No actions - waiting for customer payment
       // The system will auto-update to PREPARING once paid
-    } 
+    }
     // PREPARING: Vendor can mark as Ready
     else if (order.status === "PREPARING") {
       actions.push({ label: "Mark Ready", status: "READY", color: "#4CAF50" });
-    } 
+    }
     // READY: Only drivers can dispatch (handled in driver app)
     else if (order.status === "READY") {
       // No dispatch action for vendor - only drivers can dispatch

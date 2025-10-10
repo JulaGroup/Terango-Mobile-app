@@ -42,7 +42,9 @@ export default function VendorProfile() {
   const CLOUDINARY_UPLOAD_PRESET = "unsigned_preset";
 
   // Cloudinary upload function
-  const handleImageUpload = async (imageUri: string): Promise<string | null> => {
+  const handleImageUpload = async (
+    imageUri: string
+  ): Promise<string | null> => {
     try {
       // Compress and resize image using ImageManipulator
       const manipulatedImage = await ImageManipulator.manipulateAsync(
@@ -173,20 +175,28 @@ export default function VendorProfile() {
 
           if (cloudinaryUrl) {
             setProfileImage(cloudinaryUrl);
-            
+
             // Save the logo URL to backend immediately
             if (currentBusiness) {
               try {
                 if (currentBusiness.type === "RESTAURANT") {
-                  await vendorApi.updateRestaurantImage(currentBusiness.id, cloudinaryUrl);
+                  await vendorApi.updateRestaurantImage(
+                    currentBusiness.id,
+                    cloudinaryUrl
+                  );
                 } else if (currentBusiness.type === "SHOP") {
-                  await vendorApi.updateShop(currentBusiness.id, { imageUrl: cloudinaryUrl });
+                  await vendorApi.updateShop(currentBusiness.id, {
+                    imageUrl: cloudinaryUrl,
+                  });
                 }
                 Alert.alert("Success", "Business logo updated successfully!");
                 await refreshVendorData();
               } catch (saveError) {
                 console.error("Error saving logo to backend:", saveError);
-                Alert.alert("Error", "Image uploaded but failed to save to profile");
+                Alert.alert(
+                  "Error",
+                  "Image uploaded but failed to save to profile"
+                );
               }
             }
           }
@@ -216,7 +226,10 @@ export default function VendorProfile() {
       console.log("📋 Current business hours state:", businessHours);
 
       // Convert businessHours array to openingHours object format
-      const openingHours: Record<string, { open: string; close: string; closed: boolean }> = {};
+      const openingHours: Record<
+        string,
+        { open: string; close: string; closed: boolean }
+      > = {};
       businessHours.forEach((day) => {
         const dayName = day.day.toLowerCase();
         openingHours[dayName] = {
@@ -226,7 +239,10 @@ export default function VendorProfile() {
         };
       });
 
-      console.log("🕒 Converted openingHours:", JSON.stringify(openingHours, null, 2));
+      console.log(
+        "🕒 Converted openingHours:",
+        JSON.stringify(openingHours, null, 2)
+      );
 
       const updateData = {
         name: formData.name,
@@ -240,7 +256,10 @@ export default function VendorProfile() {
         openingHours: openingHours, // Add business hours
       };
 
-      console.log("💾 Saving profile with data:", JSON.stringify(updateData, null, 2));
+      console.log(
+        "💾 Saving profile with data:",
+        JSON.stringify(updateData, null, 2)
+      );
       console.log("🏢 Business type:", currentBusiness.type);
       console.log("🆔 Business ID:", currentBusiness.id);
 
@@ -248,7 +267,10 @@ export default function VendorProfile() {
       let response;
       if (currentBusiness.type === "RESTAURANT") {
         console.log("📡 Calling updateRestaurantDetails API...");
-        response = await vendorApi.updateRestaurantDetails(currentBusiness.id, updateData);
+        response = await vendorApi.updateRestaurantDetails(
+          currentBusiness.id,
+          updateData
+        );
         console.log("✅ Restaurant update response:", response);
       } else if (currentBusiness.type === "SHOP") {
         console.log("📡 Calling updateShop API...");
@@ -263,14 +285,19 @@ export default function VendorProfile() {
       // Refresh vendor data to get updated info
       await refreshVendorData();
       console.log("✅ Vendor data refreshed");
-      
+
       setIsEditing(false);
       Alert.alert("Success", "Profile updated successfully");
     } catch (error: any) {
       console.error("❌ Error updating profile:", error);
       console.error("❌ Error details:", error.response?.data || error.message);
       console.error("❌ Full error object:", JSON.stringify(error, null, 2));
-      Alert.alert("Error", `Failed to update profile: ${error.response?.data?.error || error.message}`);
+      Alert.alert(
+        "Error",
+        `Failed to update profile: ${
+          error.response?.data?.error || error.message
+        }`
+      );
     } finally {
       setIsLoading(false);
     }

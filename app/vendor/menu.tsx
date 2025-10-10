@@ -950,7 +950,9 @@ export default function VendorMenuEnhanced() {
 
               {/* Subcategory Selector (Optional) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Category (Subcategory - Optional)</Text>
+                <Text style={styles.inputLabel}>
+                  Category (Subcategory - Optional)
+                </Text>
                 {loadingSubCategories ? (
                   <ActivityIndicator size="small" color={PrimaryColor} />
                 ) : (

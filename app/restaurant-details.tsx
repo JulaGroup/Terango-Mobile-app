@@ -341,13 +341,14 @@ export default function RestaurantDetails() {
       return grouped;
     } else {
       // Show only items matching the selected meal time
-      const mealTimeCategory = MEAL_TIMES.find(mt => mt.id === activeSection);
+      const mealTimeCategory = MEAL_TIMES.find((mt) => mt.id === activeSection);
       if (!mealTimeCategory) return {};
-      
+
       const filtered = allMenuItems.filter(
-        (item) => item.mealTime?.toLowerCase() === mealTimeCategory.name.toLowerCase()
+        (item) =>
+          item.mealTime?.toLowerCase() === mealTimeCategory.name.toLowerCase()
       );
-      
+
       return filtered.length > 0 ? { [mealTimeCategory.name]: filtered } : {};
     }
   };
@@ -368,7 +369,7 @@ export default function RestaurantDetails() {
       const data = await response.json();
 
       setRestaurant(data);
-      
+
       // Flatten all menu items into a single array
       const allItems: MenuItem[] = [];
       data.menus?.forEach((menu: Menu) => {
@@ -780,32 +781,33 @@ export default function RestaurantDetails() {
 
         {/* Menu Items - Grouped by Meal Time */}
         <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
-          {Object.entries(getFilteredMenuItems()).map(([category, items], idx) => (
-            <View
-              key={category}
-              style={styles.menuSection}
-              onLayout={(e) => {
-                const layoutY = e.nativeEvent.layout.y;
-                sectionRefs.current[idx] = { key: category, y: layoutY };
-              }}
-            >
-              <Text style={styles.menuSectionTitle}>{category}</Text>
-              <View style={styles.menuItemsList}>
-                {items.map((item: MenuItem, j: number) => (
-                  <MealItemCard
-                    key={item.id}
-                    product={{
-                      id:
-                        typeof item.id === "number"
-                          ? item.id
-                          : Number(item.id) || j,
-                      name: item.name,
-                      price: item.price,
-                      image: item.imageUrl || undefined,
-                      description: item.description || undefined,
-                    }}
-                    cartQuantity={getCartItemQuantity(item.id)}
-                    onAddToCart={(p) => handleAddToCart(item)}
+          {Object.entries(getFilteredMenuItems()).map(
+            ([category, items], idx) => (
+              <View
+                key={category}
+                style={styles.menuSection}
+                onLayout={(e) => {
+                  const layoutY = e.nativeEvent.layout.y;
+                  sectionRefs.current[idx] = { key: category, y: layoutY };
+                }}
+              >
+                <Text style={styles.menuSectionTitle}>{category}</Text>
+                <View style={styles.menuItemsList}>
+                  {items.map((item: MenuItem, j: number) => (
+                    <MealItemCard
+                      key={item.id}
+                      product={{
+                        id:
+                          typeof item.id === "number"
+                            ? item.id
+                            : Number(item.id) || j,
+                        name: item.name,
+                        price: item.price,
+                        image: item.imageUrl || undefined,
+                        description: item.description || undefined,
+                      }}
+                      cartQuantity={getCartItemQuantity(item.id)}
+                      onAddToCart={(p) => handleAddToCart(item)}
                       onRemoveFromCart={() => handleRemove(item.id)}
                       onPress={() =>
                         router.push({
@@ -817,7 +819,8 @@ export default function RestaurantDetails() {
                   ))}
                 </View>
               </View>
-            ))}
+            )
+          )}
         </Animated.View>
       </Animated.ScrollView>
 

@@ -241,8 +241,11 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   }
 
   const data = await response.json();
-  console.log(`✅ API Response for ${endpoint}:`, Array.isArray(data) ? `Array[${data.length}]` : typeof data);
-  
+  console.log(
+    `✅ API Response for ${endpoint}:`,
+    Array.isArray(data) ? `Array[${data.length}]` : typeof data
+  );
+
   return data;
 };
 
@@ -379,15 +382,13 @@ export const vendorApi = {
   },
 
   // Get vendor orders
-  getVendorOrders: async (
-    filters?: {
-      status?: string;
-      businessType?: string;
-      businessId?: string;
-      dateFrom?: string;
-      dateTo?: string;
-    }
-  ) => {
+  getVendorOrders: async (filters?: {
+    status?: string;
+    businessType?: string;
+    businessId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
     const queryParams = new URLSearchParams();
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {

@@ -13,74 +13,76 @@ export interface MealTimeCategory {
 
 export const MEAL_TIMES: MealTimeCategory[] = [
   {
-    id: 'all',
-    name: 'All',
-    displayName: 'All Items',
-    icon: 'grid-outline',
+    id: "all",
+    name: "All",
+    displayName: "All Items",
+    icon: "grid-outline",
     order: 0,
   },
   {
-    id: 'appetizers',
-    name: 'Appetizers',
-    displayName: 'Appetizers',
-    icon: 'restaurant-outline',
+    id: "appetizers",
+    name: "Appetizers",
+    displayName: "Appetizers",
+    icon: "restaurant-outline",
     order: 1,
   },
   {
-    id: 'soups',
-    name: 'Soups',
-    displayName: 'Soups',
-    icon: 'cafe-outline',
+    id: "soups",
+    name: "Soups",
+    displayName: "Soups",
+    icon: "cafe-outline",
     order: 2,
   },
   {
-    id: 'salads',
-    name: 'Salads',
-    displayName: 'Salads',
-    icon: 'leaf-outline',
+    id: "salads",
+    name: "Salads",
+    displayName: "Salads",
+    icon: "leaf-outline",
     order: 3,
   },
   {
-    id: 'main-course',
-    name: 'Main Course',
-    displayName: 'Main Course',
-    icon: 'fast-food-outline',
+    id: "main-course",
+    name: "Main Course",
+    displayName: "Main Course",
+    icon: "fast-food-outline",
     order: 4,
   },
   {
-    id: 'sides',
-    name: 'Sides',
-    displayName: 'Sides',
-    icon: 'nutrition-outline',
+    id: "sides",
+    name: "Sides",
+    displayName: "Sides",
+    icon: "nutrition-outline",
     order: 5,
   },
   {
-    id: 'desserts',
-    name: 'Desserts',
-    displayName: 'Desserts',
-    icon: 'ice-cream-outline',
+    id: "desserts",
+    name: "Desserts",
+    displayName: "Desserts",
+    icon: "ice-cream-outline",
     order: 6,
   },
   {
-    id: 'beverages',
-    name: 'Beverages',
-    displayName: 'Beverages',
-    icon: 'wine-outline',
+    id: "beverages",
+    name: "Beverages",
+    displayName: "Beverages",
+    icon: "wine-outline",
     order: 7,
   },
 ];
 
 // Helper function to get meal time by ID
 export const getMealTimeById = (id: string): MealTimeCategory | undefined => {
-  return MEAL_TIMES.find(mt => mt.id === id);
+  return MEAL_TIMES.find((mt) => mt.id === id);
 };
 
 // Helper function to get meal time by name
-export const getMealTimeByName = (name: string): MealTimeCategory | undefined => {
-  return MEAL_TIMES.find(mt => mt.name.toLowerCase() === name.toLowerCase());
+export const getMealTimeByName = (
+  name: string
+): MealTimeCategory | undefined => {
+  return MEAL_TIMES.find((mt) => mt.name.toLowerCase() === name.toLowerCase());
 };
 
 // Get all meal times except "All"
 export const getSelectableMealTimes = (): MealTimeCategory[] => {
-  return MEAL_TIMES.filter(mt => mt.id !== 'all');
+  return MEAL_TIMES.filter((mt) => mt.id !== "all");
 };
