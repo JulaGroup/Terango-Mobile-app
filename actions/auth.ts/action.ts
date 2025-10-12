@@ -33,26 +33,34 @@ const safeDeleteItem = async (key: string) => {
 };
 
 // Login user and send OTP
-export const loginUser = async ({ phone }: { phone: string }) => {
+export const loginUser = async ({ 
+  phone, 
+  countryCode = "220" 
+}: { 
+  phone: string; 
+  countryCode?: string;
+}) => {
   if (phone.length < 7) {
     alert("Enter a valid phone number");
     return;
   }
 
   try {
+    const fullPhone = `+${countryCode}${phone}`;
     const res = await axios.post(`${API_URL}/auth/send-otp`, {
-      phone: `+220${phone}`,
+      phone: fullPhone,
     });
 
     if (res.status === 200) {
-      await safeSetItem("userPhone", `+220${phone}`);
+      await safeSetItem("userPhone", fullPhone);
       router.push("/auth/otp");
     } else {
       alert("Something went wrong. Please try again.");
     }
   } catch (err: any) {
     console.log("Login error:", err);
-    await safeSetItem("userPhone", `+220${phone}`);
+    const fullPhone = `+${countryCode}${phone}`;
+    await safeSetItem("userPhone", fullPhone);
     router.replace("/auth/otp");
   }
 };

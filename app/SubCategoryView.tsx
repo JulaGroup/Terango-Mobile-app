@@ -63,6 +63,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   description?: string;
   imageUrl?: string;
   shopId: string;
@@ -72,6 +73,7 @@ interface MenuItem {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   description?: string;
   imageUrl?: string;
   menu: {
@@ -890,6 +892,7 @@ export default function SubCategoryView() {
                             id: Number(item.id),
                             name: item.name,
                             price: item.price,
+                            discountedPrice: item.discountedPrice,
                             image: item.imageUrl,
                             description: item.description,
                             inStock: true,
@@ -1092,6 +1095,7 @@ export default function SubCategoryView() {
                     id: Number(item.id),
                     name: item.name,
                     price: item.price,
+                    discountedPrice: item.discountedPrice,
                     image: item.imageUrl,
                     description: item.description,
                     inStock: true,
@@ -1165,6 +1169,7 @@ export default function SubCategoryView() {
                     id: Number(item.id),
                     name: item.name,
                     price: item.price,
+                    discountedPrice: item.discountedPrice,
                     image: item.imageUrl || "",
                     description: item.description || "",
                     inStock: item.isAvailable,

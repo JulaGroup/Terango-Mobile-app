@@ -252,6 +252,7 @@ interface MenuItem {
   name: string;
   description?: string;
   price: number;
+  discountedPrice?: number;
   isAvailable: boolean;
   imageUrl?: string;
   mealTime?: string;
@@ -803,6 +804,7 @@ export default function RestaurantDetails() {
                             : Number(item.id) || j,
                         name: item.name,
                         price: item.price,
+                        discountedPrice: item.discountedPrice,
                         image: item.imageUrl || undefined,
                         description: item.description || undefined,
                       }}

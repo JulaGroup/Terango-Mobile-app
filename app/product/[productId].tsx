@@ -188,6 +188,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   description?: string;
   imageUrl?: string;
   shopId: string;
@@ -466,6 +467,20 @@ export default function ProductDetail() {
             </View>
           )}
 
+          {/* Discount Badge */}
+          {product.discountedPrice && product.discountedPrice < product.price && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>
+                -
+                {Math.round(
+                  ((product.price - product.discountedPrice) / product.price) *
+                    100
+                )}
+                %
+              </Text>
+            </View>
+          )}
+
           {/* Stock Badge */}
           {product.stock !== undefined && (
             <View style={styles.stockBadge}>
@@ -535,8 +550,18 @@ export default function ProductDetail() {
           )}
 
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>D{product.price.toFixed(2)}</Text>
-            {/* Optional: Add previous price for discounts */}
+            {product.discountedPrice && product.discountedPrice < product.price ? (
+              <>
+                <Text style={styles.price}>
+                  D{product.discountedPrice.toFixed(2)}
+                </Text>
+                <Text style={styles.originalPrice}>
+                  D{product.price.toFixed(2)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.price}>D{product.price.toFixed(2)}</Text>
+            )}
           </View>
         </Animated.View>
 
@@ -876,6 +901,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  discountBadge: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    backgroundColor: "#FF6B6B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  discountText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
   stockDot: {
     width: 8,
     height: 8,
@@ -937,12 +982,22 @@ const styles = StyleSheet.create({
   },
   priceContainer: {
     marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   price: {
     fontSize: 32,
     fontWeight: "900",
     color: PrimaryColor,
     letterSpacing: -1,
+  },
+  originalPrice: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#94A3B8",
+    textDecorationLine: "line-through",
+    letterSpacing: -0.5,
   },
   relatedSection: {
     paddingTop: 32,

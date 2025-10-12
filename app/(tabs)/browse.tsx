@@ -86,7 +86,7 @@ export default function BrowseScreen() {
     await Promise.all([
       loadRecentSearches(),
       fetchTrendingProducts(),
-      fetchTrendingMeals(),
+      // fetchTrendingMeals(),
     ]);
   };
 
@@ -96,7 +96,7 @@ export default function BrowseScreen() {
     setMealsPage(1);
     await Promise.all([
       fetchTrendingProducts(1, false),
-      fetchTrendingMeals(1, false),
+      // fetchTrendingMeals(1, false),
     ]);
     setRefreshing(false);
   };
@@ -109,13 +109,13 @@ export default function BrowseScreen() {
     }
   };
 
-  const loadMoreMeals = () => {
-    if (!loadingMoreMeals && hasMoreMeals) {
-      const nextPage = mealsPage + 1;
-      setMealsPage(nextPage);
-      fetchTrendingMeals(nextPage, true);
-    }
-  };
+  // const loadMoreMeals = () => {
+  //   if (!loadingMoreMeals && hasMoreMeals) {
+  //     const nextPage = mealsPage + 1;
+  //     setMealsPage(nextPage);
+  //     fetchTrendingMeals(nextPage, true);
+  //   }
+  // };
 
   const loadRecentSearches = async () => {
     try {
@@ -173,11 +173,11 @@ export default function BrowseScreen() {
             id: product.id,
             name: product.name,
             price: product.price,
+            discountedPrice: product.discountedPrice || undefined,
             imageUrl:
               product.imageUrl ||
               "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
             shopName: product.shop?.name || "Local Shop",
-            discount: product.discount || undefined,
           })) || [];
 
         if (append) {
@@ -204,61 +204,61 @@ export default function BrowseScreen() {
     }
   };
 
-  const fetchTrendingMeals = async (
-    page: number = 1,
-    append: boolean = false
-  ) => {
-    try {
-      if (append) {
-        setLoadingMoreMeals(true);
-      }
+  // const fetchTrendingMeals = async (
+  //   page: number = 1,
+  //   append: boolean = false
+  // ) => {
+  //   try {
+  //     if (append) {
+  //       setLoadingMoreMeals(true);
+  //     }
 
-      // Fetch menu items directly from the menu-items endpoint
-      const menuResponse = await fetch(
-        `${API_URL}/api/menu-items?page=${page}&limit=10&sortBy=orders&sortOrder=desc`
-      );
+  //     // Fetch menu items directly from the menu-items endpoint
+  //     const menuResponse = await fetch(
+  //       `${API_URL}/api/menu-items?page=${page}&limit=10&sortBy=orders&sortOrder=desc`
+  //     );
 
-      if (menuResponse.ok) {
-        const menuData = await menuResponse.json();
+  //     if (menuResponse.ok) {
+  //       const menuData = await menuResponse.json();
 
-        // Transform menu items
-        const transformedMeals =
-          menuData.data?.map((item: any) => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            imageUrl:
-              item.imageUrl ||
-              "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
-            restaurantName:
-              item.restaurant?.name ||
-              item.menu?.restaurant?.name ||
-              "Restaurant",
-            rating: item.rating || 4.5,
-          })) || [];
+  //       // Transform menu items
+  //       const transformedMeals =
+  //         menuData.data?.map((item: any) => ({
+  //           id: item.id,
+  //           name: item.name,
+  //           price: item.price,
+  //           imageUrl:
+  //             item.imageUrl ||
+  //             "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400",
+  //           restaurantName:
+  //             item.restaurant?.name ||
+  //             item.menu?.restaurant?.name ||
+  //             "Restaurant",
+  //           rating: item.rating || 4.5,
+  //         })) || [];
 
-        if (append) {
-          setTrendingMeals((prev) => [...prev, ...transformedMeals]);
-        } else {
-          setTrendingMeals(transformedMeals);
-        }
+  //       if (append) {
+  //         setTrendingMeals((prev) => [...prev, ...transformedMeals]);
+  //       } else {
+  //         setTrendingMeals(transformedMeals);
+  //       }
 
-        // Check if there's more data
-        setHasMoreMeals(menuData.pagination?.hasMore || false);
-      } else {
-        if (!append) {
-          setTrendingMeals([]);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching trending meals:", error);
-      if (!append) {
-        setTrendingMeals([]);
-      }
-    } finally {
-      setLoadingMoreMeals(false);
-    }
-  };
+  //       // Check if there's more data
+  //       setHasMoreMeals(menuData.pagination?.hasMore || false);
+  //     } else {
+  //       if (!append) {
+  //         setTrendingMeals([]);
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error("Error fetching trending meals:", error);
+  //     if (!append) {
+  //       setTrendingMeals([]);
+  //     }
+  //   } finally {
+  //     setLoadingMoreMeals(false);
+  //   }
+  // };
 
   // Handle category navigation
   const handleCategoryPress = (categoryId: string, categoryName: string) => {
@@ -531,7 +531,7 @@ export default function BrowseScreen() {
         </View>
 
         {/* Trending Meals */}
-        <View style={styles.section}>
+        {/* <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>🍽️ Trending Meals</Text>
             <TouchableOpacity>
@@ -565,7 +565,7 @@ export default function BrowseScreen() {
               }
             />
           )}
-        </View>
+        </View> */}
 
         {/* Advertisement Banner */}
         <AdBanner

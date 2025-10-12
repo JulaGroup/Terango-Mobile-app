@@ -35,6 +35,7 @@ interface Product {
   name: string;
   description?: string;
   price: number;
+  discountedPrice?: number;
   image?: string;
   stock: number;
   category?: string;
@@ -68,6 +69,7 @@ export default function VendorProducts() {
     name: "",
     description: "",
     price: "",
+    discountedPrice: "",
     stock: "",
     subCategoryId: "",
     imageUrl: "",
@@ -329,6 +331,7 @@ export default function VendorProducts() {
       name: product.name,
       description: product.description || "",
       price: product.price.toString(),
+      discountedPrice: product.discountedPrice?.toString() || "",
       stock: product.stock.toString(),
       subCategoryId: product.subCategoryId || "",
       imageUrl: product.image || "",
@@ -344,6 +347,7 @@ export default function VendorProducts() {
       name: "",
       description: "",
       price: "",
+      discountedPrice: "",
       stock: "",
       subCategoryId: "",
       imageUrl: "",
@@ -359,11 +363,33 @@ export default function VendorProducts() {
       return;
     }
 
+    // Validate discounted price
+    if (formData.discountedPrice) {
+      const price = parseFloat(formData.price);
+      const discountedPrice = parseFloat(formData.discountedPrice);
+
+      if (discountedPrice <= 0) {
+        Alert.alert("Validation Error", "Discounted price must be greater than 0");
+        return;
+      }
+
+      if (discountedPrice >= price) {
+        Alert.alert(
+          "Validation Error",
+          "Discounted price must be less than the original price"
+        );
+        return;
+      }
+    }
+
     try {
       const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
+        discountedPrice: formData.discountedPrice
+          ? parseFloat(formData.discountedPrice)
+          : null,
         stock: parseInt(formData.stock),
         isActive: formData.isActive,
         shopId: currentBusiness.id,
@@ -880,6 +906,52 @@ export default function VendorProducts() {
                 </View>
               </View>
 
+              {/* Discounted Price Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Discounted Price (GMD){" "}
+                  <Text style={styles.optionalText}>(Optional)</Text>
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter discounted price"
+                  value={formData.discountedPrice}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, discountedPrice: text })
+                  }
+                  keyboardType="numeric"
+                />
+                {formData.discountedPrice &&
+                  parseFloat(formData.discountedPrice) > 0 &&
+                  formData.price &&
+                  parseFloat(formData.price) > 0 &&
+                  parseFloat(formData.discountedPrice) <
+                    parseFloat(formData.price) && (
+                    <View style={styles.discountPreview}>
+                      <Ionicons name="pricetag" size={16} color="#10b981" />
+                      <Text style={styles.discountPreviewText}>
+                        {Math.round(
+                          ((parseFloat(formData.price) -
+                            parseFloat(formData.discountedPrice)) /
+                            parseFloat(formData.price)) *
+                            100
+                        )}
+                        % OFF - Customers will see this discount badge
+                      </Text>
+                    </View>
+                  )}
+                {formData.discountedPrice &&
+                  parseFloat(formData.discountedPrice) > 0 &&
+                  formData.price &&
+                  parseFloat(formData.price) > 0 &&
+                  parseFloat(formData.discountedPrice) >=
+                    parseFloat(formData.price) && (
+                    <Text style={styles.errorText}>
+                      ⚠️ Discounted price must be less than original price
+                    </Text>
+                  )}
+              </View>
+
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Category (Subcategory)</Text>
                 {loadingSubCategories ? (
@@ -1261,6 +1333,34 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     marginBottom: 8,
+  },
+  optionalText: {
+    fontSize: 14,
+    fontWeight: "400",
+    color: "#888",
+  },
+  discountPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ecfdf5",
+    borderWidth: 1,
+    borderColor: "#10b981",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  discountPreviewText: {
+    fontSize: 13,
+    color: "#059669",
+    fontWeight: "600",
+    flex: 1,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#EF4444",
+    marginTop: 6,
+    fontWeight: "500",
   },
   input: {
     borderWidth: 1,

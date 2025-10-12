@@ -1,7 +1,6 @@
 import { loginUser } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
-
 import React, { useState } from "react";
 import {
   Image,
@@ -12,11 +11,49 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Modal,
+  FlatList,
 } from "react-native";
+
+interface Country {
+  code: string;
+  name: string;
+  flag: string;
+  dialCode: string;
+  maxLength: number;
+}
+
+const COUNTRIES: Country[] = [
+  { code: "GM", name: "Gambia", flag: "🇬🇲", dialCode: "+220", maxLength: 7 },
+  { code: "US", name: "United States", flag: "🇺🇸", dialCode: "+1", maxLength: 10 },
+  { code: "GB", name: "United Kingdom", flag: "🇬🇧", dialCode: "+44", maxLength: 10 },
+  { code: "SN", name: "Senegal", flag: "🇸🇳", dialCode: "+221", maxLength: 9 },
+  { code: "NG", name: "Nigeria", flag: "🇳🇬", dialCode: "+234", maxLength: 10 },
+  { code: "GH", name: "Ghana", flag: "🇬🇭", dialCode: "+233", maxLength: 9 },
+];
 
 export default function AuthScreen() {
   const [phone, setPhone] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]); // Gambia default
   const [loading, setLoading] = useState(false);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+  const isValidPhone = phone.length === selectedCountry.maxLength;
+
+  const handlePhoneChange = (text: string) => {
+    // Only allow numbers
+    const numericText = text.replace(/[^0-9]/g, "");
+    // Limit to max length for selected country
+    if (numericText.length <= selectedCountry.maxLength) {
+      setPhone(numericText);
+    }
+  };
+
+  const handleCountrySelect = (country: Country) => {
+    setSelectedCountry(country);
+    setShowCountryPicker(false);
+    setPhone(""); // Clear phone when country changes
+  };
 
   const handleSubmit = async () => {
     if (loading) return;
@@ -24,10 +61,20 @@ export default function AuthScreen() {
       alert("Please enter your phone number");
       return;
     }
+    if (!isValidPhone) {
+      alert(
+        `Please enter a valid ${selectedCountry.name} phone number (${selectedCountry.maxLength} digits)`
+      );
+      return;
+    }
     setLoading(true);
     try {
-      await loginUser({ phone });
-    } catch (err) {
+      await loginUser({ 
+        phone, 
+        countryCode: selectedCountry.dialCode.replace("+", "") 
+      });
+    } catch (error) {
+      console.error("Login error:", error);
       alert("Error sending OTP");
     } finally {
       setLoading(false);
@@ -68,21 +115,46 @@ export default function AuthScreen() {
       <Text style={styles.subHeader}>Enter your phone number to continue</Text>
 
       <View style={styles.inputContainer}>
-        <TextInput
-          placeholder="Phone number"
-          placeholderTextColor="#9CA3AF"
-          value={phone}
-          onChangeText={setPhone}
-          style={styles.input}
-          keyboardType="phone-pad"
-          autoCapitalize="none"
-        />
+        {/* Phone Input with Country Picker */}
+        <View style={styles.phoneInputWrapper}>
+          <TouchableOpacity
+            style={styles.countryPickerButton}
+            onPress={() => setShowCountryPicker(true)}
+          >
+            <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+            <Text style={styles.dialCodeText}>{selectedCountry.dialCode}</Text>
+            <Ionicons name="chevron-down" size={16} color="#6B7280" />
+          </TouchableOpacity>
+          
+          <TextInput
+            placeholder={`Phone number (${selectedCountry.maxLength} digits)`}
+            placeholderTextColor="#9CA3AF"
+            value={phone}
+            onChangeText={handlePhoneChange}
+            style={styles.phoneInput}
+            keyboardType="phone-pad"
+            maxLength={selectedCountry.maxLength}
+          />
+        </View>
+        
+        {/* Phone Length Indicator */}
+        <View style={styles.lengthIndicator}>
+          <Text style={[
+            styles.lengthText,
+            phone.length === selectedCountry.maxLength && styles.lengthTextValid
+          ]}>
+            {phone.length}/{selectedCountry.maxLength} digits
+          </Text>
+        </View>
       </View>
 
       <TouchableOpacity
-        style={[styles.button, loading ? { opacity: 0.6 } : null]}
+        style={[
+          styles.button,
+          (loading || !isValidPhone) && styles.buttonDisabled
+        ]}
         onPress={handleSubmit}
-        disabled={loading}
+        disabled={loading || !isValidPhone}
       >
         <Text style={styles.buttonText}>
           {loading ? "Loading..." : "Continue"}
@@ -102,6 +174,48 @@ export default function AuthScreen() {
           <Text style={styles.socialText}>Continue with Apple</Text>
         </TouchableOpacity>
       )}
+
+      {/* Country Picker Modal */}
+      <Modal
+        visible={showCountryPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Country</Text>
+              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={COUNTRIES}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.countryItem,
+                    selectedCountry.code === item.code && styles.countryItemSelected
+                  ]}
+                  onPress={() => handleCountrySelect(item)}
+                >
+                  <Text style={styles.countryFlag}>{item.flag}</Text>
+                  <View style={styles.countryInfo}>
+                    <Text style={styles.countryName}>{item.name}</Text>
+                    <Text style={styles.countryDialCode}>{item.dialCode}</Text>
+                  </View>
+                  {selectedCountry.code === item.code && (
+                    <Ionicons name="checkmark" size={24} color={PrimaryColor} />
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -127,7 +241,48 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   inputContainer: {
-    gap: 16,
+    gap: 8,
+  },
+  phoneInputWrapper: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  countryPickerButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 6,
+  },
+  flagText: {
+    fontSize: 24,
+  },
+  dialCodeText: {
+    fontSize: 16,
+    color: "#111827",
+    fontWeight: "600",
+  },
+  phoneInput: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    padding: 16,
+    borderRadius: 12,
+    fontSize: 16,
+    color: "#111827",
+  },
+  lengthIndicator: {
+    alignItems: "flex-end",
+    paddingHorizontal: 4,
+  },
+  lengthText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+  },
+  lengthTextValid: {
+    color: PrimaryColor,
+    fontWeight: "600",
   },
   input: {
     backgroundColor: "#F3F4F6",
@@ -137,7 +292,7 @@ const styles = StyleSheet.create({
     color: "#111827",
   },
   button: {
-    marginTop: 30,
+    marginTop: 20,
     backgroundColor: PrimaryColor,
     paddingVertical: 18,
     borderRadius: 12,
@@ -148,6 +303,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.5,
+    shadowOpacity: 0.1,
   },
   buttonText: {
     color: "white",
@@ -173,5 +332,58 @@ const styles = StyleSheet.create({
   socialText: {
     color: "white",
     fontSize: 16,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    maxHeight: "70%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  countryItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    gap: 12,
+  },
+  countryItemSelected: {
+    backgroundColor: "#F0FDF4",
+  },
+  countryFlag: {
+    fontSize: 28,
+  },
+  countryInfo: {
+    flex: 1,
+  },
+  countryName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 2,
+  },
+  countryDialCode: {
+    fontSize: 14,
+    color: "#6B7280",
   },
 });

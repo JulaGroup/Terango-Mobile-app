@@ -11,6 +11,7 @@ export interface UniversalProduct {
   image?: string;
   description?: string;
   inStock?: boolean;
+  discountedPrice?: number;
 }
 
 interface ProductCardProps {
@@ -71,6 +72,16 @@ const ProductCard = ({
     }
   }, [cartQuantity, expanded]);
 
+  // Calculate discount percentage if discounted price exists
+  const discountPercentage =
+    product.discountedPrice && product.discountedPrice < product.price
+      ? Math.round(
+          ((product.price - product.discountedPrice) / product.price) * 100
+        )
+      : 0;
+
+  const displayPrice = product.discountedPrice || product.price;
+
   // Dynamic styles based on cardWidth
   const dynamicStyles = StyleSheet.create({
     card: {
@@ -106,6 +117,13 @@ const ProductCard = ({
         ) : (
           <View style={styles.imagePlaceholder}>
             <Ionicons name="restaurant" size={28} color="#E5E5E5" />
+          </View>
+        )}
+
+        {/* Discount Badge - Top Left Corner */}
+        {discountPercentage > 0 && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>-{discountPercentage}%</Text>
           </View>
         )}
 
@@ -167,7 +185,10 @@ const ProductCard = ({
           }}
         >
           <View style={styles.productPriceRow}>
-            <Text style={styles.productPrice}>D{product.price.toFixed(2)}</Text>
+            <Text style={styles.productPrice}>D{displayPrice.toFixed(2)}</Text>
+            {discountPercentage > 0 && (
+              <Text style={styles.originalPrice}>D{product.price.toFixed(2)}</Text>
+            )}
           </View>
           {cartQuantity > 0 && (
             <View style={styles.cartIndicator}>
@@ -229,6 +250,26 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F8F8F8",
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  discountText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   floatingAddButton: {
     position: "absolute",
@@ -306,6 +347,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "flex-start",
     marginTop: 2,
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  originalPrice: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
+    letterSpacing: -0.2,
   },
   productPrice: {
     fontSize: 15,

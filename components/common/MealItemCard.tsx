@@ -11,6 +11,7 @@ export interface UniversalProduct {
   image?: string;
   description?: string;
   inStock?: boolean;
+  discountedPrice?: number;
 }
 
 interface MealItemCardProps {
@@ -69,6 +70,16 @@ const MealItemCard = ({
     }
   }, [cartQuantity, expanded]);
 
+  // Calculate discount percentage if discounted price exists
+  const discountPercentage =
+    product.discountedPrice && product.discountedPrice < product.price
+      ? Math.round(
+          ((product.price - product.discountedPrice) / product.price) * 100
+        )
+      : 0;
+
+  const displayPrice = product.discountedPrice || product.price;
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -88,7 +99,14 @@ const MealItemCard = ({
         )}
 
         <View style={styles.bottomRow}>
-          <Text style={styles.price}>D{product.price.toFixed(2)}</Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.price}>D{displayPrice.toFixed(2)}</Text>
+            {discountPercentage > 0 && (
+              <Text style={styles.originalPrice}>
+                D{product.price.toFixed(2)}
+              </Text>
+            )}
+          </View>
           {cartQuantity > 0 && (
             <View style={styles.cartIndicator}>
               <Ionicons name="checkmark-circle" size={12} color="#10b981" />
@@ -100,6 +118,13 @@ const MealItemCard = ({
 
       {/* Right side - Image with cart controls */}
       <View style={styles.imageContainer}>
+        {/* Discount Badge - Top Left Corner of Image */}
+        {discountPercentage > 0 && (
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>-{discountPercentage}%</Text>
+          </View>
+        )}
+
         {product.image && !imageLoadError ? (
           <Image
             source={{ uri: product.image }}
@@ -190,6 +215,27 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: "hidden",
   },
+  discountBadge: {
+    position: "absolute",
+    top: 4,
+    left: 4,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+    zIndex: 10,
+  },
+  discountText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
   image: {
     width: "100%",
     height: "100%",
@@ -220,6 +266,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  priceContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  originalPrice: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
+    letterSpacing: -0.2,
   },
   price: {
     fontSize: 16,

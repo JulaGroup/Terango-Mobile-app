@@ -120,6 +120,7 @@ interface MenuItem {
   name: string;
   description?: string;
   price: number;
+  discountedPrice?: number;
   imageUrl?: string;
   preparationTime?: number;
   mealTime?: string;
@@ -364,6 +365,20 @@ export default function MenuItemDetailPage() {
             </View>
           )}
 
+          {/* Discount Badge */}
+          {menuItem.discountedPrice && menuItem.discountedPrice < menuItem.price && (
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>
+                -
+                {Math.round(
+                  ((menuItem.price - menuItem.discountedPrice) / menuItem.price) *
+                    100
+                )}
+                %
+              </Text>
+            </View>
+          )}
+
           {/* Availability Badge */}
           <View style={styles.availabilityBadge}>
             <View
@@ -522,7 +537,18 @@ export default function MenuItemDetailPage() {
           </View>
 
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>D{menuItem.price.toFixed(2)}</Text>
+            {menuItem.discountedPrice && menuItem.discountedPrice < menuItem.price ? (
+              <>
+                <Text style={styles.price}>
+                  D{menuItem.discountedPrice.toFixed(2)}
+                </Text>
+                <Text style={styles.originalPrice}>
+                  D{menuItem.price.toFixed(2)}
+                </Text>
+              </>
+            ) : (
+              <Text style={styles.price}>D{menuItem.price.toFixed(2)}</Text>
+            )}
             {!canOrder && (
               <Text style={styles.unavailableText}>Currently unavailable</Text>
             )}
@@ -696,6 +722,26 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  discountBadge: {
+    position: "absolute",
+    top: 70,
+    left: 16,
+    backgroundColor: "#FF6B6B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  discountText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
   availabilityDot: {
     width: 8,
     height: 8,
@@ -845,12 +891,22 @@ const styles = StyleSheet.create({
   },
   priceContainer: {
     marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   price: {
     fontSize: 32,
     fontWeight: "900",
     color: PrimaryColor,
     letterSpacing: -1,
+  },
+  originalPrice: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#94A3B8",
+    textDecorationLine: "line-through",
+    letterSpacing: -0.5,
   },
   unavailableText: {
     fontSize: 14,
