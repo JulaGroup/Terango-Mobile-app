@@ -25,8 +25,20 @@ interface Country {
 
 const COUNTRIES: Country[] = [
   { code: "GM", name: "Gambia", flag: "🇬🇲", dialCode: "+220", maxLength: 7 },
-  { code: "US", name: "United States", flag: "🇺🇸", dialCode: "+1", maxLength: 10 },
-  { code: "GB", name: "United Kingdom", flag: "🇬🇧", dialCode: "+44", maxLength: 10 },
+  {
+    code: "US",
+    name: "United States",
+    flag: "🇺🇸",
+    dialCode: "+1",
+    maxLength: 10,
+  },
+  {
+    code: "GB",
+    name: "United Kingdom",
+    flag: "🇬🇧",
+    dialCode: "+44",
+    maxLength: 10,
+  },
   { code: "SN", name: "Senegal", flag: "🇸🇳", dialCode: "+221", maxLength: 9 },
   { code: "NG", name: "Nigeria", flag: "🇳🇬", dialCode: "+234", maxLength: 10 },
   { code: "GH", name: "Ghana", flag: "🇬🇭", dialCode: "+233", maxLength: 9 },
@@ -69,9 +81,9 @@ export default function AuthScreen() {
     }
     setLoading(true);
     try {
-      await loginUser({ 
-        phone, 
-        countryCode: selectedCountry.dialCode.replace("+", "") 
+      await loginUser({
+        phone,
+        countryCode: selectedCountry.dialCode.replace("+", ""),
       });
     } catch (error) {
       console.error("Login error:", error);
@@ -125,7 +137,7 @@ export default function AuthScreen() {
             <Text style={styles.dialCodeText}>{selectedCountry.dialCode}</Text>
             <Ionicons name="chevron-down" size={16} color="#6B7280" />
           </TouchableOpacity>
-          
+
           <TextInput
             placeholder={`Phone number (${selectedCountry.maxLength} digits)`}
             placeholderTextColor="#9CA3AF"
@@ -136,13 +148,16 @@ export default function AuthScreen() {
             maxLength={selectedCountry.maxLength}
           />
         </View>
-        
+
         {/* Phone Length Indicator */}
         <View style={styles.lengthIndicator}>
-          <Text style={[
-            styles.lengthText,
-            phone.length === selectedCountry.maxLength && styles.lengthTextValid
-          ]}>
+          <Text
+            style={[
+              styles.lengthText,
+              phone.length === selectedCountry.maxLength &&
+                styles.lengthTextValid,
+            ]}
+          >
             {phone.length}/{selectedCountry.maxLength} digits
           </Text>
         </View>
@@ -151,7 +166,7 @@ export default function AuthScreen() {
       <TouchableOpacity
         style={[
           styles.button,
-          (loading || !isValidPhone) && styles.buttonDisabled
+          (loading || !isValidPhone) && styles.buttonDisabled,
         ]}
         onPress={handleSubmit}
         disabled={loading || !isValidPhone}
@@ -190,7 +205,7 @@ export default function AuthScreen() {
                 <Ionicons name="close" size={24} color="#1F2937" />
               </TouchableOpacity>
             </View>
-            
+
             <FlatList
               data={COUNTRIES}
               keyExtractor={(item) => item.code}
@@ -198,7 +213,8 @@ export default function AuthScreen() {
                 <TouchableOpacity
                   style={[
                     styles.countryItem,
-                    selectedCountry.code === item.code && styles.countryItemSelected
+                    selectedCountry.code === item.code &&
+                      styles.countryItemSelected,
                   ]}
                   onPress={() => handleCountrySelect(item)}
                 >

@@ -187,7 +187,9 @@ const ProductCard = ({
           <View style={styles.productPriceRow}>
             <Text style={styles.productPrice}>D{displayPrice.toFixed(2)}</Text>
             {discountPercentage > 0 && (
-              <Text style={styles.originalPrice}>D{product.price.toFixed(2)}</Text>
+              <Text style={styles.originalPrice}>
+                D{product.price.toFixed(2)}
+              </Text>
             )}
           </View>
           {cartQuantity > 0 && (

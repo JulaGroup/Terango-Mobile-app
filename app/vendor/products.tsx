@@ -369,7 +369,10 @@ export default function VendorProducts() {
       const discountedPrice = parseFloat(formData.discountedPrice);
 
       if (discountedPrice <= 0) {
-        Alert.alert("Validation Error", "Discounted price must be greater than 0");
+        Alert.alert(
+          "Validation Error",
+          "Discounted price must be greater than 0"
+        );
         return;
       }
 

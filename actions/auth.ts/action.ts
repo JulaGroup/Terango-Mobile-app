@@ -33,11 +33,11 @@ const safeDeleteItem = async (key: string) => {
 };
 
 // Login user and send OTP
-export const loginUser = async ({ 
-  phone, 
-  countryCode = "220" 
-}: { 
-  phone: string; 
+export const loginUser = async ({
+  phone,
+  countryCode = "220",
+}: {
+  phone: string;
   countryCode?: string;
 }) => {
   if (phone.length < 7) {

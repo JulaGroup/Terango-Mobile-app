@@ -468,18 +468,20 @@ export default function ProductDetail() {
           )}
 
           {/* Discount Badge */}
-          {product.discountedPrice && product.discountedPrice < product.price && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>
-                -
-                {Math.round(
-                  ((product.price - product.discountedPrice) / product.price) *
-                    100
-                )}
-                %
-              </Text>
-            </View>
-          )}
+          {product.discountedPrice &&
+            product.discountedPrice < product.price && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>
+                  -
+                  {Math.round(
+                    ((product.price - product.discountedPrice) /
+                      product.price) *
+                      100
+                  )}
+                  %
+                </Text>
+              </View>
+            )}
 
           {/* Stock Badge */}
           {product.stock !== undefined && (
@@ -550,7 +552,8 @@ export default function ProductDetail() {
           )}
 
           <View style={styles.priceContainer}>
-            {product.discountedPrice && product.discountedPrice < product.price ? (
+            {product.discountedPrice &&
+            product.discountedPrice < product.price ? (
               <>
                 <Text style={styles.price}>
                   D{product.discountedPrice.toFixed(2)}

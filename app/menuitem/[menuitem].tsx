@@ -366,18 +366,20 @@ export default function MenuItemDetailPage() {
           )}
 
           {/* Discount Badge */}
-          {menuItem.discountedPrice && menuItem.discountedPrice < menuItem.price && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>
-                -
-                {Math.round(
-                  ((menuItem.price - menuItem.discountedPrice) / menuItem.price) *
-                    100
-                )}
-                %
-              </Text>
-            </View>
-          )}
+          {menuItem.discountedPrice &&
+            menuItem.discountedPrice < menuItem.price && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>
+                  -
+                  {Math.round(
+                    ((menuItem.price - menuItem.discountedPrice) /
+                      menuItem.price) *
+                      100
+                  )}
+                  %
+                </Text>
+              </View>
+            )}
 
           {/* Availability Badge */}
           <View style={styles.availabilityBadge}>
@@ -537,7 +539,8 @@ export default function MenuItemDetailPage() {
           </View>
 
           <View style={styles.priceContainer}>
-            {menuItem.discountedPrice && menuItem.discountedPrice < menuItem.price ? (
+            {menuItem.discountedPrice &&
+            menuItem.discountedPrice < menuItem.price ? (
               <>
                 <Text style={styles.price}>
                   D{menuItem.discountedPrice.toFixed(2)}
