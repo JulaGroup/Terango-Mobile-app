@@ -12,6 +12,7 @@ import {
   StatusBar,
   Animated,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
@@ -32,6 +33,8 @@ import {
   NotificationService,
 } from "@/services/NotificationService";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AddressService } from "@/services/AddressService";
+import { API_URL } from "@/constants/config";
 
 export default function Checkout() {
   const router = useRouter();
@@ -159,12 +162,40 @@ export default function Checkout() {
   const [paymentMethods, setPaymentMethods] = useState<any>(null);
   const [paymentMethodsLoaded, setPaymentMethodsLoaded] = useState(false);
 
+  // 🎉 PROMO CODE STATE
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<any>(null);
+  const [promoError, setPromoError] = useState('');
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+  const [isFirstOrder, setIsFirstOrder] = useState(false);
+  const [isCheckingFirstOrder, setIsCheckingFirstOrder] = useState(true);
+
+  // 🚀 DISTANCE-BASED DELIVERY FEE STATE
+  const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
+  const [loadingDeliveryFee, setLoadingDeliveryFee] = useState(false);
+  const [customerCoordinates, setCustomerCoordinates] = useState<{latitude: number; longitude: number} | null>(null);
+
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
-  const deliveryFee = form.orderType === "DELIVERY" ? 100 : 0;
-  const serviceFee = 100;
-  const total = subtotal + deliveryFee + serviceFee;
+  
+  // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
+  const DEFAULT_DELIVERY_FEE = 100; // GMD - fallback if distance calculation fails
+  let deliveryFee = form.orderType === "DELIVERY" ? (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE) : 0;
+  
+  // Free delivery for first order
+  if (isFirstOrder && form.orderType === "DELIVERY") {
+    deliveryFee = 0;
+  }
+  
+  // Free delivery from promo code
+  if (appliedPromo?.freeDelivery && form.orderType === "DELIVERY") {
+    deliveryFee = 0;
+  }
+  
+  const discountAmount = appliedPromo?.discountAmount || 0;
+  const serviceFee = 0; // Set to 0 for now
+  const total = subtotal - discountAmount + deliveryFee + serviceFee;
 
   // Disable placing order for DELIVERY if no address is selected
   const isPlaceOrderDisabled =
@@ -405,6 +436,167 @@ export default function Checkout() {
     }
   }, [router, loadUserInfo]);
 
+  // 🎉 CHECK IF FIRST ORDER FOR FREE DELIVERY
+  const checkFirstOrder = useCallback(async () => {
+    try {
+      const token = await SecureStore.getItemAsync('token');
+      if (!token) {
+        setIsCheckingFirstOrder(false);
+        return;
+      }
+
+      const { API_URL } = await import('@/constants/config');
+      const response = await fetch(`${API_URL}/api/orders/count`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setIsFirstOrder(data.isFirstOrder || false);
+        console.log('🎉 First order status:', data);
+      }
+    } catch (error) {
+      console.error('Error checking first order:', error);
+    } finally {
+      setIsCheckingFirstOrder(false);
+    }
+  }, []);
+
+  // 🎉 VALIDATE PROMO CODE
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) {
+      setPromoError('Please enter a promo code');
+      return;
+    }
+
+    setIsValidatingPromo(true);
+    setPromoError('');
+
+    try {
+      const token = await SecureStore.getItemAsync('token');
+      const { API_URL } = await import('@/constants/config');
+
+      const response = await fetch(`${API_URL}/api/promocodes/validate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          code: promoCode.toUpperCase(),
+          userId: userProfile?.email || 'user', // You may need to get actual userId
+          orderAmount: subtotal,
+          orderType: form.orderType,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.isValid) {
+        setAppliedPromo(result);
+        setPromoError('');
+        Alert.alert('Success! 🎉', result.message || 'Promo code applied successfully');
+      } else {
+        setPromoError(result.message || 'Invalid promo code');
+        setAppliedPromo(null);
+      }
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      setPromoError('Failed to validate promo code');
+      setAppliedPromo(null);
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
+  // 🎉 REMOVE PROMO CODE
+  const removePromoCode = () => {
+    setPromoCode('');
+    setAppliedPromo(null);
+    setPromoError('');
+  };
+
+  // 🚀 ESTIMATE DELIVERY FEE BASED ON DISTANCE
+  const estimateDeliveryFee = useCallback(async (address: string) => {
+    if (!address || form.orderType !== "DELIVERY") {
+      setDeliveryEstimate(null);
+      setCustomerCoordinates(null);
+      return;
+    }
+
+    setLoadingDeliveryFee(true);
+    try {
+      // Step 1: Geocode address to get coordinates
+      console.log("📍 Geocoding address:", address);
+      const coords = await AddressService.getCoordinatesFromAddress(address);
+      
+      if (!coords) {
+        console.warn("⚠️ Could not geocode address, using default delivery fee");
+        setDeliveryEstimate(null);
+        setCustomerCoordinates(null);
+        setLoadingDeliveryFee(false);
+        return;
+      }
+
+      console.log("✅ Got coordinates:", coords);
+      setCustomerCoordinates(coords);
+
+      // Step 2: Get vendor info from cart
+      const firstItem = items[0];
+      if (!firstItem) {
+        setLoadingDeliveryFee(false);
+        return;
+      }
+
+      const vendorId = firstItem.vendorId || restaurantIds[0];
+      const vendorType = firstItem.entityType || "restaurant";
+
+      // Step 3: Call delivery fee estimation API
+      console.log("💰 Estimating delivery fee for vendor:", vendorId);
+      const response = await fetch(`${API_URL}/api/delivery-fee/estimate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendorId,
+          vendorType,
+          customerLatitude: coords.latitude,
+          customerLongitude: coords.longitude,
+          orderAmount: subtotal,
+          hasFreeDeliveryPromo: appliedPromo?.freeDelivery || false
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log("✅ Delivery fee estimate:", data);
+        setDeliveryEstimate(data);
+      } else {
+        console.warn("⚠️ Delivery fee estimation failed:", data.message);
+        setDeliveryEstimate(null);
+      }
+    } catch (error) {
+      console.error("❌ Failed to estimate delivery fee:", error);
+      setDeliveryEstimate(null);
+    } finally {
+      setLoadingDeliveryFee(false);
+    }
+  }, [form.orderType, items, restaurantIds, subtotal, appliedPromo]);
+
+  // Call estimation when address changes
+  useEffect(() => {
+    if (form.address && form.orderType === "DELIVERY") {
+      estimateDeliveryFee(form.address);
+    } else {
+      setDeliveryEstimate(null);
+      setCustomerCoordinates(null);
+    }
+  }, [form.address, form.orderType, estimateDeliveryFee]);
+
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -425,7 +617,8 @@ export default function Checkout() {
     ]).start();
 
     checkAuthAndLoadUserInfo();
-  }, [fadeAnim, slideAnim, headerScale, checkAuthAndLoadUserInfo]);
+    checkFirstOrder(); // ✅ Check if first order on component mount
+  }, [fadeAnim, slideAnim, headerScale, checkAuthAndLoadUserInfo, checkFirstOrder]);
 
   // Debug effect to monitor payment method state changes
   useEffect(() => {
@@ -585,6 +778,10 @@ export default function Checkout() {
               form.orderType === "PICKUP" ? form.pickupInstructions : null,
             items: itemsPayload,
             notes: form.notes,
+            promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
+            // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
+            customerLatitude: customerCoordinates?.latitude,
+            customerLongitude: customerCoordinates?.longitude,
           };
 
           if (entityType === "restaurant")
@@ -934,18 +1131,113 @@ export default function Checkout() {
                 <Text style={styles.totalValue}>D{serviceFee.toFixed(2)}</Text>
               </View>
               {form.orderType === "DELIVERY" && (
+                <>
+                  <View style={styles.totalRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.totalLabel}>Delivery Fee</Text>
+                      {loadingDeliveryFee && (
+                        <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                          Calculating distance...
+                        </Text>
+                      )}
+                      {deliveryEstimate && !loadingDeliveryFee && (
+                        <Text style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>
+                          📍 {deliveryEstimate.distanceKm.toFixed(1)} km • 🚚 ~{deliveryEstimate.estimatedDeliveryTimeMinutes} mins
+                        </Text>
+                      )}
+                    </View>
+                    <Text style={[styles.totalValue, (appliedPromo?.freeDelivery || isFirstOrder || deliveryEstimate?.isFreeDelivery) && { textDecorationLine: 'line-through', color: '#9CA3AF' }]}>
+                      D{deliveryFee > 0 ? deliveryFee.toFixed(2) : (DEFAULT_DELIVERY_FEE).toFixed(2)}
+                    </Text>
+                    {(appliedPromo?.freeDelivery || isFirstOrder || deliveryEstimate?.isFreeDelivery) && (
+                      <Text style={{ color: '#10B981', fontWeight: '600', marginLeft: 8 }}>FREE 🎉</Text>
+                    )}
+                  </View>
+                  
+                  {/* Show free delivery promotion hint */}
+                  {deliveryEstimate?.freeDeliveryPromotion?.available && !deliveryEstimate.isFreeDelivery && (
+                    <View style={{ 
+                      backgroundColor: '#FEF3C7', 
+                      padding: 10, 
+                      borderRadius: 8, 
+                      marginTop: 8,
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}>
+                      <Ionicons name="gift" size={16} color="#F59E0B" style={{ marginRight: 6 }} />
+                      <Text style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                        {deliveryEstimate.freeDeliveryPromotion.message}
+                      </Text>
+                    </View>
+                  )}
+                </>
+              )}
+              
+              {/* 🎉 PROMO CODE DISCOUNT */}
+              {appliedPromo && discountAmount > 0 && (
                 <View style={styles.totalRow}>
-                  <Text style={styles.totalLabel}>Delivery Fee</Text>
-                  <Text style={styles.totalValue}>
-                    D{deliveryFee.toFixed(2)}
+                  <Text style={[styles.totalLabel, { color: '#10B981' }]}>Promo Discount</Text>
+                  <Text style={[styles.totalValue, { color: '#10B981' }]}>
+                    -D{discountAmount.toFixed(2)}
                   </Text>
                 </View>
               )}
+              
               <View style={[styles.totalRow, styles.grandTotalRow]}>
                 <Text style={styles.grandTotalLabel}>Total</Text>
                 <Text style={styles.grandTotalValue}>D{total.toFixed(2)}</Text>
               </View>
             </View>
+
+            {/* 🎉 PROMO CODE INPUT */}
+            {!appliedPromo ? (
+              <View style={styles.promoCodeSection}>
+                <Text style={styles.promoCodeLabel}>Have a promo code?</Text>
+                <View style={styles.promoCodeInputContainer}>
+                  <TextInput
+                    style={styles.promoCodeInput}
+                    placeholder="Enter code (e.g. LAUNCH2025)"
+                    value={promoCode}
+                    onChangeText={setPromoCode}
+                    autoCapitalize="characters"
+                    editable={!isValidatingPromo && !loading}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.promoCodeButton,
+                      (isValidatingPromo || loading || !promoCode.trim()) && styles.promoCodeButtonDisabled
+                    ]}
+                    onPress={validatePromoCode}
+                    disabled={isValidatingPromo || loading || !promoCode.trim()}
+                  >
+                    <Text style={styles.promoCodeButtonText}>
+                      {isValidatingPromo ? 'Validating...' : 'Apply'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {promoError ? (
+                  <Text style={styles.promoErrorText}>{promoError}</Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.appliedPromoContainer}>
+                <View style={styles.appliedPromoContent}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.appliedPromoCode}>{promoCode.toUpperCase()}</Text>
+                    <Text style={styles.appliedPromoDescription}>
+                      {appliedPromo.message || appliedPromo.description || 'Promo applied successfully!'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={removePromoCode}
+                    disabled={loading}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </Animated.View>
 
           {/* Customer Information */}
@@ -2032,7 +2324,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#1F2937",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   orderTypeTitleSelected: {
     color: "#fff",
@@ -2040,10 +2332,87 @@ const styles = StyleSheet.create({
   orderTypeSubtitle: {
     fontSize: 14,
     color: "#6B7280",
-    lineHeight: 18,
   },
   orderTypeSubtitleSelected: {
-    color: "rgba(255,255,255,0.8)",
+    color: "rgba(255,255,255,0.9)",
+  },
+  // 🎉 PROMO CODE STYLES
+  promoCodeSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  promoCodeLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  promoCodeInputContainer: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  promoCodeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#1F2937",
+    backgroundColor: "#F9FAFB",
+  },
+  promoCodeButton: {
+    backgroundColor: PrimaryColor,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 80,
+  },
+  promoCodeButtonDisabled: {
+    backgroundColor: "#9CA3AF",
+    opacity: 0.6,
+  },
+  promoCodeButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  promoErrorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
+  appliedPromoContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  appliedPromoContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ECFDF5",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#10B981",
+  },
+  appliedPromoCode: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#047857",
+    letterSpacing: 1,
+  },
+  appliedPromoDescription: {
+    fontSize: 12,
+    color: "#059669",
+    marginTop: 2,
   },
   modalCentered: {
     flex: 1,
