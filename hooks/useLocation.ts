@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import * as Location from "expo-location";
 import { usePermissions } from "@/context/PermissionContext";
+import { AddressService } from "@/services/AddressService";
 
 interface LocationData {
   latitude: number;
@@ -76,25 +77,12 @@ export const useLocation = (): UseLocationReturn => {
     longitude: number
   ): Promise<string> => {
     try {
-      const addresses = await Location.reverseGeocodeAsync({
+      // Use AddressService with rate limiting instead of Expo's reverseGeocodeAsync
+      const address = await AddressService.getAddressFromCoordinates(
         latitude,
-        longitude,
-      });
-
-      if (addresses.length > 0) {
-        const address = addresses[0];
-        const addressParts = [
-          address.streetNumber,
-          address.street,
-          address.district,
-          address.city,
-          address.region,
-        ].filter(Boolean);
-
-        return addressParts.join(", ") || "Location found";
-      }
-
-      return "Location found";
+        longitude
+      );
+      return address || "Location found";
     } catch (error) {
       console.error("Reverse geocoding error:", error);
       return "Location found";

@@ -79,10 +79,8 @@ export default function Cart() {
     );
   };
 
-  // Calculate subtotal, delivery fee and total
+  // Calculate subtotal (delivery fee determined at checkout based on address)
   const subtotal = getTotalAmount();
-  const deliveryFee = 100; // Example delivery fee
-  const total = subtotal + deliveryFee;
 
   const CartItemCard = ({
     item,
@@ -389,14 +387,25 @@ export default function Cart() {
           </View>
 
           <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
+            <Text style={styles.summaryValue}>D{(subtotal * 0.05).toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>D{deliveryFee.toFixed(2)}</Text>
+            <Text style={[styles.summaryValue, { color: '#6b7280', fontStyle: 'italic' }]}>
+              Calculated at checkout
+            </Text>
           </View>
 
           <View style={[styles.summaryRow, styles.totalRow]}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>D{total.toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Estimated Total</Text>
+            <Text style={styles.totalValue}>D{(subtotal + subtotal * 0.05).toFixed(2)}+</Text>
           </View>
+
+          <Text style={styles.deliveryNote}>
+            💡 Delivery fee will be added based on your address
+          </Text>
         </View>
 
         <View style={styles.spacing} />
@@ -430,7 +439,7 @@ export default function Cart() {
           >
             <Text style={styles.checkoutText}>Proceed to Checkout</Text>
             <View style={styles.checkoutPriceContainer}>
-              <Text style={styles.checkoutPrice}>D{total.toFixed(2)}</Text>
+              <Text style={styles.checkoutPrice}>D{subtotal.toFixed(2)}</Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -863,5 +872,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     minWidth: 40,
     alignItems: "center",
+  },
+  deliveryNote: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+    lineHeight: 18,
+    fontStyle: "italic",
   },
 });

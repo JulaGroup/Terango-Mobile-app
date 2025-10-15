@@ -20,6 +20,8 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { useLocation } from "@/hooks/useLocation";
+import { AddressService } from "@/services/AddressService";
 
 interface BusinessHours {
   day: string;
@@ -32,9 +34,11 @@ export default function VendorProfile() {
   const router = useRouter();
   const { vendor, currentBusiness, logoutVendor, refreshVendorData } =
     useVendor();
+  const { getCurrentLocation } = useLocation();
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [profileImage, setProfileImage] = useState(currentBusiness?.logoUrl);
 
   // Cloudinary configuration - matching menu.tsx and products.tsx
@@ -93,10 +97,13 @@ export default function VendorProfile() {
     name: currentBusiness?.name || "",
     description: currentBusiness?.description || "",
     address: currentBusiness?.address || "",
+    city: (currentBusiness as any)?.city || "",
     phone: currentBusiness?.phone || "",
     email: currentBusiness?.email || "",
     website: currentBusiness?.website || "",
     isActive: currentBusiness?.isActive || false,
+    latitude: currentBusiness?.latitude ?? null,
+    longitude: currentBusiness?.longitude ?? null,
   });
 
   const [businessHours, setBusinessHours] = useState<BusinessHours[]>([
@@ -130,16 +137,22 @@ export default function VendorProfile() {
         name: currentBusiness.name,
         description: currentBusiness.description || "",
         address: currentBusiness.address || "",
+        city: (currentBusiness as any).city || "",
         phone: currentBusiness.phone || "",
         email: currentBusiness.email || "",
         website: currentBusiness.website || "",
         isActive: currentBusiness.isActive,
+        latitude: currentBusiness.latitude ?? null,
+        longitude: currentBusiness.longitude ?? null,
       });
       setProfileImage(currentBusiness.logoUrl);
       console.log("📝 Form data set:", {
         name: currentBusiness.name,
         description: currentBusiness.description,
         logoUrl: currentBusiness.logoUrl,
+        city: (currentBusiness as any).city,
+        latitude: currentBusiness.latitude,
+        longitude: currentBusiness.longitude,
       });
     } else {
       console.log("❌ No currentBusiness available");
@@ -214,6 +227,92 @@ export default function VendorProfile() {
     }
   };
 
+  const handleGetCurrentLocation = async () => {
+    if (!isEditing) {
+      return;
+    }
+
+    try {
+      setLocationLoading(true);
+
+      const location = await getCurrentLocation();
+
+      if (!location) {
+        Alert.alert(
+          "Location Error",
+          "Unable to get your current location. Please check permissions and try again."
+        );
+        return;
+      }
+
+      console.log("📍 Got current location for business:", location);
+
+      // Get structured address with city
+      const addressData =
+        await AddressService.getStructuredAddressFromCoordinates(
+          location.latitude,
+          location.longitude
+        );
+
+      console.log("📍 Reverse geocoded address data:", addressData);
+
+      // Check if we got valid address data (not just coordinates)
+      const isValidAddress =
+        addressData &&
+        addressData.address &&
+        !addressData.address.match(/^[\d\.\-\s,]+$/); // Don't accept if it's just coordinates
+
+      // Always update coordinates (even if geocoding failed)
+      const updatedData: any = {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      };
+
+      // Only update address/city if we got valid geocoded data
+      if (isValidAddress && addressData) {
+        updatedData.address = addressData.address;
+        if (addressData.city) {
+          updatedData.city = addressData.city;
+        }
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        ...updatedData,
+      }));
+
+      if (isValidAddress && addressData) {
+        Alert.alert(
+          "Location Updated ✓",
+          `Business location has been set!\n\n📍 Address: ${
+            addressData.address
+          }\n🏙️ City: ${
+            addressData.city || "N/A"
+          }\n\n📌 Coordinates: ${location.latitude.toFixed(
+            6
+          )}, ${location.longitude.toFixed(6)}`
+        );
+      } else {
+        Alert.alert(
+          "Coordinates Set ✓",
+          `GPS coordinates have been captured!\n\n📌 Latitude: ${location.latitude.toFixed(
+            6
+          )}\n📌 Longitude: ${location.longitude.toFixed(
+            6
+          )}\n\n⚠️ Could not retrieve address automatically (network error).\n\nPlease enter your address and city manually below, then click Save.`
+        );
+      }
+    } catch (error) {
+      console.error("Error getting current location:", error);
+      Alert.alert(
+        "Error",
+        "Failed to fetch your current location. Please check your internet connection and try again."
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     try {
       setIsLoading(true);
@@ -248,11 +347,14 @@ export default function VendorProfile() {
         name: formData.name,
         description: formData.description,
         address: formData.address,
+        city: formData.city,
         phone: formData.phone,
         email: formData.email,
         website: formData.website,
         isActive: formData.isActive,
         imageUrl: profileImage,
+        latitude: formData.latitude ?? undefined,
+        longitude: formData.longitude ?? undefined,
         openingHours: openingHours, // Add business hours
       };
 
@@ -453,6 +555,54 @@ export default function VendorProfile() {
               editable={isEditing}
               placeholder="Enter business address"
             />
+
+            <View style={styles.locationRow}>
+              <TouchableOpacity
+                style={[
+                  styles.locationButton,
+                  (!isEditing || locationLoading) &&
+                    styles.locationButtonDisabled,
+                ]}
+                onPress={handleGetCurrentLocation}
+                disabled={!isEditing || locationLoading}
+              >
+                {locationLoading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Ionicons name="navigate-outline" size={16} color="white" />
+                    <Text style={styles.locationButtonText}>
+                      Use my location
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {formData.latitude !== null && formData.longitude !== null && (
+                <View style={styles.coordinatePill}>
+                  <Ionicons name="location" size={14} color={PrimaryColor} />
+                  <Text style={styles.coordinateText}>{formData.address}</Text>
+                </View>
+              )}
+            </View>
+
+            {formData.latitude === null || formData.longitude === null ? (
+              <Text style={styles.locationHint}>
+                Set accurate coordinates so customers receive correct delivery
+                fees.
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>City</Text>
+            <TextInput
+              style={[styles.input, !isEditing && styles.disabledInput]}
+              value={formData.city}
+              onChangeText={(text) => setFormData({ ...formData, city: text })}
+              editable={isEditing}
+              placeholder="Enter city (auto-filled with GPS)"
+            />
           </View>
 
           <View style={styles.field}>
@@ -479,7 +629,7 @@ export default function VendorProfile() {
             />
           </View>
 
-          <View style={styles.field}>
+          {/* <View style={styles.field}>
             <Text style={styles.fieldLabel}>Website</Text>
             <TextInput
               style={[styles.input, !isEditing && styles.disabledInput]}
@@ -491,9 +641,9 @@ export default function VendorProfile() {
               placeholder="Enter website URL"
               keyboardType="url"
             />
-          </View>
+          </View> */}
 
-          <View style={styles.switchField}>
+          {/* <View style={styles.switchField}>
             <Text style={styles.fieldLabel}>Business Active</Text>
             <Switch
               value={formData.isActive}
@@ -503,7 +653,7 @@ export default function VendorProfile() {
               disabled={!isEditing}
               trackColor={{ false: "#767577", true: PrimaryColor }}
             />
-          </View>
+          </View> */}
         </View>
 
         {/* Business Hours */}
@@ -820,5 +970,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
+  },
+  locationRow: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  locationButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: PrimaryColor,
+  },
+  locationButtonDisabled: {
+    backgroundColor: "#9aa4ae",
+  },
+  locationButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  coordinatePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#E3F2FD",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  coordinateText: {
+    marginLeft: 6,
+    color: PrimaryColor,
+    fontWeight: "600",
+  },
+  locationHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: "#666",
   },
 });

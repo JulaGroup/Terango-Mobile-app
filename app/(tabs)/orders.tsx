@@ -2,12 +2,14 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Animated,
   RefreshControl,
   Alert,
   StatusBar,
+  ActivityIndicator,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
@@ -52,10 +54,16 @@ export default function Orders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"live" | "past">("live");
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Order success modal state
   const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
@@ -93,20 +101,39 @@ export default function Orders() {
     return () => skeletonAnimation.stop();
   }, [loading, skeletonOpacity]);
 
-  const fetchOrders = useCallback(async () => {
-    try {
-      setError(null);
-      const ordersData = await orderApi.getCustomerOrders();
-      setOrders(ordersData);
-    } catch (error: any) {
-      console.error("Failed to fetch orders:", error);
-      const errorMessage = error.message || "Failed to load orders";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  const fetchOrders = useCallback(
+    async (page: number = 1, append: boolean = false) => {
+      try {
+        setError(null);
+        if (!append) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const result = await orderApi.getCustomerOrders(page);
+
+        if (append) {
+          setOrders((prev) => [...prev, ...result.orders]);
+        } else {
+          setOrders(result.orders);
+        }
+
+        setHasMore(result.hasMore);
+        setTotalCount(result.totalCount);
+        setCurrentPage(page);
+      } catch (error: any) {
+        console.error("Failed to fetch orders:", error);
+        const errorMessage = error.message || "Failed to load orders";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
 
   const checkAuthentication = useCallback(async () => {
     try {
@@ -222,7 +249,16 @@ export default function Orders() {
   const onRefresh = () => {
     if (userId) {
       setRefreshing(true);
-      fetchOrders();
+      setCurrentPage(1);
+      setHasMore(true);
+      fetchOrders(1, false);
+    }
+  };
+
+  const loadMoreOrders = () => {
+    if (!loadingMore && hasMore && !loading) {
+      console.log(`[Orders] Loading more orders, page ${currentPage + 1}`);
+      fetchOrders(currentPage + 1, true);
     }
   };
 

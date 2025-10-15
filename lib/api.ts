@@ -45,9 +45,12 @@ export interface Business {
   email?: string;
   revenue: number;
   address?: string;
+  city?: string;
   phone?: string;
   description?: string;
   logoUrl?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +107,10 @@ export interface Order {
   // Generic address field used by backend for either delivery or pickup location
   address?: string;
   totalAmount: number;
+  subtotalAmount?: number; // Items subtotal (before fees/discounts) - vendor earnings
+  deliveryFee?: number; // Dynamic delivery fee based on distance
+  serviceFee?: number; // Service fee (5% of subtotal)
+  discountAmount?: number; // Discount from promo codes
   status:
     | "PENDING"
     | "ACCEPTED"
@@ -503,6 +510,8 @@ export const vendorApi = {
       imageUrl?: string;
       isActive?: boolean;
       acceptsOrders?: boolean;
+      latitude?: number;
+      longitude?: number;
     }
   ) => {
     return apiCall(`/api/shops/${shopId}`, {
@@ -685,9 +694,15 @@ export const orderApi = {
     });
   },
 
-  // Get orders for a customer
-  getCustomerOrders: async (): Promise<Order[]> => {
-    return apiCall("/api/orders/customer");
+  // Get orders for a customer with pagination
+  getCustomerOrders: async (page: number = 1, limit: number = 15): Promise<{
+    orders: Order[];
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+    hasMore: boolean;
+  }> => {
+    return apiCall(`/api/orders/customer?page=${page}&limit=${limit}`);
   },
 
   // Get orders for a vendor/restaurant

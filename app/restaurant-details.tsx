@@ -669,7 +669,7 @@ export default function RestaurantDetails() {
 
                 {/* Enhanced Restaurant Meta */}
                 <View style={styles.restaurantMeta}>
-                  {typeof restaurant.rating === "number" && (
+                  {/* {typeof restaurant.rating === "number" && (
                     <View style={styles.metaItem}>
                       <Ionicons name="star" size={16} color="#FFD700" />
                       <Text style={styles.metaText}>
@@ -677,7 +677,7 @@ export default function RestaurantDetails() {
                         {restaurant.totalReviews ?? 0} reviews)
                       </Text>
                     </View>
-                  )}
+                  )} */}
 
                   {typeof restaurant.address === "string" && (
                     <View style={styles.metaItem}>
@@ -686,13 +686,7 @@ export default function RestaurantDetails() {
                         size={16}
                         color="rgba(255,255,255,0.9)"
                       />
-                      <Text style={styles.metaText}>
-                        {typeof restaurant.city === "string"
-                          ? `${restaurant.city}${
-                              restaurant.state ? `, ${restaurant.state}` : ""
-                            }`
-                          : restaurant.address}
-                      </Text>
+                      <Text style={styles.metaText}>{restaurant.address}</Text>
                     </View>
                   )}
 

@@ -195,7 +195,7 @@ export default function OrderDetailsPage() {
 
     Alert.alert(
       "Confirm Payment",
-      `Proceed with payment of ${formatAmount(order.totalAmount + 200)}?`,
+      `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
       [
         {
           text: "Cancel",
@@ -770,11 +770,16 @@ export default function OrderDetailsPage() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={styles.summaryValue}>D 100.00</Text>
+            <Text style={styles.summaryValue}>
+              {formatAmount(order.deliveryFee || 0)}
+            </Text>
           </View>
+          
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee</Text>
-            <Text style={styles.summaryValue}>D 100.00</Text>
+            <Text style={styles.summaryValue}>
+              {formatAmount(order.serviceFee || 0)}
+            </Text>
           </View>
 
           <View style={styles.summaryDivider} />
@@ -782,7 +787,7 @@ export default function OrderDetailsPage() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryTotalLabel}>Total Amount</Text>
             <Text style={styles.summaryTotalValue}>
-              {formatAmount(order.totalAmount + 200)}
+              {formatAmount(order.totalAmount)}
             </Text>
           </View>
         </View>
@@ -799,7 +804,7 @@ export default function OrderDetailsPage() {
           >
             <Ionicons name="card-outline" size={20} color="#fff" />
             <Text style={styles.payNowButtonText}>
-              Pay Now - {formatAmount(order.totalAmount + 200)}
+              Pay Now - {formatAmount(order.totalAmount)}
             </Text>
           </TouchableOpacity>
         ) : order.status === "PENDING" ? (
