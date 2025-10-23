@@ -270,15 +270,53 @@ export default function VendorProducts() {
 
   const toggleProductStatus = async (productId: string, isActive: boolean) => {
     try {
-      // API call would go here
+      if (!currentBusiness) {
+        Alert.alert("Error", "No business selected");
+        return;
+      }
+
+      // Optimistic update
       setProducts((prevProducts) =>
         prevProducts.map((product) =>
           product.id === productId ? { ...product, isActive } : product
         )
       );
+
+      // Make API call based on business type
+      if (
+        currentBusiness.type === "SHOP" ||
+        currentBusiness.type === "PHARMACY"
+      ) {
+        // Update product availability
+        await orderApi.updateShopProduct(productId, {
+          isAvailable: isActive,
+        });
+        Alert.alert(
+          "Success",
+          `Product ${isActive ? "enabled" : "disabled"} successfully`
+        );
+      } else if (currentBusiness.type === "RESTAURANT") {
+        // Update menu item availability
+        await menuApi.updateMenuItem(productId, {
+          isAvailable: isActive,
+        });
+        Alert.alert(
+          "Success",
+          `Menu item ${isActive ? "enabled" : "disabled"} successfully`
+        );
+      }
     } catch (error) {
       console.error("Error updating product status:", error);
       Alert.alert("Error", "Failed to update product status");
+
+      // Revert optimistic update on error
+      setProducts((prevProducts) =>
+        prevProducts.map((product) =>
+          product.id === productId
+            ? { ...product, isActive: !isActive }
+            : product
+        )
+      );
     }
   };
 

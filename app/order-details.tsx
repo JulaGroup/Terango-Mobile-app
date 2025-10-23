@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Alert,
   Image,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
@@ -183,11 +184,19 @@ export default function OrderDetailsPage() {
   };
 
   const handleTrackOrder = () => {
-    Alert.alert(
-      "Track Order",
-      "Order tracking feature will be available soon. You'll be able to see real-time updates of your order status and delivery progress.",
-      [{ text: "OK" }]
-    );
+    // Navigate to order tracking screen
+    router.push({
+      pathname: "/order-tracking",
+      params: { orderId: order?.id },
+    });
+  };
+
+  const handleCallDriver = () => {
+    if (order?.driverPhone) {
+      Linking.openURL(`tel:${order.driverPhone}`).catch((err) => {
+        Alert.alert("Error", "Could not open phone dialer");
+      });
+    }
   };
 
   const handlePayNow = async () => {
@@ -619,6 +628,75 @@ export default function OrderDetailsPage() {
           </View>
         )}
 
+        {/* Driver Information - Shows when order is DISPATCHED */}
+        {(order.status === "DISPATCHED" || order.status === "DELIVERED") &&
+          order.driverName && (
+            <View style={styles.driverCard}>
+              <Text style={styles.sectionTitle}>Your Driver</Text>
+
+              <View style={styles.driverInfo}>
+                {/* Driver Avatar */}
+                <View style={styles.driverImageContainer}>
+                  {order.driverImage ? (
+                    <Image
+                      source={{ uri: order.driverImage }}
+                      style={styles.driverImage}
+                    />
+                  ) : (
+                    <View style={styles.driverImagePlaceholder}>
+                      <Ionicons
+                        name="person-circle-outline"
+                        size={50}
+                        color={PrimaryColor}
+                      />
+                    </View>
+                  )}
+                </View>
+
+                {/* Driver Details */}
+                <View style={styles.driverDetails}>
+                  <Text style={styles.driverName}>{order.driverName}</Text>
+                  <Text style={styles.driverPhone}>{order.driverPhone}</Text>
+                  <Text style={styles.driverStatus}>
+                    {order.status === "DELIVERED"
+                      ? "Delivery Completed"
+                      : "On the Way"}
+                  </Text>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.driverActions}>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={handleCallDriver}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="call" size={18} color={PrimaryColor} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionButton}
+                    onPress={() => {
+                      if (order?.driverPhone) {
+                        Linking.openURL(
+                          `sms:${order.driverPhone}?body=Hi%20Driver`
+                        ).catch((err) => {
+                          Alert.alert("Error", "Could not open messaging app");
+                        });
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="chatbubbles"
+                      size={18}
+                      color={PrimaryColor}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
         {/* Delivery / Pickup Info */}
         <View style={styles.infoCard}>
           <Text style={styles.sectionTitle}>
@@ -774,7 +852,7 @@ export default function OrderDetailsPage() {
               {formatAmount(order.deliveryFee || 0)}
             </Text>
           </View>
-          
+
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee</Text>
             <Text style={styles.summaryValue}>
@@ -957,6 +1035,79 @@ const styles = StyleSheet.create({
   vendorType: {
     fontSize: 14,
     color: "#6B7280",
+  },
+
+  // Driver Card
+  driverCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+    borderLeftWidth: 4,
+    borderLeftColor: PrimaryColor,
+  },
+  driverInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  driverImageContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: "hidden",
+    backgroundColor: "#F3F4F6",
+  },
+  driverImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  driverImagePlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
+  },
+  driverDetails: {
+    flex: 1,
+  },
+  driverName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1F2937",
+  },
+  driverPhone: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  driverStatus: {
+    fontSize: 12,
+    color: PrimaryColor,
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  driverActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
 
   // Info Card

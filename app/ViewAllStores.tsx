@@ -37,6 +37,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   imageUrl?: string;
 }
 

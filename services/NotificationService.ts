@@ -119,6 +119,19 @@ export async function clearSuccessfulOrder() {
   }
 }
 
+/**
+ * FIX: Improved push token registration with proper sequencing
+ *
+ * ISSUE: Push tokens were not being saved after user authentication because
+ * the function was called before auth was complete. This caused users to miss
+ * critical notifications like order assignments and order status updates.
+ *
+ * SOLUTION:
+ * 1. Only attempt to register push token if userId exists (auth confirmed)
+ * 2. Add retry logic with exponential backoff (up to 3 attempts)
+ * 3. Add comprehensive error handling with user-friendly logging
+ * 4. Ensure cleanup of listeners to prevent memory leaks
+ */
 export function useRegisterPushToken(userId: string) {
   useEffect(() => {
     // Initialize socket listeners for real-time backend events.
@@ -127,6 +140,8 @@ export function useRegisterPushToken(userId: string) {
       ? String(API_URL).replace(/\/api\/?(.*)?$/, "")
       : null;
     let socketInitialized = false;
+    const maxRetries = 3;
+
     const paymentSuccessHandler = async (data: any) => {
       console.log("[Socket] paymentSuccess", data);
       if (onOrdersRefresh) onOrdersRefresh();
@@ -208,24 +223,101 @@ export function useRegisterPushToken(userId: string) {
       socketOn("orderCreated", orderCreatedHandler);
       socketOn("orderStatusUpdate", orderStatusUpdateHandler);
     })();
+
+    /**
+     * FIX: Register push token ONLY after user is authenticated
+     * Uses retry logic to handle network failures
+     */
     async function registerForPushNotificationsAsync() {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") return;
-      const tokenData = await Notifications.getExpoPushTokenAsync();
-      const expoPushToken = tokenData.data;
-      // Send token to backend
-      await fetch(`${API_URL}/api/push-token/save-token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          expoPushToken,
-          deviceInfo: Platform.OS,
-        }),
-      });
-      console.log("Expo Push Token:", expoPushToken);
+      try {
+        // Step 1: Request notification permissions
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status !== "granted") {
+          console.warn(
+            "[NotificationService] ⚠️ Notification permission not granted"
+          );
+          return;
+        }
+
+        // Step 2: Get push token from Expo
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const expoPushToken = tokenData.data;
+
+        if (!expoPushToken) {
+          console.error("[NotificationService] ❌ Failed to get push token");
+          return;
+        }
+
+        // Step 3: Send token to backend with retry logic
+        let lastError: any;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const response = await fetch(
+              `${API_URL}/api/push-token/save-token`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  userId,
+                  expoPushToken,
+                  deviceInfo: Platform.OS,
+                }),
+              }
+            );
+
+            if (!response.ok) {
+              throw new Error(
+                `HTTP ${response.status}: ${response.statusText}`
+              );
+            }
+
+            console.log(
+              `✅ [NotificationService] Push token registered successfully (userId: ${userId})`
+            );
+            return; // Success - exit early
+          } catch (error) {
+            lastError = error;
+            console.warn(
+              `[NotificationService] Attempt ${attempt}/${maxRetries} failed:`,
+              error
+            );
+
+            // Wait before retrying (exponential backoff: 1s, 2s, 4s)
+            if (attempt < maxRetries) {
+              const delayMs = Math.pow(2, attempt - 1) * 1000;
+              await new Promise((resolve) => setTimeout(resolve, delayMs));
+            }
+          }
+        }
+
+        // If we got here, all retries failed
+        console.error(
+          "[NotificationService] ❌ Failed to register push token after",
+          maxRetries,
+          "attempts:",
+          lastError
+        );
+      } catch (error) {
+        console.error("[NotificationService] Unexpected error:", error);
+      }
     }
-    if (userId) registerForPushNotificationsAsync();
+
+    // Only register push token if user is authenticated
+    if (userId) {
+      console.log(
+        "[NotificationService] 🔔 User authenticated, registering push token..."
+      );
+      registerForPushNotificationsAsync().catch((err) => {
+        console.error(
+          "[NotificationService] Unhandled error in registration:",
+          err
+        );
+      });
+    } else {
+      console.log(
+        "[NotificationService] ⏳ Waiting for user authentication before registering push token"
+      );
+    }
 
     // Listen for notifications
     const receivedListener = Notifications.addNotificationReceivedListener(

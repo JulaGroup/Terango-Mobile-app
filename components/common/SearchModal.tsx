@@ -449,6 +449,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
               id: parseInt(menuItem.id),
               name: menuItem.name,
               price: menuItem.price,
+              discountedPrice: menuItem.discountedPrice,
               image: menuItem.imageUrl,
               description: menuItem.description,
               inStock: menuItem.isAvailable !== false,
@@ -473,6 +474,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       id: menuItem.id,
                       name: menuItem.name,
                       price: menuItem.price,
+                      discountedPrice: menuItem.discountedPrice, // Add discounted price
                       imageUrl: menuItem.imageUrl,
                       vendorId: menuItem.menu.restaurantId,
                       vendorName: "Restaurant", // You might want to fetch this
@@ -521,6 +523,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
               price: product.price,
               image: product.imageUrl,
               description: product.description,
+              discountedPrice: product.discountedPrice,
               inStock: true,
             };
 
@@ -537,6 +540,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       id: product.id,
                       name: product.name,
                       price: product.price,
+                      discountedPrice: product.discountedPrice, // Add discounted price
                       imageUrl: product.imageUrl,
                       vendorId: product.shopId,
                       vendorName: "Shop", // You might want to fetch this

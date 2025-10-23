@@ -194,10 +194,28 @@ export default function Cart() {
           ) : null}
 
           <View style={styles.itemPriceContainer}>
-            <Text style={styles.itemPrice}>D{item.price.toFixed(2)}</Text>
-            <Text style={styles.itemTotal}>
-              D{(item.price * item.quantity).toFixed(2)}
-            </Text>
+            {item.discountedPrice && item.discountedPrice < item.price ? (
+              <>
+                <View style={styles.priceRow}>
+                  <Text style={styles.itemPriceStrikethrough}>
+                    D{item.price.toFixed(2)}
+                  </Text>
+                  <Text style={styles.itemPriceDiscounted}>
+                    D{item.discountedPrice.toFixed(2)}
+                  </Text>
+                </View>
+                <Text style={styles.itemTotal}>
+                  D{(item.discountedPrice * item.quantity).toFixed(2)}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.itemPrice}>D{item.price.toFixed(2)}</Text>
+                <Text style={styles.itemTotal}>
+                  D{(item.price * item.quantity).toFixed(2)}
+                </Text>
+              </>
+            )}
           </View>
 
           <View style={styles.itemFooter}>
@@ -241,10 +259,10 @@ export default function Cart() {
     items: typeof cartItems;
   }) => {
     const vendorName = items[0]?.vendorName || "Vendor";
-    const vendorTotal = items.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
+    const vendorTotal = items.reduce((total, item) => {
+      const itemPrice = item.discountedPrice || item.price;
+      return total + itemPrice * item.quantity;
+    }, 0);
 
     return (
       <View style={styles.restaurantSection}>
@@ -388,19 +406,28 @@ export default function Cart() {
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
-            <Text style={styles.summaryValue}>D{(subtotal * 0.05).toFixed(2)}</Text>
+            <Text style={styles.summaryValue}>
+              D{(subtotal * 0.05).toFixed(2)}
+            </Text>
           </View>
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
-            <Text style={[styles.summaryValue, { color: '#6b7280', fontStyle: 'italic' }]}>
+            <Text
+              style={[
+                styles.summaryValue,
+                { color: "#6b7280", fontStyle: "italic" },
+              ]}
+            >
               Calculated at checkout
             </Text>
           </View>
 
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Estimated Total</Text>
-            <Text style={styles.totalValue}>D{(subtotal + subtotal * 0.05).toFixed(2)}+</Text>
+            <Text style={styles.totalValue}>
+              D{(subtotal + subtotal * 0.05).toFixed(2)}+
+            </Text>
           </View>
 
           <Text style={styles.deliveryNote}>
@@ -643,6 +670,23 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: PrimaryColor,
     marginBottom: 6,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  itemPriceStrikethrough: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9ca3af",
+    textDecorationLine: "line-through",
+  },
+  itemPriceDiscounted: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#EF4444",
   },
   itemFooter: {
     flexDirection: "row",

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
@@ -237,21 +238,95 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
     try {
       setLoading(true);
       setError(null);
+      // Small random jitter to avoid thundering herd when many components refetch at once
+      await new Promise((resolve) =>
+        setTimeout(resolve, Math.floor(Math.random() * 200))
+      );
 
-      const response = await fetch(`${API_URL}/api/shops`);
+      // Retry logic with exponential backoff for transient failures (DB pool blips, network)
+      const maxRetries = 3;
+      let attempt = 0;
+      let lastErr: any = null;
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch shops: ${response.statusText}`);
+      while (attempt < maxRetries) {
+        attempt += 1;
+
+        // Timeout via AbortController
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+        try {
+          const response = await fetch(`${API_URL}/api/shops`, {
+            signal: controller.signal,
+          });
+
+          clearTimeout(timeout);
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch shops: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const data = await response.json();
+
+          // Handle both array and object responses
+          const shopsArray = Array.isArray(data)
+            ? data
+            : data.shops || data.data || [];
+
+          setShops(shopsArray);
+          // Cache for offline/fallback use
+          try {
+            await AsyncStorage.setItem(
+              "cached_shops",
+              JSON.stringify(shopsArray)
+            );
+          } catch (cacheErr) {
+            console.warn("Failed to cache shops:", cacheErr);
+          }
+          lastErr = null;
+          break; // success
+        } catch (err: any) {
+          lastErr = err;
+          console.warn(
+            `fetchShops attempt ${attempt} failed:`,
+            err?.message || err
+          );
+
+          // If aborted by timeout, set a specific message
+          if (err?.name === "AbortError") {
+            lastErr = new Error("Request timed out");
+          }
+
+          // Exponential backoff before next attempt (skip wait after last attempt)
+          if (attempt < maxRetries) {
+            const backoff = 500 * Math.pow(2, attempt - 1); // 500ms, 1000ms, ...
+            await new Promise((r) => setTimeout(r, backoff));
+            continue;
+          }
+        }
       }
 
-      const data = await response.json();
+      if (lastErr) {
+        // Try to load cached shops if available before throwing
+        try {
+          const cached = await AsyncStorage.getItem("cached_shops");
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              console.log("Using cached shops due to fetch failure");
+              setShops(parsed);
+              setError("Using offline cached data");
+              return;
+            }
+          }
+        } catch (cacheErr) {
+          console.warn("Failed to read cached shops:", cacheErr);
+        }
 
-      // Handle both array and object responses
-      const shopsArray = Array.isArray(data)
-        ? data
-        : data.shops || data.data || [];
-
-      setShops(shopsArray);
+        throw lastErr;
+      }
     } catch (err: any) {
       console.error("Error fetching shops:", err);
       setError(

@@ -105,6 +105,10 @@ export interface Order {
   orderType?: "DELIVERY" | "PICKUP";
   pickupInstructions?: string;
   // Generic address field used by backend for either delivery or pickup location
+  driverPhone?: string;
+  driverName?: string;
+  driverImage?: string;
+  driverId?: string;
   address?: string;
   totalAmount: number;
   subtotalAmount?: number; // Items subtotal (before fees/discounts) - vendor earnings
@@ -146,6 +150,7 @@ export interface Order {
     [key: string]: any;
   };
   createdAt: string;
+  updatedAt?: string;
   estimatedDeliveryTime?: string;
   notes?: string;
   qrCode?: string; // QR code data for delivery verification
@@ -675,6 +680,47 @@ export const userApi = {
       throw new Error("Failed to get current user profile");
     }
   },
+
+  // Update user profile
+  updateProfile: async (data: {
+    homeAddress?: string;
+    homeLatitude?: number;
+    homeLongitude?: number;
+    fullName?: string;
+    email?: string;
+    phone?: string;
+  }) => {
+    const token = await getAuthToken();
+    if (!token) throw new Error("No authentication token found");
+
+    try {
+      // Decode token to get userId
+      const base64Url = token.split(".")[1];
+      const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split("")
+          .map(function (c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join("")
+      );
+
+      const decoded = JSON.parse(jsonPayload);
+      const userId = decoded.userId;
+
+      if (!userId) throw new Error("Invalid token: no userId found");
+
+      // Update profile
+      return apiCall(`/api/users/${userId}/profile`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw new Error("Failed to update profile");
+    }
+  },
 };
 
 // Order API functions
@@ -695,7 +741,10 @@ export const orderApi = {
   },
 
   // Get orders for a customer with pagination
-  getCustomerOrders: async (page: number = 1, limit: number = 15): Promise<{
+  getCustomerOrders: async (
+    page: number = 1,
+    limit: number = 15
+  ): Promise<{
     orders: Order[];
     totalCount: number;
     totalPages: number;

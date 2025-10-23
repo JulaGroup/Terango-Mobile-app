@@ -100,7 +100,7 @@ const RelatedProductCard = ({
           <Image
             source={{ uri: product.imageUrl }}
             style={styles.relatedProductImage}
-            resizeMode="cover"
+            resizeMode="contain"
             onError={() => setImageLoadError(true)}
           />
         ) : (
@@ -192,6 +192,7 @@ interface Product {
   description?: string;
   imageUrl?: string;
   shopId: string;
+  isAvailable?: boolean;
   shop?: {
     id: string;
     name: string;
@@ -455,7 +456,7 @@ export default function ProductDetail() {
             <Image
               source={{ uri: product.imageUrl }}
               style={styles.productImage}
-              resizeMode="cover"
+              resizeMode="contain"
               onError={() => setImageLoadError(true)}
             />
           ) : (
@@ -602,7 +603,7 @@ export default function ProductDetail() {
             <FlatList
               data={relatedProducts}
               renderItem={({ item }) => (
-                <View style={{ marginRight: 16 }}>
+                <View style={styles.productCardWrapper}>
                   <ProductCard
                     product={{
                       id: Number(item.id),
@@ -625,6 +626,7 @@ export default function ProductDetail() {
                       }
                     }}
                     onPress={() => router.push(`/product/${item.id}`)}
+                    cardWidth={115}
                   />
                 </View>
               )}
@@ -670,7 +672,7 @@ export default function ProductDetail() {
             <FlatList
               data={similarBrandProducts}
               renderItem={({ item }) => (
-                <View style={{ marginRight: 16 }}>
+                <View style={styles.productCardWrapper}>
                   <ProductCard
                     product={{
                       id: Number(item.id),
@@ -693,6 +695,7 @@ export default function ProductDetail() {
                       }
                     }}
                     onPress={() => router.push(`/product/${item.id}`)}
+                    cardWidth={115}
                   />
                 </View>
               )}
@@ -763,7 +766,13 @@ export default function ProductDetail() {
           },
         ]}
       >
-        {currentQuantity === 0 ? (
+        {/* Show "Unavailable" if product is disabled */}
+        {product?.isAvailable === false ? (
+          <View style={styles.unavailableButton}>
+            <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+            <Text style={styles.unavailableText}>Product Unavailable</Text>
+          </View>
+        ) : currentQuantity === 0 ? (
           <TouchableOpacity
             style={styles.addToCartButton}
             onPress={() => handleAddToCart(product)}
@@ -870,7 +879,7 @@ const styles = StyleSheet.create({
   imageContainer: {
     width: "100%",
     height: IMAGE_HEIGHT,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#fff",
     position: "relative",
   },
   productImage: {
@@ -1139,6 +1148,24 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 24,
   },
+  unavailableButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    backgroundColor: "#FEE2E2",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+  },
+  unavailableText: {
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 8,
+    letterSpacing: 0.3,
+  },
   addToCartText: {
     color: "#fff",
     fontSize: 18,
@@ -1254,5 +1281,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     letterSpacing: 0.3,
+  },
+  productCardWrapper: {
+    marginRight: 16,
   },
 });

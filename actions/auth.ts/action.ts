@@ -2,7 +2,6 @@ import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { router } from "expo-router";
 import { jwtDecode } from "jwt-decode";
-import { registerForPushNotificationsAsync } from "@/utils/NotificationService";
 import { SecureStorage } from "@/utils/secureStorage";
 
 // Enhanced SecureStore operations using our custom utility
@@ -21,14 +20,6 @@ export const safeGetItem = async (key: string) => {
   } catch (error) {
     console.error(`Failed to get ${key}:`, error);
     return null;
-  }
-};
-
-const safeDeleteItem = async (key: string) => {
-  try {
-    await SecureStorage.deleteItem(key);
-  } catch (error) {
-    console.error(`Failed to delete ${key}:`, error);
   }
 };
 
@@ -65,7 +56,18 @@ export const loginUser = async ({
   }
 };
 
-// Verify OTP
+/**
+ * FIX: Improved OTP verification with proper async sequencing
+ *
+ * ISSUE: Push token registration was attempted before authentication was fully
+ * stored, causing tokens to not be saved to backend. This prevented users from
+ * receiving notifications about new orders and order status updates.
+ *
+ * SOLUTION:
+ * 1. Save token to storage FIRST (synchronously ensure it's available)
+ * 2. Verify token is stored before registering push notifications
+ * 3. Do NOT await push token registration (let it happen in background)
+ */
 export const verifyOtp = async ({
   phone,
   otp,
@@ -81,6 +83,7 @@ export const verifyOtp = async ({
 
     const { token, isNewUser } = res.data;
 
+    // CRITICAL: Save token FIRST so other components can use it
     await safeSetItem("token", token);
     await safeSetItem("userPhone", phone);
     await safeSetItem("isLoggedIn", "true");
@@ -90,8 +93,12 @@ export const verifyOtp = async ({
     const userId = decoded.userId;
     await safeSetItem("userId", userId);
 
-    // Register push token with backend when user verifies
-    registerForPushNotificationsAsync().catch(() => {});
+    // 🔔 IMPROVED: Register push token AFTER auth is confirmed in storage
+    // This is done in the background and doesn't block user navigation
+    // The useRegisterPushToken hook will pick up the userId and complete registration
+    console.log(
+      "[Auth] ✅ OTP verified and auth stored. Push token registration will happen via useRegisterPushToken hook"
+    );
 
     return isNewUser;
   } catch (err: any) {

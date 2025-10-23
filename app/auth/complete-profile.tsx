@@ -56,7 +56,8 @@ export default function CompleteProfile() {
         await SecureStore.setItemAsync("isLoggedIn", "true");
 
         console.log("✅ Profile completed and cached successfully");
-        router.replace("/(tabs)");
+        // Navigate to add home address onboarding
+        router.replace("/auth/add-home-address ");
       } catch (err: any) {
         alert(err.message);
       } finally {

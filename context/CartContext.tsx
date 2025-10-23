@@ -1,12 +1,21 @@
-import React, { createContext, ReactNode, useContext, useState } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface CartItem {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number; // Add discounted price support
   quantity: number;
   imageUrl?: string;
   vendorId: string;
@@ -51,6 +60,73 @@ export const useCart = () => useContext(CartContext);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+
+  // FIX: Debounced persistence for cart items
+  // Using useRef to track the debounce timeout
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isFirstLoadRef = useRef(true);
+
+  // Load cart from storage on mount
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        const savedCart = await AsyncStorage.getItem("teranggo_cart");
+        if (savedCart) {
+          const parsedCart = JSON.parse(savedCart);
+          setItems(Array.isArray(parsedCart) ? parsedCart : []);
+          console.log(
+            "[CartContext] ✅ Loaded cart from storage:",
+            parsedCart.length,
+            "items"
+          );
+        }
+      } catch (error) {
+        console.error("[CartContext] Failed to load cart from storage:", error);
+      } finally {
+        isFirstLoadRef.current = false;
+      }
+    };
+
+    loadCart();
+  }, []);
+
+  // FIX: Debounced save whenever items change
+  useEffect(() => {
+    // Skip saving on initial load
+    if (isFirstLoadRef.current) return;
+
+    // Clear existing timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    // Set new timeout - save after 1 second of inactivity
+    debounceTimeoutRef.current = setTimeout(async () => {
+      try {
+        if (items.length > 0) {
+          await AsyncStorage.setItem("teranggo_cart", JSON.stringify(items));
+          console.log(
+            "[CartContext] ✅ Cart saved to storage:",
+            items.length,
+            "items"
+          );
+        } else {
+          // Clear storage if cart is empty
+          await AsyncStorage.removeItem("teranggo_cart");
+          console.log("[CartContext] ✅ Cart cleared from storage");
+        }
+      } catch (error) {
+        console.error("[CartContext] Failed to save cart to storage:", error);
+      }
+    }, 1000); // 1 second debounce delay
+
+    // Cleanup on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [items]);
 
   const addToCart = async (
     newItem: Omit<CartItem, "quantity"> & { quantity?: number }
@@ -210,24 +286,37 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const clearCart = () => {
-    console.log(
-      "CartContext: clearCart called, current items length:",
-      items.length
-    );
+    console.log("[CartContext] Clearing cart - current items:", items.length);
     setItems([]);
-    console.log("CartContext: setItems([]) executed");
 
-    // Store payment success flag to prevent cart from being restored
+    // FIX: Also clear from storage immediately
     try {
-      SecureStore.setItemAsync("paymentSuccessCleared", "true");
-      console.log("CartContext: Payment success flag stored");
+      AsyncStorage.removeItem("teranggo_cart")
+        .then(() => {
+          console.log("[CartContext] ✅ Cart cleared from storage");
+        })
+        .catch((error) => {
+          console.error(
+            "[CartContext] Error clearing cart from storage:",
+            error
+          );
+        });
+
+      // Store payment success flag to prevent cart from being restored
+      SecureStore.setItemAsync("paymentSuccessCleared", "true").then(() => {
+        console.log("[CartContext] ✅ Payment success flag stored");
+      });
     } catch (error) {
-      console.log("CartContext: Error storing payment success flag:", error);
+      console.log("[CartContext] Error in clearCart:", error);
     }
   };
 
   const getCartTotal = () => {
-    return items.reduce((total, item) => total + item.price * item.quantity, 0);
+    return items.reduce((total, item) => {
+      // Use discounted price if available, otherwise use regular price
+      const itemPrice = item.discountedPrice || item.price;
+      return total + itemPrice * item.quantity;
+    }, 0);
   };
 
   const getItemCount = () => {

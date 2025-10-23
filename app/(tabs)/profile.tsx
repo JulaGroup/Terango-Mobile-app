@@ -704,7 +704,7 @@ export default function ProfilePage() {
           </View>
         </View>
         {/* Vendor CTA - Dynamic based on application status */}
-        {user?.role !== "VENDOR" && (
+        {/* {user?.role !== "VENDOR" && (
           <TouchableOpacity
             style={[
               styles.vendorCTA,
@@ -764,7 +764,7 @@ export default function ProfilePage() {
               <Ionicons name="chevron-forward" size={20} color="#fff" />
             </View>
           </TouchableOpacity>
-        )}
+        )} */}
         {/* Menu Items - Updated Colors */}
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Account Settings</Text>

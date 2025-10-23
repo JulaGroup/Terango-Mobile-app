@@ -5,6 +5,7 @@ import SearchBar from "@/components/common/SearchBar";
 import SearchModal from "@/components/common/SearchModal";
 import CategoryRow from "@/components/ui/home/CategoryRow";
 import AdvertCard from "@/components/ui/home/AdvertCard";
+import PromoBanner from "@/components/ui/home/PromoBanner";
 
 // Active home sections
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
@@ -127,6 +128,14 @@ export default function HomeScreen() {
           value={searchText}
           onPress={() => setSearchModalVisible(true)}
           editable={false} // Make it non-editable to force modal usage
+        />
+
+        {/* Promo Banner - FREE DELIVERY LAUNCH 2025 */}
+        <PromoBanner
+          onPress={() => {
+            // Navigate to nearby vendors or deals page
+            router.push("/AllCategoriesPage");
+          }}
         />
 
         {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}

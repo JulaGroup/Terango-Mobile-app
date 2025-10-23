@@ -8,12 +8,12 @@ import {
   StatusBar,
   Animated,
   Platform,
-  // Image removed, now handled by ProductCard
+  TextInput,
+  Image,
   Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
@@ -84,96 +84,94 @@ const RestaurantDetailsSkeleton = () => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* Hero Section Skeleton */}
-      <View style={[styles.heroSection, { backgroundColor: "#f0f0f0" }]}>
-        <LinearGradient
-          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-          style={styles.heroGradient}
-        >
-          <View style={styles.heroContent}>
-            {/* Navigation */}
-            <View style={styles.heroNavigation}>
+      <View style={styles.heroContainer}>
+        <View style={styles.heroImagePlaceholder}>
+          <Ionicons name="restaurant" size={60} color="#ccc" />
+          <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
+            Restaurant image loading...
+          </Text>
+        </View>
+
+        {/* Header buttons skeleton */}
+        <View style={styles.heroHeaderButtons}>
+          <View style={styles.heroBackButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
+          </View>
+          <View style={styles.heroCartButton}>
+            <Ionicons name="cart-outline" size={22} color="#fff" />
+          </View>
+        </View>
+
+        <View style={styles.overlayCard}>
+          <View style={styles.titleRow}>
+            <SkeletonLoader
+              width="80%"
+              height={28}
+              style={{
+                marginBottom: 0,
+                backgroundColor: "#E0E0E0",
+              }}
+            />
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: "#F3F4F6", marginTop: 6 },
+              ]}
+            >
               <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name="arrow-back" size={24} color="#fff" />
-              </View>
-
-              <View
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  backgroundColor: "rgba(0,0,0,0.5)",
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Ionicons name="cart" size={24} color="#fff" />
-              </View>
-            </View>
-
-            {/* Restaurant Info Skeleton */}
-            <View style={styles.restaurantInfo}>
-              <SkeletonLoader
-                width="80%"
-                height={28}
-                style={{
-                  marginBottom: 8,
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                }}
+                style={[styles.statusDot, { backgroundColor: "#10B981" }]}
               />
-              <SkeletonLoader
-                width="100%"
-                height={16}
-                style={{
-                  marginBottom: 4,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
-              <SkeletonLoader
-                width="70%"
-                height={16}
-                style={{
-                  marginBottom: 16,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
-
-              {/* Meta info skeleton */}
-              <View style={{ flexDirection: "row", marginBottom: 16 }}>
-                <SkeletonLoader
-                  width={80}
-                  height={14}
-                  style={{
-                    marginRight: 16,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                  }}
-                />
-                <SkeletonLoader
-                  width={100}
-                  height={14}
-                  style={{ backgroundColor: "rgba(255,255,255,0.2)" }}
-                />
-              </View>
-
-              <SkeletonLoader
-                width={100}
-                height={32}
-                style={{
-                  borderRadius: 16,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
+              <Text style={[styles.statusText, { color: "#111" }]}>
+                Open Now
+              </Text>
             </View>
           </View>
-        </LinearGradient>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={16} color="#FFD700" />
+            <SkeletonLoader
+              width={40}
+              height={16}
+              style={{
+                marginLeft: 4,
+                backgroundColor: "#E0E0E0",
+              }}
+            />
+          </View>
+          <SkeletonLoader
+            width="100%"
+            height={16}
+            style={{
+              marginTop: 4,
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+          <SkeletonLoader
+            width="70%"
+            height={14}
+            style={{
+              marginTop: 2,
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+        </View>
+      </View>
+
+      <View style={styles.searchBarWrapper}>
+        <View style={styles.searchBarContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color="#999"
+            style={{ marginRight: 8 }}
+          />
+          <SkeletonLoader
+            width="100%"
+            height={16}
+            style={{
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+        </View>
       </View>
 
       {/* Categories Skeleton */}
@@ -317,6 +315,7 @@ export default function RestaurantDetails() {
   const [imageLoadErrors, setImageLoadErrors] = useState<{
     [key: string]: boolean;
   }>({});
+  const [searchText, setSearchText] = useState("");
 
   // All menu items (flat list)
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
@@ -371,11 +370,14 @@ export default function RestaurantDetails() {
 
       setRestaurant(data);
 
-      // Flatten all menu items into a single array
+      // Flatten all menu items into a single array (filter out unavailable items)
       const allItems: MenuItem[] = [];
       data.menus?.forEach((menu: Menu) => {
         menu.items?.forEach((item: MenuItem) => {
-          allItems.push(item);
+          // Only show items that are available (isAvailable is true or undefined/null)
+          if (item.isAvailable !== false) {
+            allItems.push(item);
+          }
         });
       });
 
@@ -436,6 +438,7 @@ export default function RestaurantDetails() {
       id: item.id,
       name: item.name,
       price: item.price,
+      discountedPrice: item.discountedPrice, // Add discounted price
       description: item.description || "",
       vendorId: restaurant.id,
       vendorName: restaurant.name,
@@ -478,10 +481,11 @@ export default function RestaurantDetails() {
   };
 
   const getTotalCartPrice = (): number => {
-    return cartItems.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
+    return cartItems.reduce((total, item) => {
+      // Use discounted price if available, otherwise use regular price
+      const itemPrice = item.discountedPrice || item.price;
+      return total + itemPrice * item.quantity;
+    }, 0);
   };
 
   const handleImageError = (imageId: string) => {
@@ -494,30 +498,6 @@ export default function RestaurantDetails() {
   const headerOpacity = scrollY.interpolate({
     inputRange: [0, HEADER_HEIGHT * 0.7, HEADER_HEIGHT],
     outputRange: [0, 0.3, 1],
-    extrapolate: "clamp",
-  });
-
-  const containerTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, -HEADER_HEIGHT * 0.1],
-    extrapolate: "clamp",
-  });
-
-  const imageScale = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [1, 1.1],
-    extrapolate: "clamp",
-  });
-
-  const imageInnerTranslateY = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT],
-    outputRange: [0, HEADER_HEIGHT * 0.1],
-    extrapolate: "clamp",
-  });
-
-  const heroOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_HEIGHT * 0.5, HEADER_HEIGHT],
-    outputRange: [1, 0.8, 0.3],
     extrapolate: "clamp",
   });
 
@@ -564,8 +544,7 @@ export default function RestaurantDetails() {
               {restaurant.name}
             </Text>
             <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
-              {restaurant.isActive ? "Open now" : "Closed"} •{" "}
-              {restaurant.service?.category?.name || "Restaurant"}
+              {restaurant.isActive ? "Open now" : "Closed"} • {"Restaurant"}
             </Text>
           </View>
 
@@ -597,33 +576,17 @@ export default function RestaurantDetails() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
-        <Animated.View
-          style={[
-            styles.heroSection,
-            {
-              transform: [{ translateY: containerTranslateY }],
-              opacity: heroOpacity,
-            },
-          ]}
-        >
+        <View style={styles.heroContainer}>
           {/* Restaurant Background Image */}
           {restaurant.imageUrl && !imageLoadErrors[`hero-${restaurant.id}`] ? (
-            <Animated.Image
+            <Image
               source={{ uri: restaurant.imageUrl }}
-              style={[
-                styles.heroBackgroundImage,
-                {
-                  transform: [
-                    { scale: imageScale },
-                    { translateY: imageInnerTranslateY },
-                  ],
-                },
-              ]}
+              style={styles.heroImage}
               resizeMode="cover"
               onError={() => handleImageError(`hero-${restaurant.id}`)}
             />
           ) : (
-            <View style={styles.heroBackgroundPlaceholder}>
+            <View style={styles.heroImagePlaceholder}>
               <Ionicons name="restaurant" size={60} color="#ccc" />
               <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
                 Restaurant image unavailable
@@ -631,119 +594,106 @@ export default function RestaurantDetails() {
             </View>
           )}
 
-          <LinearGradient
-            colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              {/* Navigation */}
-              <View style={styles.heroNavigation}>
-                <TouchableOpacity
-                  style={styles.backButtonHero}
-                  onPress={() => router.back()}
-                >
-                  <Ionicons name="arrow-back" size={24} color="#fff" />
-                </TouchableOpacity>
+          {/* Header buttons on top of image */}
+          <View style={styles.heroHeaderButtons}>
+            <TouchableOpacity
+              style={styles.heroBackButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.cartButtonHero}
-                  onPress={() => router.push("/cart")}
-                >
-                  <Ionicons name="cart" size={24} color="#fff" />
-                  {getTotalCartItems() > 0 && (
-                    <View style={styles.cartBadge}>
-                      <Text style={styles.cartBadgeText}>
-                        {getTotalCartItems()}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              {/* Restaurant Info */}
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>{restaurant.name}</Text>
-                <Text style={styles.restaurantDescription}>
-                  {restaurant.description || "Delicious food made with love"}
-                </Text>
-
-                {/* Enhanced Restaurant Meta */}
-                <View style={styles.restaurantMeta}>
-                  {/* {typeof restaurant.rating === "number" && (
-                    <View style={styles.metaItem}>
-                      <Ionicons name="star" size={16} color="#FFD700" />
-                      <Text style={styles.metaText}>
-                        {restaurant.rating.toFixed(1)} (
-                        {restaurant.totalReviews ?? 0} reviews)
-                      </Text>
-                    </View>
-                  )} */}
-
-                  {typeof restaurant.address === "string" && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="location"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>{restaurant.address}</Text>
-                    </View>
-                  )}
-
-                  {restaurant.phone && (
-                    <TouchableOpacity
-                      style={styles.metaItem}
-                      onPress={() => {
-                        if (restaurant.phone) {
-                          Linking.openURL(`tel:${restaurant.phone}`);
-                        }
-                      }}
-                    >
-                      <Ionicons
-                        name="call"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>{restaurant.phone}</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {typeof restaurant.minimumOrderAmount === "number" &&
-                    restaurant.minimumOrderAmount > 0 && (
-                      <View style={styles.metaItem}>
-                        <Ionicons
-                          name="cash-outline"
-                          size={16}
-                          color="rgba(255,255,255,0.9)"
-                        />
-                        <Text style={styles.metaText}>
-                          Min. order: D
-                          {restaurant.minimumOrderAmount.toFixed(2)}
-                        </Text>
-                      </View>
-                    )}
-                </View>
-
-                {/* Operating Status Badge */}
-                <View style={styles.statusBadge}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor: restaurant.isActive
-                          ? "#00C851"
-                          : "#FF6B6B",
-                      },
-                    ]}
-                  />
-                  <Text style={styles.statusText}>
-                    {restaurant.isActive ? "Open Now" : "Closed"}
+            <TouchableOpacity
+              style={styles.heroCartButton}
+              onPress={() => router.push("/cart")}
+            >
+              <Ionicons name="cart-outline" size={22} color="#fff" />
+              {getTotalCartItems() > 0 ? (
+                <View style={styles.heroCartBadge}>
+                  <Text style={styles.heroCartBadgeText}>
+                    {getTotalCartItems()}
                   </Text>
                 </View>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.overlayCard}>
+            <View style={styles.titleRow}>
+              <Text style={styles.restaurantName}>{restaurant.name}</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor: restaurant.isActive
+                      ? "rgba(16,185,129,0.08)"
+                      : "rgba(239,68,68,0.08)",
+                    marginTop: 6,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: restaurant.isActive
+                        ? "#10B981"
+                        : "#EF4444",
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusText,
+                    { color: restaurant.isActive ? "#065f46" : "#7f1d1d" },
+                  ]}
+                >
+                  {restaurant.isActive ? "Open Now" : "Closed"}
+                </Text>
               </View>
             </View>
-          </LinearGradient>
-        </Animated.View>
+            {restaurant.rating ? (
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color="#FFD700" />
+                <Text style={styles.ratingText}>
+                  {restaurant.rating.toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+            {restaurant.description ? (
+              <Text style={styles.restaurantDesc} numberOfLines={2}>
+                {restaurant.description}
+              </Text>
+            ) : null}
+            {restaurant.address ? (
+              <Text
+                style={styles.restaurantAddress}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {restaurant.address}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+
+        <View style={styles.searchBarWrapper}>
+          <View style={styles.searchBarContainer}>
+            <Ionicons
+              name="search"
+              size={20}
+              color="#999"
+              style={{ marginRight: 8 }}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Search in ${restaurant.name}`}
+              placeholderTextColor="#999"
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+        </View>
 
         {/* Professional Meal Time Tabs */}
         <View style={styles.tabsContainer}>
@@ -776,45 +726,68 @@ export default function RestaurantDetails() {
 
         {/* Menu Items - Grouped by Meal Time */}
         <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
-          {Object.entries(getFilteredMenuItems()).map(
-            ([category, items], idx) => (
-              <View
-                key={category}
-                style={styles.menuSection}
-                onLayout={(e) => {
-                  const layoutY = e.nativeEvent.layout.y;
-                  sectionRefs.current[idx] = { key: category, y: layoutY };
-                }}
-              >
-                <Text style={styles.menuSectionTitle}>{category}</Text>
-                <View style={styles.menuItemsList}>
-                  {items.map((item: MenuItem, j: number) => (
-                    <MealItemCard
-                      key={item.id}
-                      product={{
-                        id:
-                          typeof item.id === "number"
-                            ? item.id
-                            : Number(item.id) || j,
-                        name: item.name,
-                        price: item.price,
-                        discountedPrice: item.discountedPrice,
-                        image: item.imageUrl || undefined,
-                        description: item.description || undefined,
-                      }}
-                      cartQuantity={getCartItemQuantity(item.id)}
-                      onAddToCart={(p) => handleAddToCart(item)}
-                      onRemoveFromCart={() => handleRemove(item.id)}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/menuitem/[menuitem]",
-                          params: { menuitem: item.id },
-                        })
-                      }
-                    />
-                  ))}
+          {Object.entries(getFilteredMenuItems()).length === 0 ? (
+            <View style={styles.emptyStateContainer}>
+              <Ionicons name="restaurant-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyStateTitle}>No items found</Text>
+              <Text style={styles.emptyStateText}>
+                There are no menu items available for the selected category.
+              </Text>
+            </View>
+          ) : (
+            Object.entries(getFilteredMenuItems()).map(
+              ([category, items], idx) => (
+                <View
+                  key={category}
+                  style={styles.menuSection}
+                  onLayout={(e) => {
+                    const layoutY = e.nativeEvent.layout.y;
+                    sectionRefs.current[idx] = { key: category, y: layoutY };
+                  }}
+                >
+                  <Text style={styles.menuSectionTitle}>{category}</Text>
+                  {items.length === 0 ? (
+                    <View style={styles.emptyCategoryContainer}>
+                      <Ionicons
+                        name="fast-food-outline"
+                        size={48}
+                        color="#ccc"
+                      />
+                      <Text style={styles.emptyCategoryText}>
+                        No items available in this category
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.menuItemsList}>
+                      {items.map((item: MenuItem, j: number) => (
+                        <MealItemCard
+                          key={item.id}
+                          product={{
+                            id:
+                              typeof item.id === "number"
+                                ? item.id
+                                : Number(item.id) || j,
+                            name: item.name,
+                            price: item.price,
+                            discountedPrice: item.discountedPrice,
+                            image: item.imageUrl || undefined,
+                            description: item.description || undefined,
+                          }}
+                          cartQuantity={getCartItemQuantity(item.id)}
+                          onAddToCart={(p) => handleAddToCart(item)}
+                          onRemoveFromCart={() => handleRemove(item.id)}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/menuitem/[menuitem]",
+                              params: { menuitem: item.id },
+                            })
+                          }
+                        />
+                      ))}
+                    </View>
+                  )}
                 </View>
-              </View>
+              )
             )
           )}
         </Animated.View>
@@ -936,6 +909,134 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  heroContainer: {
+    position: "relative",
+    width: "100%",
+    height: 280,
+    marginBottom: 0,
+  },
+  heroImage: {
+    width: "100%",
+    height: 250,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  heroImagePlaceholder: {
+    width: "100%",
+    height: 250,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  heroHeaderButtons: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 44 : 24,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  heroBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroCartButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  heroCartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: PrimaryColor,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  heroCartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  overlayCard: {
+    position: "absolute",
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#666",
+    marginLeft: 4,
+  },
+  restaurantDesc: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  restaurantAddress: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  titleRow: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  searchBarWrapper: {
+    paddingHorizontal: 24,
+    marginBottom: 8,
+  },
+  searchBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: "#333",
+    paddingVertical: 12,
+  },
   heroSection: {
     height: HEADER_HEIGHT,
     backgroundColor: "#f0f0f0",
@@ -1032,10 +1133,11 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   restaurantName: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 8,
+    color: "#222",
+    textAlign: "center",
+    marginBottom: 4,
   },
   restaurantDescription: {
     fontSize: 16,
@@ -1476,5 +1578,37 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "700",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+    paddingHorizontal: 20,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#666",
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  emptyCategoryContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyCategoryText: {
+    fontSize: 16,
+    color: "#999",
+    textAlign: "center",
+    marginTop: 12,
   },
 });

@@ -1,6 +1,15 @@
 /*
-  Lightweight Socket.IO client wrapper for the app.
-
+  FIX: Improved Socket.IO client wrapper with exponential backoff reconnection
+  
+  ISSUE: Socket would disconnect on network switch (WiFi ↔ Mobile data) 
+  but wouldn't auto-reconnect, causing real-time tracking to stop.
+  
+  SOLUTION:
+  - Exponential backoff for reconnection attempts (1s, 2s, 4s, 8s, 16s)
+  - Max 15 reconnection attempts before giving up
+  - Better connection state tracking
+  - Automatic cleanup on disconnect
+  
   - initSocket(serverUrl) -> connects (idempotent)
   - disconnectSocket() -> disconnects
   - on(event, cb) / off(event, cb) -> add/remove listeners
@@ -18,6 +27,8 @@ type SocketAny = any;
 
 let socket: SocketAny | null = null;
 let connectedUrl: string | null = null;
+let reconnectAttempts = 0;
+const maxReconnectAttempts = 15;
 
 async function importSocketIoClient() {
   try {
@@ -36,7 +47,10 @@ export async function initSocket(
   opts: Record<string, any> = {}
 ) {
   if (!serverUrl) throw new Error("initSocket requires a serverUrl");
-  if (socket && connectedUrl === serverUrl) return socket;
+  if (socket && connectedUrl === serverUrl) {
+    console.log("[SocketService] Socket already connected to", serverUrl);
+    return socket;
+  }
 
   const ioFn = await importSocketIoClient();
   if (!ioFn) return null;
@@ -48,7 +62,7 @@ export async function initSocket(
     /* ignore */
   }
 
-  // Create socket with sensible defaults for mobile
+  // Create socket with exponential backoff for reconnection
   const anyIoFn = ioFn as any;
   const createSocket =
     typeof anyIoFn === "function"
@@ -58,9 +72,11 @@ export async function initSocket(
       : null;
   if (typeof createSocket === "function") {
     socket = createSocket(serverUrl, {
-      transports: ["websocket"],
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionDelay: 1000, // Start with 1 second
+      reconnectionDelayMax: 30000, // Max 30 seconds
+      reconnectionAttempts: maxReconnectAttempts,
       autoConnect: true,
       ...opts,
     });
@@ -72,15 +88,51 @@ export async function initSocket(
   }
 
   connectedUrl = serverUrl;
+  reconnectAttempts = 0;
 
+  // FIX: Improved connection event handlers
   socket.on("connect", () => {
-    console.log("[SocketService] connected", socket.id);
+    console.log(
+      "[SocketService] ✅ Connected successfully (id:",
+      socket.id,
+      ")"
+    );
+    reconnectAttempts = 0; // Reset counter on successful connection
   });
+
   socket.on("disconnect", (reason: string) => {
-    console.log("[SocketService] disconnected", reason);
+    console.log("[SocketService] ❌ Disconnected - reason:", reason);
+
+    // If disconnected due to server/network issues, log it
+    if (reason === "io server disconnect") {
+      console.warn(
+        "[SocketService] Server disconnected client - will attempt reconnection"
+      );
+    } else if (reason === "io client disconnect") {
+      console.log("[SocketService] Client intentionally disconnected");
+    } else if (reason === "ping timeout") {
+      console.warn(
+        "[SocketService] Connection timeout - network issue detected"
+      );
+    }
   });
+
   socket.on("connect_error", (err: any) => {
-    console.warn("[SocketService] connect_error", err?.message || err);
+    console.warn("[SocketService] ⚠️ Connection error:", err?.message || err);
+  });
+
+  socket.on("reconnect_attempt", () => {
+    reconnectAttempts++;
+    const delayMs = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 30000);
+    console.log(
+      `[SocketService] 🔄 Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts} (next delay: ${delayMs}ms)`
+    );
+  });
+
+  socket.on("reconnect_failed", () => {
+    console.error(
+      `[SocketService] ❌ Reconnection failed after ${maxReconnectAttempts} attempts`
+    );
   });
 
   return socket;
@@ -89,47 +141,62 @@ export async function initSocket(
 export function disconnectSocket() {
   try {
     if (socket) {
+      console.log("[SocketService] Disconnecting socket...");
       socket.removeAllListeners();
       socket.disconnect();
       socket = null;
       connectedUrl = null;
+      reconnectAttempts = 0;
+      console.log("[SocketService] ✅ Socket disconnected and cleaned up");
     }
   } catch (err) {
-    console.warn("[SocketService] disconnect error", err);
+    console.warn("[SocketService] Error during disconnect:", err);
   }
 }
 
 export function on(event: string, cb: (...args: any[]) => void) {
   if (!socket) {
     console.warn(
-      "[SocketService] on() called before socket initialization",
+      "[SocketService] ⚠️ on() called before socket initialization for event:",
       event
     );
     return;
   }
   socket.on(event, cb);
+  console.debug(`[SocketService] Registered listener for event: ${event}`);
 }
 
 export function off(event: string, cb?: (...args: any[]) => void) {
   if (!socket) return;
-  if (cb) socket.off(event, cb);
-  else socket.removeAllListeners(event);
+  if (cb) {
+    socket.off(event, cb);
+    console.debug(
+      `[SocketService] Removed specific listener for event: ${event}`
+    );
+  } else {
+    socket.removeAllListeners(event);
+    console.debug(`[SocketService] Removed all listeners for event: ${event}`);
+  }
 }
 
 export function emit(event: string, data?: any) {
   if (!socket) {
     console.warn(
-      "[SocketService] emit() called before socket initialization",
-      event,
-      data
+      "[SocketService] ⚠️ emit() called before socket initialization for event:",
+      event
     );
     return;
   }
   socket.emit(event, data);
+  console.debug(`[SocketService] Emitted event: ${event}`, data);
 }
 
 export function getSocketInstance() {
   return socket;
+}
+
+export function isSocketConnected(): boolean {
+  return socket !== null && socket.connected === true;
 }
 
 // React hook helper. Usage:
@@ -158,4 +225,5 @@ export default {
   off,
   emit,
   getSocketInstance,
+  isSocketConnected,
 };

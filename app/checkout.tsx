@@ -12,7 +12,6 @@ import {
   StatusBar,
   Animated,
   Modal,
-  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
@@ -155,6 +154,11 @@ export default function Checkout() {
     isVerified?: boolean;
   } | null>(null);
 
+  // 💳 PAYMENT METHOD STATE (ONLINE vs CASH)
+  const [paymentMethodSelection, setPaymentMethodSelection] = useState<
+    "ONLINE" | "CASH"
+  >("ONLINE");
+
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState<
     string | null
@@ -181,6 +185,19 @@ export default function Checkout() {
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
+
+  // 💳 DETERMINE IF CASH PAYMENT IS ALLOWED
+  // Cash payment only allowed for shops and pharmacies, NOT restaurants
+  const vendorType = items.length > 0 ? items[0].entityType : undefined;
+  const isCashPaymentAllowed =
+    vendorType === "shop" || vendorType === "pharmacy";
+
+  // Reset to ONLINE if cash is selected but not allowed
+  useEffect(() => {
+    if (!isCashPaymentAllowed && paymentMethodSelection === "CASH") {
+      setPaymentMethodSelection("ONLINE");
+    }
+  }, [isCashPaymentAllowed, paymentMethodSelection]);
 
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
   const DEFAULT_DELIVERY_FEE = 0; // GMD - fallback if distance calculation fails
@@ -209,7 +226,7 @@ export default function Checkout() {
   // 2. No address is entered
   // 3. Delivery fee is still being calculated (loadingDeliveryFee)
   const isPlaceOrderDisabled =
-    loading || 
+    loading ||
     (form.orderType === "DELIVERY" && !form.address.trim()) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee);
 
@@ -490,7 +507,22 @@ export default function Checkout() {
 
     try {
       const token = await SecureStore.getItemAsync("token");
+      const userId = await SecureStore.getItemAsync("userId");
       const { API_URL } = await import("@/constants/config");
+
+      if (!userId) {
+        console.error("❌ No userId found in SecureStore");
+        setPromoError("Please login to use promo codes");
+        setIsValidatingPromo(false);
+        return;
+      }
+
+      console.log("🎉 Validating promo code:", {
+        code: promoCode.toUpperCase(),
+        userId,
+        orderAmount: subtotal,
+        orderType: form.orderType,
+      });
 
       const response = await fetch(`${API_URL}/api/promocodes/validate`, {
         method: "POST",
@@ -500,13 +532,14 @@ export default function Checkout() {
         },
         body: JSON.stringify({
           code: promoCode.toUpperCase(),
-          userId: userProfile?.email || "user", // You may need to get actual userId
+          userId: userId,
           orderAmount: subtotal,
           orderType: form.orderType,
         }),
       });
 
       const result = await response.json();
+      console.log("🎉 Promo validation result:", result);
 
       if (result.isValid) {
         setAppliedPromo(result);
@@ -520,8 +553,8 @@ export default function Checkout() {
         setAppliedPromo(null);
       }
     } catch (error) {
-      console.error("Error validating promo code:", error);
-      setPromoError("Failed to validate promo code");
+      console.error("❌ Error validating promo code:", error);
+      setPromoError("Failed to validate promo code. Please try again.");
       setAppliedPromo(null);
     } finally {
       setIsValidatingPromo(false);
@@ -790,13 +823,17 @@ export default function Checkout() {
           }
 
           const itemsPayload = vendorItems.map((it: any) => {
+            // ✅ FIX: Include the actual price (discounted if applicable) in the payload
+            const itemPrice = it.discountedPrice || it.price;
+
+            const baseItem = { quantity: it.quantity, price: itemPrice };
+
             if (entityType === "restaurant")
-              return { menuItemId: it.id, quantity: it.quantity };
-            if (entityType === "shop")
-              return { productId: it.id, quantity: it.quantity };
+              return { ...baseItem, menuItemId: it.id };
+            if (entityType === "shop") return { ...baseItem, productId: it.id };
             if (entityType === "pharmacy")
-              return { medicineId: it.id, quantity: it.quantity };
-            return { productId: it.id, quantity: it.quantity };
+              return { ...baseItem, medicineId: it.id };
+            return { ...baseItem, productId: it.id };
           });
 
           const orderPayload: any = {
@@ -810,6 +847,7 @@ export default function Checkout() {
             items: itemsPayload,
             notes: form.notes,
             promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
+            paymentMethod: paymentMethodSelection, // 💳 ADD PAYMENT METHOD (ONLINE or CASH)
             // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
             customerLatitude: customerCoordinates?.latitude,
             customerLongitude: customerCoordinates?.longitude,
@@ -824,7 +862,7 @@ export default function Checkout() {
             customerLongitude: customerCoordinates?.longitude,
             deliveryFee,
             serviceFee,
-            address: form.address
+            address: form.address,
           });
 
           if (entityType === "restaurant")
@@ -1121,10 +1159,11 @@ export default function Checkout() {
               const restaurantItems = restaurantCarts[restaurantId];
               const restaurantName =
                 restaurantItems[0]?.vendorName || "Restaurant";
-              const restaurantTotal = restaurantItems.reduce(
-                (sum, item) => sum + item.price * item.quantity,
-                0
-              );
+              // ✅ FIX: Use discounted price if available, otherwise use regular price
+              const restaurantTotal = restaurantItems.reduce((sum, item) => {
+                const itemPrice = item.discountedPrice || item.price;
+                return sum + itemPrice * item.quantity;
+              }, 0);
 
               return (
                 <View key={restaurantId} style={styles.restaurantOrder}>
@@ -1139,17 +1178,53 @@ export default function Checkout() {
                     <Text style={styles.restaurantName}>{restaurantName}</Text>
                   </View>
 
-                  {restaurantItems.map((item) => (
-                    <View key={item.id} style={styles.orderItem}>
-                      <Text style={styles.orderItemQuantity}>
-                        {item.quantity}x
-                      </Text>
-                      <Text style={styles.orderItemName}>{item.name}</Text>
-                      <Text style={styles.orderItemPrice}>
-                        D{(item.price * item.quantity).toFixed(2)}
-                      </Text>
-                    </View>
-                  ))}
+                  {restaurantItems.map((item) => {
+                    // ✅ FIX: Display discounted price if available
+                    const itemPrice = item.discountedPrice || item.price;
+                    const itemTotal = itemPrice * item.quantity;
+                    const hasDiscount =
+                      item.discountedPrice && item.discountedPrice < item.price;
+
+                    return (
+                      <View key={item.id} style={styles.orderItem}>
+                        <Text style={styles.orderItemQuantity}>
+                          {item.quantity}x
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.orderItemName}>{item.name}</Text>
+                          {hasDiscount && (
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#9CA3AF",
+                                marginTop: 2,
+                              }}
+                            >
+                              <Text
+                                style={{ textDecorationLine: "line-through" }}
+                              >
+                                D{item.price.toFixed(2)}
+                              </Text>
+                              {" → "}
+                              <Text
+                                style={{ color: "#EF4444", fontWeight: "600" }}
+                              >
+                                D{item.discountedPrice!.toFixed(2)}
+                              </Text>
+                            </Text>
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.orderItemPrice,
+                            hasDiscount ? { color: "#EF4444" } : null,
+                          ]}
+                        >
+                          D{itemTotal.toFixed(2)}
+                        </Text>
+                      </View>
+                    );
+                  })}
 
                   <View style={styles.restaurantTotal}>
                     <Text style={styles.restaurantTotalText}>
@@ -1475,6 +1550,135 @@ export default function Checkout() {
               </Animated.View>
             )}
 
+            {/* 💳 PAYMENT METHOD SELECTION */}
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+
+            <View style={styles.orderTypeContainer}>
+              {/* Online Payment Option */}
+              <TouchableOpacity
+                style={[
+                  styles.orderTypeButton,
+                  paymentMethodSelection === "ONLINE" &&
+                    styles.orderTypeButtonSelected,
+                ]}
+                onPress={() => setPaymentMethodSelection("ONLINE")}
+                activeOpacity={0.7}
+              >
+                <View style={styles.orderTypeIcon}>
+                  <Ionicons
+                    name="card"
+                    size={20}
+                    color={
+                      paymentMethodSelection === "ONLINE"
+                        ? "#fff"
+                        : PrimaryColor
+                    }
+                  />
+                </View>
+                <View style={styles.orderTypeInfo}>
+                  <Text
+                    style={[
+                      styles.orderTypeTitle,
+                      paymentMethodSelection === "ONLINE" &&
+                        styles.orderTypeTitleSelected,
+                    ]}
+                  >
+                    Online Payment
+                  </Text>
+                  <Text
+                    style={[
+                      styles.orderTypeSubtitle,
+                      paymentMethodSelection === "ONLINE" &&
+                        styles.orderTypeSubtitleSelected,
+                    ]}
+                  >
+                    Pay securely with digital wallets or card
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.radioButton,
+                    paymentMethodSelection === "ONLINE" &&
+                      styles.radioButtonSelected,
+                  ]}
+                >
+                  {paymentMethodSelection === "ONLINE" && (
+                    <View style={styles.radioButtonInner} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Cash Payment Option - Only for shops and pharmacies */}
+              {isCashPaymentAllowed ? (
+                <TouchableOpacity
+                  style={[
+                    styles.orderTypeButton,
+                    paymentMethodSelection === "CASH" &&
+                      styles.orderTypeButtonSelected,
+                  ]}
+                  onPress={() => setPaymentMethodSelection("CASH")}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.orderTypeIcon}>
+                    <Ionicons
+                      name="cash"
+                      size={20}
+                      color={
+                        paymentMethodSelection === "CASH"
+                          ? "#fff"
+                          : PrimaryColor
+                      }
+                    />
+                  </View>
+                  <View style={styles.orderTypeInfo}>
+                    <Text
+                      style={[
+                        styles.orderTypeTitle,
+                        paymentMethodSelection === "CASH" &&
+                          styles.orderTypeTitleSelected,
+                      ]}
+                    >
+                      Cash on{" "}
+                      {form.orderType === "DELIVERY" ? "Delivery" : "Pickup"}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.orderTypeSubtitle,
+                        paymentMethodSelection === "CASH" &&
+                          styles.orderTypeSubtitleSelected,
+                      ]}
+                    >
+                      Pay with cash when you receive your order
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.radioButton,
+                      paymentMethodSelection === "CASH" &&
+                        styles.radioButtonSelected,
+                    ]}
+                  >
+                    {paymentMethodSelection === "CASH" && (
+                      <View style={styles.radioButtonInner} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.paymentMethodDisabled}>
+                  <Ionicons name="cash-outline" size={20} color="#999" />
+                  <View style={styles.paymentMethodDisabledInfo}>
+                    <Text style={styles.paymentMethodDisabledTitle}>
+                      Cash Payment Not Available
+                    </Text>
+                    <Text style={styles.paymentMethodDisabledSubtitle}>
+                      Online payment required for restaurant orders to prevent
+                      food waste
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
             <Text style={styles.sectionTitle}>
               {form.orderType === "DELIVERY"
                 ? "Delivery Information"
@@ -1626,27 +1830,34 @@ export default function Checkout() {
             </View>
           </Animated.View>
 
-          {/* Payment Method */}
-          <Animated.View
-            style={[
-              styles.section,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Payment Method</Text>
-              {paymentStatus === "pending" && (
-                <View style={styles.pollingIndicator}>
-                  <Ionicons name="radio-button-on" size={12} color="#10B981" />
-                  <Text style={styles.pollingText}>Processing payment...</Text>
-                </View>
-              )}
-            </View>
+          {/* Payment Method - Only show Wave Pay section when ONLINE payment is selected */}
+          {paymentMethodSelection === "ONLINE" && (
+            <Animated.View
+              style={[
+                styles.section,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Wave Pay Details</Text>
+                {paymentStatus === "pending" && (
+                  <View style={styles.pollingIndicator}>
+                    <Ionicons
+                      name="radio-button-on"
+                      size={12}
+                      color="#10B981"
+                    />
+                    <Text style={styles.pollingText}>
+                      Processing payment...
+                    </Text>
+                  </View>
+                )}
+              </View>
 
-            {/* <PaymentMethodCard
+              {/* <PaymentMethodCard
               method="cash"
               icon="cash"
               title="Cash on Delivery"
@@ -1655,7 +1866,7 @@ export default function Checkout() {
               onPress={() => setSelectedPaymentMethod("cash")}
             /> */}
 
-            {/* <PaymentMethodCard
+              {/* <PaymentMethodCard
               method="card"
               icon="card"
               title="Credit/Debit Card"
@@ -1664,53 +1875,54 @@ export default function Checkout() {
               onPress={() => setSelectedPaymentMethod("card")}
             /> */}
 
-            <PaymentMethodCard
-              method="mobile"
-              icon="wallet"
-              title={
-                defaultPaymentMethod && paymentMethodsLoaded
-                  ? defaultPaymentMethod.toUpperCase()
-                  : "Mobile Money"
-              }
-              subtitle={
-                defaultPaymentMethod && paymentMethodsLoaded
-                  ? `Account ending in ***${
-                      paymentMethods?.methods[defaultPaymentMethod]?.slice(
-                        -4
-                      ) || "****"
-                    }`
-                  : "Select mobile payment method"
-              }
-              selected={selectedPaymentMethod === "mobile"}
-              onPress={() => {
-                console.log(
-                  "Payment method pressed. Default:",
-                  defaultPaymentMethod,
-                  "Selected:",
-                  selectedPaymentMethod,
-                  "Loaded:",
-                  paymentMethodsLoaded,
-                  "Methods:",
-                  paymentMethods
-                );
-                if (!defaultPaymentMethod) {
-                  Alert.alert(
-                    "No Payment Method",
-                    "Please add a mobile payment account in your profile settings.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Go to Profile",
-                        onPress: () => router.push("/profile"),
-                      },
-                    ]
-                  );
-                  return;
+              <PaymentMethodCard
+                method="mobile"
+                icon="wallet"
+                title={
+                  defaultPaymentMethod && paymentMethodsLoaded
+                    ? defaultPaymentMethod.toUpperCase()
+                    : "Mobile Money"
                 }
-                setSelectedPaymentMethod("mobile");
-              }}
-            />
-          </Animated.View>
+                subtitle={
+                  defaultPaymentMethod && paymentMethodsLoaded
+                    ? `Account ending in ***${
+                        paymentMethods?.methods[defaultPaymentMethod]?.slice(
+                          -4
+                        ) || "****"
+                      }`
+                    : "Select mobile payment method"
+                }
+                selected={selectedPaymentMethod === "mobile"}
+                onPress={() => {
+                  console.log(
+                    "Payment method pressed. Default:",
+                    defaultPaymentMethod,
+                    "Selected:",
+                    selectedPaymentMethod,
+                    "Loaded:",
+                    paymentMethodsLoaded,
+                    "Methods:",
+                    paymentMethods
+                  );
+                  if (!defaultPaymentMethod) {
+                    Alert.alert(
+                      "No Payment Method",
+                      "Please add a mobile payment account in your profile settings.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Go to Profile",
+                          onPress: () => router.push("/profile"),
+                        },
+                      ]
+                    );
+                    return;
+                  }
+                  setSelectedPaymentMethod("mobile");
+                }}
+              />
+            </Animated.View>
+          )}
 
           {restaurantIds.length > 1 ? (
             <View style={styles.multiRestaurantNotice}>
@@ -1903,10 +2115,10 @@ export default function Checkout() {
                   <Ionicons name="checkmark-circle" size={20} color="#fff" />
                 )}
                 <Text style={styles.placeOrderText}>
-                  {loading 
-                    ? "Placing Order..." 
-                    : loadingDeliveryFee 
-                    ? "Calculating Delivery Fee..." 
+                  {loading
+                    ? "Placing Order..."
+                    : loadingDeliveryFee
+                    ? "Calculating Delivery Fee..."
                     : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
@@ -2568,5 +2780,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#1f2937",
+  },
+  paymentMethodDisabled: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    opacity: 0.7,
+    marginTop: 12,
+  },
+  paymentMethodDisabledInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  paymentMethodDisabledTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  paymentMethodDisabledSubtitle: {
+    fontSize: 12,
+    color: "#9ca3af",
+    lineHeight: 16,
   },
 });

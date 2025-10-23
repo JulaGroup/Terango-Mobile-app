@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   FlatList,
   TouchableOpacity,
   Dimensions,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -29,6 +30,7 @@ interface Product {
   imageUrl?: string;
   shopId: string;
   subCategory?: { id: string; name: string };
+  discountedPrice?: number;
 }
 
 export default function StoreCategoryProducts() {
@@ -47,6 +49,13 @@ export default function StoreCategoryProducts() {
   const [error, setError] = useState<string | null>(null);
   const [shopName, setShopName] = useState<string | null>(null);
   const [subCategoryName, setSubCategoryName] = useState<string | null>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
+  const [subCategories, setSubCategories] = useState<
+    { id: string; name: string }[]
+  >([]);
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const tabsRef = useRef<ScrollView>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!shopId || !subCategoryId) return;
@@ -85,6 +94,34 @@ export default function StoreCategoryProducts() {
     }
   }, [shopId]);
 
+  // Fetch subcategories for the shop (by getting all products and extracting unique subcategories)
+  const fetchSubCategories = useCallback(async () => {
+    if (!shopId) return;
+    try {
+      console.log("Fetching products for shop to get subcategories...");
+      const resp = await fetch(`${API_URL}/api/shops/${shopId}`);
+      if (!resp.ok) throw new Error("Failed to fetch shop products");
+      const shopData = await resp.json();
+
+      // Extract unique subcategories from products
+      const subCategoryMap = new Map();
+      shopData.products?.forEach((product: any) => {
+        if (product.subCategory && product.isAvailable !== false) {
+          subCategoryMap.set(product.subCategory.id, {
+            id: product.subCategory.id,
+            name: product.subCategory.name,
+          });
+        }
+      });
+
+      const uniqueSubCategories = Array.from(subCategoryMap.values());
+      console.log("Extracted subcategories:", uniqueSubCategories);
+      setSubCategories(uniqueSubCategories);
+    } catch (err) {
+      console.error("Failed to fetch subcategories:", err);
+    }
+  }, [shopId]);
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
@@ -94,10 +131,48 @@ export default function StoreCategoryProducts() {
   }, [fetchShop]);
 
   useEffect(() => {
+    fetchSubCategories();
+  }, [fetchSubCategories]);
+
+  // Auto-scroll to active tab when subcategories load
+  useEffect(() => {
+    if (subCategories.length === 0 || !subCategoryId || loading) return;
+
+    const activeIndex = subCategories.findIndex(
+      (s) => s.id === subCategoryId
+    );
+
+    if (activeIndex === -1) return;
+
+    // Estimate tab width (depends on your spacing & font size)
+    const AVERAGE_TAB_WIDTH = 100; // Adjust to your design
+    const scrollX = Math.max(activeIndex * AVERAGE_TAB_WIDTH - width / 3, 0);
+
+    const timeout = setTimeout(() => {
+      if (tabsRef.current) {
+        tabsRef.current.scrollTo({
+          x: scrollX,
+          animated: true,
+        });
+        console.log("✅ Scrolled to approx tab index:", activeIndex);
+      }
+    }, 200);
+
+    return () => clearTimeout(timeout);
+  }, [subCategories, subCategoryId, loading]);
+
+  useEffect(() => {
     if (!query) return setFiltered(products);
     const q = query.toLowerCase();
     setFiltered(products.filter((p) => p.name.toLowerCase().includes(q)));
   }, [query, products]);
+
+  // Auto-scroll to products when they load
+  useEffect(() => {
+    if (!loading && products.length > 0) {
+      setShouldAutoScroll(true);
+    }
+  }, [loading, products]);
 
   const getTotalCartItems = () => {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
@@ -133,19 +208,14 @@ export default function StoreCategoryProducts() {
   };
 
   const renderItem = ({ item, index }: { item: Product; index: number }) => {
-    // Fit two columns within the FlatList paddingHorizontal:16
-    // cardWidth = (screenWidth - paddingLeft - paddingRight - gap) / 2
-    const horizontalPadding = 16 * 2; // contentContainerStyle paddingHorizontal * 2
-    const columnGap = 6; // desired gap between columns
-    const cardWidth = (width - horizontalPadding - columnGap) / 3;
-
     return (
-      <View style={{ width: cardWidth, marginBottom: 20 }}>
+      <View style={styles.productCardWrapper}>
         <ProductCard
           product={{
             id: Number(item.id),
             name: item.name,
             price: item.price,
+            discountedPrice: item.discountedPrice,
             image: item.imageUrl,
             description: item.description,
             inStock: true,
@@ -153,7 +223,6 @@ export default function StoreCategoryProducts() {
           cartQuantity={getCartItemQuantity(item.id)}
           onAddToCart={() => handleAddToCart(item)}
           onRemoveFromCart={() => handleRemoveFromCart(item.id)}
-          cardWidth={cardWidth}
           onPress={() => router.push(`/product/${item.id}`)}
         />
       </View>
@@ -171,16 +240,14 @@ export default function StoreCategoryProducts() {
   );
 
   const SkeletonGrid = () => (
-    <FlatList
-      data={Array.from({ length: 6 })}
-      numColumns={2}
-      keyExtractor={(_, index) => `skeleton-${index}`}
-      renderItem={({ index }) => {
+    <View style={styles.skeletonContainer}>
+      {Array.from({ length: 6 }).map((_, index) => {
         const horizontalPadding = 16 * 2;
         const columnGap = 16;
         const cardWidth = (width - horizontalPadding - columnGap) / 2;
         return (
           <View
+            key={`skeleton-${index}`}
             style={{
               width: cardWidth,
               height: 220,
@@ -190,15 +257,8 @@ export default function StoreCategoryProducts() {
             }}
           />
         );
-      }}
-      columnWrapperStyle={{ justifyContent: "space-between" }}
-      contentContainerStyle={{
-        paddingHorizontal: 16,
-        paddingTop: 8,
-        paddingBottom: 8,
-      }}
-      showsVerticalScrollIndicator={false}
-    />
+      })}
+    </View>
   );
 
   return (
@@ -266,8 +326,83 @@ export default function StoreCategoryProducts() {
         </View>
       </View>
 
+      {/* Subcategory Tabs */}
+      {(() => {
+        console.log(
+          "Rendering tabs condition check:",
+          subCategories.length > 0,
+          subCategories
+        );
+        return (
+          subCategories.length > 0 && (
+            <View style={styles.tabsWrapper}>
+              <ScrollView
+                ref={tabsRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.subCategoryTabsContainer}
+                contentContainerStyle={styles.subCategoryTabsContent}
+              >
+                {subCategories.map((subCategory) => {
+                  console.log(
+                    "Rendering tab:",
+                    subCategory.name,
+                    "active:",
+                    subCategory.id === subCategoryId
+                  );
+                  return (
+                    <TouchableOpacity
+                      key={subCategory.id}
+                      style={styles.subCategoryTab}
+                      onPress={() => {
+                        if (subCategory.id !== subCategoryId) {
+                          router.replace({
+                            pathname: "/storeCategoryProducts",
+                            params: {
+                              shopId,
+                              subCategoryId: subCategory.id,
+                            },
+                          });
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.subCategoryTabText,
+                          subCategory.id === subCategoryId &&
+                            styles.subCategoryTabTextActive,
+                        ]}
+                      >
+                        {subCategory.name}
+                      </Text>
+                      {subCategory.id === subCategoryId && (
+                        <View style={styles.tabUnderline} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )
+        );
+      })()}
+
       {/* Content */}
-      <View style={styles.content}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        onLayout={() => {
+          if (shouldAutoScroll && scrollViewRef.current) {
+            scrollViewRef.current.scrollTo({
+              y: 150,
+              animated: false,
+            });
+            setShouldAutoScroll(false);
+          }
+        }}
+      >
         {loading ? (
           <SkeletonGrid />
         ) : error ? (
@@ -288,16 +423,13 @@ export default function StoreCategoryProducts() {
             keyExtractor={(item) => item.id}
             numColumns={NUM_COLUMNS}
             showsVerticalScrollIndicator={false}
-            columnWrapperStyle={{ justifyContent: "space-between" }}
-            contentContainerStyle={{
-              paddingHorizontal: 16,
-              paddingTop: 8,
-              paddingBottom: 8,
-            }}
+            columnWrapperStyle={styles.columnWrapper}
+            contentContainerStyle={styles.productsGrid}
             ListEmptyComponent={<ListEmpty />}
+            scrollEnabled={false} // Disable FlatList scrolling since parent ScrollView handles it
           />
         )}
-      </View>
+      </ScrollView>
 
       {/* Floating cart summary */}
       {getTotalCartItems() > 0 && (
@@ -482,5 +614,65 @@ const styles = StyleSheet.create({
     color: "#fff",
     marginLeft: 8,
     fontWeight: "700",
+  },
+
+  // Products Grid
+  productsGrid: {
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  columnWrapper: {
+    justifyContent: "flex-start",
+    paddingHorizontal: 0,
+    marginBottom: 8,
+    gap: 8,
+  },
+  productCardWrapper: {
+    flex: 1,
+    maxWidth: "33.33%",
+  },
+  skeletonContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+
+  // Subcategory Tabs
+  tabsWrapper: {
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  subCategoryTabsContainer: {
+    maxHeight: 50,
+  },
+  subCategoryTabsContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 24,
+  },
+  subCategoryTab: {
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    position: "relative",
+  },
+  subCategoryTabText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#999",
+    letterSpacing: -0.2,
+  },
+  subCategoryTabTextActive: {
+    color: "#000",
+  },
+  tabUnderline: {
+    height: 3,
+    backgroundColor: PrimaryColor,
+    marginTop: 8,
+    borderRadius: 1.5,
+    width: "100%",
   },
 });

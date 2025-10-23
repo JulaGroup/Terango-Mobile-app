@@ -28,6 +28,8 @@ import { initSocket } from "@/services/SocketService";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
 import * as WebBrowser from "expo-web-browser";
 import { Alert, DeviceEventEmitter } from "react-native";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import OfflineNotice from "@/components/common/OfflineNotice";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -147,9 +149,9 @@ export default function RootLayout() {
           try {
             // Import orderApi to fetch recent orders
             const { orderApi } = await import("@/lib/api");
-            const orders = await orderApi.getCustomerOrders();
+            const result = await orderApi.getCustomerOrders();
             // Find the most recent order (likely the one just created)
-            const recentOrder = orders[0];
+            const recentOrder = result.orders[0];
             if (
               recentOrder &&
               new Date(recentOrder.createdAt).getTime() >
@@ -341,211 +343,230 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-      <PermissionProvider>
-        <AddressProvider>
-          <CartProvider>
-            <VendorProvider>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <Stack>
-                  <Stack.Screen
-                    name="onboarding"
-                    options={{
-                      headerShown: false,
-                      animation: "fade_from_bottom",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="index"
-                    options={{
-                      headerShown: false,
-                      animation: "fade_from_bottom",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="auth/index"
-                    options={{
-                      headerShown: false,
-                      animation: "fade_from_bottom",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="auth/otp"
-                    options={{
-                      headerShown: false,
-                      animation: "slide_from_right",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="auth/complete-profile"
-                    options={{
-                      headerShown: false,
-                      animation: "slide_from_right",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="(tabs)"
-                    options={{ headerShown: false }}
-                  />
-                  <Stack.Screen
-                    name="CategoryDetailsPage"
-                    options={{
-                      headerShown: false,
-                      animation: "slide_from_right",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="AllCategoriesPage"
-                    options={{
-                      headerShown: false,
-                      animation: "slide_from_right",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="SubCategoryView"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="cart"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="restaurant-details"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="shop-details"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
+    <ErrorBoundary>
+      <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+        <PermissionProvider>
+          <AddressProvider>
+            <CartProvider>
+              <VendorProvider>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  {/* Offline Notice Banner */}
+                  <OfflineNotice />
 
-                  <Stack.Screen
-                    name="checkout"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="product/[productId]"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="menuitem/[menuitem]"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="ViewAllRestaurants"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="order-details"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="ViewAllStores"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="storeCategoryProducts"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="payment-methods"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor-application"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor/dashboard"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor/products"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor/orders"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor/profile"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="vendor/menu"
-                    options={{
-                      animation: "slide_from_right",
-                      headerShown: false,
-                    }}
-                  />
+                  <Stack>
+                    <Stack.Screen
+                      name="onboarding"
+                      options={{
+                        headerShown: false,
+                        animation: "fade_from_bottom",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="index"
+                      options={{
+                        headerShown: false,
+                        animation: "fade_from_bottom",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="auth/index"
+                      options={{
+                        headerShown: false,
+                        animation: "fade_from_bottom",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="auth/otp"
+                      options={{
+                        headerShown: false,
+                        animation: "slide_from_right",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="auth/complete-profile"
+                      options={{
+                        headerShown: false,
+                        animation: "slide_from_right",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="auth/add-home-address"
+                      options={{
+                        headerShown: false,
+                        animation: "slide_from_right",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen
+                      name="CategoryDetailsPage"
+                      options={{
+                        headerShown: false,
+                        animation: "slide_from_right",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="AllCategoriesPage"
+                      options={{
+                        headerShown: false,
+                        animation: "slide_from_right",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="SubCategoryView"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="cart"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="restaurant-details"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="shop-details"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="ShopCategoryPage"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
 
-                  <Stack.Screen
-                    name="+not-found"
-                    options={{ headerShown: false }}
-                  />
-                </Stack>
-                <StatusBar style="auto" />
-              </GestureHandlerRootView>
-            </VendorProvider>
-          </CartProvider>
-        </AddressProvider>
-      </PermissionProvider>
-      <OrderSuccessModal
-        visible={showOrderSuccessModal}
-        onClose={handleCloseOrderSuccessModal}
-        orderId={successfulOrderData?.orderId || ""}
-        orderData={successfulOrderData?.data}
-      />
-    </ThemeProvider>
+                    <Stack.Screen
+                      name="checkout"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="product/[productId]"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="menuitem/[menuitem]"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="ViewAllRestaurants"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="order-details"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="ViewAllStores"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="storeCategoryProducts"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="payment-methods"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor-application"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor/dashboard"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor/products"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor/orders"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor/profile"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="vendor/menu"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+
+                    <Stack.Screen
+                      name="+not-found"
+                      options={{ headerShown: false }}
+                    />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </GestureHandlerRootView>
+              </VendorProvider>
+            </CartProvider>
+          </AddressProvider>
+        </PermissionProvider>
+        <OrderSuccessModal
+          visible={showOrderSuccessModal}
+          onClose={handleCloseOrderSuccessModal}
+          orderId={successfulOrderData?.orderId || ""}
+          orderData={successfulOrderData?.data}
+        />
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }

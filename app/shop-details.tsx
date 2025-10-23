@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,13 @@ import {
   StatusBar,
   Animated,
   FlatList,
-  Linking,
   Platform,
+  TextInput,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, router } from "expo-router";
 import ProductCard from "@/components/common/ProductCard";
-import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
@@ -127,6 +127,7 @@ interface CategorySectionProps {
   onRemoveFromCart: (productId: string) => void;
   getCartQuantity: (productId: string) => number;
   shopName?: string;
+  navigateWithDebounce: (navigationFunction: () => void) => void;
 }
 
 const CategorySection = ({
@@ -136,6 +137,7 @@ const CategorySection = ({
   onRemoveFromCart,
   getCartQuantity,
   shopName,
+  navigateWithDebounce,
 }: CategorySectionProps) => {
   // Use cart context directly to mirror storeCategoryProducts behavior
   const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
@@ -171,6 +173,7 @@ const CategorySection = ({
           id: Number(item.id),
           name: item.name,
           price: item.price,
+          discountedPrice: item.discountedPrice,
           image: item.imageUrl,
           description: item.description,
           inStock: true,
@@ -185,7 +188,6 @@ const CategorySection = ({
 
   return (
     <View style={styles.categorySection}>
-      {/* Uber Eats Style Category Header */}
       <View style={styles.categoryHeader}>
         <Text style={styles.categoryTitle}>{category}</Text>
 
@@ -193,19 +195,21 @@ const CategorySection = ({
           style={styles.viewAllButton}
           activeOpacity={0.7}
           onPress={() =>
-            router.push({
-              pathname: "/storeCategoryProducts",
-              params: {
-                shopId: String((products[0] && products[0].shopId) || ""),
-                subCategoryId: String(
-                  (products[0] && products[0].subCategory?.id) || ""
-                ),
-                shopName: String(shopName || ""),
-                subCategoryName: String(
-                  (products[0] && products[0].subCategory?.name) || ""
-                ),
-              },
-            })
+            navigateWithDebounce(() =>
+              router.push({
+                pathname: "/storeCategoryProducts",
+                params: {
+                  shopId: String((products[0] && products[0].shopId) || ""),
+                  subCategoryId: String(
+                    (products[0] && products[0].subCategory?.id) || ""
+                  ),
+                  shopName: String(shopName || ""),
+                  subCategoryName: String(
+                    (products[0] && products[0].subCategory?.name) || ""
+                  ),
+                },
+              })
+            )
           }
         >
           <Text
@@ -245,90 +249,101 @@ const ShopDetailsSkeleton = () => {
       <StatusBar barStyle="light-content" backgroundColor="#000" />
 
       {/* Hero Section Skeleton */}
-      <View style={[styles.heroSection, { backgroundColor: "#f0f0f0" }]}>
-        <LinearGradient
-          colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-          style={styles.heroGradient}
-        >
-          <View style={styles.heroContent}>
-            <View style={styles.heroNavigation}>
-              <SkeletonLoader
-                width={40}
-                height={40}
-                style={{ borderRadius: 20, marginRight: 16 }}
-              />
-              <SkeletonLoader
-                width={40}
-                height={40}
-                style={{ borderRadius: 20 }}
-              />
-            </View>
+      <View style={styles.heroContainer}>
+        <View style={styles.heroImagePlaceholder}>
+          <Ionicons name="storefront" size={60} color="#ccc" />
+          <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
+            Shop image loading...
+          </Text>
+        </View>
 
-            {/* Shop Info Skeleton */}
-            <View style={styles.restaurantInfo}>
-              <SkeletonLoader
-                width="80%"
-                height={28}
-                style={{
-                  marginBottom: 8,
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                }}
-              />
-              <SkeletonLoader
-                width="100%"
-                height={16}
-                style={{
-                  marginBottom: 4,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
-              <SkeletonLoader
-                width="70%"
-                height={16}
-                style={{
-                  marginBottom: 16,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
-
-              {/* Meta info skeleton */}
-              <View style={{ flexDirection: "row", marginBottom: 16 }}>
-                <SkeletonLoader
-                  width={80}
-                  height={14}
-                  style={{
-                    marginRight: 20,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                  }}
-                />
-                <SkeletonLoader
-                  width={100}
-                  height={14}
-                  style={{
-                    marginRight: 20,
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                  }}
-                />
-                <SkeletonLoader
-                  width={90}
-                  height={14}
-                  style={{
-                    backgroundColor: "rgba(255,255,255,0.2)",
-                  }}
-                />
-              </View>
-
-              <SkeletonLoader
-                width={80}
-                height={24}
-                style={{
-                  borderRadius: 12,
-                  backgroundColor: "rgba(255,255,255,0.2)",
-                }}
-              />
-            </View>
+        {/* Header buttons skeleton */}
+        <View style={styles.heroHeaderButtons}>
+          <View style={styles.heroBackButton}>
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </View>
-        </LinearGradient>
+          <View style={styles.heroCartButton}>
+            <Ionicons name="cart-outline" size={22} color="#fff" />
+          </View>
+        </View>
+
+        <View style={styles.overlayCard}>
+          {/* Open/Closed Badge (skeleton) */}
+          <View
+            style={[
+              styles.statusBadge,
+              {
+                backgroundColor: "rgba(16, 185, 129, 0.95)",
+                shadowColor: "#10B981",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3,
+                shadowRadius: 4,
+                elevation: 4,
+              },
+            ]}
+          >
+            <Ionicons
+              name="time-outline"
+              size={14}
+              color="#fff"
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.statusText}>Open Now</Text>
+          </View>
+          <SkeletonLoader
+            width="80%"
+            height={28}
+            style={{
+              marginBottom: 8,
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={16} color="#FFD700" />
+            <SkeletonLoader
+              width={40}
+              height={16}
+              style={{
+                marginLeft: 4,
+                backgroundColor: "#E0E0E0",
+              }}
+            />
+          </View>
+          <SkeletonLoader
+            width="100%"
+            height={16}
+            style={{
+              marginTop: 4,
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+          <SkeletonLoader
+            width="70%"
+            height={14}
+            style={{
+              marginTop: 2,
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+        </View>
+      </View>
+
+      <View style={styles.searchBarWrapper}>
+        <View style={styles.searchBarContainer}>
+          <Ionicons
+            name="search"
+            size={20}
+            color="#999"
+            style={{ marginRight: 8 }}
+          />
+          <SkeletonLoader
+            width="100%"
+            height={16}
+            style={{
+              backgroundColor: "#E0E0E0",
+            }}
+          />
+        </View>
       </View>
 
       {/* Categories Skeleton */}
@@ -401,9 +416,11 @@ interface Product {
   id: string;
   name: string;
   price: number;
+  discountedPrice?: number;
   description?: string;
   imageUrl?: string;
   shopId: string;
+  isAvailable?: boolean;
   subCategory?: {
     id: string;
     name: string;
@@ -414,7 +431,7 @@ export default function ShopDetails() {
   const router = useRouter();
   const { shopId } = useLocalSearchParams<{ shopId: string }>();
   const { cartItems, addToCart, removeFromCart } = useCart();
-
+  const [searchText, setSearchText] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<Shop | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -430,6 +447,24 @@ export default function ShopDetails() {
     [key: string]: Product[];
   }>({});
 
+  // Category tabs state
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [isNavigating, setIsNavigating] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const categoryTabsRef = useRef<ScrollView>(null);
+
+  // Debounced navigation to prevent double-tap routing
+  const navigateWithDebounce = useCallback(
+    (navigationFunction: () => void) => {
+      if (isNavigating) return;
+      setIsNavigating(true);
+      navigationFunction();
+      // Reset navigation state after a short delay
+      setTimeout(() => setIsNavigating(false), 1000);
+    },
+    [isNavigating]
+  );
+
   const fetchShopDetails = useCallback(async () => {
     try {
       setLoading(true);
@@ -442,28 +477,36 @@ export default function ShopDetails() {
       }
 
       const data = await response.json();
-      console.log(data.products);
       setShop(data);
 
-      // Group products by subcategory
+      // Group products by subcategory (filter out unavailable products)
       const grouped: { [key: string]: Product[] } = {};
 
       data.products?.forEach((product: Product) => {
-        const categoryName = product.subCategory?.name || "All Products";
-        if (!grouped[categoryName]) {
-          grouped[categoryName] = [];
+        // Only show products that are available (isAvailable is true or undefined/null)
+        if (product.isAvailable !== false) {
+          const categoryName = product.subCategory?.name || "All Products";
+          if (!grouped[categoryName]) {
+            grouped[categoryName] = [];
+          }
+          grouped[categoryName].push(product);
         }
-        grouped[categoryName].push(product);
       });
 
       setGroupedProducts(grouped);
+
+      // Set first category as selected by default
+      const categories = Object.keys(grouped);
+      if (categories.length > 0 && !selectedCategory) {
+        setSelectedCategory(categories[0]);
+      }
     } catch (err: any) {
       console.error("Error fetching shop details:", err);
       setError(err.message || "Failed to load shop details");
     } finally {
       setLoading(false);
     }
-  }, [shopId]);
+  }, [shopId, selectedCategory]);
 
   useEffect(() => {
     if (shopId) {
@@ -504,6 +547,29 @@ export default function ShopDetails() {
     }
   }, [cartPulse, cartItems]);
 
+  // Scroll to selected category tab when it changes
+  useEffect(() => {
+    if (selectedCategory && categoryTabsRef.current && !loading) {
+      const categories = Object.keys(groupedProducts);
+      const categoryIndex = categories.indexOf(selectedCategory);
+
+      if (categoryIndex >= 0) {
+        // Calculate scroll position for the tab
+        // Each tab has some width, let's estimate 100px per tab plus margins
+        const tabWidth = 100; // approximate width per tab
+        const scrollPosition = categoryIndex * tabWidth;
+
+        // Delay scroll to ensure content is rendered
+        setTimeout(() => {
+          categoryTabsRef.current?.scrollTo({
+            x: scrollPosition,
+            animated: true,
+          });
+        }, 300);
+      }
+    }
+  }, [selectedCategory, groupedProducts, loading]);
+
   const handleAddToCart = (item: Product) => {
     if (!shop) return;
 
@@ -511,6 +577,7 @@ export default function ShopDetails() {
       id: item.id,
       name: item.name,
       price: item.price,
+      discountedPrice: item.discountedPrice, // Add discounted price
       description: item.description || "",
       vendorId: shop.id,
       vendorName: shop.name,
@@ -553,10 +620,11 @@ export default function ShopDetails() {
   };
 
   const getTotalCartPrice = (): number => {
-    return cartItems.reduce(
-      (total, item) => total + item.price * item.quantity,
-      0
-    );
+    return cartItems.reduce((total, item) => {
+      // Use discounted price if available, otherwise use regular price
+      const itemPrice = item.discountedPrice || item.price;
+      return total + itemPrice * item.quantity;
+    }, 0);
   };
 
   // Enhanced animated values for smoother transitions
@@ -605,7 +673,10 @@ export default function ShopDetails() {
 
   if (error || !shop) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView
+        style={styles.container}
+        edges={["left", "right", "bottom"]}
+      >
         <StatusBar barStyle="dark-content" backgroundColor="#fff" />
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={48} color="#EF4444" />
@@ -625,7 +696,7 @@ export default function ShopDetails() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
       <StatusBar
         barStyle="light-content"
         backgroundColor="transparent"
@@ -666,20 +737,21 @@ export default function ShopDetails() {
               onPress={() => router.push("/cart")}
             >
               <Ionicons name="cart-outline" size={22} color="#000" />
-              {getTotalCartItems() > 0 && (
+              {getTotalCartItems() > 0 ? (
                 <View style={styles.stickyCartBadge}>
                   <Text style={styles.stickyCartBadgeText}>
                     {getTotalCartItems()}
                   </Text>
                 </View>
-              )}
+              ) : null}
             </TouchableOpacity>
           </View>
         </View>
       </Animated.View>
 
       <Animated.ScrollView
-        style={styles.scrollView}
+        ref={scrollViewRef}
+        style={[styles.scrollView, { opacity: fadeAnim }]}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
           { useNativeDriver: false }
@@ -687,182 +759,212 @@ export default function ShopDetails() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
+        {/* Uber Eats/DoorDash style header */}
+        <View style={styles.heroContainer}>
+          <Image
+            source={{ uri: shop.imageUrl }}
+            style={styles.heroImage}
+            resizeMode="cover"
+          />
+
+          {/* Header buttons on top of image */}
+          <View style={styles.heroHeaderButtons}>
+            <TouchableOpacity
+              style={styles.heroBackButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.heroCartButton}
+              onPress={() => router.push("/cart")}
+            >
+              <Ionicons name="cart-outline" size={22} color="#fff" />
+              {getTotalCartItems() > 0 ? (
+                <View style={styles.heroCartBadge}>
+                  <Text style={styles.heroCartBadgeText}>
+                    {getTotalCartItems()}
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.overlayCard}>
+            <View
+              style={[
+                styles.statusBadge,
+                {
+                  backgroundColor: shop.isActive
+                    ? "rgba(16, 185, 129, 0.95)"
+                    : "rgba(239, 68, 68, 0.95)",
+                  shadowColor: shop.isActive ? "#10B981" : "#EF4444",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 4,
+                  elevation: 4,
+                },
+              ]}
+            >
+              <Ionicons
+                name={shop.isActive ? "time-outline" : "close-circle-outline"}
+                size={14}
+                color="#fff"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.statusText}>
+                {shop.isActive ? "Open Now" : "Closed"}
+              </Text>
+            </View>
+            <View style={styles.titleRow}>
+              <Text style={styles.shopName}>{shop.name}</Text>
+            </View>
+            {shop.rating ? (
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color="#FFD700" />
+                <Text style={styles.ratingText}>{shop.rating.toFixed(1)}</Text>
+              </View>
+            ) : null}
+            {shop.description ? (
+              <Text style={styles.shopDesc} numberOfLines={2}>
+                {shop.description}
+              </Text>
+            ) : null}
+            {shop.address ? (
+              <Text
+                style={styles.shopAddress}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {shop.address}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <View style={styles.searchBarWrapper}>
+          <View style={styles.searchBarContainer}>
+            <Ionicons
+              name="search"
+              size={20}
+              color="#999"
+              style={{ marginRight: 8 }}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={`Search in ${shop.name}`}
+              placeholderTextColor="#999"
+              value={searchText}
+              onChangeText={setSearchText}
+            />
+          </View>
+        </View>
+
+        {/* Enhanced Sticky Header - Uber Eats Style */}
         <Animated.View
           style={[
-            styles.heroSection,
+            styles.stickyHeader,
             {
-              transform: [{ translateY: containerTranslateY }],
-              opacity: heroOpacity,
+              opacity: headerOpacity,
+              transform: [{ translateY: headerTranslateY }],
             },
           ]}
         >
-          {/* Shop Background Image */}
-          {shop.imageUrl && !imageLoadErrors[`hero-${shop.id}`] ? (
-            <Animated.Image
-              source={{ uri: shop.imageUrl }}
-              style={[
-                styles.heroBackgroundImage,
-                {
-                  transform: [
-                    { scale: imageScale },
-                    { translateY: imageInnerTranslateY },
-                  ],
-                },
-              ]}
-              resizeMode="cover"
-              onError={() => handleImageError(`hero-${shop.id}`)}
-            />
-          ) : (
-            <View style={styles.heroBackgroundPlaceholder}>
-              <Ionicons name="storefront" size={60} color="#ccc" />
-              <Text style={{ color: "#888", marginTop: 8, fontSize: 14 }}>
-                Shop image unavailable
+          <View style={styles.stickyHeaderContent}>
+            <TouchableOpacity
+              style={styles.stickyHeaderBackButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="arrow-back" size={24} color="#000" />
+            </TouchableOpacity>
+
+            <View style={styles.stickyHeaderTitleContainer}>
+              <Text style={styles.stickyHeaderTitle} numberOfLines={1}>
+                {shop.name}
+              </Text>
+              <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
+                {shop.isActive ? "Open now" : "Closed"} •{" "}
+                {shop.shopType || "Store"}
               </Text>
             </View>
-          )}
 
-          <LinearGradient
-            colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.7)"]}
-            style={styles.heroGradient}
-          >
-            <View style={styles.heroContent}>
-              {/* Navigation */}
-              <View style={styles.heroNavigation}>
-                <TouchableOpacity
-                  style={styles.backButtonHero}
-                  onPress={() => router.back()}
-                >
-                  <Ionicons name="arrow-back" size={24} color="#fff" />
-                </TouchableOpacity>
-
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <TouchableOpacity
-                    style={[styles.cartButtonHero, { marginRight: 9 }]}
-                    onPress={() => router.push("/cart")}
-                  >
-                    <Ionicons name="cart" size={24} color="#fff" />
-                    {getTotalCartItems() > 0 && (
-                      <View style={styles.cartBadge}>
-                        <Text style={styles.cartBadgeText}>
-                          {getTotalCartItems()}
-                        </Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.cartButton}>
-                    <Ionicons name="search" size={24} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Shop Info */}
-              <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>{shop.name}</Text>
-                <Text style={styles.restaurantDescription}>
-                  {shop.description || "Quality products at great prices"}
-                </Text>
-
-                {/* Enhanced Shop Meta */}
-                <View style={styles.restaurantMeta}>
-                  {shop.address && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="location"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>
-                        {shop.address
-                          ? `${shop.address}, ${shop.state || ""}`
-                          : shop.city}
-                      </Text>
-                    </View>
-                  )}
-
-                  {shop.phone && (
-                    <TouchableOpacity
-                      style={styles.metaItem}
-                      onPress={() => {
-                        if (shop.phone) {
-                          Linking.openURL(`tel:${shop.phone}`);
-                        }
-                      }}
-                    >
-                      <Ionicons
-                        name="call"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>{shop.phone}</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {typeof shop.minimumOrderAmount === "number" &&
-                    shop.minimumOrderAmount > 0 && (
-                      <View style={styles.metaItem}>
-                        <Ionicons
-                          name="cash-outline"
-                          size={16}
-                          color="rgba(255,255,255,0.9)"
-                        />
-                        <Text style={styles.metaText}>
-                          Min. order: D{shop.minimumOrderAmount.toFixed(2)}
-                        </Text>
-                      </View>
-                    )}
-
-                  {shop.shopType && (
-                    <View style={styles.metaItem}>
-                      <Ionicons
-                        name="pricetag"
-                        size={16}
-                        color="rgba(255,255,255,0.9)"
-                      />
-                      <Text style={styles.metaText}>{shop.shopType}</Text>
-                    </View>
-                  )}
-                </View>
-
-                {/* Operating Status Badge */}
-                <View style={styles.statusBadge}>
-                  <View
-                    style={[
-                      styles.statusDot,
-                      {
-                        backgroundColor: shop.isActive ? "#00C851" : "#FF6B6B",
-                      },
-                    ]}
-                  />
-                  <Text style={styles.statusText}>
-                    {shop.isActive ? "Open Now" : "Closed"}
-                  </Text>
-                </View>
-              </View>
+            <View style={styles.stickyHeaderActions}>
+              <TouchableOpacity
+                style={styles.stickyHeaderButton}
+                onPress={() => router.push("/cart")}
+              >
+                <Ionicons name="cart-outline" size={22} color="#000" />
+                {getTotalCartItems() > 0 ? (
+                  <View style={styles.stickyCartBadge}>
+                    <Text style={styles.stickyCartBadgeText}>
+                      {getTotalCartItems()}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
             </View>
-          </LinearGradient>
+          </View>
         </Animated.View>
+        {/* Horizontal Scrollable Category Tabs - Uber Eats Style */}
+        {Object.keys(groupedProducts).length > 0 ? (
+          <View style={styles.categoryTabsContainer}>
+            <ScrollView
+              ref={categoryTabsRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryTabsContent}
+            >
+              {Object.keys(groupedProducts).map((category) => (
+                <TouchableOpacity
+                  key={category}
+                  style={[styles.categoryTab]}
+                  onPress={() => {
+                    navigateWithDebounce(() => {
+                      // Navigate to the category details page with all categories and products
+                      router.push({
+                        pathname: "/ShopCategoryPage",
+                        params: {
+                          shopId: shop?.id || "",
+                          shopName: shop?.name || "",
+                          categoryName: category,
+                          products: JSON.stringify(
+                            Object.values(groupedProducts).flat()
+                          ),
+                        },
+                      });
+                    });
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.categoryTabText]}>{category}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
 
         {/* Category Sections as Sliders */}
-        <Animated.View
-          style={[styles.categoriesContainer, { opacity: fadeAnim }]}
-        >
-          {Object.entries(groupedProducts).map(([category, products]) => (
-            <CategorySection
-              key={category}
-              category={category}
-              products={products}
-              onAddToCart={handleAddToCart}
-              onRemoveFromCart={handleRemoveFromCart}
-              getCartQuantity={getCartItemQuantity}
-              shopName={shop?.name}
-            />
-          ))}
-        </Animated.View>
+        <View style={styles.categoriesContainer}>
+          {Object.entries(groupedProducts).map(
+            ([category, products], index) => (
+              <View key={category}>
+                <CategorySection
+                  category={category}
+                  products={products}
+                  onAddToCart={handleAddToCart}
+                  onRemoveFromCart={handleRemoveFromCart}
+                  getCartQuantity={getCartItemQuantity}
+                  shopName={shop?.name}
+                  navigateWithDebounce={navigateWithDebounce}
+                />
+              </View>
+            )
+          )}
+        </View>
       </Animated.ScrollView>
 
       {/* Floating Cart Summary */}
-      {cartItems.length > 0 && (
+      {cartItems.length > 0 ? (
         <Animated.View
           style={[
             styles.cartSummary,
@@ -874,7 +976,9 @@ export default function ShopDetails() {
           <TouchableOpacity
             style={styles.cartSummaryButton}
             onPress={() => {
-              router.push("/cart");
+              navigateWithDebounce(() => {
+                router.push("/cart");
+              });
             }}
             activeOpacity={0.9}
           >
@@ -913,7 +1017,7 @@ export default function ShopDetails() {
             </View>
           </TouchableOpacity>
         </Animated.View>
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1034,6 +1138,174 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  heroContainer: {
+    position: "relative",
+    width: "100%",
+    height: 280,
+    marginBottom: 0,
+  },
+  heroImagePlaceholder: {
+    width: "100%",
+    height: 250,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  heroImage: {
+    width: "100%",
+    height: 250,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  heroHeaderButtons: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 44 : 24,
+    paddingBottom: 8,
+    zIndex: 10,
+  },
+  heroBackButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  heroCartButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  heroCartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: PrimaryColor,
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  heroCartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  overlayCard: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    bottom: -32,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    paddingTop: 26,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+    alignItems: "center",
+  },
+  shopName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#222",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  ratingText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#222",
+    marginLeft: 4,
+  },
+  shopDesc: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  shopAddress: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  titleRow: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusBadge: {
+    position: "absolute",
+    top: 0,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    zIndex: 10,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#fff",
+    letterSpacing: 0.3,
+  },
+  searchBarWrapper: {
+    marginTop: 40,
+    paddingHorizontal: 24,
+    marginBottom: 8,
+  },
+  searchBarContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#222",
+    paddingVertical: 4,
   },
   heroSection: {
     height: HEADER_HEIGHT,
@@ -1167,26 +1439,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 6,
   },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(39, 174, 96, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    alignSelf: "flex-start",
+
+  // Category Tabs - Uber Eats Style
+  categoryTabsContainer: {
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+    paddingTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#27AE60",
-    marginRight: 6,
+
+  categoryTabsContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 8,
   },
-  statusText: {
-    color: "#27AE60",
-    fontSize: 12,
+
+  categoryTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    marginRight: 8,
+    position: "relative",
+  },
+
+  categoryTabText: {
+    fontSize: 14,
     fontWeight: "600",
+    color: "#64748B",
+    letterSpacing: 0.3,
+  },
+  categoryTabTextActive: {
+    color: "#FFFFFF",
   },
 
   // Updated Categories Container - Uber Eats Style

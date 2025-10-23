@@ -193,7 +193,7 @@ export default function VendorOrdersEnhanced() {
       ready: orders.filter((o) => o.status === "READY").length,
       delivered: orders.filter((o) => o.status === "DELIVERED").length,
       totalRevenue: orders.reduce(
-        (sum, order) => sum + ((order.subtotalAmount || order.totalAmount) || 0),
+        (sum, order) => sum + (order.subtotalAmount || order.totalAmount || 0),
         0
       ),
     };
@@ -686,9 +686,14 @@ export default function VendorOrdersEnhanced() {
 
                 {/* Total */}
                 <View style={styles.totalSection}>
-                  <Text style={styles.totalLabel}>Order Subtotal (Your Earnings)</Text>
+                  <Text style={styles.totalLabel}>
+                    Order Subtotal (Your Earnings)
+                  </Text>
                   <Text style={styles.totalValue}>
-                    GMD {(selectedOrder.subtotalAmount || selectedOrder.totalAmount)?.toLocaleString()}
+                    GMD{" "}
+                    {(
+                      selectedOrder.subtotalAmount || selectedOrder.totalAmount
+                    )?.toLocaleString()}
                   </Text>
                   <Text style={styles.vendorNote}>
                     💡 Delivery & service fees go to platform

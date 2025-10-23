@@ -85,7 +85,7 @@ const ProductCard = ({
   // Dynamic styles based on cardWidth
   const dynamicStyles = StyleSheet.create({
     card: {
-      width: cardWidth || 140, // Much narrower default width like Uber Eats
+      width: cardWidth || "100%",
       backgroundColor: "#fff",
       borderRadius: 12,
       overflow: "hidden",
@@ -94,7 +94,6 @@ const ProductCard = ({
       shadowOpacity: 0.06,
       shadowRadius: 8,
       elevation: 4,
-      marginBottom: 2,
     },
   });
 
@@ -216,7 +215,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 8,
     elevation: 7,
-    marginBottom: 2,
     borderWidth: 0.8,
     borderColor: "#DFDFDFFF",
   },
@@ -255,23 +253,24 @@ const styles = StyleSheet.create({
   },
   discountBadge: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    backgroundColor: "#EF4444",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    top: 8,
+    left: 8,
+    backgroundColor: "#FF6B6B",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+    zIndex: 10,
   },
   discountText: {
     color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.3,
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.5,
   },
   floatingAddButton: {
     position: "absolute",

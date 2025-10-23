@@ -262,6 +262,9 @@ export default function MenuItemDetailPage() {
         : "Item added to your favorites"
     );
   };
+  const getTotalCartItems = () => {
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
 
   const getCartItemQuantity = (itemId: string): number => {
     const item = cartItems.find((cartItem) => cartItem.id === itemId);
@@ -330,6 +333,19 @@ export default function MenuItemDetailPage() {
             activeOpacity={0.7}
           >
             <Ionicons name="share-outline" size={24} color="#64748B" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cartButton}
+            onPress={() => router.push("/cart")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cart" size={22} color="#111827" />
+            {getTotalCartItems() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -680,6 +696,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
+  },
+  cartButton: {
+    backgroundColor: "#F1F5F9",
+    height: 40,
+    width: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 10,
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
   headerRightButtons: {
     flexDirection: "row",
