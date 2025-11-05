@@ -133,8 +133,6 @@ const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
     { key: "all", label: "All", count: counts.all },
     { key: "products", label: "Products", count: counts.products },
     { key: "menuItems", label: "Meals", count: counts.menuItems },
-    { key: "restaurants", label: "Restaurants", count: counts.restaurants },
-    { key: "shops", label: "Stores", count: counts.shops },
   ];
 
   return (
@@ -183,221 +181,6 @@ const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
         ))}
       </ScrollView>
     </View>
-  );
-};
-
-// Modern Restaurant Card Component
-const RestaurantCard = ({
-  restaurant,
-  fullWidth,
-}: {
-  restaurant: Restaurant;
-  fullWidth?: boolean;
-}) => {
-  const router = useRouter();
-  const [imageLoadError, setImageLoadError] = useState(false);
-
-  // rating not required here; use restaurant.rating directly where needed
-  const reviewCount =
-    restaurant.totalReviews || Math.floor(Math.random() * 450 + 50);
-
-  const CARD_WIDTH = fullWidth ? width - 32 : width * 0.75;
-  return (
-    <TouchableOpacity
-      style={{
-        width: CARD_WIDTH,
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        marginRight: 16,
-        marginVertical: 8,
-        elevation: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
-        overflow: "hidden",
-        borderWidth: 0.5,
-        borderColor: "rgba(0, 0, 0, 0.08)",
-      }}
-      onPress={() =>
-        router.push({
-          pathname: "/restaurant-details",
-          params: { restaurantId: restaurant.id },
-        })
-      }
-      activeOpacity={0.85}
-    >
-      <View style={styles.fullWidthImageContainer}>
-        {restaurant.imageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: restaurant.imageUrl }}
-            style={styles.fullWidthImage}
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <LinearGradient
-            colors={["#667eea", "#764ba2"]}
-            style={styles.fullWidthImagePlaceholder}
-          >
-            <Ionicons name="restaurant-outline" size={40} color="#fff" />
-          </LinearGradient>
-        )}
-
-        {/* Status Badge */}
-        {restaurant.isActive && (
-          <View style={styles.fullWidthActiveBadge}>
-            <Text style={styles.fullWidthActiveBadgeText}>OPEN</Text>
-          </View>
-        )}
-
-        {/* Rating Badge */}
-        {/* <View style={styles.fullWidthRatingBadge}>
-          <Ionicons name="star" size={12} color="#FFD700" />
-          <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
-        </View> */}
-      </View>
-
-      <View style={styles.fullWidthRestaurantInfo}>
-        <Text style={styles.fullWidthRestaurantName} numberOfLines={1}>
-          {restaurant.name}
-        </Text>
-
-        <Text style={styles.fullWidthRestaurantDesc} numberOfLines={2}>
-          {restaurant.description || "Fresh and delicious food"}
-        </Text>
-
-        <View style={styles.fullWidthRestaurantFooter}>
-          <View style={styles.fullWidthLocationRow}>
-            <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.fullWidthLocationText} numberOfLines={1}>
-              {restaurant.address || "Nearby"}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-// Shop Card Component
-const ShopCard = ({ shop, fullWidth }: { shop: Shop; fullWidth?: boolean }) => {
-  const router = useRouter();
-  const [imageLoadError, setImageLoadError] = useState(false);
-
-  // rating not required here; use shop.rating directly where needed
-  const reviewCount = shop.totalReviews || Math.floor(Math.random() * 450 + 50);
-
-  const cardWidth = fullWidth ? width - 32 : 280; // full width with 16px side padding when requested
-
-  return (
-    <TouchableOpacity
-      style={{
-        width: cardWidth,
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        marginRight: fullWidth ? 0 : 16,
-        marginVertical: fullWidth ? 8 : 0,
-        elevation: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
-        overflow: "hidden",
-        borderWidth: 0.5,
-        borderColor: "rgba(0, 0, 0, 0.08)",
-      }}
-      onPress={() =>
-        router.push({
-          pathname: "/shop-details",
-          params: { shopId: shop.id },
-        })
-      }
-      activeOpacity={0.8}
-    >
-      <View style={styles.fullWidthImageContainer}>
-        {shop.imageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: shop.imageUrl }}
-            style={styles.fullWidthImage}
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <LinearGradient
-            colors={["#f8fafc", "#e2e8f0"]}
-            style={styles.fullWidthImagePlaceholder}
-          >
-            <Ionicons name="storefront" size={40} color="#94a3b8" />
-          </LinearGradient>
-        )}
-
-        {/* Status Badge */}
-        <View
-          style={[
-            styles.fullWidthStatusBadge,
-            {
-              backgroundColor: shop.isActive
-                ? "rgba(34,197,94,0.95)"
-                : "rgba(239,68,68,0.95)",
-            },
-          ]}
-        >
-          <Text style={styles.fullWidthStatusBadgeText}>
-            {shop.isActive ? "Open" : "Closed"}
-          </Text>
-        </View>
-
-        {/* Rating Badge */}
-        {/* <View style={styles.fullWidthRatingBadge}>
-          <Ionicons name="star" size={12} color="#fbbf24" />
-          <Text style={styles.fullWidthRatingText}>{rating.toFixed(1)}</Text>
-        </View> */}
-      </View>
-
-      <View style={styles.fullWidthShopInfo}>
-        <Text style={styles.fullWidthShopName} numberOfLines={1}>
-          {shop.name}
-        </Text>
-
-        <Text style={styles.fullWidthShopDesc} numberOfLines={2}>
-          {shop.description || "Quality products served fresh"}
-        </Text>
-
-        {shop.shopType && (
-          <View style={styles.fullWidthShopTypeBadge}>
-            <Text style={styles.fullWidthShopTypeBadgeText}>
-              {shop.shopType}
-            </Text>
-          </View>
-        )}
-
-        {/* {shop.minimumOrderAmount !== undefined && (
-          <Text style={styles.fullWidthMinOrderText}>
-            Min. order: D{shop.minimumOrderAmount.toFixed(2)}
-          </Text>
-        )} */}
-
-        <View style={styles.fullWidthShopFooter}>
-          <View style={styles.fullWidthLocationRow}>
-            <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.fullWidthLocationText} numberOfLines={2}>
-              {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
-                shop.address ?? "Location"
-              }`}
-            </Text>
-          </View>
-          <Text style={styles.fullWidthReviewText}>{reviewCount} reviews</Text>
-        </View>
-
-        {shop.acceptsOrders && (
-          <View style={styles.fullWidthAcceptsOrdersBadge}>
-            <Ionicons name="checkmark-circle" size={12} color="#27AE60" />
-            <Text style={styles.fullWidthAcceptsOrdersText}>
-              Accepts Orders
-            </Text>
-          </View>
-        )}
-      </View>
-    </TouchableOpacity>
   );
 };
 
@@ -630,433 +413,160 @@ export default function SubCategoryView() {
   };
 
   const getCounts = () => {
-    const restaurants = data.restaurants.length;
-    const shops = data.shops.length;
     const products = data.products.length;
     const menuItems = data.menuItems.length;
-    const all = restaurants + shops + products + menuItems;
+    const all = products + menuItems;
 
-    return { all, restaurants, shops, products, menuItems };
+    return { all, restaurants: 0, shops: 0, products, menuItems };
   };
 
   const renderContent = () => {
     if (activeTab === "all") {
-      // Get popular items (mix of restaurants, shops, and menu items with high ratings or random selection)
-      const popularRestaurants = data.restaurants
-        .filter((r) => r.rating && r.rating >= 4.0)
-        .slice(0, 3);
-      const popularShops = data.shops
-        .filter((s) => s.rating && s.rating >= 4.0)
-        .slice(0, 3);
-      const popularMenuItems = data.menuItems
-        .filter((m) => m.isAvailable)
-        .slice(0, 4);
-
-      const hasPopularItems =
-        popularRestaurants.length > 0 ||
-        popularShops.length > 0 ||
-        popularMenuItems.length > 0;
-
       return (
-        <FlatList
-          data={[]}
-          renderItem={() => null}
-          ListHeaderComponent={
-            <>
-              {/* Popular Section */}
-              {hasPopularItems && (
-                <View style={styles.popularSection}>
-                  <View style={styles.popularHeader}>
-                    <View style={styles.popularTitleRow}>
-                      <Ionicons name="trending-up" size={20} color="#f59e0b" />
-                      <Text style={styles.popularTitle}>Popular This Week</Text>
-                    </View>
-                    <Text style={styles.popularSubtitle}>
-                      Most loved by customers
-                    </Text>
-                  </View>
-
-                  {/* Popular Restaurants */}
-                  {popularRestaurants.length > 0 && (
-                    <View style={styles.popularSubsection}>
-                      <Text style={styles.popularSubsectionTitle}>
-                        ⭐ Top Restaurants
-                      </Text>
-                      <ScrollView
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        {popularRestaurants.map((item) => (
-                          <RestaurantCard
-                            key={`popular-restaurant-${item.id}`}
-                            restaurant={item}
-                          />
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                  {/* Popular Menu Items */}
-                  {popularMenuItems.length > 0 && (
-                    <View style={styles.popularSubsection}>
-                      <Text style={styles.popularSubsectionTitle}>
-                        🔥 Trending Meals
-                      </Text>
-                      <FlatList
-                        data={popularMenuItems}
-                        horizontal
-                        keyExtractor={(item) => `popular-menu-${item.id}`}
-                        renderItem={({ item }) => (
-                          <View style={styles.popularItemWrapper}>
-                            <MenuItemCard
-                              menuItem={item}
-                              onPress={() =>
-                                router.push({
-                                  pathname: "/menuitem/[menuitem]",
-                                  params: { menuitem: item.id },
-                                })
-                              }
-                            />
-                          </View>
-                        )}
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
-                      />
-                    </View>
-                  )}
-
-                  {/* Popular Shops */}
-                  {popularShops.length > 0 && (
-                    <View style={styles.popularSubsection}>
-                      <Text style={styles.popularSubsectionTitle}>
-                        🏪 Featured Stores
-                      </Text>
-                      <ScrollView
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
-                        showsVerticalScrollIndicator={false}
-                      >
-                        {popularShops.map((item) => (
-                          <ShopCard
-                            key={`popular-shop-${item.id}`}
-                            shop={item}
-                          />
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {/* All Categories Section */}
-              <View style={styles.allCategoriesHeader}>
-                <Text style={styles.allCategoriesTitle}>Browse All</Text>
-                <Text style={styles.allCategoriesSubtitle}>
-                  Discover everything we have to offer
-                </Text>
-              </View>
-
-              {data.restaurants.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Ionicons
-                        name="restaurant-outline"
-                        size={18}
-                        color="#64748b"
-                      />
-                      <Text style={styles.sectionTitle}>Restaurants</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.viewAllButton,
-                        { backgroundColor: "#F3F4F6" },
-                      ]}
-                      onPress={() => setActiveTab("restaurants")}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#666666",
-                          fontWeight: "500",
-                          marginRight: 4,
-                        }}
-                      >
-                        See All
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={data.restaurants}
-                    horizontal
-                    keyExtractor={(item) => `restaurant-${item.id}`}
-                    renderItem={({ item }) => (
-                      <View style={{ marginRight: 16 }}>
-                        <RestaurantCard restaurant={item} />
-                      </View>
-                    )}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 20 }}
-                  />
-                </View>
-              )}
-              {data.shops.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Ionicons
-                        name="storefront-outline"
-                        size={18}
-                        color="#64748b"
-                      />
-                      <Text style={styles.sectionTitle}>Stores</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        styles.viewAllButton,
-                        { backgroundColor: "#F3F4F6" },
-                      ]}
-                      onPress={() => setActiveTab("shops")}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#666666",
-                          fontWeight: "500",
-                          marginRight: 4,
-                        }}
-                      >
-                        See All
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={data.shops}
-                    horizontal
-                    keyExtractor={(item) => `shop-${item.id}`}
-                    renderItem={({ item }) => (
-                      <View style={{ marginRight: 16 }}>
-                        <ShopCard shop={item} />
-                      </View>
-                    )}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 20 }}
-                  />
-                </View>
-              )}
-              {data.products.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Ionicons name="cube-outline" size={18} color="#64748b" />
-                      <Text style={styles.sectionTitle}>Products</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.viewAllButton}
-                      onPress={() => setActiveTab("products")}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#666666",
-                          fontWeight: "500",
-                          marginRight: 4,
-                        }}
-                      >
-                        See All
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={data.products}
-                    horizontal
-                    keyExtractor={(item) => `product-${item.id}`}
-                    renderItem={({ item }) => (
-                      <View style={{ marginRight: 16 }}>
-                        <ProductCard
-                          product={{
-                            id: Number(item.id),
-                            name: item.name,
-                            price: item.price,
-                            discountedPrice: item.discountedPrice,
-                            image: item.imageUrl,
-                            description: item.description,
-                            inStock: true,
-                          }}
-                          cartQuantity={
-                            cartItems.find(
-                              (ci) => String(ci.id) === String(item.id)
-                            )?.quantity || 0
-                          }
-                          onAddToCart={() => {
-                            const cartItem = {
-                              id: String(item.id),
-                              vendorName: "Shop",
-                              name: item.name,
-                              price: item.price,
-                              description: item.description || "",
-                              vendorId: item.shopId || "",
-                              imageUrl: item.imageUrl || "",
-                              entityType: "shop",
-                            };
-                            addToCart(cartItem);
-                          }}
-                          onRemoveFromCart={() => {
-                            const id = String(item.id);
-                            const cartItem = cartItems.find(
-                              (ci) => String(ci.id) === id
-                            );
-                            if (cartItem && cartItem.quantity > 1) {
-                              updateQuantity(id, cartItem.quantity - 1);
-                            } else {
-                              removeFromCart(id);
-                            }
-                          }}
-                          onPress={() => router.push(`/product/${item.id}`)}
-                        />
-                      </View>
-                    )}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 20 }}
-                  />
-                </View>
-              )}
-              {data.menuItems.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.sectionTitleRow}>
-                      <Ionicons
-                        name="fast-food-outline"
-                        size={18}
-                        color="#64748b"
-                      />
-                      <Text style={styles.sectionTitle}>Meals</Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.viewAllButton}
-                      onPress={() => setActiveTab("menuItems")}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          color: "#666666",
-                          fontWeight: "500",
-                          marginRight: 4,
-                        }}
-                      >
-                        See All
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#64748b"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={data.menuItems}
-                    horizontal
-                    keyExtractor={(item) => `menu-${item.id}`}
-                    renderItem={({ item }) => (
-                      <View style={{ marginRight: 16 }}>
-                        <MenuItemCard
-                          menuItem={item}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/menuitem/[menuitem]",
-                              params: { menuitem: item.id },
-                            })
-                          }
-                        />
-                      </View>
-                    )}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 20 }}
-                  />
-                </View>
-              )}
-            </>
-          }
+        <ScrollView
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-          showsVerticalScrollIndicator={false}
-        />
+        >
+          {/* Products Section - 3 Column Grid */}
+          {data.products.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Ionicons name="cube-outline" size={18} color="#64748b" />
+                  <Text style={styles.sectionTitle}>Products</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => setActiveTab("products")}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#666666",
+                      fontWeight: "500",
+                      marginRight: 4,
+                    }}
+                  >
+                    See All
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+
+              {/* 3-Column Grid for Products */}
+              <View style={styles.productGridContainer}>
+                {data.products.map((item) => {
+                  const cartQuantity =
+                    cartItems.find((ci) => String(ci.id) === String(item.id))
+                      ?.quantity || 0;
+                  return (
+                    <View
+                      key={`product-${item.id}`}
+                      style={styles.productGridItem}
+                    >
+                      <ProductCard
+                        product={{
+                          id: Number(item.id),
+                          name: item.name,
+                          price: item.price,
+                          discountedPrice: item.discountedPrice,
+                          image: item.imageUrl,
+                          description: item.description,
+                          inStock: true,
+                        }}
+                        cartQuantity={cartQuantity}
+                        onAddToCart={() => {
+                          const cartItem = {
+                            id: String(item.id),
+                            vendorName: "Shop",
+                            name: item.name,
+                            price: item.price,
+                            description: item.description || "",
+                            vendorId: item.shopId || "",
+                            imageUrl: item.imageUrl || "",
+                            entityType: "shop",
+                          };
+                          addToCart(cartItem);
+                        }}
+                        onRemoveFromCart={() => {
+                          const id = String(item.id);
+                          const cartItem = cartItems.find(
+                            (ci) => String(ci.id) === id
+                          );
+                          if (cartItem && cartItem.quantity > 1) {
+                            updateQuantity(id, cartItem.quantity - 1);
+                          } else {
+                            removeFromCart(id);
+                          }
+                        }}
+                        onPress={() => router.push(`/product/${item.id}`)}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Menu Items Section */}
+          {data.menuItems.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionTitleRow}>
+                  <Ionicons
+                    name="fast-food-outline"
+                    size={18}
+                    color="#64748b"
+                  />
+                  <Text style={styles.sectionTitle}>Meals</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewAllButton}
+                  onPress={() => setActiveTab("menuItems")}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: "#666666",
+                      fontWeight: "500",
+                      marginRight: 4,
+                    }}
+                  >
+                    See All
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#64748b" />
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={data.menuItems}
+                horizontal
+                keyExtractor={(item) => `menu-${item.id}`}
+                renderItem={({ item }) => (
+                  <View style={{ marginRight: 16 }}>
+                    <MenuItemCard
+                      menuItem={item}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/menuitem/[menuitem]",
+                          params: { menuitem: item.id },
+                        })
+                      }
+                    />
+                  </View>
+                )}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 20 }}
+              />
+            </View>
+          )}
+        </ScrollView>
       );
     }
 
     // Filtered view for specific tabs
-    if (activeTab === "restaurants") {
-      if (data.restaurants.length === 0) {
-        return (
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No Restaurants Found</Text>
-            <Text style={styles.emptySubtitle}>
-              There are no restaurants in this category yet.
-            </Text>
-          </View>
-        );
-      }
-      return (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 8,
-            paddingBottom: 8,
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {data.restaurants.map((item) => (
-            <RestaurantCard
-              key={`restaurant-${item.id}`}
-              restaurant={item}
-              fullWidth
-            />
-          ))}
-        </ScrollView>
-      );
-    } else if (activeTab === "shops") {
-      if (data.shops.length === 0) {
-        return (
-          <View style={styles.emptyState}>
-            <Ionicons name="search-outline" size={64} color="#CBD5E1" />
-            <Text style={styles.emptyTitle}>No Stores Found</Text>
-            <Text style={styles.emptySubtitle}>
-              There are no stores in this category yet.
-            </Text>
-          </View>
-        );
-      }
-      return (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: 20,
-            paddingTop: 8,
-            paddingBottom: 8,
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {data.shops.map((item) => (
-            <ShopCard key={`shop-${item.id}`} shop={item} fullWidth />
-          ))}
-        </ScrollView>
-      );
-    } else if (activeTab === "products") {
+    if (activeTab === "products") {
       if (data.products.length === 0) {
         return (
           <View style={styles.emptyState}>
@@ -1068,24 +578,25 @@ export default function SubCategoryView() {
           </View>
         );
       }
-      // Use same card width/height as MenuItemCard for consistency
-      // Use a horizontal gap between columns and compute card width accordingly
-      const H_GAP = 16; // horizontal gap between cards
-      const cardWidth = (width - 32 - H_GAP) / 2; // account for container padding (16 left + 16 right)
+
+      // 3-Column Grid for Products
+      const H_GAP = 12;
+      const cardWidth = (width - 40 - H_GAP * 2) / 3;
+
       return (
         <FlatList
           data={data.products}
           numColumns={3}
           key={`products-3col`}
           keyExtractor={(item) => `product-${item.id}`}
-          renderItem={({ item, index }) => {
+          renderItem={({ item }) => {
             const cartQuantity =
-              cartItems.find((ci) => ci.id === item.id)?.quantity || 0;
+              cartItems.find((ci) => String(ci.id) === String(item.id))
+                ?.quantity || 0;
             return (
               <View
                 style={{
                   width: cardWidth,
-                  // give each card a half-gap padding so combined gap equals H_GAP
                   paddingHorizontal: H_GAP / 2,
                   marginBottom: H_GAP,
                 }}
@@ -1116,7 +627,6 @@ export default function SubCategoryView() {
                   }}
                   onRemoveFromCart={() => {
                     const id = String(item.id);
-                    // Always use string id for cart lookup
                     const cartItem = cartItems.find(
                       (ci) => String(ci.id) === id
                     );
@@ -1126,6 +636,7 @@ export default function SubCategoryView() {
                       removeFromCart(id);
                     }
                   }}
+                  onPress={() => router.push(`/product/${item.id}`)}
                 />
               </View>
             );
@@ -1135,7 +646,6 @@ export default function SubCategoryView() {
             paddingTop: 8,
             paddingBottom: 8,
           }}
-          columnWrapperStyle={{ justifyContent: "space-between" }}
           showsVerticalScrollIndicator={false}
         />
       );
@@ -1530,7 +1040,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     paddingVertical: 16,
     borderRadius: 16,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     elevation: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -2589,5 +2099,16 @@ const styles = StyleSheet.create({
     color: "#27AE60",
     fontWeight: "500",
     marginLeft: 4,
+  },
+  productGridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  productGridItem: {
+    width: "33.33%",
+    paddingHorizontal: 6,
+    marginBottom: 12,
   },
 });

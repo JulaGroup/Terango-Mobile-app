@@ -50,12 +50,8 @@ export default function StoreCategoryProducts() {
   const [shopName, setShopName] = useState<string | null>(null);
   const [subCategoryName, setSubCategoryName] = useState<string | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
-  const [subCategories, setSubCategories] = useState<
-    { id: string; name: string }[]
-  >([]);
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const tabsRef = useRef<ScrollView>(null);
 
   const fetchProducts = useCallback(async () => {
     if (!shopId || !subCategoryId) return;
@@ -94,34 +90,6 @@ export default function StoreCategoryProducts() {
     }
   }, [shopId]);
 
-  // Fetch subcategories for the shop (by getting all products and extracting unique subcategories)
-  const fetchSubCategories = useCallback(async () => {
-    if (!shopId) return;
-    try {
-      console.log("Fetching products for shop to get subcategories...");
-      const resp = await fetch(`${API_URL}/api/shops/${shopId}`);
-      if (!resp.ok) throw new Error("Failed to fetch shop products");
-      const shopData = await resp.json();
-
-      // Extract unique subcategories from products
-      const subCategoryMap = new Map();
-      shopData.products?.forEach((product: any) => {
-        if (product.subCategory && product.isAvailable !== false) {
-          subCategoryMap.set(product.subCategory.id, {
-            id: product.subCategory.id,
-            name: product.subCategory.name,
-          });
-        }
-      });
-
-      const uniqueSubCategories = Array.from(subCategoryMap.values());
-      console.log("Extracted subcategories:", uniqueSubCategories);
-      setSubCategories(uniqueSubCategories);
-    } catch (err) {
-      console.error("Failed to fetch subcategories:", err);
-    }
-  }, [shopId]);
-
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
@@ -129,37 +97,6 @@ export default function StoreCategoryProducts() {
   useEffect(() => {
     fetchShop();
   }, [fetchShop]);
-
-  useEffect(() => {
-    fetchSubCategories();
-  }, [fetchSubCategories]);
-
-  // Auto-scroll to active tab when subcategories load
-  useEffect(() => {
-    if (subCategories.length === 0 || !subCategoryId || loading) return;
-
-    const activeIndex = subCategories.findIndex(
-      (s) => s.id === subCategoryId
-    );
-
-    if (activeIndex === -1) return;
-
-    // Estimate tab width (depends on your spacing & font size)
-    const AVERAGE_TAB_WIDTH = 100; // Adjust to your design
-    const scrollX = Math.max(activeIndex * AVERAGE_TAB_WIDTH - width / 3, 0);
-
-    const timeout = setTimeout(() => {
-      if (tabsRef.current) {
-        tabsRef.current.scrollTo({
-          x: scrollX,
-          animated: true,
-        });
-        console.log("✅ Scrolled to approx tab index:", activeIndex);
-      }
-    }, 200);
-
-    return () => clearTimeout(timeout);
-  }, [subCategories, subCategoryId, loading]);
 
   useEffect(() => {
     if (!query) return setFiltered(products);
@@ -288,18 +225,23 @@ export default function StoreCategoryProducts() {
           </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.cartButton}
-          onPress={() => router.push("/cart")}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="cart" size={22} color="#111827" />
-          {getTotalCartItems() > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {/* Category Dropdown Button */}
+
+          {/* Cart Button */}
+          <TouchableOpacity
+            style={styles.cartButton}
+            onPress={() => router.push("/cart")}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="cart" size={22} color="#111827" />
+            {getTotalCartItems() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Bar - matching SubCategoryView */}
@@ -325,68 +267,6 @@ export default function StoreCategoryProducts() {
           ) : null}
         </View>
       </View>
-
-      {/* Subcategory Tabs */}
-      {(() => {
-        console.log(
-          "Rendering tabs condition check:",
-          subCategories.length > 0,
-          subCategories
-        );
-        return (
-          subCategories.length > 0 && (
-            <View style={styles.tabsWrapper}>
-              <ScrollView
-                ref={tabsRef}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.subCategoryTabsContainer}
-                contentContainerStyle={styles.subCategoryTabsContent}
-              >
-                {subCategories.map((subCategory) => {
-                  console.log(
-                    "Rendering tab:",
-                    subCategory.name,
-                    "active:",
-                    subCategory.id === subCategoryId
-                  );
-                  return (
-                    <TouchableOpacity
-                      key={subCategory.id}
-                      style={styles.subCategoryTab}
-                      onPress={() => {
-                        if (subCategory.id !== subCategoryId) {
-                          router.replace({
-                            pathname: "/storeCategoryProducts",
-                            params: {
-                              shopId,
-                              subCategoryId: subCategory.id,
-                            },
-                          });
-                        }
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Text
-                        style={[
-                          styles.subCategoryTabText,
-                          subCategory.id === subCategoryId &&
-                            styles.subCategoryTabTextActive,
-                        ]}
-                      >
-                        {subCategory.name}
-                      </Text>
-                      {subCategory.id === subCategoryId && (
-                        <View style={styles.tabUnderline} />
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          )
-        );
-      })()}
 
       {/* Content */}
       <ScrollView
@@ -493,6 +373,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  categoryDropdownButton: {
+    backgroundColor: "#F1F5F9",
+    height: 40,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
   },
   cartButton: {
     backgroundColor: "#F1F5F9",
@@ -638,41 +532,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 8,
-  },
-
-  // Subcategory Tabs
-  tabsWrapper: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
-  },
-  subCategoryTabsContainer: {
-    maxHeight: 50,
-  },
-  subCategoryTabsContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 24,
-  },
-  subCategoryTab: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    position: "relative",
-  },
-  subCategoryTabText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#999",
-    letterSpacing: -0.2,
-  },
-  subCategoryTabTextActive: {
-    color: "#000",
-  },
-  tabUnderline: {
-    height: 3,
-    backgroundColor: PrimaryColor,
-    marginTop: 8,
-    borderRadius: 1.5,
-    width: "100%",
   },
 });

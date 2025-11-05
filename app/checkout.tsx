@@ -131,6 +131,11 @@ export default function Checkout() {
     notes: "",
     orderType: "DELIVERY", // Default to delivery
     pickupInstructions: "",
+    // 🎁 Recipient fields for ordering for someone else
+    isGiftOrder: false,
+    recipientName: "",
+    recipientPhone: "",
+    recipientAddress: "",
   });
 
   // Address context for selecting delivery address
@@ -188,16 +193,32 @@ export default function Checkout() {
 
   // 💳 DETERMINE IF CASH PAYMENT IS ALLOWED
   // Cash payment only allowed for shops and pharmacies, NOT restaurants
+  // AND only if it's NOT a gift order (ordering for someone else)
   const vendorType = items.length > 0 ? items[0].entityType : undefined;
+  // Also check if any item is from a shop/pharmacy by looking at alternative fields
+  const hasShopOrPharmacyItems = items.some(
+    (item: any) =>
+      item.entityType === "shop" ||
+      item.entityType === "pharmacy" ||
+      item.entityType === "product" || // Products from shops
+      item.shopId || // Has shopId
+      item.pharmacyId // Has pharmacyId
+  );
+  const hasRestaurantItems = items.some(
+    (item: any) =>
+      item.entityType === "restaurant" ||
+      item.entityType === "menuItem" ||
+      item.restaurantId
+  );
   const isCashPaymentAllowed =
-    vendorType === "shop" || vendorType === "pharmacy";
+    hasShopOrPharmacyItems && !hasRestaurantItems && !form.isGiftOrder;
 
   // Reset to ONLINE if cash is selected but not allowed
   useEffect(() => {
     if (!isCashPaymentAllowed && paymentMethodSelection === "CASH") {
       setPaymentMethodSelection("ONLINE");
     }
-  }, [isCashPaymentAllowed, paymentMethodSelection]);
+  }, [isCashPaymentAllowed, paymentMethodSelection, form.isGiftOrder]);
 
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
   const DEFAULT_DELIVERY_FEE = 0; // GMD - fallback if distance calculation fails
@@ -223,11 +244,19 @@ export default function Checkout() {
 
   // Disable placing order for DELIVERY if:
   // 1. Loading state is active
-  // 2. No address is entered
-  // 3. Delivery fee is still being calculated (loadingDeliveryFee)
+  // 2. For regular delivery: no address is entered
+  // 3. For gift orders: recipient info is missing
+  // 4. Delivery fee is still being calculated (loadingDeliveryFee)
   const isPlaceOrderDisabled =
     loading ||
-    (form.orderType === "DELIVERY" && !form.address.trim()) ||
+    (form.orderType === "DELIVERY" &&
+      !form.isGiftOrder &&
+      !form.address.trim()) ||
+    (form.orderType === "DELIVERY" &&
+      form.isGiftOrder &&
+      (!form.recipientName.trim() ||
+        !form.recipientPhone.trim() ||
+        !form.recipientAddress.trim())) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee);
 
   // Auto-open location modal when user selects DELIVERY and they have no saved addresses
@@ -727,10 +756,41 @@ export default function Checkout() {
       return;
     }
 
-    // For delivery orders, address is required
-    if (form.orderType === "DELIVERY" && !form.address.trim()) {
-      Alert.alert("Missing Information", "Please provide a delivery address.");
-      return;
+    // For delivery orders, check address or recipient info based on gift order status
+    if (form.orderType === "DELIVERY") {
+      if (form.isGiftOrder) {
+        // Validate recipient information for gift orders
+        if (!form.recipientName.trim()) {
+          Alert.alert(
+            "Missing Information",
+            "Please provide the recipient's name."
+          );
+          return;
+        }
+        if (!form.recipientPhone.trim()) {
+          Alert.alert(
+            "Missing Information",
+            "Please provide the recipient's phone number."
+          );
+          return;
+        }
+        if (!form.recipientAddress.trim()) {
+          Alert.alert(
+            "Missing Information",
+            "Please provide the recipient's delivery address."
+          );
+          return;
+        }
+      } else {
+        // Validate regular delivery address
+        if (!form.address.trim()) {
+          Alert.alert(
+            "Missing Information",
+            "Please provide a delivery address."
+          );
+          return;
+        }
+      }
     }
 
     if (items.length === 0) {
@@ -840,10 +900,17 @@ export default function Checkout() {
             customerName: form.name,
             customerPhone: form.phone,
             deliveryAddress:
-              form.orderType === "DELIVERY" ? form.address : null,
+              form.orderType === "DELIVERY" && !form.isGiftOrder
+                ? form.address
+                : null,
             orderType: form.orderType,
             pickupInstructions:
               form.orderType === "PICKUP" ? form.pickupInstructions : null,
+            // 🎁 ADD RECIPIENT INFORMATION FOR GIFT ORDERS
+            isGiftOrder: form.isGiftOrder || false,
+            recipientName: form.isGiftOrder ? form.recipientName : null,
+            recipientPhone: form.isGiftOrder ? form.recipientPhone : null,
+            recipientAddress: form.isGiftOrder ? form.recipientAddress : null,
             items: itemsPayload,
             notes: form.notes,
             promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
@@ -1671,8 +1738,9 @@ export default function Checkout() {
                       Cash Payment Not Available
                     </Text>
                     <Text style={styles.paymentMethodDisabledSubtitle}>
-                      Online payment required for restaurant orders to prevent
-                      food waste
+                      {form.isGiftOrder
+                        ? "Online payment required for gift orders to ensure secure delivery"
+                        : "Online payment required for restaurant orders to prevent food waste"}
                     </Text>
                   </View>
                 </View>
@@ -1751,8 +1819,130 @@ export default function Checkout() {
               </Text>
             </View>
 
-            {/* Delivery Address - Only show when Delivery is selected */}
+            {/* 🎁 ORDER FOR SOMEONE ELSE TOGGLE - Only show for delivery orders */}
             {form.orderType === "DELIVERY" && (
+              <View style={styles.inputGroup}>
+                <TouchableOpacity
+                  style={[
+                    styles.giftOrderToggle,
+                    form.isGiftOrder && styles.giftOrderToggleActive,
+                  ]}
+                  onPress={() =>
+                    setForm({ ...form, isGiftOrder: !form.isGiftOrder })
+                  }
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.giftOrderToggleLeft}>
+                    <Ionicons
+                      name="gift"
+                      size={24}
+                      color={form.isGiftOrder ? PrimaryColor : "#6B7280"}
+                    />
+                    <View style={styles.giftOrderToggleInfo}>
+                      <Text
+                        style={[
+                          styles.giftOrderToggleTitle,
+                          form.isGiftOrder && styles.giftOrderToggleTitleActive,
+                        ]}
+                      >
+                        Order for someone else
+                      </Text>
+                      <Text style={styles.giftOrderToggleSubtitle}>
+                        Send to family or friends in The Gambia
+                      </Text>
+                    </View>
+                  </View>
+                  <View
+                    style={[
+                      styles.toggleSwitch,
+                      form.isGiftOrder && styles.toggleSwitchActive,
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.toggleThumb,
+                        form.isGiftOrder && styles.toggleThumbActive,
+                      ]}
+                    />
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* 🎁 RECIPIENT INFORMATION - Only show when gift order is enabled */}
+            {form.isGiftOrder && form.orderType === "DELIVERY" && (
+              <Animated.View
+                style={[
+                  styles.recipientSection,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
+              >
+                <View style={styles.recipientHeader}>
+                  <Ionicons name="person" size={20} color={PrimaryColor} />
+                  <Text style={styles.recipientTitle}>
+                    Recipient Information
+                  </Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Recipient Name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter recipient's full name"
+                    value={form.recipientName}
+                    onChangeText={(text) =>
+                      setForm({ ...form, recipientName: text })
+                    }
+                    editable={!loading}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Recipient Phone Number *
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="+220 XXX XXXX"
+                    value={form.recipientPhone}
+                    onChangeText={(text) =>
+                      setForm({ ...form, recipientPhone: text })
+                    }
+                    keyboardType="phone-pad"
+                    editable={!loading}
+                  />
+                  <Text style={styles.inputNote}>
+                    The driver will call this number for delivery
+                  </Text>
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Recipient Delivery Address *
+                  </Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Enter recipient's full delivery address in The Gambia"
+                    value={form.recipientAddress}
+                    onChangeText={(text) =>
+                      setForm({ ...form, recipientAddress: text })
+                    }
+                    multiline
+                    numberOfLines={3}
+                    editable={!loading}
+                  />
+                  <Text style={styles.inputNote}>
+                    Include landmarks or clear directions for the driver
+                  </Text>
+                </View>
+              </Animated.View>
+            )}
+
+            {/* Delivery Address - Only show when Delivery is selected AND not a gift order */}
+            {form.orderType === "DELIVERY" && !form.isGiftOrder && (
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Delivery Address *</Text>
                 {/* If user has saved addresses show them; otherwise open LocationModal to add/select */}
@@ -1842,7 +2032,7 @@ export default function Checkout() {
               ]}
             >
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Wave Pay Details</Text>
+                <Text style={styles.sectionTitle}>Payment Method</Text>
                 {paymentStatus === "pending" && (
                   <View style={styles.pollingIndicator}>
                     <Ionicons
@@ -2806,5 +2996,96 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9ca3af",
     lineHeight: 16,
+  },
+  // 🎁 Gift Order Toggle Styles
+  giftOrderToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+  },
+  giftOrderToggleActive: {
+    backgroundColor: "#FFF5EE",
+    borderColor: PrimaryColor,
+  },
+  giftOrderToggleLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  giftOrderToggleInfo: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  giftOrderToggleTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 2,
+  },
+  giftOrderToggleTitleActive: {
+    color: PrimaryColor,
+  },
+  giftOrderToggleSubtitle: {
+    fontSize: 12,
+    color: "#6B7280",
+  },
+  toggleSwitch: {
+    width: 50,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#D1D5DB",
+    justifyContent: "center",
+    padding: 2,
+  },
+  toggleSwitchActive: {
+    backgroundColor: PrimaryColor,
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  toggleThumbActive: {
+    alignSelf: "flex-end",
+  },
+  // 🎁 Recipient Section Styles
+  recipientSection: {
+    backgroundColor: "#FFF8F0",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#FFD4A3",
+    marginTop: 12,
+  },
+  recipientHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#FFD4A3",
+  },
+  recipientTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: PrimaryColor,
+    marginLeft: 8,
+  },
+  inputNote: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 6,
+    fontStyle: "italic",
   },
 });

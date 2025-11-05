@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   StyleSheet,
-  Image,
+  Dimensions,
 } from "react-native";
 import {
   useInfiniteScroll,
@@ -14,6 +14,11 @@ import {
 } from "../../hooks/useInfiniteScroll";
 import { productAPI, Product } from "../../services/api";
 import { ProductCardSkeleton } from "./Skeleton";
+import ProductCard, { UniversalProduct } from "./ProductCard";
+import { useCart } from "@/context/CartContext";
+import { useRouter } from "expo-router";
+
+const { width } = Dimensions.get("window");
 
 interface ProductListProps {
   searchQuery?: string;
@@ -36,6 +41,9 @@ const ProductList: React.FC<ProductListProps> = ({
   sortBy = "name",
   sortOrder = "asc",
 }) => {
+  const router = useRouter();
+  const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
+
   // Create fetch function for products
   const fetchProducts = async (page: number, limit = 20) => {
     return productAPI.getProducts(page, limit, {
@@ -55,7 +63,6 @@ const ProductList: React.FC<ProductListProps> = ({
     data: products,
     loading,
     error,
-    hasMore,
     loadMore,
     refresh,
   } = useInfiniteScroll<Product>({
@@ -64,59 +71,59 @@ const ProductList: React.FC<ProductListProps> = ({
     initialLoad: true,
   });
 
-  const renderProduct = ({ item }: { item: Product }) => (
-    <View style={styles.productCard}>
-      {item.imageUrl && (
-        <Image
-          source={{ uri: item.imageUrl }}
-          style={styles.productImage}
-          resizeMode="cover"
+  // Cart helpers
+  const handleAddToCart = (product: Product) => {
+    const cartItem = {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      description: product.description || "",
+      vendorId: product.shop?.id || "",
+      vendorName: product.shop?.name || "",
+      imageUrl: product.imageUrl || "",
+      entityType: "product",
+    } as any;
+    addToCart(cartItem);
+  };
+
+  const handleRemoveFromCart = (productId: string) => {
+    const ci = cartItems.find((c) => c.id === productId);
+    if (ci && ci.quantity > 1) {
+      updateQuantity(productId, ci.quantity - 1);
+    } else {
+      removeFromCart(productId);
+    }
+  };
+
+  const getCartQuantity = (productId: string) => {
+    const item = cartItems.find((c) => c.id === productId);
+    return item ? item.quantity : 0;
+  };
+
+  const renderProduct = ({ item }: { item: Product }) => {
+    // Convert Product to UniversalProduct format
+    const universalProduct: UniversalProduct = {
+      id: Number(item.id),
+      name: item.name,
+      price: item.price,
+      image: item.imageUrl,
+      description: item.description,
+      inStock: item.isAvailable,
+    };
+
+    return (
+      <View style={styles.productCardWrapper}>
+        <ProductCard
+          product={universalProduct}
+          cartQuantity={getCartQuantity(item.id)}
+          onAddToCart={() => handleAddToCart(item)}
+          onRemoveFromCart={() => handleRemoveFromCart(item.id)}
+          onPress={() => router.push(`/product/${item.id}`)}
+          cardWidth={(width - 48) / 3} // 3 columns with proper spacing
         />
-      )}
-
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-
-        {item.brand && <Text style={styles.brand}>{item.brand}</Text>}
-
-        {item.description && (
-          <Text style={styles.description} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
-
-        <View style={styles.detailsContainer}>
-          <Text style={styles.price}>${item.price.toFixed(2)}</Text>
-
-          {item.stock !== undefined && (
-            <Text style={styles.stock}>Stock: {item.stock}</Text>
-          )}
-        </View>
-
-        {item.shop && (
-          <Text style={styles.shopInfo}>
-            🏪 {item.shop.name}
-            {item.shop.city && ` • ${item.shop.city}`}
-          </Text>
-        )}
-
-        {item.subCategory && (
-          <Text style={styles.categoryInfo}>📂 {item.subCategory.name}</Text>
-        )}
-
-        <View style={styles.statusContainer}>
-          <Text
-            style={[
-              styles.status,
-              { color: item.isAvailable ? "#27AE60" : "#E74C3C" },
-            ]}
-          >
-            {item.isAvailable ? "Available" : "Out of Stock"}
-          </Text>
-        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderFooter = () => {
     if (!loading) return null;
@@ -133,8 +140,10 @@ const ProductList: React.FC<ProductListProps> = ({
     if (loading && products.length === 0) {
       return (
         <View style={styles.skeletonContainer}>
-          {Array.from({ length: 6 }, (_, index) => (
-            <ProductCardSkeleton key={index} />
+          {Array.from({ length: 9 }, (_, index) => (
+            <View key={index} style={{ width: (width - 48) / 3 }}>
+              <ProductCardSkeleton />
+            </View>
           ))}
         </View>
       );
@@ -176,8 +185,8 @@ const ProductList: React.FC<ProductListProps> = ({
       ListFooterComponent={renderFooter}
       ListEmptyComponent={renderEmpty}
       contentContainerStyle={styles.container}
-      numColumns={2}
-      columnWrapperStyle={styles.row}
+      numColumns={3} // 3 columns for better grid layout
+      columnWrapperStyle={styles.columnWrapper}
       // Performance optimizations
       removeClippedSubviews={true}
       maxToRenderPerBatch={10}
@@ -190,89 +199,26 @@ const ProductList: React.FC<ProductListProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 0,
     paddingBottom: 20,
   },
   skeletonContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    paddingHorizontal: 10,
+    justifyContent: "flex-start",
+    paddingHorizontal: 8,
     paddingTop: 20,
+    gap: 8,
   },
-  row: {
-    justifyContent: "space-between",
-  },
-  productCard: {
-    backgroundColor: "#fff",
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    width: "48%",
-  },
-  productImage: {
-    width: "100%",
-    height: 120,
-    borderRadius: 8,
+  columnWrapper: {
+    justifyContent: "flex-start",
+    paddingHorizontal: 8,
     marginBottom: 8,
+    gap: 8,
   },
-  productInfo: {
+  productCardWrapper: {
     flex: 1,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 4,
-    color: "#333",
-  },
-  brand: {
-    fontSize: 12,
-    color: "#007AFF",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  description: {
-    color: "#666",
-    marginBottom: 6,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  detailsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#27AE60",
-  },
-  stock: {
-    fontSize: 10,
-    color: "#666",
-  },
-  shopInfo: {
-    fontSize: 10,
-    color: "#666",
-    marginBottom: 4,
-  },
-  categoryInfo: {
-    fontSize: 10,
-    color: "#666",
-    marginBottom: 6,
-  },
-  statusContainer: {
-    alignItems: "flex-end",
-  },
-  status: {
-    fontSize: 10,
-    fontWeight: "600",
+    maxWidth: "33.33%",
   },
   footer: {
     flexDirection: "row",

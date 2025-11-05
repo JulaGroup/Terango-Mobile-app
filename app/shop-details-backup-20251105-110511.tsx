@@ -18,7 +18,7 @@ import ProductCard from "@/components/common/ProductCard";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
-// Removed unused import: Category
+import { Category } from "@/lib/homeApi";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const HEADER_HEIGHT = 300;
@@ -28,7 +28,38 @@ const STATUS_BAR_HEIGHT =
 // Extra top padding so header controls sit lower when not scrolled
 const HEADER_TOP_PADDING = Platform.OS === "ios" ? 12 : 8;
 
-// Removed unused helper: getCategoryIcon
+// Helper function to get category icons
+const getCategoryIcon = (category: string): any => {
+  const categoryLower = category.toLowerCase();
+  if (categoryLower.includes("grocery") || categoryLower.includes("food")) {
+    return "basket";
+  } else if (categoryLower.includes("electronics")) {
+    return "phone-portrait";
+  } else if (
+    categoryLower.includes("clothing") ||
+    categoryLower.includes("fashion")
+  ) {
+    return "shirt";
+  } else if (
+    categoryLower.includes("home") ||
+    categoryLower.includes("garden")
+  ) {
+    return "home";
+  } else if (
+    categoryLower.includes("beauty") ||
+    categoryLower.includes("health")
+  ) {
+    return "heart";
+  } else if (categoryLower.includes("sports")) {
+    return "fitness";
+  } else if (categoryLower.includes("books")) {
+    return "book";
+  } else if (categoryLower.includes("toys")) {
+    return "game-controller";
+  } else {
+    return "storefront";
+  }
+};
 
 // Skeleton Loader Component
 const SkeletonLoader = ({
@@ -77,110 +108,16 @@ const SkeletonLoader = ({
   );
 };
 
-// Animated Category Loader Component
-const LoadingCategoryAnimation = () => {
-  const [dotAnimations] = useState([
-    new Animated.Value(0.3),
-    new Animated.Value(0.3),
-    new Animated.Value(0.3),
-  ]);
-  const [pulseAnim] = useState(new Animated.Value(1));
-
-  useEffect(() => {
-    // Animate the dots
-    const animateDots = () => {
-      const animations = dotAnimations.map((anim, index) =>
-        Animated.sequence([
-          Animated.delay(index * 200),
-          Animated.loop(
-            Animated.sequence([
-              Animated.timing(anim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-              }),
-              Animated.timing(anim, {
-                toValue: 0.3,
-                duration: 600,
-                useNativeDriver: true,
-              }),
-            ])
-          ),
-        ])
-      );
-
-      Animated.parallel(animations).start();
-    };
-
-    // Animate the pulsating ball
-    const animatePulse = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.3,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 1,
-            duration: 1000,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    };
-
-    animateDots();
-    animatePulse();
-  }, [dotAnimations, pulseAnim]);
-
-  return (
-    <View style={styles.categoryLoaderContainer}>
-      <View style={styles.loaderWrapper}>
-        {/* Pulsating Orange Ball */}
-        <Animated.View
-          style={[
-            styles.pulsatingBall,
-            {
-              transform: [{ scale: pulseAnim }],
-              opacity: pulseAnim.interpolate({
-                inputRange: [1, 1.3],
-                outputRange: [1, 0.7],
-              }),
-            },
-          ]}
-        />
-
-        {/* Animated dots */}
-        <View style={styles.dotsContainer}>
-          {dotAnimations.map((anim, index) => (
-            <Animated.View
-              key={index}
-              style={[
-                styles.loaderDot,
-                {
-                  opacity: anim,
-                  transform: [
-                    {
-                      scale: anim.interpolate({
-                        inputRange: [0.3, 1],
-                        outputRange: [0.8, 1.2],
-                      }),
-                    },
-                  ],
-                },
-              ]}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.loaderText}>Loading more...</Text>
-      </View>
-    </View>
-  );
+const handleCategoryPress = (category: Category) => {
+  // Navigate to category details page
+  router.push({
+    pathname: "/CategoryDetailsPage",
+    params: {
+      categoryId: category.id,
+      categoryName: category.name,
+    },
+  });
 };
-
-// Removed unused handler: handleCategoryPress
 
 // Updated Category Section Component - Uber Eats Style
 interface CategorySectionProps {
@@ -501,7 +438,9 @@ export default function ShopDetails() {
   const [error, setError] = useState<string | null>(null);
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
-  // Removed unused image error tracking state
+  const [imageLoadErrors, setImageLoadErrors] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   // Group products by category
   const [groupedProducts, setGroupedProducts] = useState<{
@@ -513,112 +452,60 @@ export default function ShopDetails() {
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryTabsRef = useRef<ScrollView>(null);
 
-  // Lazy loading state for categories
-  const [currentCategoryPage, setCurrentCategoryPage] = useState(1);
-  const [hasMoreCategories, setHasMoreCategories] = useState(true);
-  const [loadingMoreCategories, setLoadingMoreCategories] = useState(false);
-
-  const PRODUCTS_PER_CATEGORY = 5; // Show 5 products from each category (Uber Eats style)
-  const CATEGORIES_PER_PAGE = 5; // Load 5 categories at a time - smaller batches for smoother UX
-
   const fetchShopDetails = useCallback(async () => {
     try {
-      setLoading(true);
+      // Don't set loading true if we're refreshing and already have data
+      const isInitialLoad = !shop;
+      if (isInitialLoad) {
+        setLoading(true);
+      }
       setError(null);
-      setCurrentCategoryPage(1); // Reset to page 1
-      setHasMoreCategories(true);
 
-      // Fetch shop info
-      const shopResponse = await fetch(`${API_URL}/api/shops/${shopId}`);
+      // Include products in the shop query
+      const response = await fetch(
+        `${API_URL}/api/shops/${shopId}?includeProducts=true`
+      );
 
-      if (!shopResponse.ok) {
-        throw new Error(`Failed to fetch shop: ${shopResponse.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch shop: ${response.statusText}`);
       }
 
-      const shopData = await shopResponse.json();
-      setShop(shopData);
+      const data = await response.json();
+      console.log("✅ Shop data received:", {
+        shopName: data.name,
+        totalProducts: data.products?.length || 0,
+        hasProducts: !!data.products,
+      });
+      setShop(data);
 
-      // Fetch FIRST page of products sampled by category from backend (10 categories x 5 products)
-      let categoriesKeys: string[] = [];
-      try {
-        const sampleResponse = await fetch(
-          `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=1`
-        );
+      // Group products by subcategory (filter out unavailable products)
+      const grouped: { [key: string]: Product[] } = {};
 
-        if (!sampleResponse.ok) {
-          throw new Error(
-            `Failed to fetch products by category: ${sampleResponse.statusText}`
-          );
-        }
-
-        const sampleData: {
-          categories: {
-            category: { id: string; name: string } | null;
-            products: Product[];
-            totalInCategory: number;
-            hasMore: boolean;
-          }[];
-        } = await sampleResponse.json();
-
-        // Group products by category name
-        const grouped: { [key: string]: Product[] } = {};
-        (sampleData.categories || []).forEach((entry) => {
-          const categoryName = entry.category?.name || "All Products";
-          grouped[categoryName] = entry.products || [];
-        });
-
-        setGroupedProducts(grouped);
-        categoriesKeys = Object.keys(grouped);
-
-        // Check if there are more categories to load
-        // If we got fewer categories than requested, we've reached the end
-        setHasMoreCategories(
-          sampleData.categories.length >= CATEGORIES_PER_PAGE
-        );
-      } catch (e) {
-        console.warn("Falling back to includeProducts flow due to error:", e);
-        // Fallback: fetch includeProducts and locally cap to N per category
-        const productsResponse = await fetch(
-          `${API_URL}/api/shops/${shopId}?includeProducts=true`
-        );
-        if (!productsResponse.ok) {
-          throw new Error(
-            `Failed to fetch products: ${productsResponse.statusText}`
-          );
-        }
-        const shopWithProducts = await productsResponse.json();
-        const grouped: { [key: string]: Product[] } = {};
-        const allCategories = new Set<string>();
-
-        shopWithProducts.products?.forEach((product: Product) => {
+      data.products?.forEach((product: Product) => {
+        // Only show products that are available (isAvailable is true or undefined/null)
+        if (product.isAvailable !== false) {
           const categoryName = product.subCategory?.name || "All Products";
-          allCategories.add(categoryName);
-        });
-
-        // Only take first CATEGORIES_PER_PAGE categories for initial load
-        const categoryList = Array.from(allCategories).slice(
-          0,
-          CATEGORIES_PER_PAGE
-        );
-
-        shopWithProducts.products?.forEach((product: Product) => {
-          const categoryName = product.subCategory?.name || "All Products";
-          if (!categoryList.includes(categoryName)) return;
-
-          if (!grouped[categoryName]) grouped[categoryName] = [];
-          if (grouped[categoryName].length < PRODUCTS_PER_CATEGORY) {
-            grouped[categoryName].push(product);
+          if (!grouped[categoryName]) {
+            grouped[categoryName] = [];
           }
-        });
+          grouped[categoryName].push(product);
+        }
+      });
 
-        setGroupedProducts(grouped);
-        categoriesKeys = Object.keys(grouped);
-        setHasMoreCategories(allCategories.size > CATEGORIES_PER_PAGE);
-      }
+      console.log("📦 Grouped products:", {
+        categories: Object.keys(grouped),
+        categoryCounts: Object.entries(grouped).map(([name, prods]) => ({
+          category: name,
+          count: prods.length,
+        })),
+      });
 
-      // Set first category as selected by default
-      if (categoriesKeys.length > 0) {
-        setSelectedCategory((prev) => prev || categoriesKeys[0]);
+      setGroupedProducts(grouped);
+
+      // Set first category as selected by default (only if not already set)
+      const categories = Object.keys(grouped);
+      if (categories.length > 0) {
+        setSelectedCategory((prev) => prev || categories[0]);
       }
     } catch (err: any) {
       console.error("Error fetching shop details:", err);
@@ -626,64 +513,7 @@ export default function ShopDetails() {
     } finally {
       setLoading(false);
     }
-  }, [shopId, PRODUCTS_PER_CATEGORY, CATEGORIES_PER_PAGE]);
-
-  // Load more categories function
-  const loadMoreCategories = useCallback(async () => {
-    if (!shopId || loadingMoreCategories || !hasMoreCategories) return;
-
-    try {
-      setLoadingMoreCategories(true);
-      const nextPage = currentCategoryPage + 1;
-
-      const sampleResponse = await fetch(
-        `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=${nextPage}`
-      );
-
-      if (!sampleResponse.ok) {
-        console.warn("Failed to fetch more categories");
-        return;
-      }
-
-      const sampleData: {
-        categories: {
-          category: { id: string; name: string } | null;
-          products: Product[];
-          totalInCategory: number;
-          hasMore: boolean;
-        }[];
-      } = await sampleResponse.json();
-
-      // Append new categories to existing grouped products
-      setGroupedProducts((prev) => {
-        const newGrouped = { ...prev };
-        (sampleData.categories || []).forEach((entry) => {
-          const categoryName = entry.category?.name || "All Products";
-          // Only add if not already present
-          if (!newGrouped[categoryName]) {
-            newGrouped[categoryName] = entry.products || [];
-          }
-        });
-        return newGrouped;
-      });
-
-      setCurrentCategoryPage(nextPage);
-
-      // Check if there are more categories to load
-      setHasMoreCategories(sampleData.categories.length >= CATEGORIES_PER_PAGE);
-    } catch (err: any) {
-      console.error("Error loading more categories:", err);
-    } finally {
-      setLoadingMoreCategories(false);
-    }
-  }, [
-    shopId,
-    currentCategoryPage,
-    hasMoreCategories,
-    loadingMoreCategories,
-    PRODUCTS_PER_CATEGORY,
-    CATEGORIES_PER_PAGE,
-  ]);
+  }, [shopId]);
 
   useEffect(() => {
     if (shopId) {
@@ -775,7 +605,9 @@ export default function ShopDetails() {
     removeFromCart(itemId);
   };
 
-  // Removed unused image error handler
+  const handleImageError = (key: string) => {
+    setImageLoadErrors((prev) => ({ ...prev, [key]: true }));
+  };
 
   const getCartItemQuantity = (itemId: string): number => {
     const item = cartItems.find((cartItem) => cartItem.id === itemId);
@@ -810,7 +642,29 @@ export default function ShopDetails() {
     extrapolate: "clamp",
   });
 
-  // Removed unused animation interpolations
+  const heroOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT - 100, HEADER_HEIGHT],
+    outputRange: [1, 0.3, 0],
+    extrapolate: "clamp",
+  });
+
+  const imageScale = scrollY.interpolate({
+    inputRange: [-200, 0, HEADER_HEIGHT],
+    outputRange: [1.3, 1, 0.8],
+    extrapolate: "clamp",
+  });
+
+  const containerTranslateY = scrollY.interpolate({
+    inputRange: [0, HEADER_HEIGHT],
+    outputRange: [0, -30],
+    extrapolate: "clamp",
+  });
+
+  const imageInnerTranslateY = scrollY.interpolate({
+    inputRange: [-200, 0, HEADER_HEIGHT],
+    outputRange: [0, 0, 50],
+    extrapolate: "clamp",
+  });
 
   if (loading) {
     return <ShopDetailsSkeleton />;
@@ -831,7 +685,7 @@ export default function ShopDetails() {
 
           <TouchableOpacity
             style={styles.retryButton}
-            onPress={() => fetchShopDetails()}
+            onPress={fetchShopDetails}
           >
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
@@ -900,28 +754,9 @@ export default function ShopDetails() {
         style={styles.scrollView}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          {
-            useNativeDriver: false,
-            listener: (event: any) => {
-              // Auto-load more categories when near bottom
-              const { layoutMeasurement, contentOffset, contentSize } =
-                event.nativeEvent;
-              const paddingToBottom = 600; // Trigger 600px before the end - perfect for 5 categories
-              const isCloseToBottom =
-                layoutMeasurement.height + contentOffset.y >=
-                contentSize.height - paddingToBottom;
-
-              if (
-                isCloseToBottom &&
-                hasMoreCategories &&
-                !loadingMoreCategories
-              ) {
-                loadMoreCategories();
-              }
-            },
-          }
+          { useNativeDriver: false }
         )}
-        scrollEventThrottle={400}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
         {/* Uber Eats/DoorDash style header */}
@@ -1130,9 +965,6 @@ export default function ShopDetails() {
               </Text>
             </View>
           )}
-
-          {/* Beautiful Animated Loader for Loading More Categories */}
-          {loadingMoreCategories && <LoadingCategoryAnimation />}
         </View>
       </Animated.ScrollView>
 
@@ -1997,64 +1829,5 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     lineHeight: 20,
-  },
-  loadingMoreContainer: {
-    paddingVertical: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loadingMoreText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666",
-  },
-
-  // Beautiful Category Loader Styles
-  categoryLoaderContainer: {
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  loaderWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 32,
-    backgroundColor: "#FAFAFA",
-    borderRadius: 24,
-    minWidth: 180,
-  },
-  pulsatingBall: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: PrimaryColor,
-    marginBottom: 20,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    gap: 8,
-  },
-  loaderDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: PrimaryColor,
-  },
-  loaderText: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#64748B",
-    textAlign: "center",
-    letterSpacing: -0.1,
   },
 });

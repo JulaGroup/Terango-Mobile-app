@@ -411,9 +411,26 @@ export default function Orders() {
           marginBottom: 12,
         }}
       >
-        <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
-          Order #{order.id.slice(-8).toUpperCase()}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
+            Order #{order.id.slice(-8).toUpperCase()}
+          </Text>
+          {/* 🎁 Gift Order Badge */}
+          {order.isGiftOrder && (
+            <View
+              style={{
+                backgroundColor: "#FFF5EE",
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 8,
+                borderWidth: 1,
+                borderColor: "#FFD4A3",
+              }}
+            >
+              <Ionicons name="gift" size={12} color="#ff6b00" />
+            </View>
+          )}
+        </View>
         <View
           style={{
             backgroundColor: statusColors[order.status],

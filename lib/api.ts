@@ -105,11 +105,21 @@ export interface Order {
   orderType?: "DELIVERY" | "PICKUP";
   pickupInstructions?: string;
   // Generic address field used by backend for either delivery or pickup location
+  customerLatitude?: number;
+  customerLongitude?: number;
   driverPhone?: string;
   driverName?: string;
   driverImage?: string;
   driverId?: string;
+  driverLatitude?: number;
+  driverLongitude?: number;
+  driverLastLocationUpdate?: string;
   address?: string;
+  // 🎁 Recipient fields for gift orders
+  isGiftOrder?: boolean;
+  recipientName?: string;
+  recipientPhone?: string;
+  recipientAddress?: string;
   totalAmount: number;
   subtotalAmount?: number; // Items subtotal (before fees/discounts) - vendor earnings
   deliveryFee?: number; // Dynamic delivery fee based on distance
@@ -117,6 +127,7 @@ export interface Order {
   discountAmount?: number; // Discount from promo codes
   status:
     | "PENDING"
+    | "PROCESSING"
     | "ACCEPTED"
     | "PREPARING"
     | "READY"

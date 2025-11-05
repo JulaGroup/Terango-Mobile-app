@@ -1,21 +1,29 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  StatusBar,
   FlatList,
   TextInput,
+  StatusBar,
+  Dimensions,
+  Modal,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import ProductCard from "@/components/common/ProductCard";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+} from "react-native-reanimated";
 
 interface Product {
   id: string;
@@ -31,7 +39,7 @@ interface Product {
   };
 }
 
-// Skeleton Loader Component
+// Skeleton Loader
 const SkeletonLoader = ({
   width = "100%",
   height = 160,
@@ -39,23 +47,21 @@ const SkeletonLoader = ({
   width?: string | number;
   height?: number;
 }) => {
-  const widthValue = typeof width === "number" ? width : width;
+  // cast width to any to avoid TypeScript's strict width type mismatch for percentage strings
+  const widthValue: any = width as any;
   return (
     <View
-      style={
-        {
-          width: widthValue,
-          height,
-          backgroundColor: "#E8E8E8",
-          borderRadius: 12,
-          opacity: 0.7,
-        } as any
-      }
+      style={{
+        width: widthValue,
+        height,
+        backgroundColor: "#E8E8E8",
+        borderRadius: 12,
+        opacity: 0.7,
+      }}
     />
   );
 };
 
-// Product Card Skeleton
 const ProductCardSkeleton = () => (
   <View style={styles.productCardWrapper}>
     <View style={styles.skeletonCard}>
@@ -85,12 +91,11 @@ const ShopCategoryPage = () => {
   const params = useLocalSearchParams();
   const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
 
-  // Parse params
-  const shopName = params.shopName as string;
-  const initialCategory = params.categoryName as string;
-  const productsJson = params.products as string;
+  // params & initial values
+  const shopName = (params.shopName as string) || "";
+  const initialCategory = (params.categoryName as string) || "";
 
-  // State
+  // state
   const [categories, setCategories] = useState<string[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
@@ -98,10 +103,41 @@ const ShopCategoryPage = () => {
   );
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
+  const [categoryLoading, setCategoryLoading] = useState(false); // Loading per category
 
-  // Initial fetch - only fetch all products once on mount
+  // refs & layout
+  const categoriesTabsRef = useRef<FlatList>(null);
+  const [tabLayouts, setTabLayouts] = useState<
+    ({ x: number; width: number } | null)[]
+  >([]);
+  const [contentWidth, setContentWidth] = useState<number>(0);
+
+  // animated underline shared values
+  const underlineX = useSharedValue(0);
+  const underlineWidth = useSharedValue(0);
+
+  // modal state
+  const [isModalVisible, setModalVisible] = useState(false);
+
+  // initialize tabLayouts when categories change
   useEffect(() => {
-    const fetchProducts = async () => {
+    setTabLayouts(Array(categories.length).fill(null));
+  }, [categories]);
+
+  const handleTabLayout = (
+    layout: { x: number; y: number; width: number; height: number },
+    index: number
+  ) => {
+    setTabLayouts((prev) => {
+      const next = prev ? [...prev] : Array(categories.length).fill(null);
+      next[index] = { x: layout.x, width: layout.width };
+      return next;
+    });
+  };
+
+  // fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
       if (!params.shopId) return;
 
       setLoading(true);
@@ -110,85 +146,139 @@ const ShopCategoryPage = () => {
           `${API_URL}/api/products/shop/${params.shopId}`
         );
         if (!response.ok) throw new Error("Failed to fetch products");
-
         const parsed = await response.json();
-        setAllProducts(parsed);
 
-        // Group by category and get unique categories
+        // Extract unique categories
         const uniqueCategories = [
           ...new Set(
             parsed.map((p: Product) => p.subCategory?.name || "Other")
           ),
         ].filter(Boolean) as string[];
+
         setCategories(uniqueCategories);
 
-        // Set first category as selected if not provided
-        if (!initialCategory && uniqueCategories.length > 0) {
-          setSelectedCategory(uniqueCategories[0]);
-        } else if (initialCategory) {
+        // Set initial category
+        if (initialCategory && uniqueCategories.includes(initialCategory)) {
           setSelectedCategory(initialCategory);
+        } else if (uniqueCategories.length > 0) {
+          setSelectedCategory(uniqueCategories[0]);
         }
       } catch (error) {
-        console.error("Error fetching products:", error);
-        // Fallback to props if available
-        if (productsJson) {
-          try {
-            const parsed = JSON.parse(productsJson);
-            setAllProducts(parsed);
-            const uniqueCategories = [
-              ...new Set(
-                parsed.map((p: Product) => p.subCategory?.name || "Other")
-              ),
-            ].filter(Boolean) as string[];
-            setCategories(uniqueCategories);
-            if (!initialCategory && uniqueCategories.length > 0) {
-              setSelectedCategory(uniqueCategories[0]);
-            }
-          } catch (e) {
-            console.error("Error parsing fallback products:", e);
-          }
-        }
+        console.error("Error fetching categories:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProducts();
+    fetchCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.shopId]); // Only depend on shopId - initialCategory sets initial state
+  }, [params.shopId]);
 
-  // Debounced search effect - only search, don't refetch all products
+  // Fetch products for selected category
   useEffect(() => {
-    if (!selectedCategory || allProducts.length === 0) return;
+    const fetchCategoryProducts = async () => {
+      if (!params.shopId || !selectedCategory) return;
 
-    // Just trigger a local state update, no API call needed
-    // Products are already loaded, we just filter them
-    const debounceTimer = setTimeout(() => {
-      // Filtering is handled in filteredProducts useMemo below
-    }, 300);
+      setCategoryLoading(true);
+      try {
+        const response = await fetch(
+          `${API_URL}/api/products/shop/${params.shopId}`
+        );
+        if (!response.ok) throw new Error("Failed to fetch products");
+        const parsed = await response.json();
 
-    return () => clearTimeout(debounceTimer);
-  }, [searchText, selectedCategory, allProducts]);
+        // Filter products for selected category
+        const categoryProducts = parsed.filter(
+          (p: Product) => p.subCategory?.name === selectedCategory
+        );
 
-  // Filter products by selected category and search
+        setAllProducts(categoryProducts);
+      } catch (error) {
+        console.error("Error fetching category products:", error);
+      } finally {
+        setCategoryLoading(false);
+      }
+    };
+
+    if (selectedCategory) {
+      fetchCategoryProducts();
+    }
+  }, [selectedCategory, params.shopId]);
+
+  // animate underline when selectedCategory or measurement updates
+  useEffect(() => {
+    const activeIndex = categories.findIndex((c) => c === selectedCategory);
+    if (activeIndex !== -1 && tabLayouts[activeIndex]) {
+      const { x, width } = tabLayouts[activeIndex]!;
+
+      // Make the underline narrower than the full tab and center it.
+      // Adjust `widthFactor` to control how wide the underline is relative to the tab.
+      const widthFactor = 0.6; // 60% of tab width
+      const targetWidth = width * widthFactor;
+      const targetX = x + (width - targetWidth) / 2;
+
+      underlineX.value = withTiming(targetX, {
+        duration: 240,
+        easing: Easing.out(Easing.exp),
+      });
+      underlineWidth.value = withTiming(targetWidth, {
+        duration: 240,
+        easing: Easing.out(Easing.exp),
+      });
+    }
+  }, [selectedCategory, tabLayouts, underlineX, underlineWidth, categories]);
+
+  const animatedUnderlineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: underlineX.value }],
+    width: underlineWidth.value,
+  }));
+
+  // scrolling to center active tab (wait until measurements available)
+  useEffect(() => {
+    if (!categoriesTabsRef.current) return;
+    if (tabLayouts.length === 0) return;
+
+    const activeIndex = categories.findIndex((c) => c === selectedCategory);
+    if (activeIndex === -1) return;
+
+    // Only check if the active tab has been measured
+    if (!tabLayouts[activeIndex]) return;
+
+    const layout = tabLayouts[activeIndex]!;
+    const screenWidth = Dimensions.get("window").width;
+    const itemCenter = layout.x + layout.width / 2;
+    let offset = Math.max(itemCenter - screenWidth / 2, 0);
+    const maxOffset = Math.max(contentWidth - screenWidth, 0);
+    if (offset > maxOffset) offset = maxOffset;
+
+    // Scroll to position - use animated true for smooth scrolling
+    categoriesTabsRef.current.scrollToOffset({ offset, animated: true });
+  }, [selectedCategory, tabLayouts, contentWidth, categories]);
+
+  // debounced search (no network call required)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // nothing to do - filteredProducts is memoized
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // filtered products for current category + search
   const filteredProducts = useMemo(() => {
-    let filtered = allProducts.filter(
-      (p) => p.subCategory?.name === selectedCategory
-    );
+    let filtered = allProducts; // Already filtered by category in fetch
 
     if (searchText.trim()) {
+      const q = searchText.toLowerCase();
       filtered = filtered.filter(
         (p) =>
-          p.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          (p.description &&
-            p.description.toLowerCase().includes(searchText.toLowerCase()))
+          p.name.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q))
       );
     }
-
     return filtered;
-  }, [allProducts, selectedCategory, searchText]);
+  }, [allProducts, searchText]);
 
-  // Cart helpers
+  // cart helpers
   const handleAddToCart = (product: Product) => {
     const cartItem = {
       id: product.id,
@@ -217,20 +307,16 @@ const ShopCategoryPage = () => {
     return item ? item.quantity : 0;
   };
 
-  // Cart helper functions
-  const getTotalCartItems = (): number => {
-    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  const getTotalCartItems = (): number =>
+    cartItems.reduce((total, item) => total + item.quantity, 0);
+
+  // category selection (also used by modal)
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    setModalVisible(false);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getTotalCartPrice = (): number => {
-    return cartItems.reduce((total, item) => {
-      const itemPrice = item.discountedPrice || item.price;
-      return total + itemPrice * item.quantity;
-    }, 0);
-  };
-
-  // Render product card
+  // render product card
   const renderProductCard = ({ item }: { item: Product }) => (
     <View style={styles.productCardWrapper}>
       <ProductCard
@@ -252,10 +338,14 @@ const ShopCategoryPage = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="#fff"
+        translucent={false}
+      />
 
-      {/* Header - Fixed at top */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -268,34 +358,46 @@ const ShopCategoryPage = () => {
           {shopName}
         </Text>
 
-        <TouchableOpacity
-          onPress={() => router.push("/cart")}
-          style={styles.cartIconButton}
-        >
-          <Ionicons name="cart-outline" size={24} color="#000" />
-          {getTotalCartItems() > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerRightButtons}>
+          <TouchableOpacity
+            onPress={() => setModalVisible(true)}
+            style={styles.headerListButton}
+          >
+            <Ionicons name="list" size={24} color="#000" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push("/cart")}
+            style={styles.cartIconButton}
+          >
+            <Ionicons name="cart-outline" size={24} color="#000" />
+            {getTotalCartItems() > 0 && (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Category Tabs - Uber Eats Style with animated underline */}
+      {/* Tabs */}
       <View style={styles.tabsWrapper}>
-        <ScrollView
+        <FlatList
+          ref={categoriesTabsRef}
           horizontal
           showsHorizontalScrollIndicator={false}
+          data={categories}
+          keyExtractor={(item) => item}
           style={styles.categoriesTabsContainer}
           contentContainerStyle={styles.categoriesTabsContent}
-          scrollEventThrottle={16}
-        >
-          {categories.map((category) => (
+          onContentSizeChange={(w) => setContentWidth(w)}
+          renderItem={({ item: category, index }) => (
             <TouchableOpacity
               key={category}
               style={styles.categoryTab}
-              onPress={() => setSelectedCategory(category)}
-              activeOpacity={0.7}
+              onPress={() => handleCategorySelect(category)}
+              activeOpacity={0.8}
+              onLayout={(e) => handleTabLayout(e.nativeEvent.layout, index)}
             >
               <Text
                 style={[
@@ -305,15 +407,69 @@ const ShopCategoryPage = () => {
               >
                 {category}
               </Text>
-              {selectedCategory === category && (
-                <View style={styles.tabUnderline} />
-              )}
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          )}
+        />
+
+        {/* Animated underline */}
+        <Animated.View
+          style={[styles.tabUnderlineAnimated, animatedUnderlineStyle]}
+        />
+
+        {/* Modal: All categories */}
+        <Modal
+          animationType="slide"
+          transparent
+          visible={isModalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>All Categories</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="#000" />
+                </TouchableOpacity>
+              </View>
+
+              <FlatList
+                data={categories}
+                keyExtractor={(item) => item}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalCategoryItem}
+                    onPress={() => handleCategorySelect(item)}
+                  >
+                    <Text
+                      style={[
+                        styles.modalCategoryText,
+                        selectedCategory === item && {
+                          color: PrimaryColor,
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {item}
+                    </Text>
+                    {selectedCategory === item && (
+                      <Ionicons
+                        name="checkmark"
+                        size={20}
+                        color={PrimaryColor}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+                ItemSeparatorComponent={() => (
+                  <View style={styles.modalSeparator} />
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
       </View>
 
-      {/* Search Bar */}
+      {/* Search */}
       <View style={styles.searchContainer}>
         <Ionicons
           name="search"
@@ -323,7 +479,7 @@ const ShopCategoryPage = () => {
         />
         <TextInput
           style={styles.searchInput}
-          placeholder={`Search ${selectedCategory}...`}
+          placeholder={`Search ${selectedCategory || "items"}...`}
           placeholderTextColor="#999"
           value={searchText}
           onChangeText={setSearchText}
@@ -335,8 +491,8 @@ const ShopCategoryPage = () => {
         )}
       </View>
 
-      {/* Products Grid - 3 Columns */}
-      {loading ? (
+      {/* Products */}
+      {loading || categoryLoading ? (
         <FlatList
           data={Array(9).fill(0)}
           renderItem={() => <ProductCardSkeleton />}
@@ -353,8 +509,8 @@ const ShopCategoryPage = () => {
           keyExtractor={(item) => item.id}
           numColumns={3}
           contentContainerStyle={styles.productsGrid}
-          scrollEnabled={true}
           columnWrapperStyle={styles.columnWrapper}
+          scrollEnabled
         />
       ) : (
         <View style={styles.emptyState}>
@@ -365,7 +521,7 @@ const ShopCategoryPage = () => {
         </View>
       )}
 
-      {/* Floating cart summary */}
+      {/* Floating Cart Summary */}
       {getTotalCartItems() > 0 && (
         <TouchableOpacity
           style={styles.cartSummary}
@@ -385,23 +541,18 @@ const ShopCategoryPage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === "ios" ? 12 : 10,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
     backgroundColor: "#fff",
   },
-  backButton: {
-    padding: 4,
-  },
+  backButton: { padding: 4 },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -432,31 +583,40 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#fff",
   },
-  cartBadgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
+  cartBadgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  headerRightButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
-  // Uber Eats Style Tabs
+  headerListButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F8F9FA",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Tabs
   tabsWrapper: {
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
+    position: "relative",
   },
   categoriesTabsContainer: {
-    backgroundColor: "#fff",
-    maxHeight: 60,
+    flexGrow: 1,
   },
   categoriesTabsContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
     gap: 24,
+    paddingVertical: 12,
   },
   categoryTab: {
     paddingVertical: 8,
-    paddingHorizontal: 4,
-    position: "relative",
+    paddingHorizontal: 6,
+    marginRight: 8,
   },
   categoryTabText: {
     fontSize: 14,
@@ -467,13 +627,46 @@ const styles = StyleSheet.create({
   categoryTabTextActive: {
     color: "#000",
   },
-  tabUnderline: {
+  tabUnderlineAnimated: {
+    position: "absolute",
+    bottom: 0,
+    left: 0, // Start at 0 - translateX handles positioning
     height: 3,
     backgroundColor: PrimaryColor,
-    marginTop: 8,
-    borderRadius: 1.5,
-    width: "100%",
+    borderRadius: 2,
   },
+
+  // Modal
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    maxHeight: "60%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#000" },
+  modalCategoryItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  modalCategoryText: { fontSize: 16, color: "#333" },
+  modalSeparator: { height: 1, backgroundColor: "#eee" },
+
+  // Search + Grid
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -484,44 +677,20 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     height: 40,
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#000",
-    paddingVertical: 8,
-  },
-  productsGrid: {
-    paddingHorizontal: 0,
-    paddingVertical: 8,
-  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 14, color: "#000", paddingVertical: 8 },
+  productsGrid: { paddingHorizontal: 0, paddingVertical: 8 },
   columnWrapper: {
     justifyContent: "flex-start",
     paddingHorizontal: 8,
     marginBottom: 8,
     gap: 8,
   },
-  productCardWrapper: {
-    flex: 1,
-    maxWidth: "33.33%",
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: "#999",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  productCardWrapper: { flex: 1, maxWidth: "33.33%" },
+  emptyState: { flex: 1, justifyContent: "center", alignItems: "center" },
+  emptyText: { marginTop: 12, fontSize: 14, color: "#999" },
+
+  // Skeletons
   skeletonCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -530,6 +699,8 @@ const styles = StyleSheet.create({
   skeletonInfo: {
     padding: 12,
   },
+
+  // Floating cart summary
   cartSummary: {
     position: "absolute",
     right: 16,

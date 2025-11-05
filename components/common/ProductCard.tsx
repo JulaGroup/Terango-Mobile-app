@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,6 +36,7 @@ const ProductCard = ({
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const lastPressTime = useRef(0);
 
   // Expand controls when product is added
   const handleAdd = () => {
@@ -82,6 +83,24 @@ const ProductCard = ({
 
   const displayPrice = product.discountedPrice || product.price;
 
+  // Handle navigation with instant response - prevent true double-clicks only
+  const handlePress = () => {
+    if (!onPress) return;
+
+    const now = Date.now();
+    const timeSinceLastPress = now - lastPressTime.current;
+
+    // Only prevent if clicked within 50ms (prevents accidental double-clicks)
+    if (timeSinceLastPress < 50) {
+      return;
+    }
+
+    lastPressTime.current = now;
+
+    // Execute navigation instantly - no delay
+    onPress();
+  };
+
   // Dynamic styles based on cardWidth
   const dynamicStyles = StyleSheet.create({
     card: {
@@ -100,8 +119,8 @@ const ProductCard = ({
   return (
     <TouchableOpacity
       style={[styles.card, dynamicStyles.card]}
-      activeOpacity={0.92}
-      onPress={onPress}
+      activeOpacity={0.8}
+      onPress={handlePress}
     >
       <View style={styles.productImageContainer}>
         {product.image && !imageLoadError ? (
@@ -250,6 +269,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F8F8F8",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 20,
   },
   discountBadge: {
     position: "absolute",

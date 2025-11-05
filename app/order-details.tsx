@@ -152,7 +152,7 @@ export default function OrderDetailsPage() {
         if (storedNew) {
           await NotificationService.scheduleOrderNotification({
             orderId: data.orderId,
-            title: "Payment Successful! 🎉",
+            title: "Order Successful! 🎉",
             body: "Your order has been placed successfully. Tap to view details.",
             data: { orderId: data.orderId, type: "payment_success" },
           });
@@ -530,7 +530,7 @@ export default function OrderDetailsPage() {
                   </Text>
                 </View>
                 <View style={styles.qrActions}>
-                  <TouchableOpacity
+                  {/* <TouchableOpacity
                     onPress={() => {
                       try {
                         const parsed = order.qrCode
@@ -561,7 +561,7 @@ export default function OrderDetailsPage() {
                     style={styles.copyButton}
                   >
                     <Text style={styles.copyButtonText}>Copy code</Text>
-                  </TouchableOpacity>
+                  </TouchableOpacity> */}
                 </View>
               </View>
 
@@ -705,12 +705,22 @@ export default function OrderDetailsPage() {
               : "Delivery Information"}
           </Text>
 
+          {/* 🎁 Gift Order Badge */}
+          {order.isGiftOrder && (
+            <View style={styles.giftBadgeContainer}>
+              <Ionicons name="gift" size={16} color={PrimaryColor} />
+              <Text style={styles.giftBadgeText}>Gift Order</Text>
+            </View>
+          )}
+
           <View style={styles.infoRow}>
             <View style={styles.infoIcon}>
               <Ionicons name="person-outline" size={16} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Customer</Text>
+              <Text style={styles.infoLabel}>
+                {order.isGiftOrder ? "Ordered By" : "Customer"}
+              </Text>
               <Text style={styles.infoValue}>{order.customerName}</Text>
             </View>
           </View>
@@ -720,33 +730,75 @@ export default function OrderDetailsPage() {
               <Ionicons name="call-outline" size={16} color="#6B7280" />
             </View>
             <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Phone</Text>
+              <Text style={styles.infoLabel}>
+                {order.isGiftOrder ? "Buyer's Phone" : "Phone"}
+              </Text>
               <Text style={styles.infoValue}>{order.customerPhone}</Text>
             </View>
           </View>
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="location-outline" size={16} color="#6B7280" />
+          {/* 🎁 Recipient Information - Only show for gift orders */}
+          {order.isGiftOrder && order.recipientName && (
+            <>
+              <View style={styles.recipientDivider} />
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="person" size={16} color={PrimaryColor} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Recipient Name</Text>
+                  <Text style={styles.infoValue}>{order.recipientName}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="call" size={16} color={PrimaryColor} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Recipient Phone</Text>
+                  <Text style={styles.infoValue}>{order.recipientPhone}</Text>
+                </View>
+              </View>
+
+              <View style={styles.infoRow}>
+                <View style={styles.infoIcon}>
+                  <Ionicons name="location" size={16} color={PrimaryColor} />
+                </View>
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Recipient Address</Text>
+                  <Text style={styles.infoValue}>{order.recipientAddress}</Text>
+                </View>
+              </View>
+            </>
+          )}
+
+          {/* Regular delivery address - only show if not a gift order */}
+          {!order.isGiftOrder && (
+            <View style={styles.infoRow}>
+              <View style={styles.infoIcon}>
+                <Ionicons name="location-outline" size={16} color="#6B7280" />
+              </View>
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>
+                  {order.orderType === "PICKUP"
+                    ? "Pickup Location / Instructions"
+                    : "Delivery Address"}
+                </Text>
+                <Text style={styles.infoValue}>
+                  {order.orderType === "PICKUP"
+                    ? order.pickupInstructions ||
+                      order.address ||
+                      order.deliveryAddress ||
+                      "Pickup details not provided"
+                    : order.deliveryAddress ||
+                      order.address ||
+                      "Delivery address not set"}
+                </Text>
+              </View>
             </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>
-                {order.orderType === "PICKUP"
-                  ? "Pickup Location / Instructions"
-                  : "Delivery Address"}
-              </Text>
-              <Text style={styles.infoValue}>
-                {order.orderType === "PICKUP"
-                  ? order.pickupInstructions ||
-                    order.address ||
-                    order.deliveryAddress ||
-                    "Pickup details not provided"
-                  : order.deliveryAddress ||
-                    order.address ||
-                    "Delivery address not set"}
-              </Text>
-            </View>
-          </View>
+          )}
 
           {order.notes && (
             <View style={styles.infoRow}>
@@ -893,8 +945,28 @@ export default function OrderDetailsPage() {
               Waiting for order confirmation for payment
             </Text>
           </View>
+        ) : order.orderType === "PICKUP" ? (
+          /* Show Pickup Status for PICKUP orders */
+          <View style={styles.pickupInfoContainer}>
+            <Ionicons
+              name={
+                order.status === "READY" ? "checkmark-circle" : "storefront"
+              }
+              size={24}
+              color={order.status === "READY" ? "#10B981" : PrimaryColor}
+            />
+            <Text style={styles.pickupInfoText}>
+              {order.status === "READY"
+                ? "✅ Your order is ready for pickup!"
+                : order.status === "PREPARING" || order.status === "PROCESSING"
+                ? "🍳 Your order is being prepared"
+                : order.status === "DELIVERED"
+                ? "✅ Order picked up successfully"
+                : "📦 Pickup order"}
+            </Text>
+          </View>
         ) : (
-          /* Show Track Order button for all other statuses */
+          /* Show Track Order button for DELIVERY orders only */
           <TouchableOpacity
             style={styles.trackButton}
             onPress={handleTrackOrder}
@@ -1332,6 +1404,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  // Pickup Info Container (for PICKUP orders)
+  pickupInfoContainer: {
+    backgroundColor: "#F0F9FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: PrimaryColor,
+  },
+  pickupInfoText: {
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
   // Error States
   errorContainer: {
     flex: 1,
@@ -1568,5 +1658,29 @@ const styles = StyleSheet.create({
   copyButtonText: {
     color: PrimaryColor,
     fontWeight: "700",
+  },
+  // 🎁 Gift Order Styles
+  giftBadgeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF5EE",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignSelf: "flex-start",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FFD4A3",
+  },
+  giftBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: PrimaryColor,
+    marginLeft: 6,
+  },
+  recipientDivider: {
+    height: 1,
+    backgroundColor: "#FFD4A3",
+    marginVertical: 12,
   },
 });

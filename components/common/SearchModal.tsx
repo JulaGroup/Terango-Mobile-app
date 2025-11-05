@@ -63,9 +63,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "all" | "restaurants" | "shops" | "products" | "menu_items"
+    "all" | "products" | "meals" | "restaurants" | "shops"
   >("all");
-  const [page, setPage] = useState(1);
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([
     { id: "1", query: "Burger", timestamp: Date.now() - 3600000 },
     { id: "2", query: "Chicken yassa", timestamp: Date.now() - 7200000 },
@@ -114,7 +113,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
     if (visible) {
       setQuery(initialQuery);
       setActiveTab("all");
-      setPage(1);
       setResults({
         restaurants: [],
         shops: [],
@@ -144,12 +142,15 @@ const SearchModal: React.FC<SearchModalProps> = ({
       return;
     }
 
+    // Map frontend tab names to API types
+    const apiType = tabType === "meals" ? "menu_items" : tabType;
+
     setLoading(true);
     try {
       const response = await fetch(
         `${API_URL}/api/search?q=${encodeURIComponent(
           searchQuery
-        )}&type=${tabType}&page=${pageNum}&limit=20`
+        )}&type=${apiType}&page=${pageNum}&limit=20`
       );
       const data = await response.json();
 
@@ -166,7 +167,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
             menuItems: [...prev.menuItems, ...data.data.menuItems],
           }));
         }
-        setPage(pageNum);
       }
     } catch (error) {
       console.error("Search error:", error);
@@ -178,7 +178,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
   // Handle search input change
   const handleSearchChange = (text: string) => {
     setQuery(text);
-    setPage(1);
 
     // Clear previous timeout
     if (searchTimeout.current) {
@@ -429,7 +428,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
     );
   };
 
-  // Render menu items in grid
+  // Render menu items in list matching SubCategoryView
   const renderMenuItems = () => {
     if (results.menuItems.length === 0) return null;
 
@@ -437,8 +436,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="restaurant" size={20} color={PrimaryColor} />
-            <Text style={styles.sectionTitle}>Menu Items</Text>
+            <Ionicons name="fast-food-outline" size={20} color="#64748b" />
+            <Text style={styles.sectionTitle}>Meals</Text>
           </View>
           <Text style={styles.sectionCount}>{results.menuItems.length}</Text>
         </View>
@@ -456,7 +455,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
             };
 
             const cartQuantity =
-              cartItems.find((item) => item.id === menuItem.id)?.quantity || 0;
+              cartItems.find((item) => String(item.id) === String(menuItem.id))
+                ?.quantity || 0;
 
             return (
               <View
@@ -471,19 +471,19 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   cartQuantity={cartQuantity}
                   onAddToCart={(product) => {
                     const cartItem = {
-                      id: menuItem.id,
+                      id: String(menuItem.id),
                       name: menuItem.name,
                       price: menuItem.price,
-                      discountedPrice: menuItem.discountedPrice, // Add discounted price
-                      imageUrl: menuItem.imageUrl,
-                      vendorId: menuItem.menu.restaurantId,
-                      vendorName: "Restaurant", // You might want to fetch this
-                      description: menuItem.description,
+                      discountedPrice: menuItem.discountedPrice,
+                      imageUrl: menuItem.imageUrl || "",
+                      vendorId: menuItem.menu?.restaurantId || "",
+                      vendorName: "Restaurant",
+                      description: menuItem.description || "",
                       entityType: "menuItem",
                     };
                     addToCart(cartItem);
                   }}
-                  onRemoveFromCart={() => removeFromCart(menuItem.id)}
+                  onRemoveFromCart={() => removeFromCart(String(menuItem.id))}
                   onPress={() => {
                     onClose();
                     router.push(`/menuitem/${menuItem.id}`);
@@ -497,7 +497,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
     );
   };
 
-  // Render products in horizontal scroll - matching SubCategoryView structure
+  // Render products in 3-column grid matching SubCategoryView
   const renderProducts = () => {
     if (results.products.length === 0) return null;
 
@@ -505,16 +505,13 @@ const SearchModal: React.FC<SearchModalProps> = ({
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="cube" size={20} color={PrimaryColor} />
+            <Ionicons name="cube-outline" size={20} color="#64748b" />
             <Text style={styles.sectionTitle}>Products</Text>
           </View>
           <Text style={styles.sectionCount}>{results.products.length}</Text>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingLeft: 0 }}
-        >
+        {/* 3-column grid layout matching SubCategoryView */}
+        <View style={styles.productsGrid}>
           {results.products.map((product) => {
             // Convert product to UniversalProduct format
             const universalProduct = {
@@ -528,28 +525,29 @@ const SearchModal: React.FC<SearchModalProps> = ({
             };
 
             const cartQuantity =
-              cartItems.find((item) => item.id === product.id)?.quantity || 0;
+              cartItems.find((item) => String(item.id) === String(product.id))
+                ?.quantity || 0;
 
             return (
-              <View key={product.id} style={{ marginRight: 16 }}>
+              <View key={product.id} style={styles.productGridItem}>
                 <ProductCard
                   product={universalProduct}
                   cartQuantity={cartQuantity}
                   onAddToCart={(prod) => {
                     const cartItem = {
-                      id: product.id,
+                      id: String(product.id),
                       name: product.name,
                       price: product.price,
-                      discountedPrice: product.discountedPrice, // Add discounted price
+                      discountedPrice: product.discountedPrice,
                       imageUrl: product.imageUrl,
-                      vendorId: product.shopId,
-                      vendorName: "Shop", // You might want to fetch this
-                      description: product.description,
-                      entityType: "product",
+                      vendorId: product.shopId || "",
+                      vendorName: "Shop",
+                      description: product.description || "",
+                      entityType: "shop",
                     };
                     addToCart(cartItem);
                   }}
-                  onRemoveFromCart={() => removeFromCart(product.id)}
+                  onRemoveFromCart={() => removeFromCart(String(product.id))}
                   onPress={() => {
                     onClose();
                     router.push(`/product/${product.id}`);
@@ -558,12 +556,12 @@ const SearchModal: React.FC<SearchModalProps> = ({
               </View>
             );
           })}
-        </ScrollView>
+        </View>
       </View>
     );
   };
 
-  // Render tab button
+  // Render tab button with badge like SubCategoryView
   const renderTabButton = (tab: string, label: string, count?: number) => (
     <TouchableOpacity
       key={tab}
@@ -574,11 +572,25 @@ const SearchModal: React.FC<SearchModalProps> = ({
           performSearch(query, tab, 1);
         }
       }}
+      activeOpacity={0.8}
     >
       <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
         {label}
-        {count !== undefined && count > 0 && ` (${count})`}
       </Text>
+      {count !== undefined && count > 0 && (
+        <View
+          style={[styles.tabBadge, activeTab === tab && styles.tabBadgeActive]}
+        >
+          <Text
+            style={[
+              styles.tabBadgeText,
+              activeTab === tab && styles.tabBadgeTextActive,
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 
@@ -745,21 +757,21 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     >
                       {renderTabButton("all", "All", results.total)}
                       {renderTabButton(
-                        "restaurants",
-                        "Restaurants",
-                        results.restaurants.length
-                      )}
-                      {renderTabButton("shops", "Shops", results.shops.length)}
-                      {renderTabButton(
                         "products",
                         "Products",
                         results.products.length
                       )}
                       {renderTabButton(
-                        "menu_items",
-                        "Menu Items",
+                        "meals",
+                        "Meals",
                         results.menuItems.length
                       )}
+                      {renderTabButton(
+                        "restaurants",
+                        "Restaurants",
+                        results.restaurants.length
+                      )}
+                      {renderTabButton("shops", "Stores", results.shops.length)}
                     </ScrollView>
 
                     {/* Results */}
@@ -771,21 +783,21 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     ) : (
                       <View style={styles.resultsContainer}>
                         {activeTab === "all" ? (
-                          // Show all results with proper cards
+                          // Show all results - Products & Menu Items first, then Restaurants & Shops
                           <>
+                            {renderProducts()}
+                            {renderMenuItems()}
                             {renderRestaurants()}
                             {renderShops()}
-                            {renderMenuItems()}
-                            {renderProducts()}
                           </>
+                        ) : activeTab === "products" ? (
+                          renderProducts()
+                        ) : activeTab === "meals" ? (
+                          renderMenuItems()
                         ) : activeTab === "restaurants" ? (
                           renderRestaurants()
                         ) : activeTab === "shops" ? (
                           renderShops()
-                        ) : activeTab === "products" ? (
-                          renderProducts()
-                        ) : activeTab === "menu_items" ? (
-                          renderMenuItems()
                         ) : null}
 
                         {/* No Results */}
@@ -955,23 +967,26 @@ const styles = {
     lineHeight: 20,
   },
   tabsContainer: {
-    maxHeight: 50,
+    maxHeight: 70,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
+    paddingVertical: 12,
   },
   tabsContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    alignItems: "center" as const,
   },
   tabButton: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    paddingVertical: 10,
+    marginRight: 12,
+    borderRadius: 24,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 0,
+    gap: 6,
   },
   activeTabButton: {
     backgroundColor: "#FF6B35",
@@ -979,12 +994,32 @@ const styles = {
   },
   tabText: {
     fontSize: 14,
-    color: "#6B7280",
-    fontWeight: "500" as const,
+    color: "#64748B",
+    fontWeight: "600" as const,
   },
   activeTabText: {
     color: "#fff",
+    fontWeight: "700" as const,
+  },
+  tabBadge: {
+    backgroundColor: "#E2E8F0",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    minWidth: 24,
+    alignItems: "center" as const,
+    justifyContent: "center" as const,
+  },
+  tabBadgeActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+  },
+  tabBadgeText: {
+    fontSize: 12,
     fontWeight: "600" as const,
+    color: "#475569",
+  },
+  tabBadgeTextActive: {
+    color: "#fff",
   },
   loadingContainer: {
     flex: 1,
@@ -1159,6 +1194,21 @@ const styles = {
     fontSize: 11,
     color: "#166534",
     fontWeight: "600" as const,
+  },
+  // Products Grid - 3 columns
+  productsGrid: {
+    flexDirection: "row" as const,
+    flexWrap: "wrap" as const,
+    marginTop: 8,
+  },
+  productGridItem: {
+    width: "33.33%" as const,
+    paddingHorizontal: 6,
+    marginBottom: 12,
+  },
+  productCardWrapper: {
+    width: "30%" as const, // 3 columns with gap
+    marginBottom: 8,
   },
 };
 

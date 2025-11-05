@@ -44,7 +44,7 @@ interface Product {
   inStock?: boolean;
 }
 
-const numColumns = 2;
+const numColumns = 3;
 
 export default function VendorProducts() {
   const router = useRouter();
@@ -56,6 +56,7 @@ export default function VendorProducts() {
   const [editMode, setEditMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("");
+  const [filterNoImages, setFilterNoImages] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [subCategories, setSubCategories] = useState<SubCategory[]>([]);
   const [loadingSubCategories, setLoadingSubCategories] = useState(true);
@@ -469,7 +470,8 @@ export default function VendorProducts() {
       filterCategory === "" ||
       filterCategory === "All" ||
       product.category === filterCategory;
-    return matchesSearch && matchesCategory;
+    const matchesNoImages = !filterNoImages || !product.image;
+    return matchesSearch && matchesCategory && matchesNoImages;
   });
 
   const getStockSummary = () => {
@@ -478,10 +480,12 @@ export default function VendorProducts() {
       (p) => p.stock === 0 && p.isActive
     ).length;
     const totalProducts = products.length;
-    return { lowStock, outOfStock, totalProducts };
+    const productsWithoutImages = products.filter((p) => !p.image).length;
+    return { lowStock, outOfStock, totalProducts, productsWithoutImages };
   };
 
-  const { lowStock, outOfStock, totalProducts } = getStockSummary();
+  const { lowStock, outOfStock, totalProducts, productsWithoutImages } =
+    getStockSummary();
 
   // Cloudinary configuration - matching Next.js VM format exactly
   const CLOUDINARY_CLOUD_NAME = "dkpi5ij2t";
@@ -624,7 +628,7 @@ export default function VendorProducts() {
 
           {/* Action Buttons */}
           <View style={styles.productActions}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.actionButton, styles.toggleButton]}
               onPress={() => toggleProductStatus(item.id, !item.isActive)}
             >
@@ -633,7 +637,7 @@ export default function VendorProducts() {
                 size={16}
                 color={item.isActive ? "#F44336" : "#4CAF50"}
               />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             <TouchableOpacity
               style={[styles.actionButton, styles.editButton]}
@@ -642,12 +646,12 @@ export default function VendorProducts() {
               <Ionicons name="create-outline" size={16} color="#2196F3" />
             </TouchableOpacity>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={[styles.actionButton, styles.deleteButton]}
               onPress={() => handleDelete(item.id)}
             >
               <Ionicons name="trash-outline" size={16} color="#F44336" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       </View>
@@ -737,9 +741,9 @@ export default function VendorProducts() {
             </View>
             <View style={styles.statCard}>
               <Text style={[styles.statNumber, { color: "#FF5722" }]}>
-                {lowStock}
+                {productsWithoutImages}
               </Text>
-              <Text style={styles.statLabel}>Low Stock</Text>
+              <Text style={styles.statLabel}>No Images</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={[styles.statNumber, { color: "#F44336" }]}>
@@ -768,6 +772,30 @@ export default function VendorProducts() {
           showsHorizontalScrollIndicator={false}
           style={styles.filterContainer}
         >
+          {/* No Images Filter Button */}
+          <TouchableOpacity
+            style={[
+              styles.filterChip,
+              filterNoImages && styles.filterChipActive,
+            ]}
+            onPress={() => setFilterNoImages(!filterNoImages)}
+          >
+            <Ionicons
+              name="image-outline"
+              size={16}
+              color={filterNoImages ? "white" : "#666"}
+              style={{ marginRight: 6 }}
+            />
+            <Text
+              style={[
+                styles.filterChipText,
+                filterNoImages && styles.filterChipTextActive,
+              ]}
+            >
+              No Images
+            </Text>
+          </TouchableOpacity>
+
           {categories.map((category) => (
             <TouchableOpacity
               key={category}
