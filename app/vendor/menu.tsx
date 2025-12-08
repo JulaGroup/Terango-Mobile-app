@@ -14,6 +14,8 @@ import {
   FlatList,
   ActivityIndicator,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -80,6 +82,143 @@ export default function VendorMenuEnhanced() {
     imageUrl: "",
     isAvailable: true,
   });
+
+  // Form validation state
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    price: "",
+    mealTime: "",
+    preparationTime: "",
+    discountedPrice: "",
+  });
+
+  const [touchedFields, setTouchedFields] = useState({
+    name: false,
+    price: false,
+    mealTime: false,
+    preparationTime: false,
+    discountedPrice: false,
+  });
+
+  const [focusedFields, setFocusedFields] = useState({
+    name: false,
+    price: false,
+    preparationTime: false,
+    discountedPrice: false,
+  });
+
+  // Validation functions
+  const validateField = (field: string, value: string) => {
+    let error = "";
+
+    switch (field) {
+      case "name":
+        if (!value.trim()) {
+          error = "Item name is required";
+        } else if (value.trim().length < 2) {
+          error = "Item name must be at least 2 characters";
+        } else if (value.trim().length > 100) {
+          error = "Item name must be less than 100 characters";
+        }
+        break;
+
+      case "price":
+        if (!value.trim()) {
+          error = "Price is required";
+        } else {
+          const price = parseFloat(value);
+          if (isNaN(price) || price <= 0) {
+            error = "Price must be a positive number";
+          } else if (price > 999999) {
+            error = "Price cannot exceed 999,999 GMD";
+          }
+        }
+        break;
+
+      case "mealTime":
+        if (!value.trim()) {
+          error = "Meal time is required";
+        }
+        break;
+
+      case "preparationTime":
+        if (!value.trim()) {
+          error = "Preparation time is required";
+        } else {
+          const prepTime = parseInt(value);
+          if (isNaN(prepTime) || prepTime < 1) {
+            error = "Preparation time must be at least 1 minute";
+          } else if (prepTime > 480) {
+            error = "Preparation time cannot exceed 480 minutes (8 hours)";
+          }
+        }
+        break;
+
+      case "discountedPrice":
+        if (value.trim()) {
+          const discountedPrice = parseFloat(value);
+          const originalPrice = parseFloat(formData.price);
+
+          if (isNaN(discountedPrice) || discountedPrice <= 0) {
+            error = "Discounted price must be a positive number";
+          } else if (
+            !isNaN(originalPrice) &&
+            discountedPrice >= originalPrice
+          ) {
+            error = "Discounted price must be less than original price";
+          } else if (discountedPrice > 999999) {
+            error = "Discounted price cannot exceed 999,999 GMD";
+          }
+        }
+        break;
+    }
+
+    return error;
+  };
+
+  const validateForm = () => {
+    const errors = {
+      name: validateField("name", formData.name),
+      price: validateField("price", formData.price),
+      mealTime: validateField("mealTime", formData.mealTime),
+      preparationTime: validateField(
+        "preparationTime",
+        formData.preparationTime
+      ),
+      discountedPrice: validateField(
+        "discountedPrice",
+        formData.discountedPrice
+      ),
+    };
+
+    setFormErrors(errors);
+    return !Object.values(errors).some((error) => error !== "");
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Validate field on change if it has been touched
+    if (touchedFields[field as keyof typeof touchedFields]) {
+      const error = validateField(field, value);
+      setFormErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+    setFocusedFields((prev) => ({ ...prev, [field]: false }));
+
+    const error = validateField(
+      field,
+      formData[field as keyof typeof formData] as string
+    );
+    setFormErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  const handleFieldFocus = (field: string) => {
+    setFocusedFields((prev) => ({ ...prev, [field]: true }));
+  };
 
   // Fetch subcategories on component mount
   useEffect(() => {
@@ -189,18 +328,40 @@ export default function VendorMenuEnhanced() {
   }, [fetchMenuItems, currentBusiness, fadeAnim, slideAnim]);
 
   const toggleAvailability = async (itemId: string, isAvailable: boolean) => {
-    try {
-      // Use the correct menuApi method
-      await menuApi.updateMenuItemAvailability(itemId, isAvailable);
-      setMenuItems((prevItems) =>
-        prevItems.map((item) =>
-          item.id === itemId ? { ...item, isAvailable } : item
-        )
-      );
-    } catch (error) {
-      console.error("Error updating availability:", error);
-      Alert.alert("Error", "Failed to update item availability");
-    }
+    const actionText = isAvailable ? "Enable" : "Disable";
+    const statusText = isAvailable ? "available" : "unavailable";
+
+    Alert.alert(
+      `${actionText} Menu Item`,
+      `Are you sure you want to make this item ${statusText} for customers?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: actionText,
+          onPress: async () => {
+            try {
+              // Use the correct menuApi method
+              await menuApi.updateMenuItemAvailability(itemId, isAvailable);
+              setMenuItems((prevItems) =>
+                prevItems.map((item) =>
+                  item.id === itemId ? { ...item, isAvailable } : item
+                )
+              );
+              Alert.alert(
+                "Success",
+                `Menu item ${isAvailable ? "enabled" : "disabled"} successfully`
+              );
+            } catch (error) {
+              console.error("Error updating availability:", error);
+              Alert.alert(
+                "Error",
+                "Failed to update item availability. Please try again."
+              );
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleEdit = (item: MenuItem) => {
@@ -215,6 +376,26 @@ export default function VendorMenuEnhanced() {
       preparationTime: item.preparationTime?.toString() || "",
       imageUrl: item.imageUrl || "",
       isAvailable: item.isAvailable,
+    });
+    setFormErrors({
+      name: "",
+      price: "",
+      mealTime: "",
+      preparationTime: "",
+      discountedPrice: "",
+    });
+    setTouchedFields({
+      name: false,
+      price: false,
+      mealTime: false,
+      preparationTime: false,
+      discountedPrice: false,
+    });
+    setFocusedFields({
+      name: false,
+      price: false,
+      preparationTime: false,
+      discountedPrice: false,
     });
     setEditMode(true);
     setModalVisible(true);
@@ -233,36 +414,43 @@ export default function VendorMenuEnhanced() {
       imageUrl: "",
       isAvailable: true,
     });
+    setFormErrors({
+      name: "",
+      price: "",
+      mealTime: "",
+      preparationTime: "",
+      discountedPrice: "",
+    });
+    setTouchedFields({
+      name: false,
+      price: false,
+      mealTime: false,
+      preparationTime: false,
+      discountedPrice: false,
+    });
+    setFocusedFields({
+      name: false,
+      price: false,
+      preparationTime: false,
+      discountedPrice: false,
+    });
     setEditMode(false);
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!currentBusiness || currentBusiness.type !== "RESTAURANT") {
-      Alert.alert("Error", "Menu items can only be managed for restaurants");
+    // Validate form before saving
+    if (!validateForm()) {
+      Alert.alert(
+        "Validation Error",
+        "Please fix the errors in the form before saving."
+      );
       return;
     }
 
-    // Validate discounted price
-    if (formData.discountedPrice) {
-      const price = parseFloat(formData.price);
-      const discountedPrice = parseFloat(formData.discountedPrice);
-
-      if (discountedPrice <= 0) {
-        Alert.alert(
-          "Validation Error",
-          "Discounted price must be greater than 0"
-        );
-        return;
-      }
-
-      if (discountedPrice >= price) {
-        Alert.alert(
-          "Validation Error",
-          "Discounted price must be less than the original price"
-        );
-        return;
-      }
+    if (!currentBusiness || currentBusiness.type !== "RESTAURANT") {
+      Alert.alert("Error", "Menu items can only be managed for restaurants");
+      return;
     }
 
     try {
@@ -838,278 +1026,412 @@ export default function VendorMenuEnhanced() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={[PrimaryColor, "#1976D2"]}
-              style={styles.modalHeader}
-            >
-              <Text style={styles.modalTitle}>
-                {editMode ? "Edit Menu Item" : "Add Menu Item"}
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </LinearGradient>
-
-            <ScrollView style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Item Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter item name"
-                  value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Describe your dish"
-                  value={formData.description}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, description: text })
-                  }
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-
-              {/* Image Upload Section */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Item Image</Text>
-                <TouchableOpacity
-                  style={styles.imagePickerContainer}
-                  onPress={handleImagePicker}
-                >
-                  {formData.imageUrl ? (
-                    <View style={styles.selectedImageContainer}>
-                      <Image
-                        source={{ uri: formData.imageUrl }}
-                        style={styles.selectedImage}
-                        contentFit="cover"
-                        transition={200}
-                        cachePolicy="memory-disk"
-                      />
-                      {imageLoading && (
-                        <View style={styles.imageOverlay}>
-                          <ActivityIndicator
-                            size="large"
-                            color={PrimaryColor}
-                          />
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Ionicons name="camera" size={40} color="#ccc" />
-                      <Text style={styles.imagePlaceholderText}>
-                        {imageLoading ? "Uploading..." : "Add Image"}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-                  <Text style={styles.inputLabel}>Price (GMD) *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    value={formData.price}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, price: text })
-                    }
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-                  <Text style={styles.inputLabel}>Prep Time (min)</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="15"
-                    value={formData.preparationTime}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, preparationTime: text })
-                    }
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-
-              {/* Discounted Price Section */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Discounted Price (GMD){" "}
-                  <Text style={styles.optionalText}>(Optional)</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardAvoidingView}
+          >
+            <View style={styles.modalContent}>
+              <LinearGradient
+                colors={[PrimaryColor, "#1976D2"]}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>
+                  {editMode ? "Edit Menu Item" : "Add Menu Item"}
                 </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter discounted price"
-                  value={formData.discountedPrice}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, discountedPrice: text })
-                  }
-                  keyboardType="numeric"
-                />
-                {formData.discountedPrice &&
-                  parseFloat(formData.discountedPrice) > 0 &&
-                  formData.price &&
-                  parseFloat(formData.price) > 0 &&
-                  parseFloat(formData.discountedPrice) <
-                    parseFloat(formData.price) && (
-                    <View style={styles.discountPreview}>
-                      <Ionicons name="pricetag" size={16} color="#10b981" />
-                      <Text style={styles.discountPreviewText}>
-                        {Math.round(
-                          ((parseFloat(formData.price) -
-                            parseFloat(formData.discountedPrice)) /
-                            parseFloat(formData.price)) *
-                            100
-                        )}
-                        % OFF - Customers will see this discount badge
-                      </Text>
-                    </View>
-                  )}
-                {formData.discountedPrice &&
-                  parseFloat(formData.discountedPrice) > 0 &&
-                  formData.price &&
-                  parseFloat(formData.price) > 0 &&
-                  parseFloat(formData.discountedPrice) >=
-                    parseFloat(formData.price) && (
-                    <Text style={styles.errorText}>
-                      ⚠️ Discounted price must be less than original price
-                    </Text>
-                  )}
-              </View>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </LinearGradient>
 
-              {/* Meal Time Selector */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Meal Time *</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={styles.categorySelector}>
-                    {getSelectableMealTimes().map((mealTime) => (
-                      <TouchableOpacity
-                        key={mealTime.id}
-                        style={[
-                          styles.categoryOption,
-                          formData.mealTime === mealTime.name &&
-                            styles.categoryOptionActive,
-                        ]}
-                        onPress={() =>
-                          setFormData({
-                            ...formData,
-                            mealTime: mealTime.name,
-                          })
-                        }
-                      >
+              <ScrollView
+                style={styles.form}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Item Name *</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedFields.name && styles.inputFocused,
+                      formErrors.name &&
+                        touchedFields.name &&
+                        styles.inputError,
+                    ]}
+                    placeholder="Enter item name"
+                    value={formData.name}
+                    onChangeText={(text) => handleFieldChange("name", text)}
+                    onBlur={() => handleFieldBlur("name")}
+                    onFocus={() => handleFieldFocus("name")}
+                    maxLength={100}
+                  />
+                  {formErrors.name && touchedFields.name && (
+                    <Text style={styles.errorText}>{formErrors.name}</Text>
+                  )}
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Describe your dish"
+                    value={formData.description}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, description: text })
+                    }
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+
+                {/* Image Upload Section */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Item Image</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.imagePickerContainer,
+                      imageLoading && styles.imagePickerContainerUploading,
+                    ]}
+                    onPress={handleImagePicker}
+                    disabled={imageLoading}
+                  >
+                    {formData.imageUrl ? (
+                      <View style={styles.selectedImageContainer}>
+                        <Image
+                          source={{ uri: formData.imageUrl }}
+                          style={styles.selectedImage}
+                          contentFit="cover"
+                          transition={200}
+                          cachePolicy="memory-disk"
+                        />
+                        {imageLoading && (
+                          <View style={styles.imageOverlay}>
+                            <ActivityIndicator
+                              size="large"
+                              color={PrimaryColor}
+                            />
+                            <Text style={styles.uploadingText}>
+                              Uploading...
+                            </Text>
+                          </View>
+                        )}
+                        {!imageLoading && (
+                          <View style={styles.imageActions}>
+                            <TouchableOpacity
+                              style={styles.changeImageButton}
+                              onPress={handleImagePicker}
+                            >
+                              <Ionicons name="camera" size={16} color="white" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.removeImageButton}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  imageUrl: "",
+                                }))
+                              }
+                            >
+                              <Ionicons name="trash" size={16} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Ionicons
+                          name={imageLoading ? "cloud-upload" : "camera"}
+                          size={40}
+                          color={imageLoading ? PrimaryColor : "#ccc"}
+                        />
                         <Text
                           style={[
-                            styles.categoryOptionText,
-                            formData.mealTime === mealTime.name &&
-                              styles.categoryOptionTextActive,
+                            styles.imagePlaceholderText,
+                            imageLoading &&
+                              styles.imagePlaceholderTextUploading,
                           ]}
                         >
-                          {mealTime.name}
+                          {imageLoading ? "Uploading..." : "Tap to add image"}
                         </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
+                        {!imageLoading && (
+                          <Text style={styles.imageHintText}>
+                            JPG, PNG up to 5MB
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
 
-              {/* Subcategory Selector (Optional) */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Category (Subcategory - Optional)
-                </Text>
-                {loadingSubCategories ? (
-                  <ActivityIndicator size="small" color={PrimaryColor} />
-                ) : (
+                <View style={styles.row}>
+                  <View
+                    style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}
+                  >
+                    <Text style={styles.inputLabel}>Price (GMD) *</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        focusedFields.price && styles.inputFocused,
+                        formErrors.price &&
+                          touchedFields.price &&
+                          styles.inputError,
+                      ]}
+                      placeholder="0"
+                      value={formData.price}
+                      onChangeText={(text) => handleFieldChange("price", text)}
+                      onBlur={() => handleFieldBlur("price")}
+                      onFocus={() => handleFieldFocus("price")}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                    {formErrors.price && touchedFields.price && (
+                      <Text style={styles.errorText}>{formErrors.price}</Text>
+                    )}
+                  </View>
+
+                  <View
+                    style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}
+                  >
+                    <Text style={styles.inputLabel}>Prep Time (min) *</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        focusedFields.preparationTime && styles.inputFocused,
+                        formErrors.preparationTime &&
+                          touchedFields.preparationTime &&
+                          styles.inputError,
+                      ]}
+                      placeholder="15"
+                      value={formData.preparationTime}
+                      onChangeText={(text) =>
+                        handleFieldChange("preparationTime", text)
+                      }
+                      onBlur={() => handleFieldBlur("preparationTime")}
+                      onFocus={() => handleFieldFocus("preparationTime")}
+                      keyboardType="numeric"
+                      maxLength={3}
+                    />
+                    {formErrors.preparationTime &&
+                      touchedFields.preparationTime && (
+                        <Text style={styles.errorText}>
+                          {formErrors.preparationTime}
+                        </Text>
+                      )}
+                  </View>
+                </View>
+
+                {/* Discounted Price Section */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Discounted Price (GMD){" "}
+                    <Text style={styles.optionalText}>(Optional)</Text>
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedFields.discountedPrice && styles.inputFocused,
+                      formErrors.discountedPrice &&
+                        touchedFields.discountedPrice &&
+                        styles.inputError,
+                    ]}
+                    placeholder="Enter discounted price"
+                    value={formData.discountedPrice}
+                    onChangeText={(text) =>
+                      handleFieldChange("discountedPrice", text)
+                    }
+                    onBlur={() => handleFieldBlur("discountedPrice")}
+                    onFocus={() => handleFieldFocus("discountedPrice")}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                  {formErrors.discountedPrice &&
+                    touchedFields.discountedPrice && (
+                      <Text style={styles.errorText}>
+                        {formErrors.discountedPrice}
+                      </Text>
+                    )}
+                  {formData.discountedPrice &&
+                    parseFloat(formData.discountedPrice) > 0 &&
+                    formData.price &&
+                    parseFloat(formData.price) > 0 &&
+                    parseFloat(formData.discountedPrice) <
+                      parseFloat(formData.price) && (
+                      <View style={styles.discountPreview}>
+                        <Ionicons name="pricetag" size={16} color="#10b981" />
+                        <Text style={styles.discountPreviewText}>
+                          {Math.round(
+                            ((parseFloat(formData.price) -
+                              parseFloat(formData.discountedPrice)) /
+                              parseFloat(formData.price)) *
+                              100
+                          )}
+                          % OFF - Customers will see this discount badge
+                        </Text>
+                      </View>
+                    )}
+                  {formData.discountedPrice &&
+                    parseFloat(formData.discountedPrice) > 0 &&
+                    formData.price &&
+                    parseFloat(formData.price) > 0 &&
+                    parseFloat(formData.discountedPrice) >=
+                      parseFloat(formData.price) && (
+                      <Text style={styles.errorText}>
+                        ⚠️ Discounted price must be less than original price
+                      </Text>
+                    )}
+                </View>
+
+                {/* Meal Time Selector */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Meal Time *</Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={styles.categorySelector}>
-                      <TouchableOpacity
-                        style={[
-                          styles.categoryOption,
-                          !formData.subCategoryId &&
-                            styles.categoryOptionActive,
-                        ]}
-                        onPress={() =>
-                          setFormData({
-                            ...formData,
-                            subCategoryId: "",
-                          })
-                        }
-                      >
-                        <Text
-                          style={[
-                            styles.categoryOptionText,
-                            !formData.subCategoryId &&
-                              styles.categoryOptionTextActive,
-                          ]}
-                        >
-                          None
-                        </Text>
-                      </TouchableOpacity>
-                      {subCategories.map((subCat) => (
+                      {getSelectableMealTimes().map((mealTime) => (
                         <TouchableOpacity
-                          key={subCat.id}
+                          key={mealTime.id}
                           style={[
                             styles.categoryOption,
-                            formData.subCategoryId === subCat.id &&
+                            formData.mealTime === mealTime.name &&
+                              styles.categoryOptionActive,
+                            formErrors.mealTime &&
+                              touchedFields.mealTime &&
+                              styles.categoryOptionError,
+                          ]}
+                          onPress={() => {
+                            setFormData({
+                              ...formData,
+                              mealTime: mealTime.name,
+                            });
+                            // Clear error when user selects a meal time
+                            if (touchedFields.mealTime) {
+                              setFormErrors((prev) => ({
+                                ...prev,
+                                mealTime: "",
+                              }));
+                            }
+                          }}
+                        >
+                          <Ionicons
+                            name={mealTime.icon as any}
+                            size={16}
+                            color={
+                              formData.mealTime === mealTime.name
+                                ? "white"
+                                : "#666"
+                            }
+                            style={styles.categoryIcon}
+                          />
+                          <Text
+                            style={[
+                              styles.categoryOptionText,
+                              formData.mealTime === mealTime.name &&
+                                styles.categoryOptionTextActive,
+                            ]}
+                          >
+                            {mealTime.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                  {formErrors.mealTime && touchedFields.mealTime && (
+                    <Text style={styles.errorText}>{formErrors.mealTime}</Text>
+                  )}
+                </View>
+
+                {/* Subcategory Selector (Optional) */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Category (Subcategory - Optional)
+                  </Text>
+                  {loadingSubCategories ? (
+                    <ActivityIndicator size="small" color={PrimaryColor} />
+                  ) : (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      <View style={styles.categorySelector}>
+                        <TouchableOpacity
+                          style={[
+                            styles.categoryOption,
+                            !formData.subCategoryId &&
                               styles.categoryOptionActive,
                           ]}
                           onPress={() =>
                             setFormData({
                               ...formData,
-                              subCategoryId: subCat.id,
+                              subCategoryId: "",
                             })
                           }
                         >
                           <Text
                             style={[
                               styles.categoryOptionText,
-                              formData.subCategoryId === subCat.id &&
+                              !formData.subCategoryId &&
                                 styles.categoryOptionTextActive,
                             ]}
                           >
-                            {subCat.name}
+                            None
                           </Text>
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                )}
-              </View>
+                        {subCategories.map((subCat) => (
+                          <TouchableOpacity
+                            key={subCat.id}
+                            style={[
+                              styles.categoryOption,
+                              formData.subCategoryId === subCat.id &&
+                                styles.categoryOptionActive,
+                            ]}
+                            onPress={() =>
+                              setFormData({
+                                ...formData,
+                                subCategoryId: subCat.id,
+                              })
+                            }
+                          >
+                            <Text
+                              style={[
+                                styles.categoryOptionText,
+                                formData.subCategoryId === subCat.id &&
+                                  styles.categoryOptionTextActive,
+                              ]}
+                            >
+                              {subCat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
+                </View>
 
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>Available for Order</Text>
-                <Switch
-                  value={formData.isAvailable}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, isAvailable: value })
-                  }
-                  trackColor={{ false: "#767577", true: PrimaryColor }}
-                />
-              </View>
+                <View style={styles.switchContainer}>
+                  <Text style={styles.switchLabel}>Available for Order</Text>
+                  <Switch
+                    value={formData.isAvailable}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, isAvailable: value })
+                    }
+                    trackColor={{ false: "#767577", true: PrimaryColor }}
+                  />
+                </View>
 
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <LinearGradient
-                  colors={[PrimaryColor, "#1976D2"]}
-                  style={styles.saveButtonGradient}
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSave}
                 >
-                  <Text style={styles.saveButtonText}>
-                    {editMode ? "Update Item" : "Add Item"}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+                  <LinearGradient
+                    colors={[PrimaryColor, "#1976D2"]}
+                    style={styles.saveButtonGradient}
+                  >
+                    <Text style={styles.saveButtonText}>
+                      {editMode ? "Update Item" : "Add Item"}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1270,6 +1592,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
   modalContent: {
     backgroundColor: "white",
     borderTopLeftRadius: 25,
@@ -1304,7 +1630,7 @@ const styles = StyleSheet.create({
   optionalText: {
     fontSize: 14,
     fontWeight: "400",
-    color: "#888",
+    color: "#6B7280",
   },
   discountPreview: {
     flexDirection: "row",
@@ -1324,38 +1650,74 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#EF4444",
     marginTop: 6,
     fontWeight: "500",
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#e0e0e0",
     borderRadius: 12,
-    padding: 15,
+    padding: 16,
     fontSize: 16,
     backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    color: "#1F2937",
+  },
+  inputFocused: {
+    borderColor: PrimaryColor,
+    borderWidth: 2,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 1.5,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textArea: {
-    height: 80,
+    height: 90,
     textAlignVertical: "top",
+    paddingTop: 16,
   },
   row: {
     flexDirection: "row",
+    gap: 12,
   },
   categorySelector: {
     flexDirection: "row",
   },
   categoryOption: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 20,
     backgroundColor: "#f0f0f0",
     marginRight: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
   },
   categoryOptionActive: {
     backgroundColor: PrimaryColor,
+  },
+  categoryOptionError: {
+    borderWidth: 1.5,
+    borderColor: "#EF4444",
+  },
+  categoryIcon: {
+    marginRight: 6,
   },
   categoryOptionText: {
     fontSize: 14,
@@ -1404,6 +1766,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f8f9fa",
   },
+  imagePickerContainerUploading: {
+    borderColor: PrimaryColor,
+    backgroundColor: "#f0f8ff",
+  },
   selectedImageContainer: {
     width: "100%",
     height: "100%",
@@ -1425,6 +1791,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  uploadingText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  imageActions: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  changeImageButton: {
+    backgroundColor: "rgba(33, 150, 243, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  removeImageButton: {
+    backgroundColor: "rgba(244, 67, 54, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   imagePlaceholder: {
     alignItems: "center",
   },
@@ -1433,6 +1828,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     fontWeight: "500",
+  },
+  imagePlaceholderTextUploading: {
+    color: PrimaryColor,
+  },
+  imageHintText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "400",
   },
   // Menu item card styles
   flatListContent: {

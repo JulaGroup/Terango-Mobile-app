@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -7,13 +13,12 @@ import {
   FlatList,
   TextInput,
   StatusBar,
-  Dimensions,
   Modal,
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import ProductCard from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
@@ -24,6 +29,7 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
+import { OpeningHours } from "@/lib/api";
 
 interface Product {
   id: string;
@@ -37,6 +43,14 @@ interface Product {
     id: string;
     name: string;
   };
+}
+
+interface ShopMeta {
+  id?: string;
+  name?: string;
+  openingHours?: OpeningHours | null;
+  isActive?: boolean | null;
+  acceptsOrders?: boolean | null;
 }
 
 // Skeleton Loader
@@ -91,6 +105,10 @@ const ShopCategoryPage = () => {
   const params = useLocalSearchParams();
   const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
 
+  const shopId = Array.isArray(params.shopId)
+    ? params.shopId[0]
+    : (params.shopId as string | undefined);
+
   // params & initial values
   const shopName = (params.shopName as string) || "";
   const initialCategory = (params.categoryName as string) || "";
@@ -104,13 +122,14 @@ const ShopCategoryPage = () => {
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
   const [categoryLoading, setCategoryLoading] = useState(false); // Loading per category
+  const [shopMeta, setShopMeta] = useState<ShopMeta | null>(null);
 
   // refs & layout
   const categoriesTabsRef = useRef<FlatList>(null);
-  const [tabLayouts, setTabLayouts] = useState<
-    ({ x: number; width: number } | null)[]
-  >([]);
-  const [contentWidth, setContentWidth] = useState<number>(0);
+  const tabLayoutsRef = useRef<
+    Map<string, { width: number; absoluteX: number }>
+  >(new Map());
+  const scrollOffsetRef = useRef(0);
 
   // animated underline shared values
   const underlineX = useSharedValue(0);
@@ -121,30 +140,79 @@ const ShopCategoryPage = () => {
 
   // initialize tabLayouts when categories change
   useEffect(() => {
-    setTabLayouts(Array(categories.length).fill(null));
+    tabLayoutsRef.current = new Map();
   }, [categories]);
 
+  const animateUnderline = useCallback(
+    (category: string) => {
+      const layout = tabLayoutsRef.current.get(category);
+      if (!layout) {
+        return;
+      }
+
+      const widthFactor = 0.6;
+      const targetWidth = layout.width * widthFactor;
+      const relativeX = layout.absoluteX - scrollOffsetRef.current;
+      const targetX = relativeX + (layout.width - targetWidth) / 2;
+
+      underlineX.value = withTiming(targetX, {
+        duration: 240,
+        easing: Easing.out(Easing.exp),
+      });
+      underlineWidth.value = withTiming(targetWidth, {
+        duration: 240,
+        easing: Easing.out(Easing.exp),
+      });
+    },
+    [underlineX, underlineWidth]
+  );
+
+  const scrollToCategory = useCallback(
+    (category: string) => {
+      if (!category) {
+        return;
+      }
+
+      const index = categories.findIndex((c) => c === category);
+      if (index === -1) {
+        return;
+      }
+
+      try {
+        categoriesTabsRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch (error) {
+        void error;
+        requestAnimationFrame(() => scrollToCategory(category));
+      }
+
+      animateUnderline(category);
+    },
+    [categories, animateUnderline]
+  );
+
   const handleTabLayout = (
-    layout: { x: number; y: number; width: number; height: number },
-    index: number
+    category: string,
+    layout: { x: number; y: number; width: number; height: number }
   ) => {
-    setTabLayouts((prev) => {
-      const next = prev ? [...prev] : Array(categories.length).fill(null);
-      next[index] = { x: layout.x, width: layout.width };
-      return next;
+    tabLayoutsRef.current.set(category, {
+      width: layout.width,
+      absoluteX: layout.x + scrollOffsetRef.current,
     });
+    animateUnderline(category);
   };
 
   // fetch categories on mount
   useEffect(() => {
     const fetchCategories = async () => {
-      if (!params.shopId) return;
+      if (!shopId) return;
 
       setLoading(true);
       try {
-        const response = await fetch(
-          `${API_URL}/api/products/shop/${params.shopId}`
-        );
+        const response = await fetch(`${API_URL}/api/products/shop/${shopId}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const parsed = await response.json();
 
@@ -172,18 +240,44 @@ const ShopCategoryPage = () => {
 
     fetchCategories();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.shopId]);
+  }, [shopId]);
+
+  useEffect(() => {
+    const fetchShopMeta = async () => {
+      if (!shopId) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/api/shops/${shopId}`);
+        if (!response.ok) {
+          throw new Error("Failed to fetch shop details");
+        }
+
+        const data = await response.json();
+        setShopMeta({
+          id: data.id,
+          name: data.name,
+          openingHours: data.openingHours ?? null,
+          isActive: data.isActive ?? null,
+          acceptsOrders: data.acceptsOrders ?? null,
+        });
+      } catch (error) {
+        console.error("Error fetching shop meta:", error);
+      }
+    };
+
+    fetchShopMeta();
+  }, [shopId]);
 
   // Fetch products for selected category
   useEffect(() => {
     const fetchCategoryProducts = async () => {
-      if (!params.shopId || !selectedCategory) return;
+      if (!shopId || !selectedCategory) return;
 
       setCategoryLoading(true);
       try {
-        const response = await fetch(
-          `${API_URL}/api/products/shop/${params.shopId}`
-        );
+        const response = await fetch(`${API_URL}/api/products/shop/${shopId}`);
         if (!response.ok) throw new Error("Failed to fetch products");
         const parsed = await response.json();
 
@@ -203,57 +297,24 @@ const ShopCategoryPage = () => {
     if (selectedCategory) {
       fetchCategoryProducts();
     }
-  }, [selectedCategory, params.shopId]);
-
-  // animate underline when selectedCategory or measurement updates
-  useEffect(() => {
-    const activeIndex = categories.findIndex((c) => c === selectedCategory);
-    if (activeIndex !== -1 && tabLayouts[activeIndex]) {
-      const { x, width } = tabLayouts[activeIndex]!;
-
-      // Make the underline narrower than the full tab and center it.
-      // Adjust `widthFactor` to control how wide the underline is relative to the tab.
-      const widthFactor = 0.6; // 60% of tab width
-      const targetWidth = width * widthFactor;
-      const targetX = x + (width - targetWidth) / 2;
-
-      underlineX.value = withTiming(targetX, {
-        duration: 240,
-        easing: Easing.out(Easing.exp),
-      });
-      underlineWidth.value = withTiming(targetWidth, {
-        duration: 240,
-        easing: Easing.out(Easing.exp),
-      });
-    }
-  }, [selectedCategory, tabLayouts, underlineX, underlineWidth, categories]);
+  }, [selectedCategory, shopId]);
 
   const animatedUnderlineStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: underlineX.value }],
     width: underlineWidth.value,
   }));
 
-  // scrolling to center active tab (wait until measurements available)
   useEffect(() => {
-    if (!categoriesTabsRef.current) return;
-    if (tabLayouts.length === 0) return;
+    scrollToCategory(selectedCategory);
+  }, [selectedCategory, scrollToCategory]);
 
-    const activeIndex = categories.findIndex((c) => c === selectedCategory);
-    if (activeIndex === -1) return;
-
-    // Only check if the active tab has been measured
-    if (!tabLayouts[activeIndex]) return;
-
-    const layout = tabLayouts[activeIndex]!;
-    const screenWidth = Dimensions.get("window").width;
-    const itemCenter = layout.x + layout.width / 2;
-    let offset = Math.max(itemCenter - screenWidth / 2, 0);
-    const maxOffset = Math.max(contentWidth - screenWidth, 0);
-    if (offset > maxOffset) offset = maxOffset;
-
-    // Scroll to position - use animated true for smooth scrolling
-    categoriesTabsRef.current.scrollToOffset({ offset, animated: true });
-  }, [selectedCategory, tabLayouts, contentWidth, categories]);
+  const handleTabsScroll = useCallback(
+    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+      scrollOffsetRef.current = event.nativeEvent.contentOffset.x;
+      requestAnimationFrame(() => animateUnderline(selectedCategory));
+    },
+    [animateUnderline, selectedCategory]
+  );
 
   // debounced search (no network call required)
   useEffect(() => {
@@ -286,7 +347,7 @@ const ShopCategoryPage = () => {
       price: product.price,
       description: product.description || "",
       vendorId: product.shopId,
-      vendorName: shopName || "",
+      vendorName: shopMeta?.name || shopName || "",
       imageUrl: product.imageUrl || "",
       entityType: "product",
     } as any;
@@ -313,13 +374,14 @@ const ShopCategoryPage = () => {
   // category selection (also used by modal)
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
+    scrollToCategory(category);
     setModalVisible(false);
   };
 
   // render product card
   const renderProductCard = ({ item }: { item: Product }) => (
     <View style={styles.productCardWrapper}>
-      <ProductCard
+      <VendorAwareProductCard
         product={{
           id: Number(item.id),
           name: item.name,
@@ -333,6 +395,14 @@ const ShopCategoryPage = () => {
         onAddToCart={() => handleAddToCart(item)}
         onRemoveFromCart={() => handleRemoveFromCart(item.id)}
         onPress={() => router.push(`/product/${item.id}`)}
+        vendor={{
+          vendorId: shopId || item.shopId,
+          vendorType: "shop",
+          openingHours: shopMeta?.openingHours ?? null,
+          isActive: shopMeta?.isActive ?? null,
+          acceptsOrders: shopMeta?.acceptsOrders ?? null,
+          vendorName: shopMeta?.name ?? shopName,
+        }}
       />
     </View>
   );
@@ -355,7 +425,7 @@ const ShopCategoryPage = () => {
         </TouchableOpacity>
 
         <Text style={styles.headerTitle} numberOfLines={1}>
-          {shopName}
+          {shopMeta?.name || shopName}
         </Text>
 
         <View style={styles.headerRightButtons}>
@@ -390,14 +460,15 @@ const ShopCategoryPage = () => {
           keyExtractor={(item) => item}
           style={styles.categoriesTabsContainer}
           contentContainerStyle={styles.categoriesTabsContent}
-          onContentSizeChange={(w) => setContentWidth(w)}
+          onScroll={handleTabsScroll}
+          scrollEventThrottle={16}
           renderItem={({ item: category, index }) => (
             <TouchableOpacity
               key={category}
               style={styles.categoryTab}
               onPress={() => handleCategorySelect(category)}
               activeOpacity={0.8}
-              onLayout={(e) => handleTabLayout(e.nativeEvent.layout, index)}
+              onLayout={(e) => handleTabLayout(category, e.nativeEvent.layout)}
             >
               <Text
                 style={[
@@ -626,6 +697,9 @@ const styles = StyleSheet.create({
   },
   categoryTabTextActive: {
     color: "#000",
+    textDecorationLine: "underline",
+    textDecorationColor: PrimaryColor,
+    textDecorationStyle: "solid",
   },
   tabUnderlineAnimated: {
     position: "absolute",

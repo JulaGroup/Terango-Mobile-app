@@ -14,6 +14,8 @@ import {
   Animated,
   ScrollView,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -76,6 +78,131 @@ export default function VendorProducts() {
     imageUrl: "",
     isActive: true,
   });
+
+  // Form validation state
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    price: "",
+    stock: "",
+    discountedPrice: "",
+  });
+
+  const [touchedFields, setTouchedFields] = useState({
+    name: false,
+    price: false,
+    stock: false,
+    discountedPrice: false,
+  });
+
+  const [focusedFields, setFocusedFields] = useState({
+    name: false,
+    price: false,
+    stock: false,
+    discountedPrice: false,
+  });
+
+  // Validation functions
+  const validateField = (field: string, value: string) => {
+    let error = "";
+
+    switch (field) {
+      case "name":
+        if (!value.trim()) {
+          error = "Product name is required";
+        } else if (value.trim().length < 2) {
+          error = "Product name must be at least 2 characters";
+        } else if (value.trim().length > 100) {
+          error = "Product name must be less than 100 characters";
+        }
+        break;
+
+      case "price":
+        if (!value.trim()) {
+          error = "Price is required";
+        } else {
+          const price = parseFloat(value);
+          if (isNaN(price) || price <= 0) {
+            error = "Price must be a positive number";
+          } else if (price > 999999) {
+            error = "Price cannot exceed 999,999 GMD";
+          }
+        }
+        break;
+
+      case "stock":
+        if (!value.trim()) {
+          error = "Stock quantity is required";
+        } else {
+          const stock = parseInt(value);
+          if (isNaN(stock) || stock < 0) {
+            error = "Stock must be a non-negative number";
+          } else if (stock > 99999) {
+            error = "Stock cannot exceed 99,999 units";
+          }
+        }
+        break;
+
+      case "discountedPrice":
+        if (value.trim()) {
+          const discountedPrice = parseFloat(value);
+          const originalPrice = parseFloat(formData.price);
+
+          if (isNaN(discountedPrice) || discountedPrice <= 0) {
+            error = "Discounted price must be a positive number";
+          } else if (
+            !isNaN(originalPrice) &&
+            discountedPrice >= originalPrice
+          ) {
+            error = "Discounted price must be less than original price";
+          } else if (discountedPrice > 999999) {
+            error = "Discounted price cannot exceed 999,999 GMD";
+          }
+        }
+        break;
+    }
+
+    return error;
+  };
+
+  const validateForm = () => {
+    const errors = {
+      name: validateField("name", formData.name),
+      price: validateField("price", formData.price),
+      stock: validateField("stock", formData.stock),
+      discountedPrice: validateField(
+        "discountedPrice",
+        formData.discountedPrice
+      ),
+    };
+
+    setFormErrors(errors);
+    return !Object.values(errors).some((error) => error !== "");
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+    // Validate field on change if it has been touched
+    if (touchedFields[field as keyof typeof touchedFields]) {
+      const error = validateField(field, value);
+      setFormErrors((prev) => ({ ...prev, [field]: error }));
+    }
+  };
+
+  const handleFieldBlur = (field: string) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+    setFocusedFields((prev) => ({ ...prev, [field]: false }));
+
+    const error = validateField(
+      field,
+      formData[field as keyof typeof formData] as string
+    );
+    setFormErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  const handleFieldFocus = (field: string) => {
+    setFocusedFields((prev) => ({ ...prev, [field]: true }));
+  };
 
   const categories = [
     "All",
@@ -269,56 +396,68 @@ export default function VendorProducts() {
     setRefreshing(false);
   };
 
-  const toggleProductStatus = async (productId: string, isActive: boolean) => {
-    try {
-      if (!currentBusiness) {
-        Alert.alert("Error", "No business selected");
-        return;
-      }
+  const toggleProductStatus = async (productId: string, newStatus: boolean) => {
+    const actionText = newStatus ? "Enable" : "Disable";
 
-      // Optimistic update
-      setProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId ? { ...product, isActive } : product
-        )
-      );
+    Alert.alert(
+      newStatus ? "Enable Product" : "Disable Product",
+      newStatus
+        ? "Make this product available for customers to order?"
+        : "Make this product unavailable? Customers won't be able to order it.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: actionText,
+          onPress: async () => {
+            if (!currentBusiness) {
+              Alert.alert("Error", "No business selected");
+              return;
+            }
 
-      // Make API call based on business type
-      if (
-        currentBusiness.type === "SHOP" ||
-        currentBusiness.type === "PHARMACY"
-      ) {
-        // Update product availability
-        await orderApi.updateShopProduct(productId, {
-          isAvailable: isActive,
-        });
-        Alert.alert(
-          "Success",
-          `Product ${isActive ? "enabled" : "disabled"} successfully`
-        );
-      } else if (currentBusiness.type === "RESTAURANT") {
-        // Update menu item availability
-        await menuApi.updateMenuItem(productId, {
-          isAvailable: isActive,
-        });
-        Alert.alert(
-          "Success",
-          `Menu item ${isActive ? "enabled" : "disabled"} successfully`
-        );
-      }
-    } catch (error) {
-      console.error("Error updating product status:", error);
-      Alert.alert("Error", "Failed to update product status");
+            if (currentBusiness.type !== "SHOP") {
+              Alert.alert(
+                "Unavailable",
+                "Only shop products can be toggled from this screen."
+              );
+              return;
+            }
 
-      // Revert optimistic update on error
-      setProducts((prevProducts) =>
-        prevProducts.map((product) =>
-          product.id === productId
-            ? { ...product, isActive: !isActive }
-            : product
-        )
-      );
-    }
+            // Snapshot current list so we can undo if the API call fails
+            let previousState: Product[] = [];
+
+            try {
+              setProducts((prevProducts) => {
+                previousState = prevProducts.map((product) => ({ ...product }));
+                return prevProducts.map((product) =>
+                  product.id === productId
+                    ? { ...product, isActive: newStatus }
+                    : product
+                );
+              });
+
+              await orderApi.updateShopProduct(productId, {
+                isActive: newStatus,
+              });
+
+              Alert.alert(
+                "Success",
+                `Product ${newStatus ? "enabled" : "disabled"} successfully`
+              );
+            } catch (error) {
+              console.error("Error updating product status:", error);
+              Alert.alert(
+                "Error",
+                "Failed to update product status. Please try again."
+              );
+
+              if (previousState.length) {
+                setProducts(previousState);
+              }
+            }
+          },
+        },
+      ]
+    );
   };
 
   const updateStock = async (productId: string, newStock: number) => {
@@ -340,23 +479,47 @@ export default function VendorProducts() {
   const handleDelete = async (productId: string) => {
     Alert.alert(
       "Delete Product",
-      "Are you sure you want to delete this product?",
+      "Are you sure you want to permanently delete this product? This action cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Delete",
           style: "destructive",
           onPress: async () => {
-            try {
-              // API call would go here
-              // await orderApi.deleteProduct(productId);
-              setProducts((prevProducts) =>
-                prevProducts.filter((product) => product.id !== productId)
+            if (!currentBusiness) {
+              Alert.alert("Error", "No business selected");
+              return;
+            }
+
+            if (currentBusiness.type !== "SHOP") {
+              Alert.alert(
+                "Unavailable",
+                "Only shop products can be deleted from this screen."
               );
+              return;
+            }
+
+            const previousProducts = products.map((product) => ({
+              ...product,
+            }));
+
+            try {
+              setProducts((prev) =>
+                prev.filter((product) => product.id !== productId)
+              );
+
+              await orderApi.deleteShopProduct(productId);
+
               Alert.alert("Success", "Product deleted successfully");
             } catch (error) {
               console.error("Error deleting product:", error);
-              Alert.alert("Error", "Failed to delete product");
+              Alert.alert(
+                "Error",
+                "Failed to delete product. Please try again."
+              );
+              setProducts(previousProducts);
+            } finally {
+              await fetchProducts();
             }
           },
         },
@@ -376,6 +539,24 @@ export default function VendorProducts() {
       imageUrl: product.image || "",
       isActive: product.isActive,
     });
+    setFormErrors({
+      name: "",
+      price: "",
+      stock: "",
+      discountedPrice: "",
+    });
+    setTouchedFields({
+      name: false,
+      price: false,
+      stock: false,
+      discountedPrice: false,
+    });
+    setFocusedFields({
+      name: false,
+      price: false,
+      stock: false,
+      discountedPrice: false,
+    });
     setEditMode(true);
     setModalVisible(true);
   };
@@ -392,36 +573,41 @@ export default function VendorProducts() {
       imageUrl: "",
       isActive: true,
     });
+    setFormErrors({
+      name: "",
+      price: "",
+      stock: "",
+      discountedPrice: "",
+    });
+    setTouchedFields({
+      name: false,
+      price: false,
+      stock: false,
+      discountedPrice: false,
+    });
+    setFocusedFields({
+      name: false,
+      price: false,
+      stock: false,
+      discountedPrice: false,
+    });
     setEditMode(false);
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!currentBusiness || currentBusiness.type !== "SHOP") {
-      Alert.alert("Error", "Products can only be managed for shops");
+    // Validate form before saving
+    if (!validateForm()) {
+      Alert.alert(
+        "Validation Error",
+        "Please fix the errors in the form before saving."
+      );
       return;
     }
 
-    // Validate discounted price
-    if (formData.discountedPrice) {
-      const price = parseFloat(formData.price);
-      const discountedPrice = parseFloat(formData.discountedPrice);
-
-      if (discountedPrice <= 0) {
-        Alert.alert(
-          "Validation Error",
-          "Discounted price must be greater than 0"
-        );
-        return;
-      }
-
-      if (discountedPrice >= price) {
-        Alert.alert(
-          "Validation Error",
-          "Discounted price must be less than the original price"
-        );
-        return;
-      }
+    if (!currentBusiness || currentBusiness.type !== "SHOP") {
+      Alert.alert("Error", "Products can only be managed for shops");
+      return;
     }
 
     try {
@@ -628,30 +814,45 @@ export default function VendorProducts() {
 
           {/* Action Buttons */}
           <View style={styles.productActions}>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={[styles.actionButton, styles.toggleButton]}
               onPress={() => toggleProductStatus(item.id, !item.isActive)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                item.isActive ? "Disable product" : "Enable product"
+              }
+              accessibilityHint={`${
+                item.isActive
+                  ? "Makes this product unavailable"
+                  : "Makes this product available"
+              } for customers to order`}
             >
               <Ionicons
                 name={item.isActive ? "eye-off-outline" : "eye-outline"}
-                size={16}
+                size={18}
                 color={item.isActive ? "#F44336" : "#4CAF50"}
               />
-            </TouchableOpacity> */}
+            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.actionButton, styles.editButton]}
               onPress={() => handleEdit(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit product"
+              accessibilityHint="Opens form to edit this product"
             >
-              <Ionicons name="create-outline" size={16} color="#2196F3" />
+              <Ionicons name="create-outline" size={18} color="#2196F3" />
             </TouchableOpacity>
 
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={[styles.actionButton, styles.deleteButton]}
               onPress={() => handleDelete(item.id)}
+              accessibilityRole="button"
+              accessibilityLabel="Delete product"
+              accessibilityHint="Permanently removes this product"
             >
-              <Ionicons name="trash-outline" size={16} color="#F44336" />
-            </TouchableOpacity> */}
+              <Ionicons name="trash-outline" size={18} color="#F44336" />
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -873,215 +1074,379 @@ export default function VendorProducts() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <LinearGradient
-              colors={[PrimaryColor, "#1976D2"]}
-              style={styles.modalHeader}
-            >
-              <Text style={styles.modalTitle}>
-                {editMode ? "Edit Product" : "Add Product"}
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="white" />
-              </TouchableOpacity>
-            </LinearGradient>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardAvoidingView}
+          >
+            <View style={styles.modalContent}>
+              <LinearGradient
+                colors={[PrimaryColor, "#1976D2"]}
+                style={styles.modalHeader}
+              >
+                <Text style={styles.modalTitle}>
+                  {editMode ? "Edit Product" : "Add Product"}
+                </Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Ionicons name="close" size={24} color="white" />
+                </TouchableOpacity>
+              </LinearGradient>
 
-            <ScrollView style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Product Name *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter product name"
-                  value={formData.name}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, name: text })
-                  }
-                />
-              </View>
+              <ScrollView
+                style={styles.form}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Product Name *</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedFields.name && styles.inputFocused,
+                      formErrors.name &&
+                        touchedFields.name &&
+                        styles.inputError,
+                    ]}
+                    placeholder="Enter product name"
+                    value={formData.name}
+                    onChangeText={(text) => handleFieldChange("name", text)}
+                    onBlur={() => handleFieldBlur("name")}
+                    onFocus={() => handleFieldFocus("name")}
+                    maxLength={100}
+                    returnKeyType="next"
+                  />
+                  {formErrors.name && touchedFields.name && (
+                    <Text style={styles.errorText}>{formErrors.name}</Text>
+                  )}
+                </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Describe your product"
-                  value={formData.description}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, description: text })
-                  }
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Describe your product"
+                    value={formData.description}
+                    onChangeText={(text) =>
+                      setFormData({ ...formData, description: text })
+                    }
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
 
-              {/* Image Upload Section */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Product Image</Text>
-                <TouchableOpacity
-                  style={styles.imagePickerContainer}
-                  onPress={handleImagePicker}
-                >
-                  {formData.imageUrl ? (
-                    <View style={styles.selectedImageContainer}>
-                      <Image
-                        source={{ uri: formData.imageUrl }}
-                        style={styles.selectedImage}
-                        resizeMode="cover"
-                      />
-                      {imageLoading && (
-                        <View style={styles.imageOverlay}>
-                          <ActivityIndicator
-                            size="large"
-                            color={PrimaryColor}
-                          />
-                        </View>
-                      )}
+                {/* Image Upload Section */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Product Image</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.imagePickerContainer,
+                      imageLoading && styles.imagePickerContainerUploading,
+                    ]}
+                    onPress={handleImagePicker}
+                    disabled={imageLoading}
+                  >
+                    {formData.imageUrl ? (
+                      <View style={styles.selectedImageContainer}>
+                        <Image
+                          source={{ uri: formData.imageUrl }}
+                          style={styles.selectedImage}
+                          resizeMode="cover"
+                        />
+                        {imageLoading && (
+                          <View style={styles.imageOverlay}>
+                            <ActivityIndicator
+                              size="large"
+                              color={PrimaryColor}
+                            />
+                            <Text style={styles.uploadingText}>
+                              Uploading...
+                            </Text>
+                          </View>
+                        )}
+                        {!imageLoading && (
+                          <View style={styles.imageActions}>
+                            <TouchableOpacity
+                              style={styles.changeImageButton}
+                              onPress={handleImagePicker}
+                            >
+                              <Ionicons name="camera" size={16} color="white" />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.removeImageButton}
+                              onPress={() =>
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  imageUrl: "",
+                                }))
+                              }
+                            >
+                              <Ionicons name="trash" size={16} color="white" />
+                            </TouchableOpacity>
+                          </View>
+                        )}
+                      </View>
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Ionicons
+                          name={imageLoading ? "cloud-upload" : "camera"}
+                          size={40}
+                          color={imageLoading ? PrimaryColor : "#ccc"}
+                        />
+                        <Text
+                          style={[
+                            styles.imagePlaceholderText,
+                            imageLoading &&
+                              styles.imagePlaceholderTextUploading,
+                          ]}
+                        >
+                          {imageLoading ? "Uploading..." : "Tap to add image"}
+                        </Text>
+                        {!imageLoading && (
+                          <Text style={styles.imageHintText}>
+                            JPG, PNG up to 5MB
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.row}>
+                  <View
+                    style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}
+                  >
+                    <Text style={styles.inputLabel}>Price (GMD) *</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        focusedFields.price && styles.inputFocused,
+                        formErrors.price &&
+                          touchedFields.price &&
+                          styles.inputError,
+                      ]}
+                      placeholder="0"
+                      value={formData.price}
+                      onChangeText={(text) => handleFieldChange("price", text)}
+                      onBlur={() => handleFieldBlur("price")}
+                      onFocus={() => handleFieldFocus("price")}
+                      keyboardType="numeric"
+                      maxLength={10}
+                    />
+                    {formErrors.price && touchedFields.price && (
+                      <Text style={styles.errorText}>{formErrors.price}</Text>
+                    )}
+                  </View>
+
+                  <View
+                    style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}
+                  >
+                    <Text style={styles.inputLabel}>Stock Quantity *</Text>
+                    <TextInput
+                      style={[
+                        styles.input,
+                        focusedFields.stock && styles.inputFocused,
+                        formErrors.stock &&
+                          touchedFields.stock &&
+                          styles.inputError,
+                      ]}
+                      placeholder="0"
+                      value={formData.stock}
+                      onChangeText={(text) => handleFieldChange("stock", text)}
+                      onBlur={() => handleFieldBlur("stock")}
+                      onFocus={() => handleFieldFocus("stock")}
+                      keyboardType="numeric"
+                      maxLength={5}
+                    />
+                    {formErrors.stock && touchedFields.stock && (
+                      <Text style={styles.errorText}>{formErrors.stock}</Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Discounted Price Section */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>
+                    Discounted Price (GMD){" "}
+                    <Text style={styles.optionalText}>(Optional)</Text>
+                  </Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedFields.discountedPrice && styles.inputFocused,
+                      formErrors.discountedPrice &&
+                        touchedFields.discountedPrice &&
+                        styles.inputError,
+                    ]}
+                    placeholder="Enter discounted price"
+                    value={formData.discountedPrice}
+                    onChangeText={(text) =>
+                      handleFieldChange("discountedPrice", text)
+                    }
+                    onBlur={() => handleFieldBlur("discountedPrice")}
+                    onFocus={() => handleFieldFocus("discountedPrice")}
+                    keyboardType="numeric"
+                    maxLength={10}
+                  />
+                  {formErrors.discountedPrice &&
+                    touchedFields.discountedPrice && (
+                      <Text style={styles.errorText}>
+                        {formErrors.discountedPrice}
+                      </Text>
+                    )}
+                  {formData.discountedPrice &&
+                    parseFloat(formData.discountedPrice) > 0 &&
+                    formData.price &&
+                    parseFloat(formData.price) > 0 &&
+                    parseFloat(formData.discountedPrice) <
+                      parseFloat(formData.price) && (
+                      <View style={styles.discountPreview}>
+                        <Ionicons name="pricetag" size={16} color="#10b981" />
+                        <Text style={styles.discountPreviewText}>
+                          {Math.round(
+                            ((parseFloat(formData.price) -
+                              parseFloat(formData.discountedPrice)) /
+                              parseFloat(formData.price)) *
+                              100
+                          )}
+                          % OFF - Customers will see this discount badge
+                        </Text>
+                      </View>
+                    )}
+                  {formData.discountedPrice &&
+                    parseFloat(formData.discountedPrice) > 0 &&
+                    formData.price &&
+                    parseFloat(formData.price) > 0 &&
+                    parseFloat(formData.discountedPrice) >=
+                      parseFloat(formData.price) && (
+                      <Text style={styles.errorText}>
+                        ⚠️ Discounted price must be less than original price
+                      </Text>
+                    )}
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Category (Subcategory)</Text>
+                  {loadingSubCategories ? (
+                    <View style={styles.categoryLoadingContainer}>
+                      <ActivityIndicator size="small" color={PrimaryColor} />
+                      <Text style={styles.categoryLoadingText}>
+                        Loading categories...
+                      </Text>
                     </View>
                   ) : (
-                    <View style={styles.imagePlaceholder}>
-                      <Ionicons name="camera" size={40} color="#ccc" />
-                      <Text style={styles.imagePlaceholderText}>
-                        {imageLoading ? "Uploading..." : "Add Image"}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.row}>
-                <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
-                  <Text style={styles.inputLabel}>Price (GMD) *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    value={formData.price}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, price: text })
-                    }
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
-                  <Text style={styles.inputLabel}>Stock Quantity *</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="0"
-                    value={formData.stock}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, stock: text })
-                    }
-                    keyboardType="numeric"
-                  />
-                </View>
-              </View>
-
-              {/* Discounted Price Section */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>
-                  Discounted Price (GMD){" "}
-                  <Text style={styles.optionalText}>(Optional)</Text>
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter discounted price"
-                  value={formData.discountedPrice}
-                  onChangeText={(text) =>
-                    setFormData({ ...formData, discountedPrice: text })
-                  }
-                  keyboardType="numeric"
-                />
-                {formData.discountedPrice &&
-                  parseFloat(formData.discountedPrice) > 0 &&
-                  formData.price &&
-                  parseFloat(formData.price) > 0 &&
-                  parseFloat(formData.discountedPrice) <
-                    parseFloat(formData.price) && (
-                    <View style={styles.discountPreview}>
-                      <Ionicons name="pricetag" size={16} color="#10b981" />
-                      <Text style={styles.discountPreviewText}>
-                        {Math.round(
-                          ((parseFloat(formData.price) -
-                            parseFloat(formData.discountedPrice)) /
-                            parseFloat(formData.price)) *
-                            100
-                        )}
-                        % OFF - Customers will see this discount badge
-                      </Text>
-                    </View>
-                  )}
-                {formData.discountedPrice &&
-                  parseFloat(formData.discountedPrice) > 0 &&
-                  formData.price &&
-                  parseFloat(formData.price) > 0 &&
-                  parseFloat(formData.discountedPrice) >=
-                    parseFloat(formData.price) && (
-                    <Text style={styles.errorText}>
-                      ⚠️ Discounted price must be less than original price
-                    </Text>
-                  )}
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Category (Subcategory)</Text>
-                {loadingSubCategories ? (
-                  <ActivityIndicator size="small" color={PrimaryColor} />
-                ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.categorySelector}>
-                      {subCategories.map((subCat) => (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                    >
+                      <View style={styles.categorySelector}>
                         <TouchableOpacity
-                          key={subCat.id}
                           style={[
                             styles.categoryOption,
-                            formData.subCategoryId === subCat.id &&
+                            !formData.subCategoryId &&
                               styles.categoryOptionActive,
                           ]}
                           onPress={() =>
                             setFormData({
                               ...formData,
-                              subCategoryId: subCat.id,
+                              subCategoryId: "",
                             })
                           }
                         >
+                          <Ionicons
+                            name={
+                              !formData.subCategoryId
+                                ? "checkmark-circle"
+                                : "radio-button-off"
+                            }
+                            size={16}
+                            color={!formData.subCategoryId ? "white" : "#666"}
+                            style={styles.categoryIcon}
+                          />
                           <Text
                             style={[
                               styles.categoryOptionText,
-                              formData.subCategoryId === subCat.id &&
+                              !formData.subCategoryId &&
                                 styles.categoryOptionTextActive,
                             ]}
                           >
-                            {subCat.name}
+                            None
                           </Text>
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                )}
-              </View>
+                        {subCategories.map((subCat) => (
+                          <TouchableOpacity
+                            key={subCat.id}
+                            style={[
+                              styles.categoryOption,
+                              formData.subCategoryId === subCat.id &&
+                                styles.categoryOptionActive,
+                            ]}
+                            onPress={() =>
+                              setFormData({
+                                ...formData,
+                                subCategoryId: subCat.id,
+                              })
+                            }
+                          >
+                            <Ionicons
+                              name={
+                                formData.subCategoryId === subCat.id
+                                  ? "checkmark-circle"
+                                  : "radio-button-off"
+                              }
+                              size={16}
+                              color={
+                                formData.subCategoryId === subCat.id
+                                  ? "white"
+                                  : "#666"
+                              }
+                              style={styles.categoryIcon}
+                            />
+                            <Text
+                              style={[
+                                styles.categoryOptionText,
+                                formData.subCategoryId === subCat.id &&
+                                  styles.categoryOptionTextActive,
+                              ]}
+                            >
+                              {subCat.name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </ScrollView>
+                  )}
+                  {subCategories.length === 0 && !loadingSubCategories && (
+                    <Text style={styles.noCategoriesText}>
+                      No categories available. Categories will be added soon.
+                    </Text>
+                  )}
+                </View>
 
-              <View style={styles.switchContainer}>
-                <Text style={styles.switchLabel}>Product Active</Text>
-                <Switch
-                  value={formData.isActive}
-                  onValueChange={(value) =>
-                    setFormData({ ...formData, isActive: value })
-                  }
-                  trackColor={{ false: "#767577", true: PrimaryColor }}
-                />
-              </View>
+                <View style={styles.switchContainer}>
+                  <Text style={styles.switchLabel}>Product Active</Text>
+                  <Switch
+                    value={formData.isActive}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, isActive: value })
+                    }
+                    trackColor={{ false: "#767577", true: PrimaryColor }}
+                  />
+                </View>
 
-              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-                <LinearGradient
-                  colors={[PrimaryColor, "#1976D2"]}
-                  style={styles.saveButtonGradient}
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleSave}
                 >
-                  <Text style={styles.saveButtonText}>
-                    {editMode ? "Update Product" : "Add Product"}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+                  <LinearGradient
+                    colors={[PrimaryColor, "#1976D2"]}
+                    style={styles.saveButtonGradient}
+                  >
+                    <Text style={styles.saveButtonText}>
+                      {editMode ? "Update Product" : "Add Product"}
+                    </Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </SafeAreaView>
@@ -1372,11 +1737,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "flex-end",
   },
+  keyboardAvoidingView: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
   modalContent: {
     backgroundColor: "white",
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
     maxHeight: "90%",
+    minHeight: "70%",
   },
   modalHeader: {
     flexDirection: "row",
@@ -1385,28 +1755,32 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
+    paddingBottom: 25,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "700",
     color: "white",
+    letterSpacing: 0.5,
   },
   form: {
-    padding: 20,
+    padding: 25,
+    paddingTop: 10,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   inputLabel: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    color: "#1F2937",
+    marginBottom: 10,
+    letterSpacing: 0.3,
   },
   optionalText: {
     fontSize: 14,
     fontWeight: "400",
-    color: "#888",
+    color: "#6B7280",
   },
   discountPreview: {
     flexDirection: "row",
@@ -1426,38 +1800,70 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   errorText: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#EF4444",
     marginTop: 6,
     fontWeight: "500",
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#e0e0e0",
     borderRadius: 12,
-    padding: 15,
+    padding: 16,
     fontSize: 16,
     backgroundColor: "white",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    color: "#1F2937",
+  },
+  inputFocused: {
+    borderColor: PrimaryColor,
+    borderWidth: 2,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  inputError: {
+    borderColor: "#EF4444",
+    borderWidth: 1.5,
+    shadowColor: "#EF4444",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   textArea: {
-    height: 80,
+    height: 90,
     textAlignVertical: "top",
+    paddingTop: 16,
   },
   row: {
     flexDirection: "row",
+    gap: 12,
   },
   categorySelector: {
     flexDirection: "row",
   },
   categoryOption: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 20,
     backgroundColor: "#f0f0f0",
     marginRight: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
   },
   categoryOptionActive: {
     backgroundColor: PrimaryColor,
+  },
+  categoryIcon: {
+    marginRight: 6,
   },
   categoryOptionText: {
     fontSize: 14,
@@ -1466,6 +1872,24 @@ const styles = StyleSheet.create({
   },
   categoryOptionTextActive: {
     color: "white",
+  },
+  categoryLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 20,
+  },
+  categoryLoadingText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#666",
+  },
+  noCategoriesText: {
+    fontSize: 14,
+    color: "#888",
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 10,
   },
   switchContainer: {
     flexDirection: "row",
@@ -1506,6 +1930,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f8f9fa",
   },
+  imagePickerContainerUploading: {
+    borderColor: PrimaryColor,
+    backgroundColor: "#f0f8ff",
+  },
   selectedImageContainer: {
     width: "100%",
     height: "100%",
@@ -1527,6 +1955,35 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  uploadingText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  imageActions: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    gap: 8,
+  },
+  changeImageButton: {
+    backgroundColor: "rgba(33, 150, 243, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  removeImageButton: {
+    backgroundColor: "rgba(244, 67, 54, 0.9)",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   imagePlaceholder: {
     alignItems: "center",
   },
@@ -1535,5 +1992,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
     fontWeight: "500",
+  },
+  imagePlaceholderTextUploading: {
+    color: PrimaryColor,
+  },
+  imageHintText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#888",
+    fontWeight: "400",
   },
 });

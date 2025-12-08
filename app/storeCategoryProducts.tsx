@@ -15,7 +15,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
-import ProductCard from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { useCart } from "@/context/CartContext";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -128,7 +128,7 @@ export default function StoreCategoryProducts() {
       price: item.price,
       description: item.description || "",
       vendorId: item.shopId,
-      vendorName: "",
+      vendorName: shopName || "",
       imageUrl: item.imageUrl || "",
       entityType: "product",
     } as any;
@@ -144,10 +144,10 @@ export default function StoreCategoryProducts() {
     }
   };
 
-  const renderItem = ({ item, index }: { item: Product; index: number }) => {
+  const renderItem = ({ item }: { item: Product }) => {
     return (
       <View style={styles.productCardWrapper}>
-        <ProductCard
+        <VendorAwareProductCard
           product={{
             id: Number(item.id),
             name: item.name,
@@ -161,6 +161,11 @@ export default function StoreCategoryProducts() {
           onAddToCart={() => handleAddToCart(item)}
           onRemoveFromCart={() => handleRemoveFromCart(item.id)}
           onPress={() => router.push(`/product/${item.id}`)}
+          vendor={{
+            vendorId: item.shopId,
+            vendorType: "shop",
+            vendorName: shopName || "",
+          }}
         />
       </View>
     );

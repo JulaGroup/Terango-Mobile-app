@@ -11,15 +11,20 @@ import {
   Platform,
   TextInput,
   Image,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, router } from "expo-router";
-import ProductCard from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 // Removed unused import: Category
 import { SafeAreaView } from "react-native-safe-area-context";
+import { OpeningHours } from "@/lib/api";
+import { formatDayLabel, formatTimeLabel } from "@/utils/openingHours";
+import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
+import { VendorOrderingMeta } from "@/utils/vendorOrdering";
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;
@@ -189,7 +194,7 @@ interface CategorySectionProps {
   onAddToCart: (product: Product) => void;
   onRemoveFromCart: (productId: string) => void;
   getCartQuantity: (productId: string) => number;
-  shopName?: string;
+  vendor: VendorOrderingMeta;
 }
 
 const CategorySection = ({
@@ -198,33 +203,15 @@ const CategorySection = ({
   onAddToCart,
   onRemoveFromCart,
   getCartQuantity,
-  shopName,
+  vendor,
 }: CategorySectionProps) => {
-  // Use cart context directly to mirror storeCategoryProducts behavior
-  const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
-
   const handleAdd = (item: Product) => {
     if (!item) return;
-    const cartItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      description: item.description || "",
-      vendorId: item.shopId,
-      vendorName: "",
-      imageUrl: item.imageUrl || "",
-      entityType: "product",
-    } as any;
-    addToCart(cartItem);
+    onAddToCart(item);
   };
 
   const handleRemove = (productId: string) => {
-    const ci = cartItems.find((c) => c.id === productId);
-    if (ci && ci.quantity > 1) {
-      updateQuantity(productId, ci.quantity - 1);
-    } else {
-      removeFromCart(productId);
-    }
+    onRemoveFromCart(productId);
   };
 
   const handleProductPress = (productId: string) => {
@@ -234,7 +221,7 @@ const CategorySection = ({
 
   const renderProductCard = ({ item }: { item: Product }) => (
     <View style={styles.productCardWrapper}>
-      <ProductCard
+      <VendorAwareProductCard
         product={{
           id: Number(item.id),
           name: item.name,
@@ -248,6 +235,7 @@ const CategorySection = ({
         onAddToCart={() => handleAdd(item)}
         onRemoveFromCart={() => handleRemove(item.id)}
         onPress={() => handleProductPress(item.id)}
+        vendor={vendor}
       />
     </View>
   );
@@ -268,7 +256,7 @@ const CategorySection = ({
                 subCategoryId: String(
                   (products[0] && products[0].subCategory?.id) || ""
                 ),
-                shopName: String(shopName || ""),
+                shopName: String(vendor?.vendorName || ""),
                 subCategoryName: String(
                   (products[0] && products[0].subCategory?.name) || ""
                 ),
@@ -331,63 +319,52 @@ const ShopDetailsSkeleton = () => {
           </View>
         </View>
 
+        {/* Overlay content skeleton */}
         <View style={styles.overlayCard}>
-          {/* Open/Closed Badge (skeleton) */}
           <View
             style={[
               styles.statusBadge,
               {
-                backgroundColor: "rgba(16, 185, 129, 0.95)",
-                shadowColor: "#10B981",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 4,
-                elevation: 4,
+                backgroundColor: "#E0E0E0",
+                shadowColor: "rgba(0,0,0,0.1)",
               },
             ]}
           >
-            <Ionicons
-              name="time-outline"
-              size={14}
-              color="#fff"
-              style={{ marginRight: 4 }}
+            <View
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: "#fff",
+                  opacity: 0.6,
+                },
+              ]}
             />
-            <Text style={styles.statusText}>Open Now</Text>
-          </View>
-          <SkeletonLoader
-            width="80%"
-            height={28}
-            style={{
-              marginBottom: 8,
-              backgroundColor: "#E0E0E0",
-            }}
-          />
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={16} color="#FFD700" />
             <SkeletonLoader
-              width={40}
-              height={16}
-              style={{
-                marginLeft: 4,
-                backgroundColor: "#E0E0E0",
-              }}
+              width={80}
+              height={12}
+              style={{ backgroundColor: "#DADADA" }}
             />
           </View>
+
           <SkeletonLoader
-            width="100%"
+            width="60%"
+            height={26}
+            style={{ marginTop: 16, backgroundColor: "#E0E0E0" }}
+          />
+          <SkeletonLoader
+            width="40%"
             height={16}
-            style={{
-              marginTop: 4,
-              backgroundColor: "#E0E0E0",
-            }}
+            style={{ marginTop: 8, backgroundColor: "#E0E0E0" }}
+          />
+          <SkeletonLoader
+            width="85%"
+            height={14}
+            style={{ marginTop: 12, backgroundColor: "#E0E0E0" }}
           />
           <SkeletonLoader
             width="70%"
-            height={14}
-            style={{
-              marginTop: 2,
-              backgroundColor: "#E0E0E0",
-            }}
+            height={12}
+            style={{ marginTop: 6, backgroundColor: "#E0E0E0" }}
           />
         </View>
       </View>
@@ -465,7 +442,7 @@ interface Shop {
   address?: string;
   city?: string;
   state?: string;
-  openingHours?: any;
+  openingHours?: OpeningHours | null;
   shopType?: string;
   rating?: number;
   totalReviews?: number;
@@ -520,6 +497,34 @@ export default function ShopDetails() {
 
   const PRODUCTS_PER_CATEGORY = 5; // Show 5 products from each category (Uber Eats style)
   const CATEGORIES_PER_PAGE = 5; // Load 5 categories at a time - smaller batches for smoother UX
+
+  const vendorMeta = React.useMemo<VendorOrderingMeta>(() => {
+    return {
+      vendorId: shop?.id ?? null,
+      vendorType: "shop",
+      vendorName: shop?.name ?? null,
+      openingHours: shop?.openingHours ?? null,
+      isActive: shop?.isActive ?? null,
+      acceptsOrders: shop?.acceptsOrders ?? null,
+    };
+  }, [
+    shop?.id,
+    shop?.name,
+    shop?.openingHours,
+    shop?.isActive,
+    shop?.acceptsOrders,
+  ]);
+
+  const {
+    orderingDisabled,
+    disabledReason: orderingDisabledReason,
+    status: operatingStatus,
+  } = useVendorOrderingStatus({
+    vendorId: vendorMeta.vendorId,
+    vendorType: "shop",
+    meta: vendorMeta,
+    skip: !vendorMeta.vendorId,
+  });
 
   const fetchShopDetails = useCallback(async () => {
     try {
@@ -741,6 +746,10 @@ export default function ShopDetails() {
 
   const handleAddToCart = (item: Product) => {
     if (!shop) return;
+    if (orderingDisabled) {
+      handleOrderingUnavailable();
+      return;
+    }
 
     const cartItem = {
       id: item.id,
@@ -793,6 +802,83 @@ export default function ShopDetails() {
       return total + itemPrice * item.quantity;
     }, 0);
   };
+
+  const isOpen = operatingStatus?.isOpen ?? !orderingDisabled;
+
+  const statusReason = operatingStatus?.reason;
+
+  const statusTheme = React.useMemo(
+    () =>
+      isOpen
+        ? {
+            label: "Open now",
+            badge: "Open",
+            color: "rgba(16,185,129,0.95)",
+            shadow: "#10B981",
+          }
+        : statusReason === "inactive"
+        ? {
+            label: "Offline",
+            badge: "Offline",
+            color: "rgba(107,114,128,0.95)",
+            shadow: "#6B7280",
+          }
+        : statusReason === "not_accepting_orders"
+        ? {
+            label: "Paused",
+            badge: "Paused",
+            color: "rgba(234,179,8,0.95)",
+            shadow: "#CA8A04",
+          }
+        : {
+            label: "Closed",
+            badge: "Closed",
+            color: "rgba(239,68,68,0.95)",
+            shadow: "#EF4444",
+          },
+    [isOpen, statusReason]
+  );
+
+  const nextOpening = operatingStatus?.nextOpening;
+  const closesAt = operatingStatus?.closesAt;
+
+  const nextOpeningText =
+    !isOpen && nextOpening
+      ? `Opens ${formatDayLabel(nextOpening.day)} ${formatTimeLabel(
+          nextOpening.time
+        )}`
+      : null;
+
+  const closesAtText =
+    isOpen && closesAt
+      ? `Closes ${formatDayLabel(closesAt.day)} ${formatTimeLabel(
+          closesAt.time
+        )}`
+      : null;
+
+  const statusMetaText = isOpen ? closesAtText : nextOpeningText;
+  const statusMetaTextClean = statusMetaText
+    ? statusMetaText.replace(/\s+/g, " ").trim()
+    : undefined;
+
+  const handleOrderingUnavailable = useCallback(() => {
+    if (!orderingDisabled) {
+      return;
+    }
+    const message =
+      orderingDisabledReason ||
+      (statusMetaTextClean
+        ? `This shop is closed. ${statusMetaTextClean}.`
+        : "This shop is not accepting orders at the moment.");
+    Alert.alert("Ordering unavailable", message);
+  }, [orderingDisabled, orderingDisabledReason, statusMetaTextClean]);
+
+  const stickySubtitleParts = [statusTheme.label];
+  if (statusMetaText) {
+    stickySubtitleParts.push(statusMetaText);
+  }
+  stickySubtitleParts.push(shop?.shopType || "Store");
+  const stickySubtitle = stickySubtitleParts.join(" • ");
 
   // Enhanced animated values for smoother transitions
   const headerOpacity = scrollY.interpolate({
@@ -872,8 +958,7 @@ export default function ShopDetails() {
               {shop.name}
             </Text>
             <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
-              {shop.isActive ? "Open now" : "Closed"} •{" "}
-              {shop.shopType || "Store"}
+              {stickySubtitle}
             </Text>
           </View>
 
@@ -962,26 +1047,40 @@ export default function ShopDetails() {
               style={[
                 styles.statusBadge,
                 {
-                  backgroundColor: shop.isActive
-                    ? "rgba(16, 185, 129, 0.95)"
-                    : "rgba(239, 68, 68, 0.95)",
-                  shadowColor: shop.isActive ? "#10B981" : "#EF4444",
+                  backgroundColor: statusTheme.color,
+                  shadowColor: statusTheme.shadow,
                   shadowOffset: { width: 0, height: 2 },
                   shadowOpacity: 0.3,
                   shadowRadius: 4,
                   elevation: 4,
                 },
               ]}
+              accessibilityLabel={`Shop is ${statusTheme.badge.toLowerCase()}`}
+              accessibilityHint={
+                statusMetaText
+                  ? `${statusTheme.badge}. ${statusMetaText}.`
+                  : undefined
+              }
             >
-              <Ionicons
-                name={shop.isActive ? "time-outline" : "close-circle-outline"}
-                size={14}
-                color="#fff"
-                style={{ marginRight: 4 }}
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: "#fff",
+                  },
+                ]}
               />
-              <Text style={styles.statusText}>
-                {shop.isActive ? "Open Now" : "Closed"}
-              </Text>
+              <View>
+                <Text style={styles.statusText}>{statusTheme.badge}</Text>
+                {/* {isOpen && closesAtText ? (
+                  <Text style={styles.statusTextSubHeader}>{closesAtText}</Text>
+                ) : null} */}
+                {!isOpen && nextOpeningText ? (
+                  <Text style={styles.statusTextSubHeader}>
+                    {nextOpeningText}
+                  </Text>
+                ) : null}
+              </View>
             </View>
             <View style={styles.titleRow}>
               <Text style={styles.shopName}>{shop.name}</Text>
@@ -1006,6 +1105,11 @@ export default function ShopDetails() {
                 {shop.address}
               </Text>
             ) : null}
+            {statusMetaText ? (
+              <Text style={styles.statusMetaText} numberOfLines={2}>
+                {statusMetaText}
+              </Text>
+            ) : null}
           </View>
         </View>
         <View style={styles.searchBarWrapper}>
@@ -1025,6 +1129,22 @@ export default function ShopDetails() {
             />
           </View>
         </View>
+
+        {orderingDisabled && (
+          <View style={styles.orderingDisabledBanner}>
+            <Ionicons name="alert-circle" size={20} color="#f97316" />
+            <View style={styles.orderingDisabledBannerTextContainer}>
+              <Text style={styles.orderingDisabledBannerTitle}>
+                Ordering unavailable
+              </Text>
+              {orderingDisabledReason ? (
+                <Text style={styles.orderingDisabledBannerSubtitle}>
+                  {orderingDisabledReason}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        )}
 
         {/* Enhanced Sticky Header - Uber Eats Style */}
         <Animated.View
@@ -1049,8 +1169,7 @@ export default function ShopDetails() {
                 {shop.name}
               </Text>
               <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
-                {shop.isActive ? "Open now" : "Closed"} •{" "}
-                {shop.shopType || "Store"}
+                {stickySubtitle}
               </Text>
             </View>
 
@@ -1116,7 +1235,7 @@ export default function ShopDetails() {
                     onAddToCart={handleAddToCart}
                     onRemoveFromCart={handleRemoveFromCart}
                     getCartQuantity={getCartItemQuantity}
-                    shopName={shop?.name}
+                    vendor={vendorMeta}
                   />
                 </View>
               )
@@ -1329,6 +1448,33 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 32,
     borderBottomRightRadius: 32,
   },
+  orderingDisabledBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    backgroundColor: "#fff7ed",
+    marginHorizontal: 20,
+    marginBottom: 18,
+    gap: 12,
+  },
+  orderingDisabledBannerTextContainer: {
+    flex: 1,
+  },
+  orderingDisabledBannerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#92400e",
+    marginBottom: 4,
+  },
+  orderingDisabledBannerSubtitle: {
+    fontSize: 14,
+    color: "#b45309",
+    lineHeight: 18,
+  },
   heroHeaderButtons: {
     position: "absolute",
     top: 0,
@@ -1381,7 +1527,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 24,
     right: 24,
-    bottom: -32,
+    bottom: -60,
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 20,
@@ -1423,6 +1569,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 2,
   },
+  statusMetaText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#475569",
+    textAlign: "center",
+    marginTop: 10,
+    lineHeight: 18,
+  },
   titleRow: {
     alignItems: "center",
     justifyContent: "center",
@@ -1432,28 +1586,36 @@ const styles = StyleSheet.create({
     top: 0,
     right: 16,
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
     zIndex: 10,
+    gap: 8,
+    maxWidth: 220,
   },
   statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 6,
+    opacity: 0.9,
   },
   statusText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
     color: "#fff",
     letterSpacing: 0.3,
+    lineHeight: 18,
+  },
+  statusTextSubHeader: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 2,
+    lineHeight: 14,
   },
   searchBarWrapper: {
-    marginTop: 40,
+    marginTop: 70,
     paddingHorizontal: 24,
     marginBottom: 8,
   },

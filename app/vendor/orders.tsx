@@ -695,11 +695,10 @@ export default function VendorOrdersEnhanced() {
                       selectedOrder.subtotalAmount || selectedOrder.totalAmount
                     )?.toLocaleString()}
                   </Text>
-                  <Text style={styles.vendorNote}>
-                    💡 Delivery & service fees go to platform
-                  </Text>
                 </View>
-
+                <Text style={styles.vendorNote}>
+                  💡 Delivery & service fees go to platform
+                </Text>
                 {/* Payment Status Message for ACCEPTED orders */}
                 {selectedOrder.status === "ACCEPTED" && (
                   <View style={styles.waitingPaymentContainer}>

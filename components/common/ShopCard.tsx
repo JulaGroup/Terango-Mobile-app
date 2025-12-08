@@ -4,6 +4,12 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { OpeningHours } from "@/lib/api";
+import {
+  getOperatingStatus,
+  formatDayLabel,
+  formatTimeLabel,
+} from "@/utils/openingHours";
 
 const { width } = Dimensions.get("window");
 
@@ -23,6 +29,7 @@ interface Shop {
   minimumOrderAmount?: number;
   acceptsOrders: boolean;
   fullWidth?: boolean;
+  openingHours?: OpeningHours | null;
 }
 
 interface ShopCardProps {
@@ -36,6 +43,34 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
 
   const reviewCount = shop.totalReviews || Math.floor(Math.random() * 450 + 50);
   const cardWidth = fullWidth ? width - 32 : 280;
+
+  const operatingStatus = React.useMemo(
+    () =>
+      getOperatingStatus({
+        openingHours: shop.openingHours || undefined,
+        isActive: shop.isActive,
+        acceptsOrders: shop.acceptsOrders,
+      }),
+    [shop.openingHours, shop.isActive, shop.acceptsOrders]
+  );
+
+  const currentlyOpen = operatingStatus.isOpen;
+
+  let statusLabel = "Closed";
+  if (currentlyOpen) {
+    statusLabel = "Open";
+  } else if (operatingStatus.reason === "inactive") {
+    statusLabel = "Offline";
+  } else if (operatingStatus.reason === "not_accepting_orders") {
+    statusLabel = "Paused";
+  }
+
+  const nextOpeningLabel =
+    !currentlyOpen && operatingStatus.nextOpening
+      ? `Opens ${formatDayLabel(
+          operatingStatus.nextOpening.day
+        )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
+      : undefined;
 
   return (
     <TouchableOpacity
@@ -86,15 +121,22 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
           style={[
             styles.statusBadge,
             {
-              backgroundColor: shop.isActive
+              backgroundColor: currentlyOpen
                 ? "rgba(34,197,94,0.95)"
                 : "rgba(239,68,68,0.95)",
             },
           ]}
+          accessibilityLabel={`Shop is ${statusLabel.toLowerCase()}`}
+          accessibilityHint={
+            nextOpeningLabel
+              ? `${statusLabel}. ${nextOpeningLabel}.`
+              : undefined
+          }
         >
-          <Text style={styles.statusBadgeText}>
-            {shop.isActive ? "Open" : "Closed"}
-          </Text>
+          <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+          {!currentlyOpen && nextOpeningLabel && (
+            <Text style={styles.statusBadgeSubText}>{nextOpeningLabel}</Text>
+          )}
         </View>
       </View>
 
@@ -159,11 +201,18 @@ const styles = {
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    maxWidth: "88%" as const,
   },
   statusBadgeText: {
     color: "#fff",
     fontSize: 10,
     fontWeight: "600" as const,
+  },
+  statusBadgeSubText: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 9,
+    fontWeight: "500" as const,
   },
   shopInfo: {
     padding: 16,

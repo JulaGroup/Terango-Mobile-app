@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import StatusTimeline from "@/components/tracking/StatusTimeline";
 import {
   on as socketOn,
   off as socketOff,
@@ -26,6 +27,7 @@ const { height } = Dimensions.get("window");
 
 const statusColors: { [key: string]: string } = {
   PENDING: "#F39C12",
+  PROCESSING: "#3498DB",
   ACCEPTED: "#3498DB",
   PREPARING: "#3498DB",
   READY: "#10B981",
@@ -36,12 +38,37 @@ const statusColors: { [key: string]: string } = {
 
 const statusIcons: { [key: string]: any } = {
   PENDING: "time-outline",
+  PROCESSING: "checkmark-circle-outline",
   ACCEPTED: "checkmark-circle-outline",
   PREPARING: "restaurant-outline",
   READY: "checkmark-done-outline",
   DISPATCHED: "car-outline",
   DELIVERED: "home-outline",
   CANCELLED: "close-circle-outline",
+};
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const buildCurvedRoute = (
+  start: { latitude: number; longitude: number },
+  end: { latitude: number; longitude: number }
+) => {
+  const points: { latitude: number; longitude: number }[] = [];
+  const numPoints = 20;
+
+  for (let i = 0; i <= numPoints; i++) {
+    const fraction = i / numPoints;
+    const lat = start.latitude + (end.latitude - start.latitude) * fraction;
+    const lng = start.longitude + (end.longitude - start.longitude) * fraction;
+    const curveFactor = Math.sin(fraction * Math.PI) * 0.001;
+
+    points.push({
+      latitude: lat + curveFactor,
+      longitude: lng + curveFactor,
+    });
+  }
+
+  return points;
 };
 
 export default function OrderTrackingPage() {
@@ -69,6 +96,11 @@ export default function OrderTrackingPage() {
     }[]
   >([]);
   const mapRef = useRef<MapView>(null);
+  const lastRouteRequestRef = useRef<{
+    origin: { latitude: number; longitude: number };
+    destination: { latitude: number; longitude: number };
+  } | null>(null);
+  const isFetchingRouteRef = useRef(false);
 
   // Calculate distance between two coordinates
   const calculateDistance = () => {
@@ -77,10 +109,12 @@ export default function OrderTrackingPage() {
     }
 
     const R = 6371; // Earth's radius in km
-    const dLat = toRad(deliveryLocation.latitude - driverLocation.latitude);
-    const dLon = toRad(deliveryLocation.longitude - driverLocation.longitude);
-    const lat1 = toRad(driverLocation.latitude);
-    const lat2 = toRad(deliveryLocation.latitude);
+    const dLat = toRadians(deliveryLocation.latitude - driverLocation.latitude);
+    const dLon = toRadians(
+      deliveryLocation.longitude - driverLocation.longitude
+    );
+    const lat1 = toRadians(driverLocation.latitude);
+    const lat2 = toRadians(deliveryLocation.latitude);
 
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
@@ -91,8 +125,6 @@ export default function OrderTrackingPage() {
     return distance.toFixed(1);
   };
 
-  const toRad = (value: number) => (value * Math.PI) / 180;
-
   const calculateETA = () => {
     const distance = parseFloat(calculateDistance());
     const averageSpeed = 30; // km/h
@@ -100,41 +132,95 @@ export default function OrderTrackingPage() {
     return timeInMinutes > 0 ? timeInMinutes : 1;
   };
 
-  // Create a curved route with intermediate points
-  const createCurvedRoute = (
-    start: { latitude: number; longitude: number },
-    end: { latitude: number; longitude: number }
-  ) => {
-    const points: { latitude: number; longitude: number }[] = [];
-    const numPoints = 20; // Number of intermediate points
+  const distanceBetween = useCallback(
+    (
+      start: { latitude: number; longitude: number },
+      end: { latitude: number; longitude: number }
+    ) => {
+      const R = 6371000;
+      const dLat = toRadians(end.latitude - start.latitude);
+      const dLon = toRadians(end.longitude - start.longitude);
+      const lat1 = toRadians(start.latitude);
+      const lat2 = toRadians(end.latitude);
 
-    for (let i = 0; i <= numPoints; i++) {
-      const fraction = i / numPoints;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.sin(dLon / 2) *
+          Math.sin(dLon / 2) *
+          Math.cos(lat1) *
+          Math.cos(lat2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
-      // Linear interpolation
-      const lat = start.latitude + (end.latitude - start.latitude) * fraction;
-      const lng =
-        start.longitude + (end.longitude - start.longitude) * fraction;
+      return R * c;
+    },
+    []
+  );
 
-      // Add slight curve (simulate road curves)
-      const curveFactor = Math.sin(fraction * Math.PI) * 0.001;
+  const fetchRoute = useCallback(
+    async (
+      origin: { latitude: number; longitude: number },
+      destination: { latitude: number; longitude: number },
+      force = false
+    ) => {
+      if (isFetchingRouteRef.current) {
+        return;
+      }
 
-      points.push({
-        latitude: lat + curveFactor,
-        longitude: lng + curveFactor,
-      });
-    }
+      const last = lastRouteRequestRef.current;
+      const movedEnough =
+        force ||
+        !last ||
+        distanceBetween(last.origin, origin) > 150 ||
+        distanceBetween(last.destination, destination) > 50;
 
-    return points;
-  };
+      if (!movedEnough) {
+        return;
+      }
 
-  // Fetch route when driver or customer location changes
+      isFetchingRouteRef.current = true;
+
+      try {
+        const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`OSRM request failed with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const coordinates = data?.routes?.[0]?.geometry?.coordinates;
+
+        if (coordinates && Array.isArray(coordinates)) {
+          const mapped = coordinates.map(([lng, lat]: [number, number]) => ({
+            latitude: lat,
+            longitude: lng,
+          }));
+
+          setRouteCoordinates(mapped);
+          lastRouteRequestRef.current = { origin, destination };
+          return;
+        }
+
+        throw new Error("OSRM response missing geometry data");
+      } catch (error) {
+        console.warn("Falling back to curved route for customer map:", error);
+        setRouteCoordinates(buildCurvedRoute(origin, destination));
+      } finally {
+        isFetchingRouteRef.current = false;
+      }
+    },
+    [distanceBetween]
+  );
+
   useEffect(() => {
     if (driverLocation && deliveryLocation) {
-      const route = createCurvedRoute(driverLocation, deliveryLocation);
-      setRouteCoordinates(route);
+      fetchRoute(
+        driverLocation,
+        deliveryLocation,
+        routeCoordinates.length === 0
+      );
     }
-  }, [driverLocation, deliveryLocation]);
+  }, [driverLocation, deliveryLocation, fetchRoute, routeCoordinates.length]);
 
   // Fetch order details
   const fetchOrderDetails = useCallback(
@@ -265,6 +351,17 @@ export default function OrderTrackingPage() {
     fetchOrderDetails(true);
   };
 
+  const hasDeliveryCoordinates = Boolean(
+    order?.customerLatitude && order?.customerLongitude
+  );
+  const isGiftOrder = Boolean(order?.isGiftOrder);
+  const deliveryNotes = order?.notes?.trim() || null;
+  const shouldShowManualGuidance =
+    order?.orderType !== "PICKUP" && !hasDeliveryCoordinates;
+  const manualGuidanceDescription = isGiftOrder
+    ? "This gift delivery does not include map coordinates. Use the contact details provided to coordinate the drop-off."
+    : "This delivery does not include map coordinates. Coordinate directly with your driver using the address and notes provided.";
+
   if (loading) {
     return (
       <View style={styles.fullScreenContainer}>
@@ -367,9 +464,10 @@ export default function OrderTrackingPage() {
           {routeCoordinates.length > 0 ? (
             <Polyline
               coordinates={routeCoordinates}
-              strokeWidth={4}
+              strokeWidth={5}
               strokeColor={PrimaryColor}
-              lineDashPattern={[1]}
+              lineCap="round"
+              lineJoin="round"
             />
           ) : null}
         </MapView>
@@ -422,6 +520,10 @@ export default function OrderTrackingPage() {
             <Text style={styles.orderNumber}>
               #{order.id.slice(-8).toUpperCase()}
             </Text>
+          </View>
+
+          <View style={styles.timelineCard}>
+            <StatusTimeline status={order.status} />
           </View>
 
           {/* ETA & Distance (when driver is dispatched) */}
@@ -497,6 +599,31 @@ export default function OrderTrackingPage() {
               <Text style={styles.addressText} numberOfLines={2}>
                 {order.address}
               </Text>
+            </View>
+          ) : null}
+
+          {shouldShowManualGuidance ? (
+            <View style={styles.manualGuidanceCard}>
+              <View style={styles.manualGuidanceHeader}>
+                <Ionicons name="alert-circle" size={18} color="#B45309" />
+                <Text style={styles.manualGuidanceTitle}>
+                  Manual coordination required
+                </Text>
+              </View>
+              <Text style={styles.manualGuidanceBody}>
+                {manualGuidanceDescription}
+              </Text>
+              {deliveryNotes ? (
+                <>
+                  <View style={styles.manualGuidanceDivider} />
+                  <Text style={styles.manualGuidanceSubtitle}>
+                    Notes from order
+                  </Text>
+                  <Text style={styles.manualGuidanceNotes}>
+                    {deliveryNotes}
+                  </Text>
+                </>
+              ) : null}
             </View>
           ) : null}
 
@@ -608,7 +735,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: height * 0.3,
+    maxHeight: height * 0.5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
@@ -781,5 +908,53 @@ const styles = StyleSheet.create({
   summaryDivider: {
     width: 1,
     backgroundColor: "#E5E7EB",
+  },
+  timelineCard: {
+    backgroundColor: "#F9FAFB",
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  manualGuidanceCard: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#FBBF24",
+  },
+  manualGuidanceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  manualGuidanceTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#92400E",
+  },
+  manualGuidanceBody: {
+    fontSize: 13,
+    color: "#78350F",
+    lineHeight: 18,
+  },
+  manualGuidanceDivider: {
+    height: 1,
+    backgroundColor: "#FCD34D",
+    opacity: 0.5,
+    marginVertical: 10,
+  },
+  manualGuidanceSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#92400E",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  manualGuidanceNotes: {
+    fontSize: 13,
+    color: "#78350F",
+    lineHeight: 18,
   },
 });

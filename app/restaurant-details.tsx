@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -10,13 +16,20 @@ import {
   Platform,
   TextInput,
   Image,
-  Linking,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
+import { OpeningHours } from "@/lib/api";
+import {
+  getOperatingStatus,
+  formatDayLabel,
+  formatTimeLabel,
+} from "@/utils/openingHours";
 import MealItemCard from "@/components/common/MealItemCard";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { MEAL_TIMES } from "@/constants/MealTimes";
@@ -280,15 +293,8 @@ interface Restaurant {
   minimumOrderAmount?: number;
   rating?: number;
   totalReviews?: number;
-  openingHours?: {
-    monday: { open: string; close: string; closed: boolean };
-    tuesday: { open: string; close: string; closed: boolean };
-    wednesday: { open: string; close: string; closed: boolean };
-    thursday: { open: string; close: string; closed: boolean };
-    friday: { open: string; close: string; closed: boolean };
-    saturday: { open: string; close: string; closed: boolean };
-    sunday: { open: string; close: string; closed: boolean };
-  };
+  openingHours?: OpeningHours | null;
+  acceptsOrders?: boolean;
   service: {
     id: string;
     name: string;
@@ -324,6 +330,24 @@ export default function RestaurantDetails() {
   const handleTabPress = (categoryId: string) => {
     // only set the active filter; do not auto-scroll
     setActiveSection(categoryId);
+  };
+
+  // Get meal time categories that have at least one item
+  const getAvailableMealTimes = () => {
+    // Always include "All" tab
+    const availableTabs = [MEAL_TIMES[0]]; // "All" tab
+
+    // Check each meal time category
+    MEAL_TIMES.slice(1).forEach((mealTime) => {
+      const hasItems = allMenuItems.some(
+        (item) => item.mealTime?.toLowerCase() === mealTime.name.toLowerCase()
+      );
+      if (hasItems) {
+        availableTabs.push(mealTime);
+      }
+    });
+
+    return availableTabs;
   };
 
   // Filter menu items by selected meal time
@@ -431,46 +455,6 @@ export default function RestaurantDetails() {
     }
   }, [cartItems.length, cartPulse]);
 
-  const handleAddToCart = (item: MenuItem) => {
-    if (!restaurant) return;
-
-    const cartItem = {
-      id: item.id,
-      name: item.name,
-      price: item.price,
-      discountedPrice: item.discountedPrice, // Add discounted price
-      description: item.description || "",
-      vendorId: restaurant.id,
-      vendorName: restaurant.name,
-      imageUrl: item.imageUrl || "",
-      entityType: "restaurant",
-    };
-
-    addToCart(cartItem);
-
-    // Enhanced cart animation feedback
-    Animated.sequence([
-      Animated.timing(cartPulse, {
-        toValue: 1.15,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cartPulse, {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-  const handleRemove = (productId: string) => {
-    const ci = cartItems.find((c) => c.id === productId);
-    if (ci && ci.quantity > 1) {
-      updateQuantity(productId, ci.quantity - 1);
-    } else {
-      removeFromCart(productId);
-    }
-  };
-
   const getCartItemQuantity = (itemId: string): number => {
     const item = cartItems.find((cartItem) => cartItem.id === itemId);
     return item ? item.quantity : 0;
@@ -500,6 +484,157 @@ export default function RestaurantDetails() {
     outputRange: [0, 0.3, 1],
     extrapolate: "clamp",
   });
+
+  const operatingStatus = useMemo(
+    () =>
+      getOperatingStatus({
+        openingHours: restaurant?.openingHours || undefined,
+        isActive: restaurant?.isActive,
+        acceptsOrders: restaurant?.acceptsOrders,
+      }),
+    [restaurant?.openingHours, restaurant?.isActive, restaurant?.acceptsOrders]
+  );
+
+  const isOpen = operatingStatus.isOpen;
+  const statusTheme = isOpen
+    ? {
+        label: "Open now",
+        badge: "Open",
+        color: "rgba(16,185,129,0.95)",
+      }
+    : operatingStatus.reason === "inactive"
+    ? {
+        label: "Offline",
+        badge: "Offline",
+        color: "rgba(107,114,128,0.95)",
+      }
+    : operatingStatus.reason === "not_accepting_orders"
+    ? {
+        label: "Paused",
+        badge: "Paused",
+        color: "rgba(234,179,8,0.95)",
+      }
+    : {
+        label: "Closed",
+        badge: "Closed",
+        color: "rgba(239,68,68,0.95)",
+      };
+
+  const nextOpeningText =
+    !isOpen && operatingStatus.nextOpening
+      ? `Opens ${formatDayLabel(
+          operatingStatus.nextOpening.day
+        )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
+      : null;
+
+  const closesAtText =
+    isOpen && operatingStatus.closesAt
+      ? `Closes ${formatDayLabel(
+          operatingStatus.closesAt.day
+        )} ${formatTimeLabel(operatingStatus.closesAt.time)}`
+      : null;
+
+  const statusMetaText = isOpen ? closesAtText : nextOpeningText;
+  const statusMetaTextClean = statusMetaText
+    ? statusMetaText.replace(/\s+/g, " ").trim()
+    : undefined;
+
+  const orderingDisabled = !isOpen;
+
+  const orderingDisabledMessage = useMemo(() => {
+    if (!orderingDisabled) {
+      return undefined;
+    }
+
+    switch (operatingStatus.reason) {
+      case "inactive":
+        return "This restaurant is offline right now.";
+      case "not_accepting_orders":
+        return "This restaurant has paused new orders.";
+      default:
+        return statusMetaTextClean
+          ? `This restaurant is closed. ${statusMetaTextClean}.`
+          : "This restaurant is currently closed.";
+    }
+  }, [orderingDisabled, operatingStatus.reason, statusMetaTextClean]);
+
+  const handleAddAttemptBlocked = useCallback(() => {
+    if (!orderingDisabled) {
+      return;
+    }
+
+    const message =
+      orderingDisabledMessage ||
+      "This restaurant is not accepting orders at the moment.";
+
+    Alert.alert("Ordering unavailable", message);
+  }, [orderingDisabled, orderingDisabledMessage]);
+
+  const handleAddToCart = useCallback(
+    (item: MenuItem) => {
+      if (!restaurant) {
+        return;
+      }
+
+      if (orderingDisabled) {
+        handleAddAttemptBlocked();
+        return;
+      }
+
+      const cartItem = {
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        discountedPrice: item.discountedPrice,
+        description: item.description || "",
+        vendorId: restaurant.id,
+        vendorName: restaurant.name,
+        imageUrl: item.imageUrl || "",
+        entityType: "restaurant",
+      };
+
+      addToCart(cartItem);
+
+      Animated.sequence([
+        Animated.timing(cartPulse, {
+          toValue: 1.15,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(cartPulse, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    },
+    [
+      addToCart,
+      cartPulse,
+      handleAddAttemptBlocked,
+      orderingDisabled,
+      restaurant,
+    ]
+  );
+
+  const handleRemove = useCallback(
+    (productId: string) => {
+      const cartItem = cartItems.find((item) => item.id === productId);
+      if (cartItem && cartItem.quantity > 1) {
+        updateQuantity(productId, cartItem.quantity - 1);
+      } else {
+        removeFromCart(productId);
+      }
+    },
+    [cartItems, removeFromCart, updateQuantity]
+  );
+
+  const stickySubtitleParts = [statusTheme.label];
+  if (statusMetaText) {
+    stickySubtitleParts.push(statusMetaText);
+  }
+  stickySubtitleParts.push("Restaurant");
+  const stickySubtitle = stickySubtitleParts.join(" • ");
 
   if (loading) {
     return <RestaurantDetailsSkeleton />;
@@ -544,7 +679,7 @@ export default function RestaurantDetails() {
               {restaurant.name}
             </Text>
             <Text style={styles.stickyHeaderSubtitle} numberOfLines={1}>
-              {restaurant.isActive ? "Open now" : "Closed"} • {"Restaurant"}
+              {stickySubtitle}
             </Text>
           </View>
 
@@ -575,7 +710,7 @@ export default function RestaurantDetails() {
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
+        {/* Hero Section - Modern Design */}
         <View style={styles.heroContainer}>
           {/* Restaurant Background Image */}
           {restaurant.imageUrl && !imageLoadErrors[`hero-${restaurant.id}`] ? (
@@ -594,6 +729,12 @@ export default function RestaurantDetails() {
             </View>
           )}
 
+          {/* Gradient Overlay for better text visibility */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.7)"]}
+            style={styles.imageGradient}
+          />
+
           {/* Header buttons on top of image */}
           <View style={styles.heroHeaderButtons}>
             <TouchableOpacity
@@ -603,77 +744,109 @@ export default function RestaurantDetails() {
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.heroCartButton}
-              onPress={() => router.push("/cart")}
-            >
-              <Ionicons name="cart-outline" size={22} color="#fff" />
-              {getTotalCartItems() > 0 ? (
-                <View style={styles.heroCartBadge}>
-                  <Text style={styles.heroCartBadgeText}>
-                    {getTotalCartItems()}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.overlayCard}>
-            <View style={styles.titleRow}>
-              <Text style={styles.restaurantName}>{restaurant.name}</Text>
+            <View style={styles.headerRightButtons}>
+              {/* Open/Closed Badge */}
               <View
                 style={[
-                  styles.statusBadge,
+                  styles.statusBadgeHeader,
                   {
-                    backgroundColor: restaurant.isActive
-                      ? "rgba(16,185,129,0.08)"
-                      : "rgba(239,68,68,0.08)",
-                    marginTop: 6,
+                    backgroundColor: statusTheme.color,
                   },
                 ]}
+                accessibilityLabel={`Restaurant is ${statusTheme.badge.toLowerCase()}`}
+                accessibilityHint={
+                  nextOpeningText
+                    ? `${statusTheme.badge}. ${nextOpeningText}.`
+                    : closesAtText
+                    ? `${statusTheme.badge}. ${closesAtText}.`
+                    : undefined
+                }
               >
                 <View
                   style={[
-                    styles.statusDot,
+                    styles.statusDotHeader,
                     {
-                      backgroundColor: restaurant.isActive
-                        ? "#10B981"
-                        : "#EF4444",
+                      backgroundColor: "#fff",
                     },
                   ]}
                 />
-                <Text
-                  style={[
-                    styles.statusText,
-                    { color: restaurant.isActive ? "#065f46" : "#7f1d1d" },
-                  ]}
-                >
-                  {restaurant.isActive ? "Open Now" : "Closed"}
-                </Text>
+                <View>
+                  <Text style={styles.statusTextHeader}>
+                    {statusTheme.badge}
+                  </Text>
+                  {isOpen && closesAtText && (
+                    <Text style={styles.statusTextSubHeader}>
+                      {closesAtText}
+                    </Text>
+                  )}
+                  {!isOpen && nextOpeningText && (
+                    <Text style={styles.statusTextSubHeader}>
+                      {nextOpeningText}
+                    </Text>
+                  )}
+                </View>
               </View>
-            </View>
-            {restaurant.rating ? (
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={16} color="#FFD700" />
-                <Text style={styles.ratingText}>
-                  {restaurant.rating.toFixed(1)}
-                </Text>
-              </View>
-            ) : null}
-            {restaurant.description ? (
-              <Text style={styles.restaurantDesc} numberOfLines={2}>
-                {restaurant.description}
-              </Text>
-            ) : null}
-            {restaurant.address ? (
-              <Text
-                style={styles.restaurantAddress}
-                numberOfLines={1}
-                ellipsizeMode="tail"
+
+              <TouchableOpacity
+                style={styles.heroCartButton}
+                onPress={() => router.push("/cart")}
               >
-                {restaurant.address}
-              </Text>
-            ) : null}
+                <Ionicons name="cart-outline" size={22} color="#fff" />
+                {getTotalCartItems() > 0 ? (
+                  <View style={styles.heroCartBadge}>
+                    <Text style={styles.heroCartBadgeText}>
+                      {getTotalCartItems()}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Restaurant Info at Bottom of Image */}
+          <View style={styles.heroInfoContainer}>
+            <View style={styles.heroInfoContent}>
+              {/* Restaurant Name */}
+              <Text style={styles.restaurantNameHero}>{restaurant.name}</Text>
+
+              {/* Rating & Reviews */}
+              {restaurant.rating ? (
+                <View style={styles.ratingRowHero}>
+                  <View style={styles.ratingBadge}>
+                    <Ionicons name="star" size={14} color="#FFC107" />
+                    <Text style={styles.ratingTextHero}>
+                      {restaurant.rating.toFixed(1)}
+                    </Text>
+                  </View>
+                  {restaurant.totalReviews ? (
+                    <Text style={styles.reviewCountHero}>
+                      {restaurant.totalReviews} reviews
+                    </Text>
+                  ) : null}
+                  {restaurant.address ? (
+                    <>
+                      <Text style={styles.dotSeparator}>•</Text>
+                      <Text style={styles.addressHero} numberOfLines={1}>
+                        {restaurant.address}
+                      </Text>
+                    </>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {/* Description */}
+              {restaurant.description ? (
+                <Text style={styles.restaurantDescHero} numberOfLines={2}>
+                  {restaurant.description}
+                </Text>
+              ) : null}
+
+              {(closesAtText || nextOpeningText) && (
+                <Text style={styles.statusMetaTextHero} numberOfLines={2}>
+                  {closesAtText || nextOpeningText}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
 
@@ -694,6 +867,21 @@ export default function RestaurantDetails() {
             />
           </View>
         </View>
+        {orderingDisabled && (
+          <View style={styles.orderingDisabledBanner}>
+            <Ionicons name="alert-circle" size={20} color="#f97316" />
+            <View style={styles.orderingDisabledBannerTextContainer}>
+              <Text style={styles.orderingDisabledBannerTitle}>
+                Ordering unavailable
+              </Text>
+              {orderingDisabledMessage ? (
+                <Text style={styles.orderingDisabledBannerSubtitle}>
+                  {orderingDisabledMessage}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        )}
 
         {/* Professional Meal Time Tabs */}
         <View style={styles.tabsContainer}>
@@ -702,7 +890,7 @@ export default function RestaurantDetails() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.tabsContent}
           >
-            {MEAL_TIMES.map((mealTime) => (
+            {getAvailableMealTimes().map((mealTime) => (
               <TouchableOpacity
                 key={mealTime.id}
                 style={[
@@ -774,7 +962,7 @@ export default function RestaurantDetails() {
                             description: item.description || undefined,
                           }}
                           cartQuantity={getCartItemQuantity(item.id)}
-                          onAddToCart={(p) => handleAddToCart(item)}
+                          onAddToCart={() => handleAddToCart(item)}
                           onRemoveFromCart={() => handleRemove(item.id)}
                           onPress={() =>
                             router.push({
@@ -782,6 +970,9 @@ export default function RestaurantDetails() {
                               params: { menuitem: item.id },
                             })
                           }
+                          orderingDisabled={orderingDisabled}
+                          disabledReason={orderingDisabledMessage}
+                          onAddDisabledPress={handleAddAttemptBlocked}
                         />
                       ))}
                     </View>
@@ -910,25 +1101,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroContainer: {
+    height: 300,
     position: "relative",
-    width: "100%",
-    height: 280,
-    marginBottom: 0,
+    backgroundColor: "#f5f5f5",
   },
   heroImage: {
     width: "100%",
-    height: 250,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    height: "100%",
+    backgroundColor: "#f5f5f5",
   },
   heroImagePlaceholder: {
     width: "100%",
-    height: 250,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#f5f5f5",
+  },
+  imageGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 200,
   },
   heroHeaderButtons: {
     position: "absolute",
@@ -939,89 +1133,195 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === "ios" ? 44 : 24,
+    paddingTop: Platform.OS === "ios" ? 50 : 40,
     paddingBottom: 8,
     zIndex: 10,
+  },
+  headerRightButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   heroBackButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   heroCartButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
-    position: "relative",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   heroCartBadge: {
     position: "absolute",
     top: -4,
     right: -4,
     backgroundColor: PrimaryColor,
-    borderRadius: 9,
-    minWidth: 18,
-    height: 18,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#fff",
+    paddingHorizontal: 6,
   },
   heroCartBadgeText: {
     color: "#fff",
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "bold",
   },
-  overlayCard: {
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  ratingRow: {
+  statusBadgeHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  statusDotHeader: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusTextHeader: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#fff",
+  },
+  statusTextSubHeader: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.85)",
+  },
+  heroInfoContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+  },
+  heroInfoContent: {
+    gap: 8,
+  },
+  restaurantNameHero: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: -0.5,
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  ratingRowHero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap",
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  ratingTextHero: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  reviewCountHero: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#fff",
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  dotSeparator: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "bold",
+  },
+  addressHero: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#fff",
+    flex: 1,
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  restaurantDescHero: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: "rgba(255,255,255,0.95)",
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  statusMetaTextHero: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.92)",
+    textShadowColor: "rgba(0, 0, 0, 0.55)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  overlayCard: {
+    display: "none", // Not used in new design
+  },
+  statusBadgeTopRight: {
+    display: "none", // Not used in new design
+  },
+  ratingRow: {
+    display: "none", // Not used in new design
   },
   ratingText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-    marginLeft: 4,
+    display: "none", // Not used in new design
+  },
+  reviewCount: {
+    display: "none", // Not used in new design
   },
   restaurantDesc: {
-    fontSize: 13,
-    color: "#666",
-    textAlign: "center",
-    marginTop: 4,
+    display: "none", // Not used in new design
+  },
+  addressRow: {
+    display: "none", // Not used in new design
   },
   restaurantAddress: {
-    fontSize: 12,
-    color: "#888",
-    textAlign: "center",
-    marginTop: 2,
+    display: "none", // Not used in new design
   },
   titleRow: {
-    alignItems: "center",
-    justifyContent: "center",
+    display: "none", // Not used in new design
   },
-
   searchBarWrapper: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    marginTop: 16,
     marginBottom: 8,
   },
   searchBarContainer: {
@@ -1036,6 +1336,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333",
     paddingVertical: 12,
+  },
+  orderingDisabledBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#fed7aa",
+    backgroundColor: "#fff7ed",
+    marginHorizontal: 20,
+    marginBottom: 18,
+    gap: 12,
+  },
+  orderingDisabledBannerTextContainer: {
+    flex: 1,
+  },
+  orderingDisabledBannerTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#92400e",
+    marginBottom: 4,
+  },
+  orderingDisabledBannerSubtitle: {
+    fontSize: 14,
+    color: "#b45309",
+    lineHeight: 18,
   },
   heroSection: {
     height: HEADER_HEIGHT,
@@ -1133,11 +1460,12 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   restaurantName: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#222",
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1A1A1A",
     textAlign: "center",
-    marginBottom: 4,
+    letterSpacing: -0.5,
+    lineHeight: 28,
   },
   restaurantDescription: {
     fontSize: 16,

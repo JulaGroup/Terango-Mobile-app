@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 
 export interface UniversalProduct {
-  id: number;
+  id: string | number;
   name: string;
   price: number;
   image?: string;
@@ -21,6 +21,9 @@ interface ProductCardProps {
   onRemoveFromCart: () => void;
   onPress?: () => void;
   cardWidth?: number; // Optional prop for responsive width
+  orderingDisabled?: boolean;
+  disabledReason?: string;
+  onAddDisabledPress?: () => void;
 }
 
 const ProductCard = ({
@@ -30,6 +33,9 @@ const ProductCard = ({
   onRemoveFromCart,
   onPress,
   cardWidth,
+  orderingDisabled,
+  disabledReason,
+  onAddDisabledPress,
 }: ProductCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -37,9 +43,15 @@ const ProductCard = ({
     null
   );
   const lastPressTime = useRef(0);
+  const isOrderingDisabled = orderingDisabled === true;
+  const disabledLabel = (disabledReason || "").trim() || "Ordering unavailable";
 
   // Expand controls when product is added
   const handleAdd = () => {
+    if (isOrderingDisabled) {
+      onAddDisabledPress?.();
+      return;
+    }
     onAddToCart(product);
     setExpanded(true);
 
@@ -145,14 +157,30 @@ const ProductCard = ({
           </View>
         )}
 
+        {isOrderingDisabled && (
+          <View style={styles.orderingStatusBadge}>
+            <Ionicons name="time-outline" size={12} color="#F9FAFB" />
+            <Text style={styles.orderingStatusBadgeText} numberOfLines={1}>
+              {disabledLabel}
+            </Text>
+          </View>
+        )}
+
         {/* Floating Add/Quantity Controls */}
         {cartQuantity === 0 ? (
           <TouchableOpacity
-            style={styles.floatingAddButton}
+            style={[
+              styles.floatingAddButton,
+              isOrderingDisabled && styles.floatingAddButtonDisabled,
+            ]}
             onPress={handleAdd}
-            activeOpacity={0.8}
+            activeOpacity={isOrderingDisabled ? 1 : 0.8}
           >
-            <Ionicons name="add" size={16} color="#fff" />
+            <Ionicons
+              name={isOrderingDisabled ? "lock-closed" : "add"}
+              size={16}
+              color={isOrderingDisabled ? "#F9FAFB" : "#fff"}
+            />
           </TouchableOpacity>
         ) : expanded ? (
           <View style={styles.overlayControls}>
@@ -167,11 +195,18 @@ const ProductCard = ({
             <Text style={styles.quantityText}>{cartQuantity}</Text>
 
             <TouchableOpacity
-              style={styles.quantityButton}
+              style={[
+                styles.quantityButton,
+                isOrderingDisabled && styles.quantityButtonDisabled,
+              ]}
               onPress={handleAdd}
-              activeOpacity={0.8}
+              activeOpacity={isOrderingDisabled ? 1 : 0.8}
             >
-              <Ionicons name="add" size={12} color="#fff" />
+              <Ionicons
+                name={isOrderingDisabled ? "lock-closed" : "add"}
+                size={12}
+                color="#fff"
+              />
             </TouchableOpacity>
           </View>
         ) : (
@@ -320,6 +355,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
+  floatingAddButtonDisabled: {
+    backgroundColor: "rgba(55,65,81,0.85)",
+    borderColor: "rgba(255,255,255,0.35)",
+  },
   overlayControls: {
     position: "absolute",
     bottom: 6,
@@ -343,6 +382,11 @@ const styles = StyleSheet.create({
     backgroundColor: PrimaryColor,
     justifyContent: "center",
     alignItems: "center",
+  },
+  quantityButtonDisabled: {
+    backgroundColor: "rgba(31,41,55,0.75)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
   },
   quantityText: {
     color: "#fff",
@@ -393,6 +437,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: PrimaryColor,
     letterSpacing: -0.3,
+  },
+  orderingStatusBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(17,24,39,0.85)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    maxWidth: "70%",
+  },
+  orderingStatusBadgeText: {
+    color: "#F9FAFB",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });
 

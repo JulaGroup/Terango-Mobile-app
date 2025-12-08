@@ -68,6 +68,8 @@ export default function VendorDashboard() {
   const fetchDashboardData = useCallback(async () => {
     if (!vendor) {
       console.log("⏳ No vendor data available yet, waiting...");
+      setIsLoading(false);
+      setHasAttemptedLoad(true);
       return;
     }
 
@@ -118,10 +120,17 @@ export default function VendorDashboard() {
   }, [vendor]);
 
   useEffect(() => {
-    if (vendor) {
+    // Only fetch dashboard data if vendor exists and we haven't loaded yet
+    if (vendor && !hasAttemptedLoad) {
+      console.log("🚀 Initial dashboard data fetch");
       fetchDashboardData();
+    } else if (!vendor && !isVendorLoading) {
+      // If no vendor and not loading, mark as attempted
+      console.log("⚠️ No vendor and not loading, marking as attempted");
+      setHasAttemptedLoad(true);
+      setIsLoading(false);
     }
-  }, [vendor, fetchDashboardData]);
+  }, [vendor, isVendorLoading, hasAttemptedLoad]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -207,8 +216,8 @@ export default function VendorDashboard() {
     </TouchableOpacity>
   );
 
-  // Show loading spinner while vendor data is being fetched OR hasn't attempted to load yet
-  if (isVendorLoading || isLoading || !hasAttemptedLoad) {
+  // Show loading spinner while vendor data is being fetched AND hasn't attempted to load yet
+  if ((isVendorLoading || isLoading) && !hasAttemptedLoad) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <View style={styles.loadingContent}>

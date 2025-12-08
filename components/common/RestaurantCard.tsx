@@ -4,6 +4,12 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import { OpeningHours } from "@/lib/api";
+import {
+  getOperatingStatus,
+  formatDayLabel,
+  formatTimeLabel,
+} from "@/utils/openingHours";
 
 const { width } = Dimensions.get("window");
 
@@ -19,7 +25,8 @@ interface Restaurant {
   state?: string;
   rating?: number;
   totalReviews?: number;
-  openingHours?: any;
+  openingHours?: OpeningHours | null;
+  acceptsOrders?: boolean;
   fullWidth?: boolean;
 }
 
@@ -35,42 +42,35 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
-  const reviewCount =
-    restaurant.totalReviews || Math.floor(Math.random() * 450 + 50);
-
   const CARD_WIDTH = fullWidth ? width - 32 : width * 0.75;
 
-  // Check if restaurant is currently open based on day and time
-  const isCurrentlyOpen = () => {
-    if (!restaurant.isActive) return false;
-    if (!restaurant.openingHours) return true; // Assume open if no hours set
+  const operatingStatus = React.useMemo(
+    () =>
+      getOperatingStatus({
+        openingHours: restaurant.openingHours || undefined,
+        isActive: restaurant.isActive,
+        acceptsOrders: restaurant.acceptsOrders,
+      }),
+    [restaurant.openingHours, restaurant.isActive, restaurant.acceptsOrders]
+  );
 
-    try {
-      const now = new Date();
-      const currentDay = now
-        .toLocaleDateString("en-US", { weekday: "long" })
-        .toLowerCase();
-      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+  const currentlyOpen = operatingStatus.isOpen;
 
-      const dayHours = restaurant.openingHours[currentDay];
+  let statusLabel = "CLOSED";
+  if (currentlyOpen) {
+    statusLabel = "OPEN";
+  } else if (operatingStatus.reason === "inactive") {
+    statusLabel = "OFFLINE";
+  } else if (operatingStatus.reason === "not_accepting_orders") {
+    statusLabel = "PAUSED";
+  }
 
-      if (!dayHours) return true; // Assume open if no data for this day
-      if (dayHours.closed) return false; // Explicitly closed
-
-      // Check if current time is within opening hours
-      const openTime = dayHours.open;
-      const closeTime = dayHours.close;
-
-      if (!openTime || !closeTime) return true; // Assume open if times not set
-
-      return currentTime >= openTime && currentTime <= closeTime;
-    } catch (error) {
-      console.error("Error checking opening hours:", error);
-      return true; // Default to open on error
-    }
-  };
-
-  const currentlyOpen = isCurrentlyOpen();
+  const nextOpeningLabel =
+    !currentlyOpen && operatingStatus.nextOpening
+      ? `Opens ${formatDayLabel(
+          operatingStatus.nextOpening.day
+        )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
+      : undefined;
 
   return (
     <TouchableOpacity
@@ -122,10 +122,17 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             styles.activeBadge,
             { backgroundColor: currentlyOpen ? "#27AE60" : "#E74C3C" },
           ]}
+          accessibilityLabel={`Restaurant is ${statusLabel.toLowerCase()}`}
+          accessibilityHint={
+            nextOpeningLabel
+              ? `${statusLabel}. ${nextOpeningLabel}.`
+              : undefined
+          }
         >
-          <Text style={styles.activeBadgeText}>
-            {currentlyOpen ? "OPEN" : "CLOSED"}
-          </Text>
+          <Text style={styles.activeBadgeText}>{statusLabel}</Text>
+          {!currentlyOpen && nextOpeningLabel && (
+            <Text style={styles.activeBadgeSubText}>{nextOpeningLabel}</Text>
+          )}
         </View>
       </View>
 
@@ -175,11 +182,18 @@ const styles = {
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    maxWidth: "88%" as const,
   },
   activeBadgeText: {
     color: "#fff",
     fontSize: 10,
     fontWeight: "600" as const,
+  },
+  activeBadgeSubText: {
+    marginTop: 2,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 9,
+    fontWeight: "500" as const,
   },
   restaurantInfo: {
     padding: 16,

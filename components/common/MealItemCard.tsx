@@ -20,6 +20,9 @@ interface MealItemCardProps {
   onAddToCart: (product: UniversalProduct) => void;
   onRemoveFromCart: () => void;
   onPress?: () => void;
+  orderingDisabled?: boolean;
+  disabledReason?: string;
+  onAddDisabledPress?: () => void;
 }
 
 const MealItemCard = ({
@@ -28,15 +31,24 @@ const MealItemCard = ({
   onAddToCart,
   onRemoveFromCart,
   onPress,
+  orderingDisabled,
+  disabledReason,
+  onAddDisabledPress,
 }: MealItemCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
     null
   );
+  const isOrderingDisabled = orderingDisabled === true;
+  const disabledLabel = (disabledReason || "").trim() || "Ordering unavailable";
 
   // Expand controls when product is added
   const handleAdd = () => {
+    if (isOrderingDisabled) {
+      onAddDisabledPress?.();
+      return;
+    }
     onAddToCart(product);
     setExpanded(true);
 
@@ -125,6 +137,15 @@ const MealItemCard = ({
           </View>
         )}
 
+        {isOrderingDisabled && (
+          <View style={styles.orderingStatusBadge}>
+            <Ionicons name="time-outline" size={12} color="#F9FAFB" />
+            <Text style={styles.orderingStatusBadgeText} numberOfLines={1}>
+              {disabledLabel}
+            </Text>
+          </View>
+        )}
+
         {product.image && !imageLoadError ? (
           <Image
             source={{ uri: product.image }}
@@ -144,11 +165,18 @@ const MealItemCard = ({
       {/* Floating Add/Quantity Controls positioned relative to the whole card */}
       {cartQuantity === 0 ? (
         <TouchableOpacity
-          style={styles.floatingAddButton}
+          style={[
+            styles.floatingAddButton,
+            isOrderingDisabled && styles.floatingAddButtonDisabled,
+          ]}
           onPress={handleAdd}
-          activeOpacity={0.8}
+          activeOpacity={isOrderingDisabled ? 1 : 0.8}
         >
-          <Ionicons name="add" size={18} color="#fff" />
+          <Ionicons
+            name={isOrderingDisabled ? "lock-closed" : "add"}
+            size={18}
+            color={isOrderingDisabled ? "#F9FAFB" : "#fff"}
+          />
         </TouchableOpacity>
       ) : expanded ? (
         <View style={styles.overlayControls}>
@@ -163,11 +191,18 @@ const MealItemCard = ({
           <Text style={styles.quantityText}>{cartQuantity}</Text>
 
           <TouchableOpacity
-            style={styles.quantityButton}
+            style={[
+              styles.quantityButton,
+              isOrderingDisabled && styles.quantityButtonDisabled,
+            ]}
             onPress={handleAdd}
-            activeOpacity={0.8}
+            activeOpacity={isOrderingDisabled ? 1 : 0.8}
           >
-            <Ionicons name="add" size={14} color="#fff" />
+            <Ionicons
+              name={isOrderingDisabled ? "lock-closed" : "add"}
+              size={14}
+              color="#fff"
+            />
           </TouchableOpacity>
         </View>
       ) : (
@@ -320,6 +355,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#FFFFFF",
   },
+  floatingAddButtonDisabled: {
+    backgroundColor: "rgba(55,65,81,0.85)",
+    borderColor: "rgba(255,255,255,0.35)",
+  },
   overlayControls: {
     position: "absolute",
     bottom: 8,
@@ -346,6 +385,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  quantityButtonDisabled: {
+    backgroundColor: "rgba(31,41,55,0.75)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
   quantityText: {
     color: "#fff",
     fontSize: 13,
@@ -358,6 +402,25 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "700",
+  },
+  orderingStatusBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "rgba(17,24,39,0.85)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    maxWidth: "75%",
+    zIndex: 12,
+  },
+  orderingStatusBadgeText: {
+    color: "#F9FAFB",
+    fontSize: 10,
+    fontWeight: "600",
   },
 });
 

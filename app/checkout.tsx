@@ -73,7 +73,7 @@ export default function Checkout() {
         if (storedNew) {
           await NotificationService.scheduleOrderNotification({
             orderId,
-            title: "Payment Successful! 🎉",
+            title: "Order Placed! 🎉",
             body: "Your order has been placed successfully. Tap to view details.",
             data: { orderId, type: "payment_success" },
           });
@@ -144,6 +144,8 @@ export default function Checkout() {
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [addressPickerVisible, setAddressPickerVisible] = useState(false);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
+  const [paymentMethodPickerVisible, setPaymentMethodPickerVisible] =
+    useState(false);
 
   // Use the explicitly selected address when present; otherwise fall back to the default/saved one
   const currentAddress =
@@ -159,12 +161,8 @@ export default function Checkout() {
     isVerified?: boolean;
   } | null>(null);
 
-  // 💳 PAYMENT METHOD STATE (ONLINE vs CASH)
-  const [paymentMethodSelection, setPaymentMethodSelection] = useState<
-    "ONLINE" | "CASH"
-  >("ONLINE");
-
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("cash");
+  // 💳 DIGITAL PAYMENT METHOD STATE
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("mobile");
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState<
     string | null
   >(null);
@@ -191,34 +189,7 @@ export default function Checkout() {
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
 
-  // 💳 DETERMINE IF CASH PAYMENT IS ALLOWED
-  // Cash payment only allowed for shops and pharmacies, NOT restaurants
-  // AND only if it's NOT a gift order (ordering for someone else)
-  const vendorType = items.length > 0 ? items[0].entityType : undefined;
-  // Also check if any item is from a shop/pharmacy by looking at alternative fields
-  const hasShopOrPharmacyItems = items.some(
-    (item: any) =>
-      item.entityType === "shop" ||
-      item.entityType === "pharmacy" ||
-      item.entityType === "product" || // Products from shops
-      item.shopId || // Has shopId
-      item.pharmacyId // Has pharmacyId
-  );
-  const hasRestaurantItems = items.some(
-    (item: any) =>
-      item.entityType === "restaurant" ||
-      item.entityType === "menuItem" ||
-      item.restaurantId
-  );
-  const isCashPaymentAllowed =
-    hasShopOrPharmacyItems && !hasRestaurantItems && !form.isGiftOrder;
-
-  // Reset to ONLINE if cash is selected but not allowed
-  useEffect(() => {
-    if (!isCashPaymentAllowed && paymentMethodSelection === "CASH") {
-      setPaymentMethodSelection("ONLINE");
-    }
-  }, [isCashPaymentAllowed, paymentMethodSelection, form.isGiftOrder]);
+  // Cash payments removed – digital payment is always required
 
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
   const DEFAULT_DELIVERY_FEE = 0; // GMD - fallback if distance calculation fails
@@ -364,16 +335,16 @@ export default function Checkout() {
               console.log("Setting selected payment method to mobile (cached)");
               setSelectedPaymentMethod("mobile");
             } else {
-              setSelectedPaymentMethod("cash");
+              setSelectedPaymentMethod("mobile");
             }
           } else {
             console.log("No payment methods data found (cached)");
-            setSelectedPaymentMethod("cash");
+            setSelectedPaymentMethod("mobile");
           }
           setPaymentMethodsLoaded(true);
         } catch {
           console.log("Failed to load payment methods (cached)");
-          setSelectedPaymentMethod("cash");
+          setSelectedPaymentMethod("mobile");
           setPaymentMethodsLoaded(true);
         }
       }
@@ -414,16 +385,16 @@ export default function Checkout() {
             console.log("Setting selected payment method to mobile");
             setSelectedPaymentMethod("mobile");
           } else {
-            setSelectedPaymentMethod("cash");
+            setSelectedPaymentMethod("mobile");
           }
         } else {
           console.log("No payment methods data found");
-          setSelectedPaymentMethod("cash");
+          setSelectedPaymentMethod("mobile");
         }
         setPaymentMethodsLoaded(true);
       } catch {
         console.log("Failed to load payment methods");
-        setSelectedPaymentMethod("cash");
+        setSelectedPaymentMethod("mobile");
         setPaymentMethodsLoaded(true);
       }
 
@@ -914,7 +885,7 @@ export default function Checkout() {
             items: itemsPayload,
             notes: form.notes,
             promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
-            paymentMethod: paymentMethodSelection, // 💳 ADD PAYMENT METHOD (ONLINE or CASH)
+            paymentMethod: "ONLINE", // 💳 Digital payments only
             // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
             customerLatitude: customerCoordinates?.latitude,
             customerLongitude: customerCoordinates?.longitude,
@@ -1072,6 +1043,7 @@ export default function Checkout() {
     subtitle,
     selected,
     onPress,
+    showArrow = false,
   }: {
     method: string;
     icon: string;
@@ -1079,6 +1051,7 @@ export default function Checkout() {
     subtitle: string;
     selected: boolean;
     onPress: () => void;
+    showArrow?: boolean;
   }) => (
     <TouchableOpacity
       style={[
@@ -1106,6 +1079,14 @@ export default function Checkout() {
         </Text>
         <Text style={styles.paymentMethodSubtitle}>{subtitle}</Text>
       </View>
+      {showArrow && (
+        <Ionicons
+          name="chevron-down"
+          size={20}
+          color="#9CA3AF"
+          style={{ marginRight: 8 }}
+        />
+      )}
       <View
         style={[
           styles.radioButton,
@@ -1617,134 +1598,51 @@ export default function Checkout() {
               </Animated.View>
             )}
 
-            {/* 💳 PAYMENT METHOD SELECTION */}
-            <Text style={styles.sectionTitle}>Payment Method</Text>
+            {/* 💳 PAYMENT TYPE (DIGITAL-ONLY) */}
+            <Text style={styles.sectionTitle}>Payment Type</Text>
 
             <View style={styles.orderTypeContainer}>
-              {/* Online Payment Option */}
-              <TouchableOpacity
-                style={[
-                  styles.orderTypeButton,
-                  paymentMethodSelection === "ONLINE" &&
-                    styles.orderTypeButtonSelected,
-                ]}
-                onPress={() => setPaymentMethodSelection("ONLINE")}
-                activeOpacity={0.7}
+              <View
+                style={[styles.orderTypeButton, styles.orderTypeButtonSelected]}
               >
                 <View style={styles.orderTypeIcon}>
-                  <Ionicons
-                    name="card"
-                    size={20}
-                    color={
-                      paymentMethodSelection === "ONLINE"
-                        ? "#fff"
-                        : PrimaryColor
-                    }
-                  />
+                  <Ionicons name="card" size={20} color="#fff" />
                 </View>
                 <View style={styles.orderTypeInfo}>
                   <Text
                     style={[
                       styles.orderTypeTitle,
-                      paymentMethodSelection === "ONLINE" &&
-                        styles.orderTypeTitleSelected,
+                      styles.orderTypeTitleSelected,
                     ]}
                   >
-                    Online Payment
+                    Digital Payment (Required)
                   </Text>
                   <Text
                     style={[
                       styles.orderTypeSubtitle,
-                      paymentMethodSelection === "ONLINE" &&
-                        styles.orderTypeSubtitleSelected,
+                      styles.orderTypeSubtitleSelected,
                     ]}
                   >
-                    Pay securely with digital wallets or card
+                    Pay securely with mobile wallets or bank cards
                   </Text>
                 </View>
-                <View
-                  style={[
-                    styles.radioButton,
-                    paymentMethodSelection === "ONLINE" &&
-                      styles.radioButtonSelected,
-                  ]}
-                >
-                  {paymentMethodSelection === "ONLINE" && (
-                    <View style={styles.radioButtonInner} />
-                  )}
+                <View style={[styles.radioButton, styles.radioButtonSelected]}>
+                  <View style={styles.radioButtonInner} />
                 </View>
-              </TouchableOpacity>
+              </View>
+            </View>
 
-              {/* Cash Payment Option - Only for shops and pharmacies */}
-              {isCashPaymentAllowed ? (
-                <TouchableOpacity
-                  style={[
-                    styles.orderTypeButton,
-                    paymentMethodSelection === "CASH" &&
-                      styles.orderTypeButtonSelected,
-                  ]}
-                  onPress={() => setPaymentMethodSelection("CASH")}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.orderTypeIcon}>
-                    <Ionicons
-                      name="cash"
-                      size={20}
-                      color={
-                        paymentMethodSelection === "CASH"
-                          ? "#fff"
-                          : PrimaryColor
-                      }
-                    />
-                  </View>
-                  <View style={styles.orderTypeInfo}>
-                    <Text
-                      style={[
-                        styles.orderTypeTitle,
-                        paymentMethodSelection === "CASH" &&
-                          styles.orderTypeTitleSelected,
-                      ]}
-                    >
-                      Cash on{" "}
-                      {form.orderType === "DELIVERY" ? "Delivery" : "Pickup"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.orderTypeSubtitle,
-                        paymentMethodSelection === "CASH" &&
-                          styles.orderTypeSubtitleSelected,
-                      ]}
-                    >
-                      Pay with cash when you receive your order
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.radioButton,
-                      paymentMethodSelection === "CASH" &&
-                        styles.radioButtonSelected,
-                    ]}
-                  >
-                    {paymentMethodSelection === "CASH" && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.paymentMethodDisabled}>
-                  <Ionicons name="cash-outline" size={20} color="#999" />
-                  <View style={styles.paymentMethodDisabledInfo}>
-                    <Text style={styles.paymentMethodDisabledTitle}>
-                      Cash Payment Not Available
-                    </Text>
-                    <Text style={styles.paymentMethodDisabledSubtitle}>
-                      {form.isGiftOrder
-                        ? "Online payment required for gift orders to ensure secure delivery"
-                        : "Online payment required for restaurant orders to prevent food waste"}
-                    </Text>
-                  </View>
-                </View>
-              )}
+            <View style={styles.paymentNotice}>
+              <Ionicons
+                name="information-circle"
+                size={16}
+                color="#F97316"
+                style={{ marginRight: 8, marginTop: 2 }}
+              />
+              <Text style={styles.paymentNoticeText}>
+                Cash on delivery or pickup is no longer supported. Complete your
+                payment digitally to place an order.
+              </Text>
             </View>
 
             <Text style={styles.sectionTitle}>
@@ -2020,99 +1918,61 @@ export default function Checkout() {
             </View>
           </Animated.View>
 
-          {/* Payment Method - Only show Wave Pay section when ONLINE payment is selected */}
-          {paymentMethodSelection === "ONLINE" && (
-            <Animated.View
-              style={[
-                styles.section,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateY: slideAnim }],
-                },
-              ]}
-            >
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Payment Method</Text>
-                {paymentStatus === "pending" && (
-                  <View style={styles.pollingIndicator}>
-                    <Ionicons
-                      name="radio-button-on"
-                      size={12}
-                      color="#10B981"
-                    />
-                    <Text style={styles.pollingText}>
-                      Processing payment...
-                    </Text>
-                  </View>
-                )}
-              </View>
+          {/* Payment Method - Digital wallets */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Payment Method</Text>
+              {paymentStatus === "pending" && (
+                <View style={styles.pollingIndicator}>
+                  <Ionicons name="radio-button-on" size={12} color="#10B981" />
+                  <Text style={styles.pollingText}>Processing payment...</Text>
+                </View>
+              )}
+            </View>
 
-              {/* <PaymentMethodCard
-              method="cash"
-              icon="cash"
-              title="Cash on Delivery"
-              subtitle="Pay when your order arrives"
-              selected={selectedPaymentMethod === "cash"}
-              onPress={() => setSelectedPaymentMethod("cash")}
-            /> */}
-
-              {/* <PaymentMethodCard
-              method="card"
-              icon="card"
-              title="Credit/Debit Card"
-              subtitle="Pay securely with your card"
-              selected={selectedPaymentMethod === "card"}
-              onPress={() => setSelectedPaymentMethod("card")}
-            /> */}
-
-              <PaymentMethodCard
-                method="mobile"
-                icon="wallet"
-                title={
-                  defaultPaymentMethod && paymentMethodsLoaded
-                    ? defaultPaymentMethod.toUpperCase()
-                    : "Mobile Money"
-                }
-                subtitle={
-                  defaultPaymentMethod && paymentMethodsLoaded
-                    ? `Account ending in ***${
-                        paymentMethods?.methods[defaultPaymentMethod]?.slice(
-                          -4
-                        ) || "****"
-                      }`
-                    : "Select mobile payment method"
-                }
-                selected={selectedPaymentMethod === "mobile"}
-                onPress={() => {
-                  console.log(
-                    "Payment method pressed. Default:",
-                    defaultPaymentMethod,
-                    "Selected:",
-                    selectedPaymentMethod,
-                    "Loaded:",
-                    paymentMethodsLoaded,
-                    "Methods:",
-                    paymentMethods
-                  );
-                  if (!defaultPaymentMethod) {
-                    Alert.alert(
-                      "No Payment Method",
-                      "Please add a mobile payment account in your profile settings.",
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Go to Profile",
-                          onPress: () => router.push("/profile"),
-                        },
-                      ]
-                    );
-                    return;
-                  }
-                  setSelectedPaymentMethod("mobile");
-                }}
-              />
-            </Animated.View>
-          )}
+            <PaymentMethodCard
+              method="mobile"
+              icon="wallet"
+              title={
+                defaultPaymentMethod && paymentMethodsLoaded
+                  ? defaultPaymentMethod.toUpperCase()
+                  : "Mobile Money"
+              }
+              subtitle={
+                defaultPaymentMethod && paymentMethodsLoaded
+                  ? `Account ending in ***${
+                      paymentMethods?.methods[defaultPaymentMethod]?.slice(
+                        -4
+                      ) || "****"
+                    }`
+                  : "Select mobile payment method"
+              }
+              selected={selectedPaymentMethod === "mobile"}
+              showArrow={true}
+              onPress={() => {
+                console.log(
+                  "Payment method pressed. Default:",
+                  defaultPaymentMethod,
+                  "Selected:",
+                  selectedPaymentMethod,
+                  "Loaded:",
+                  paymentMethodsLoaded,
+                  "Methods:",
+                  paymentMethods
+                );
+                // Open payment method picker modal
+                setPaymentMethodPickerVisible(true);
+              }}
+            />
+          </Animated.View>
 
           {restaurantIds.length > 1 ? (
             <View style={styles.multiRestaurantNotice}>
@@ -2252,6 +2112,239 @@ export default function Checkout() {
                   onPress={() => setAddressPickerVisible(false)}
                 >
                   <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+
+        {/* Payment Method Picker Modal */}
+        <Modal
+          visible={paymentMethodPickerVisible}
+          animationType="slide"
+          transparent
+        >
+          <SafeAreaView style={styles.modalCentered}>
+            <View
+              style={[styles.modalContainer, { maxHeight: 500, width: "95%" }]}
+            >
+              <Text style={styles.modalTitle}>Choose Payment Method</Text>
+              <Text style={styles.modalMessage}>
+                Select a mobile money account
+              </Text>
+              <ScrollView style={{ width: "100%" }}>
+                {/* Check if payment methods exist */}
+                {paymentMethods &&
+                Object.keys(paymentMethods.methods || {}).length > 0 ? (
+                  <>
+                    {/* Wave */}
+                    {paymentMethods.methods.wave && (
+                      <TouchableOpacity
+                        style={{
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor:
+                            defaultPaymentMethod === "wave"
+                              ? PrimaryColor
+                              : "#E5E7EB",
+                          backgroundColor:
+                            defaultPaymentMethod === "wave"
+                              ? "#FFF8F0"
+                              : "#FFF",
+                          marginBottom: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                        onPress={() => {
+                          setDefaultPaymentMethod("wave");
+                          setSelectedPaymentMethod("mobile");
+                          setPaymentMethodPickerVisible(false);
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontWeight: "700",
+                              fontSize: 16,
+                              color: "#1F2937",
+                              marginBottom: 4,
+                            }}
+                          >
+                            💳 Wave
+                          </Text>
+                          <Text style={{ color: "#6B7280", fontSize: 14 }}>
+                            Account: ***{paymentMethods.methods.wave.slice(-4)}
+                          </Text>
+                        </View>
+                        {defaultPaymentMethod === "wave" && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={24}
+                            color={PrimaryColor}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {/* Afrimoney */}
+                    {paymentMethods.methods.afrimoney && (
+                      <TouchableOpacity
+                        style={{
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor:
+                            defaultPaymentMethod === "afrimoney"
+                              ? PrimaryColor
+                              : "#E5E7EB",
+                          backgroundColor:
+                            defaultPaymentMethod === "afrimoney"
+                              ? "#FFF8F0"
+                              : "#FFF",
+                          marginBottom: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                        onPress={() => {
+                          setDefaultPaymentMethod("afrimoney");
+                          setSelectedPaymentMethod("mobile");
+                          setPaymentMethodPickerVisible(false);
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontWeight: "700",
+                              fontSize: 16,
+                              color: "#1F2937",
+                              marginBottom: 4,
+                            }}
+                          >
+                            📱 Afrimoney
+                          </Text>
+                          <Text style={{ color: "#6B7280", fontSize: 14 }}>
+                            Account: ***
+                            {paymentMethods.methods.afrimoney.slice(-4)}
+                          </Text>
+                        </View>
+                        {defaultPaymentMethod === "afrimoney" && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={24}
+                            color={PrimaryColor}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    )}
+
+                    {/* QMoney */}
+                    {paymentMethods.methods.qmoney && (
+                      <TouchableOpacity
+                        style={{
+                          paddingVertical: 14,
+                          paddingHorizontal: 16,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          borderColor:
+                            defaultPaymentMethod === "qmoney"
+                              ? PrimaryColor
+                              : "#E5E7EB",
+                          backgroundColor:
+                            defaultPaymentMethod === "qmoney"
+                              ? "#FFF8F0"
+                              : "#FFF",
+                          marginBottom: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                        }}
+                        onPress={() => {
+                          setDefaultPaymentMethod("qmoney");
+                          setSelectedPaymentMethod("mobile");
+                          setPaymentMethodPickerVisible(false);
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={{
+                              fontWeight: "700",
+                              fontSize: 16,
+                              color: "#1F2937",
+                              marginBottom: 4,
+                            }}
+                          >
+                            💰 QMoney
+                          </Text>
+                          <Text style={{ color: "#6B7280", fontSize: 14 }}>
+                            Account: ***
+                            {paymentMethods.methods.qmoney.slice(-4)}
+                          </Text>
+                        </View>
+                        {defaultPaymentMethod === "qmoney" && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={24}
+                            color={PrimaryColor}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </>
+                ) : (
+                  <View style={{ paddingVertical: 24, alignItems: "center" }}>
+                    <Ionicons name="wallet-outline" size={48} color="#9CA3AF" />
+                    <Text
+                      style={{
+                        color: "#6B7280",
+                        fontSize: 16,
+                        marginTop: 12,
+                        textAlign: "center",
+                      }}
+                    >
+                      No payment methods found
+                    </Text>
+                    <Text
+                      style={{
+                        color: "#9CA3AF",
+                        fontSize: 14,
+                        marginTop: 4,
+                        textAlign: "center",
+                      }}
+                    >
+                      Add a mobile money account in your profile
+                    </Text>
+                  </View>
+                )}
+              </ScrollView>
+              <View
+                style={{
+                  flexDirection: "row",
+                  width: "100%",
+                  marginTop: 12,
+                  gap: 8,
+                }}
+              >
+                <TouchableOpacity
+                  style={[styles.modalButton, { flex: 1 }]}
+                  onPress={() => setPaymentMethodPickerVisible(false)}
+                >
+                  <Text style={styles.modalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalPrimary, { flex: 1 }]}
+                  onPress={() => {
+                    setPaymentMethodPickerVisible(false);
+                    router.push("/payment-methods");
+                  }}
+                >
+                  <Text style={[styles.modalButtonText, { color: "#fff" }]}>
+                    Add New
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2996,6 +3089,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#9ca3af",
     lineHeight: 16,
+  },
+  paymentNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFF7ED",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 24,
+  },
+  paymentNoticeText: {
+    flex: 1,
+    color: "#9A3412",
+    fontSize: 13,
+    lineHeight: 18,
   },
   // 🎁 Gift Order Toggle Styles
   giftOrderToggle: {

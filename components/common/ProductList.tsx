@@ -14,7 +14,8 @@ import {
 } from "../../hooks/useInfiniteScroll";
 import { productAPI, Product } from "../../services/api";
 import { ProductCardSkeleton } from "./Skeleton";
-import ProductCard, { UniversalProduct } from "./ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import { UniversalProduct } from "@/components/common/ProductCard";
 import { useCart } from "@/context/CartContext";
 import { useRouter } from "expo-router";
 
@@ -113,13 +114,18 @@ const ProductList: React.FC<ProductListProps> = ({
 
     return (
       <View style={styles.productCardWrapper}>
-        <ProductCard
+        <VendorAwareProductCard
           product={universalProduct}
           cartQuantity={getCartQuantity(item.id)}
           onAddToCart={() => handleAddToCart(item)}
           onRemoveFromCart={() => handleRemoveFromCart(item.id)}
           onPress={() => router.push(`/product/${item.id}`)}
           cardWidth={(width - 48) / 3} // 3 columns with proper spacing
+          vendor={{
+            vendorId: item.shop?.id,
+            vendorType: "shop",
+            vendorName: item.shop?.name,
+          }}
         />
       </View>
     );

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
-  Image,
   FlatList,
   RefreshControl,
   Dimensions,
@@ -15,12 +14,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
-import ProductCard from "@/components/common/ProductCard";
-import MealItemCard from "@/components/common/MealItemCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -38,7 +36,7 @@ interface Restaurant {
   state?: string;
   rating?: number;
   totalReviews?: number;
-  openingHours?: any;
+  acceptsOrders?: boolean;
   fullWidth?: boolean;
 }
 interface Shop {
@@ -184,176 +182,6 @@ const FilterTabs = ({ activeTab, onTabChange, counts }: any) => {
   );
 };
 
-// Menu Item Card Component
-const MenuItemCard = ({
-  menuItem,
-  onPress,
-}: {
-  menuItem: MenuItem;
-  onPress?: () => void;
-}) => {
-  const { addToCart, cartItems, removeFromCart, updateQuantity } = useCart();
-  const [imageLoadError, setImageLoadError] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
-    null
-  );
-
-  const cartQuantity =
-    cartItems.find((item) => item.id === menuItem.id)?.quantity || 0;
-
-  // expand controls when item is added
-  const handleAdd = () => {
-    // Determine entityType dynamically
-    let entityType = "restaurant";
-    if (menuItem.menu && menuItem.menu.restaurantId) {
-      entityType = "restaurant";
-    } else if ((menuItem as any).shopId) {
-      entityType = "shop";
-    } else if ((menuItem as any).pharmacyId) {
-      entityType = "pharmacy";
-    }
-    const cartItem = {
-      id: menuItem.id,
-      name: menuItem.name,
-      price: menuItem.price,
-      description: menuItem.description || "",
-      vendorId:
-        menuItem.menu?.restaurantId ||
-        (menuItem as any).shopId ||
-        (menuItem as any).pharmacyId ||
-        "",
-      vendorName: entityType.charAt(0).toUpperCase() + entityType.slice(1),
-      imageUrl: menuItem.imageUrl || "",
-      entityType,
-    };
-    addToCart(cartItem);
-    setExpanded(true);
-    if (timer) clearTimeout(timer);
-    const t = setTimeout(() => {
-      setExpanded(false);
-    }, 4000);
-    setTimer(t);
-  };
-
-  const handleRemove = () => {
-    if (cartQuantity > 1) {
-      updateQuantity(menuItem.id, cartQuantity - 1);
-    } else {
-      removeFromCart(menuItem.id);
-      setExpanded(false);
-      if (timer) clearTimeout(timer);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
-  }, [timer]);
-
-  return (
-    <TouchableOpacity
-      style={[styles.modernMenuCard, { width: (width - 56) / 2 }]}
-      activeOpacity={0.92}
-      onPress={onPress}
-    >
-      <View style={styles.modernMenuImageContainer}>
-        {menuItem.imageUrl && !imageLoadError ? (
-          <Image
-            source={{ uri: menuItem.imageUrl }}
-            style={styles.modernMenuImage}
-            onError={() => setImageLoadError(true)}
-          />
-        ) : (
-          <LinearGradient
-            colors={["#fef3c7", "#fde68a"]}
-            style={styles.modernMenuImagePlaceholder}
-          >
-            <Ionicons name="restaurant" size={28} color="#d97706" />
-          </LinearGradient>
-        )}
-
-        {/* Availability Overlay */}
-        {!menuItem.isAvailable && (
-          <View style={styles.modernUnavailableOverlay}>
-            <View style={styles.unavailableBadge}>
-              <Text style={styles.modernUnavailableText}>Unavailable</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Floating Add/Quantity Controls - ProductCard style */}
-        {cartQuantity === 0 ? (
-          <TouchableOpacity
-            style={styles.floatingAddButton}
-            onPress={() => {
-              handleAdd();
-            }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={18} color="#fff" />
-          </TouchableOpacity>
-        ) : expanded ? (
-          <View style={styles.overlayControls}>
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => {
-                handleRemove();
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="remove" size={14} color="#fff" />
-            </TouchableOpacity>
-
-            <Text style={styles.quantityText}>{cartQuantity}</Text>
-
-            <TouchableOpacity
-              style={styles.quantityButton}
-              onPress={() => {
-                handleAdd();
-              }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="add" size={14} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={styles.floatingAddButton}
-            onPress={() => setExpanded(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quantityBadgeText}>{cartQuantity}</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.modernMenuContent}>
-        <Text style={styles.modernMenuTitle} numberOfLines={1}>
-          {menuItem.name}
-        </Text>
-        {menuItem.description && (
-          <Text style={styles.modernMenuDescription} numberOfLines={1}>
-            {menuItem.description}
-          </Text>
-        )}
-        <View style={styles.modernMenuFooter}>
-          <Text style={styles.modernMenuPrice}>
-            D{menuItem.price.toFixed(2)}
-          </Text>
-          {cartQuantity > 0 && (
-            <View style={styles.cartIndicator}>
-              <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-              <Text style={styles.cartIndicatorText}>In Cart</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
 // Main Component
 export default function SubCategoryView() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -466,7 +294,7 @@ export default function SubCategoryView() {
                       key={`product-${item.id}`}
                       style={styles.productGridItem}
                     >
-                      <ProductCard
+                      <VendorAwareProductCard
                         product={{
                           id: Number(item.id),
                           name: item.name,
@@ -502,6 +330,10 @@ export default function SubCategoryView() {
                           }
                         }}
                         onPress={() => router.push(`/product/${item.id}`)}
+                        vendor={{
+                          vendorId: item.shopId,
+                          vendorType: "shop",
+                        }}
                       />
                     </View>
                   );
@@ -510,7 +342,7 @@ export default function SubCategoryView() {
             </View>
           )}
 
-          {/* Menu Items Section */}
+          {/* Menu Items Section - Single Column */}
           {data.menuItems.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -539,25 +371,63 @@ export default function SubCategoryView() {
                   <Ionicons name="chevron-forward" size={14} color="#64748b" />
                 </TouchableOpacity>
               </View>
+
+              {/* Single Column for ALL Meals using MealItemCard */}
               <FlatList
                 data={data.menuItems}
-                horizontal
-                keyExtractor={(item) => `menu-${item.id}`}
-                renderItem={({ item }) => (
-                  <View style={{ marginRight: 16 }}>
-                    <MenuItemCard
-                      menuItem={item}
-                      onPress={() =>
-                        router.push({
-                          pathname: "/menuitem/[menuitem]",
-                          params: { menuitem: item.id },
-                        })
-                      }
-                    />
-                  </View>
-                )}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 20 }}
+                keyExtractor={(item) => `menu-all-${item.id}`}
+                renderItem={({ item }) => {
+                  const cartQuantity =
+                    cartItems.find((ci) => String(ci.id) === String(item.id))
+                      ?.quantity || 0;
+                  return (
+                    <View style={styles.mealSingleColumnItem}>
+                      <VendorAwareMealItemCard
+                        product={{
+                          id: Number(item.id),
+                          name: item.name,
+                          price: item.price,
+                          discountedPrice: item.discountedPrice,
+                          image: item.imageUrl || "",
+                          description: item.description || "",
+                          inStock: item.isAvailable,
+                        }}
+                        cartQuantity={cartQuantity}
+                        onAddToCart={() => {
+                          const cartItem = {
+                            id: String(item.id),
+                            name: item.name,
+                            price: item.price,
+                            imageUrl: item.imageUrl || "",
+                            vendorId: item.menu?.restaurantId || "",
+                            vendorName: "Restaurant",
+                            description: item.description || "",
+                            entityType: "restaurant",
+                          };
+                          addToCart(cartItem);
+                        }}
+                        onRemoveFromCart={() => {
+                          const id = String(item.id);
+                          const cartItem = cartItems.find(
+                            (ci) => String(ci.id) === id
+                          );
+                          if (cartItem && cartItem.quantity > 1) {
+                            updateQuantity(id, cartItem.quantity - 1);
+                          } else {
+                            removeFromCart(id);
+                          }
+                        }}
+                        onPress={() => router.push(`/menuitem/${item.id}`)}
+                        vendor={{
+                          vendorId: item.menu?.restaurantId,
+                          vendorType: "restaurant",
+                        }}
+                      />
+                    </View>
+                  );
+                }}
+                scrollEnabled={false}
+                contentContainerStyle={styles.mealSingleColumnContainer}
               />
             </View>
           )}
@@ -601,7 +471,7 @@ export default function SubCategoryView() {
                   marginBottom: H_GAP,
                 }}
               >
-                <ProductCard
+                <VendorAwareProductCard
                   product={{
                     id: Number(item.id),
                     name: item.name,
@@ -637,6 +507,10 @@ export default function SubCategoryView() {
                     }
                   }}
                   onPress={() => router.push(`/product/${item.id}`)}
+                  vendor={{
+                    vendorId: item.shopId,
+                    vendorType: "shop",
+                  }}
                 />
               </View>
             );
@@ -674,7 +548,7 @@ export default function SubCategoryView() {
                   marginBottom: 12,
                 }}
               >
-                <MealItemCard
+                <VendorAwareMealItemCard
                   product={{
                     id: Number(item.id),
                     name: item.name,
@@ -688,20 +562,24 @@ export default function SubCategoryView() {
                     cartItems.find((ci) => String(ci.id) === String(item.id))
                       ?.quantity || 0
                   }
-                  onAddToCart={(product) =>
+                  onAddToCart={() =>
                     addToCart({
-                      id: product.id.toString(),
-                      name: product.name,
-                      price: product.price,
-                      imageUrl: product.image || "",
+                      id: item.id.toString(),
+                      name: item.name,
+                      price: item.price,
+                      imageUrl: item.imageUrl || "",
                       vendorId: item.menu?.restaurantId || "",
                       vendorName: "",
-                      description: product.description || "",
+                      description: item.description || "",
                       entityType: "menuItem",
                     })
                   }
                   onRemoveFromCart={() => removeFromCart(String(item.id))}
                   onPress={() => router.push(`/menuitem/${item.id}`)}
+                  vendor={{
+                    vendorId: item.menu?.restaurantId,
+                    vendorType: "restaurant",
+                  }}
                 />
               </View>
             );
@@ -2109,6 +1987,25 @@ const styles = StyleSheet.create({
   productGridItem: {
     width: "33.33%",
     paddingHorizontal: 6,
+    marginBottom: 12,
+  },
+  mealGridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  mealGridItem: {
+    width: "50%",
+    paddingHorizontal: 6,
+    marginBottom: 12,
+  },
+  mealSingleColumnContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  mealSingleColumnItem: {
+    width: "100%",
     marginBottom: 12,
   },
 });

@@ -25,7 +25,7 @@ export default function AdBanner({
   };
 
   return (
-    <View style={{ paddingHorizontal: 16, paddingVertical: 10 }}>
+    <View style={{ paddingHorizontal: 2, paddingVertical: 10 }}>
       <TouchableOpacity
         style={{
           width: "100%",

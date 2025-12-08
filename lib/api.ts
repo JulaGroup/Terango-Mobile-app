@@ -35,6 +35,23 @@ export interface VendorStats {
   }[];
 }
 
+export type WeekdayKey =
+  | "sunday"
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday";
+
+export interface OpeningHoursDay {
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+export type OpeningHours = Partial<Record<WeekdayKey, OpeningHoursDay | null>>;
+
 export interface Business {
   id: string;
   name: string;
@@ -51,6 +68,9 @@ export interface Business {
   logoUrl?: string;
   latitude?: number | null;
   longitude?: number | null;
+  acceptsOrders?: boolean;
+  openingHours?: OpeningHours | null;
+  minimumOrderAmount?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -310,11 +330,17 @@ export const vendorApi = {
           todayOrders: r.todayOrders || 0,
           revenue: r.revenue || 0,
           address: r.address,
+          city: r.city,
           phone: r.phone,
           description: r.description,
           logoUrl: r.imageUrl, // Database uses imageUrl, map to logoUrl for consistency
           email: r.email,
           website: r.website,
+          acceptsOrders: r.acceptsOrders !== false,
+          openingHours: r.openingHours || null,
+          minimumOrderAmount: r.minimumOrderAmount ?? null,
+          latitude: r.latitude ?? null,
+          longitude: r.longitude ?? null,
           createdAt: r.createdAt,
           updatedAt: r.updatedAt,
         }));
@@ -332,11 +358,17 @@ export const vendorApi = {
           todayOrders: s.todayOrders || 0,
           revenue: s.revenue || 0,
           address: s.address,
+          city: s.city,
           phone: s.phone,
           description: s.description,
           logoUrl: s.imageUrl, // Database uses imageUrl, map to logoUrl for consistency
           email: s.email,
           website: s.website,
+          acceptsOrders: s.acceptsOrders !== false,
+          openingHours: s.openingHours || null,
+          minimumOrderAmount: s.minimumOrderAmount ?? null,
+          latitude: s.latitude ?? null,
+          longitude: s.longitude ?? null,
           createdAt: s.createdAt,
           updatedAt: s.updatedAt,
         }));
@@ -860,6 +892,48 @@ export const orderApi = {
     return apiCall(`/api/shop/${shopId}`, {
       method: "PUT",
       body: JSON.stringify(settings),
+    });
+  },
+};
+
+export const customDeliveryApi = {
+  createDelivery: async (payload: {
+    pickupAddress: string;
+    pickupCity?: string | null;
+    pickupLatitude?: number | null;
+    pickupLongitude?: number | null;
+    dropoffAddress: string;
+    dropoffCity?: string | null;
+    dropoffLatitude?: number | null;
+    dropoffLongitude?: number | null;
+    packageDescription?: string | null;
+    customerNote?: string | null;
+    weightClass: "LIGHT" | "MEDIUM" | "HEAVY";
+    vehicleType: "BIKE" | "CAR" | "VAN" | "LORRY";
+  }) => {
+    return apiCall("/api/custom-deliveries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  listDeliveries: async () => {
+    return apiCall("/api/custom-deliveries");
+  },
+  getDeliveryById: async (deliveryId: string) => {
+    return apiCall(`/api/custom-deliveries/${deliveryId}`);
+  },
+  updateDeliveryStatus: async (
+    deliveryId: string,
+    data: {
+      status: string;
+      note?: string | null;
+      locationLatitude?: number | null;
+      locationLongitude?: number | null;
+    }
+  ) => {
+    return apiCall(`/api/custom-deliveries/${deliveryId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
     });
   },
 };

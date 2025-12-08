@@ -11,10 +11,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { subCategoryApi } from "@/lib/api";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 64) / 3; // width per card
 const CARD_HEIGHT = 140;
+const CATEGORIES_CACHE_KEY = "@categories_cache";
+const CATEGORIES_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+const CATEGORIES_LIMIT = 12; // Only load first 12 categories
 
 interface Category {
   id: string;
@@ -25,6 +29,11 @@ interface Category {
 
 interface CategoryGridProps {
   onCategoryPress: (categoryId: string, categoryName: string) => void;
+}
+
+interface CachedData {
+  data: Category[];
+  timestamp: number;
 }
 
 export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
@@ -62,11 +71,64 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
     fetchCategories();
   }, []);
 
+  // Get cache and check if valid
+  const getCachedCategories = async (): Promise<Category[] | null> => {
+    try {
+      const cached = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
+      if (!cached) return null;
+
+      const parsedCache = JSON.parse(cached) as CachedData;
+      const now = Date.now();
+
+      // Check if cache is still valid
+      if (now - parsedCache.timestamp < CATEGORIES_CACHE_DURATION) {
+        return parsedCache.data;
+      }
+
+      // Cache expired, remove it
+      await AsyncStorage.removeItem(CATEGORIES_CACHE_KEY);
+      return null;
+    } catch (error) {
+      console.error("Error reading cache:", error);
+      return null;
+    }
+  };
+
+  // Save categories to cache
+  const cacheCategories = async (data: Category[]) => {
+    try {
+      const cacheData: CachedData = {
+        data: data.slice(0, CATEGORIES_LIMIT), // Only cache limited number
+        timestamp: Date.now(),
+      };
+      await AsyncStorage.setItem(
+        CATEGORIES_CACHE_KEY,
+        JSON.stringify(cacheData)
+      );
+    } catch (error) {
+      console.error("Error saving cache:", error);
+    }
+  };
+
   const fetchCategories = async () => {
     try {
       setError(null);
+
+      // Try to get from cache first
+      const cachedData = await getCachedCategories();
+      if (cachedData && cachedData.length > 0) {
+        setCategories(cachedData);
+        setLoading(false);
+        // Fetch fresh data in background
+        fetchCategoriesInBackground();
+        return;
+      }
+
+      // No cache, fetch from API
       const response = await subCategoryApi.getAllSubCategories();
-      setCategories(response || []);
+      const limitedData = (response || []).slice(0, CATEGORIES_LIMIT);
+      setCategories(limitedData);
+      await cacheCategories(limitedData);
     } catch (error: any) {
       console.error("Failed to fetch categories:", error);
       const errorMessage =
@@ -76,6 +138,19 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
       setError(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch in background to update cache without showing loader
+  const fetchCategoriesInBackground = async () => {
+    try {
+      const response = await subCategoryApi.getAllSubCategories();
+      const limitedData = (response || []).slice(0, CATEGORIES_LIMIT);
+      setCategories(limitedData);
+      await cacheCategories(limitedData);
+    } catch (error) {
+      // Silently fail in background
+      console.error("Background fetch failed:", error);
     }
   };
 

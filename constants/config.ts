@@ -1,4 +1,4 @@
-export const API_URL = "https://urchin-app-3omhu.ondigitalocean.app"; //LIVE
+export const API_URL = "https://monkfish-app-korrv.ondigitalocean.app"; //LIVE
 // export const API_URL = "http://192.168.137.1:8080"; //work
 // export const API_URL = "http://172.20.10.2:8080"; //Phone;
 // export const API_URL = "http://172.20.10.3:8080"; //UG Phone;

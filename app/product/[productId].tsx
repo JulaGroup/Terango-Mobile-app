@@ -19,7 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
-import ProductCard from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -604,7 +604,7 @@ export default function ProductDetail() {
               data={relatedProducts}
               renderItem={({ item }) => (
                 <View style={styles.productCardWrapper}>
-                  <ProductCard
+                  <VendorAwareProductCard
                     product={{
                       id: Number(item.id),
                       name: item.name,
@@ -627,6 +627,10 @@ export default function ProductDetail() {
                     }}
                     onPress={() => router.push(`/product/${item.id}`)}
                     cardWidth={115}
+                    vendor={{
+                      vendorId: item.shopId,
+                      vendorType: "shop",
+                    }}
                   />
                 </View>
               )}
@@ -673,7 +677,7 @@ export default function ProductDetail() {
               data={similarBrandProducts}
               renderItem={({ item }) => (
                 <View style={styles.productCardWrapper}>
-                  <ProductCard
+                  <VendorAwareProductCard
                     product={{
                       id: Number(item.id),
                       name: item.name,
@@ -696,6 +700,10 @@ export default function ProductDetail() {
                     }}
                     onPress={() => router.push(`/product/${item.id}`)}
                     cardWidth={115}
+                    vendor={{
+                      vendorId: item.shopId,
+                      vendorType: "shop",
+                    }}
                   />
                 </View>
               )}

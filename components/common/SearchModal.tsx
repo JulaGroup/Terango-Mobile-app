@@ -20,8 +20,8 @@ import { router } from "expo-router";
 import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
-import ProductCard from "./ProductCard";
-import MealItemCard from "./MealItemCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 
 const { height } = Dimensions.get("window");
 
@@ -466,10 +466,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   marginBottom: 12,
                 }}
               >
-                <MealItemCard
+                <VendorAwareMealItemCard
                   product={universalProduct}
                   cartQuantity={cartQuantity}
-                  onAddToCart={(product) => {
+                  onAddToCart={() => {
                     const cartItem = {
                       id: String(menuItem.id),
                       name: menuItem.name,
@@ -487,6 +487,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   onPress={() => {
                     onClose();
                     router.push(`/menuitem/${menuItem.id}`);
+                  }}
+                  vendor={{
+                    vendorId: menuItem.menu?.restaurantId,
+                    vendorType: "restaurant",
                   }}
                 />
               </View>
@@ -530,10 +534,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
 
             return (
               <View key={product.id} style={styles.productGridItem}>
-                <ProductCard
+                <VendorAwareProductCard
                   product={universalProduct}
                   cartQuantity={cartQuantity}
-                  onAddToCart={(prod) => {
+                  onAddToCart={() => {
                     const cartItem = {
                       id: String(product.id),
                       name: product.name,
@@ -551,6 +555,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   onPress={() => {
                     onClose();
                     router.push(`/product/${product.id}`);
+                  }}
+                  vendor={{
+                    vendorId: product.shopId,
+                    vendorType: "shop",
                   }}
                 />
               </View>
