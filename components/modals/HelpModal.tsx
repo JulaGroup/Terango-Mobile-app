@@ -286,9 +286,11 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
                 <Text style={styles.contactInfoText}>
                   📧 support@terango.gm
                 </Text>
-                <Text style={styles.contactInfoText}>📱 +220 XXX XXXX</Text>
                 <Text style={styles.contactInfoText}>
-                  🕒 Support Hours: 9 AM - 10 PM
+                  📱 +220 633554/ 7595999/ 3902798
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  🕒 Support Hours: 9 AM - 12 PM
                 </Text>
               </View>
             </View>

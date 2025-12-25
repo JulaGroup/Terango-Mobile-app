@@ -30,6 +30,7 @@ interface Shop {
   acceptsOrders: boolean;
   fullWidth?: boolean;
   openingHours?: OpeningHours | null;
+  isFeatured?: boolean;
 }
 
 interface ShopCardProps {
@@ -138,6 +139,14 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
             <Text style={styles.statusBadgeSubText}>{nextOpeningLabel}</Text>
           )}
         </View>
+
+        {/* Featured Badge */}
+        {shop.isFeatured && (
+          <View style={styles.featuredBadge}>
+            <Ionicons name="star" size={12} color="#FFD700" />
+            <Text style={styles.featuredBadgeText}>FEATURED</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.shopInfo}>
@@ -213,6 +222,24 @@ const styles = {
     color: "rgba(255,255,255,0.85)",
     fontSize: 9,
     fontWeight: "500" as const,
+  },
+  featuredBadge: {
+    position: "absolute" as const,
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+  },
+  featuredBadgeText: {
+    color: "#FFD700",
+    fontSize: 10,
+    fontWeight: "700" as const,
+    letterSpacing: 0.5,
   },
   shopInfo: {
     padding: 16,

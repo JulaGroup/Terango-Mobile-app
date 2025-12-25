@@ -1,6 +1,7 @@
 import { loginUser } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
+import RateLimitModal from "@/components/modals/RateLimitModal";
 import React, { useState } from "react";
 import {
   Image,
@@ -49,6 +50,11 @@ export default function AuthScreen() {
   const [selectedCountry, setSelectedCountry] = useState<Country>(COUNTRIES[0]); // Gambia default
   const [loading, setLoading] = useState(false);
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [showRateLimitModal, setShowRateLimitModal] = useState(false);
+  const [rateLimitInfo, setRateLimitInfo] = useState({
+    retryAfter: "30 minutes",
+    message: "",
+  });
 
   const isValidPhone = phone.length === selectedCountry.maxLength;
 
@@ -85,9 +91,19 @@ export default function AuthScreen() {
         phone,
         countryCode: selectedCountry.dialCode.replace("+", ""),
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Login error:", error);
-      alert("Error sending OTP");
+
+      // Check if it's a rate limit error
+      if (error?.isRateLimited) {
+        setRateLimitInfo({
+          retryAfter: error.retryAfter || "30 minutes",
+          message: error.message || "",
+        });
+        setShowRateLimitModal(true);
+      } else {
+        alert(error?.message || "Error sending OTP");
+      }
     } finally {
       setLoading(false);
     }
@@ -232,6 +248,14 @@ export default function AuthScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Rate Limit Modal */}
+      <RateLimitModal
+        visible={showRateLimitModal}
+        onClose={() => setShowRateLimitModal(false)}
+        retryAfter={rateLimitInfo.retryAfter}
+        message={rateLimitInfo.message}
+      />
     </View>
   );
 }

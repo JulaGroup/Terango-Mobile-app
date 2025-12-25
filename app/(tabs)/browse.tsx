@@ -30,7 +30,6 @@ import SearchBar from "@/components/common/SearchBar";
 import Cart from "@/components/common/Cart";
 import SearchModal from "@/components/common/SearchModal";
 import ProductSliderSection from "@/components/ui/browse/ProductSliderSection";
-import ComingSoonModal from "@/components/ui/browse/ComingSoonModal";
 import SkeletonLoader from "@/components/ui/browse/SkeletonLoader";
 import MealItemCard from "@/components/common/MealItemCard";
 import { PrimaryColor } from "@/constants/Colors";
@@ -78,13 +77,6 @@ interface Meal {
 
 interface MealSection extends MealSectionConfig {
   items: Meal[];
-}
-
-interface ComingSoonContent {
-  title: string;
-  message: string;
-  helper?: string;
-  badge?: string;
 }
 
 interface QuickFilter {
@@ -458,9 +450,6 @@ const getCategoryGradient = (index: number): [string, string] =>
 const BrowseScreen: React.FC = () => {
   const [searchText, setSearchText] = useState("");
   const [searchModalVisible, setSearchModalVisible] = useState(false);
-  const [comingSoonVisible, setComingSoonVisible] = useState(false);
-  const [comingSoonConfig, setComingSoonConfig] =
-    useState<ComingSoonContent | null>(null);
 
   const { cartItems, addToCart, removeFromCart, updateQuantity } = useCart();
 
@@ -992,52 +981,59 @@ const BrowseScreen: React.FC = () => {
   );
 
   const handleHeroTabPress = (tab: HeroTab) => {
-    setComingSoonConfig({
-      title: tab.headline,
-      message: tab.message,
-      badge: "Coming soon",
-      helper: "We'll notify you as soon as this vertical opens up.",
-    });
-    setComingSoonVisible(true);
+    Alert.alert(
+      "Coming Soon",
+      "This feature is coming soon. We'll notify you when it's available!",
+      [{ text: "OK" }]
+    );
   };
 
   const handleNavigateCustomDelivery = useCallback(async () => {
-    try {
-      const token = await SecureStore.getItemAsync("token");
-      const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
-
-      if (!token || !isLoggedIn) {
-        Alert.alert(
-          "Login Required",
-          "Please log in to request a custom delivery.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Log In",
-              onPress: () => router.push("/auth"),
-            },
-          ]
-        );
-        return;
-      }
-    } catch (error) {
-      console.error("Failed to verify login before custom delivery:", error);
-      Alert.alert(
-        "Login Required",
-        "Please log in to request a custom delivery.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Log In",
-            onPress: () => router.push("/auth"),
-          },
-        ]
-      );
-      return;
-    }
-
-    router.push("/custom-delivery");
+    Alert.alert(
+      "Coming Soon",
+      "This feature is coming soon. We'll notify you when it's available!",
+      [{ text: "OK" }]
+    );
   }, []);
+
+  //Code for routing to custom delivery page
+  // const handleNavigateCustomDelivery = useCallback(async () => {
+  //   try {
+  //     const token = await SecureStore.getItemAsync("token");
+  //     const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
+
+  //     if (!token || !isLoggedIn) {
+  //       Alert.alert(
+  //         "Login Required",
+  //         "Please log in to request a custom delivery.",
+  //         [
+  //           { text: "Cancel", style: "cancel" },
+  //           {
+  //             text: "Log In",
+  //             onPress: () => router.push("/auth"),
+  //           },
+  //         ]
+  //       );
+  //       return;
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to verify login before custom delivery:", error);
+  //     Alert.alert(
+  //       "Login Required",
+  //       "Please log in to request a custom delivery.",
+  //       [
+  //         { text: "Cancel", style: "cancel" },
+  //         {
+  //           text: "Log In",
+  //           onPress: () => router.push("/auth"),
+  //         },
+  //       ]
+  //     );
+  //     return;
+  //   }
+
+  //   router.push("/custom-delivery");
+  // }, []);
 
   const handleQuickFilterPress = (filter: QuickFilter) => {
     router.push({
@@ -1673,17 +1669,6 @@ const BrowseScreen: React.FC = () => {
         visible={searchModalVisible}
         onClose={() => setSearchModalVisible(false)}
         initialQuery={searchText}
-      />
-
-      <ComingSoonModal
-        visible={comingSoonVisible}
-        onClose={() => setComingSoonVisible(false)}
-        title={comingSoonConfig?.title || "Coming soon"}
-        message={
-          comingSoonConfig?.message || "We're building something special here."
-        }
-        helper={comingSoonConfig?.helper}
-        badge={comingSoonConfig?.badge}
       />
     </SafeAreaView>
   );

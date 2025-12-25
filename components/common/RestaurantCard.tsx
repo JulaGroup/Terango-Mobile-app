@@ -28,6 +28,7 @@ interface Restaurant {
   openingHours?: OpeningHours | null;
   acceptsOrders?: boolean;
   fullWidth?: boolean;
+  isFeatured?: boolean;
 }
 
 interface RestaurantCardProps {
@@ -134,6 +135,14 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
             <Text style={styles.activeBadgeSubText}>{nextOpeningLabel}</Text>
           )}
         </View>
+
+        {/* Featured Badge */}
+        {restaurant.isFeatured && (
+          <View style={styles.featuredBadge}>
+            <Ionicons name="star" size={12} color="#FFD700" />
+            <Text style={styles.featuredBadgeText}>FEATURED</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.restaurantInfo}>
@@ -194,6 +203,24 @@ const styles = {
     color: "rgba(255,255,255,0.85)",
     fontSize: 9,
     fontWeight: "500" as const,
+  },
+  featuredBadge: {
+    position: "absolute" as const,
+    top: 12,
+    right: 12,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+  },
+  featuredBadgeText: {
+    color: "#FFD700",
+    fontSize: 10,
+    fontWeight: "700" as const,
+    letterSpacing: 0.5,
   },
   restaurantInfo: {
     padding: 16,

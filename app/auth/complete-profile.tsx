@@ -3,7 +3,7 @@ import { completeProfile } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
 import * as SecureStore from "expo-secure-store";
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StatusBar,
   StyleSheet,
@@ -11,18 +11,83 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Alert,
 } from "react-native";
 import { UserCacheManager } from "@/utils/userCache";
+import TermsModal from "@/components/modals/TermsModal";
 
 export default function CompleteProfile() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const router = useRouter();
 
+  // Show terms modal when component mounts (new user signup)
+  useEffect(() => {
+    // Check if user has already accepted terms
+    checkTermsAcceptance();
+  }, []);
+
+  const checkTermsAcceptance = async () => {
+    try {
+      const accepted = await SecureStore.getItemAsync("termsAccepted");
+      if (accepted === "true") {
+        setTermsAccepted(true);
+      } else {
+        // Show terms modal for new users
+        setTimeout(() => setShowTermsModal(true), 500);
+      }
+    } catch (error) {
+      // If error, show terms modal to be safe
+      setTimeout(() => setShowTermsModal(true), 500);
+    }
+  };
+
+  const handleTermsAccept = async () => {
+    try {
+      await SecureStore.setItemAsync("termsAccepted", "true");
+      setTermsAccepted(true);
+      setShowTermsModal(false);
+    } catch (error) {
+      console.error("Error saving terms acceptance:", error);
+    }
+  };
+
+  const handleTermsDecline = () => {
+    setShowTermsModal(false);
+    Alert.alert(
+      "Terms Required",
+      "You must accept the Terms and Conditions to use TeranGO. Would you like to review them again?",
+      [
+        {
+          text: "Review Terms",
+          onPress: () => setShowTermsModal(true),
+        },
+        {
+          text: "Exit",
+          style: "destructive",
+          onPress: () => router.replace("/auth"),
+        },
+      ]
+    );
+  };
+
   const handleComplete = async () => {
     console.log("Completing profile with:", { name, email });
+
+    // Check if terms are accepted first
+    if (!termsAccepted) {
+      Alert.alert(
+        "Terms Required",
+        "Please accept the Terms and Conditions to continue",
+        [{ text: "OK", onPress: () => setShowTermsModal(true) }]
+      );
+      return;
+    }
+
     if (loading) return;
     setLoading(true);
 
@@ -57,7 +122,7 @@ export default function CompleteProfile() {
 
         console.log("✅ Profile completed and cached successfully");
         // Navigate to add home address onboarding
-        router.replace("/auth/add-home-address ");
+        router.replace("/auth/add-home-address");
       } catch (err: any) {
         alert(err.message);
       } finally {
@@ -90,16 +155,37 @@ export default function CompleteProfile() {
       />
 
       <TouchableOpacity
-        disabled={loading}
-        style={styles.button}
+        disabled={loading || !termsAccepted}
+        style={[
+          styles.button,
+          (!termsAccepted || loading) && styles.buttonDisabled,
+        ]}
         onPress={handleComplete}
       >
         {loading ? (
           <Text style={styles.buttonText}>Loading...</Text>
         ) : (
-          <Text style={styles.buttonText}>Finish</Text>
+          <Text style={styles.buttonText}>
+            {termsAccepted ? "Finish" : "Accept Terms to Continue"}
+          </Text>
         )}
       </TouchableOpacity>
+
+      {termsAccepted && (
+        <TouchableOpacity
+          style={styles.reviewTermsButton}
+          onPress={() => setShowTermsModal(true)}
+        >
+          <Text style={styles.reviewTermsText}>Review Terms & Privacy</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Terms and Conditions Modal */}
+      <TermsModal
+        visible={showTermsModal}
+        onAccept={handleTermsAccept}
+        onDecline={handleTermsDecline}
+      />
     </View>
   );
 }
@@ -133,9 +219,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
+  buttonDisabled: {
+    backgroundColor: "#E5E7EB",
+  },
   buttonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  reviewTermsButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  reviewTermsText: {
+    color: PrimaryColor,
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

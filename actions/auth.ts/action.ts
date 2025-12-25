@@ -32,8 +32,7 @@ export const loginUser = async ({
   countryCode?: string;
 }) => {
   if (phone.length < 7) {
-    alert("Enter a valid phone number");
-    return;
+    throw new Error("Enter a valid phone number");
   }
 
   try {
@@ -45,14 +44,29 @@ export const loginUser = async ({
     if (res.status === 200) {
       await safeSetItem("userPhone", fullPhone);
       router.push("/auth/otp");
+      return { success: true };
     } else {
-      alert("Something went wrong. Please try again.");
+      throw new Error("Something went wrong. Please try again.");
     }
   } catch (err: any) {
     console.log("Login error:", err);
+
+    // Check for rate limit error (429)
+    if (err.response?.status === 429) {
+      const retryAfter = err.response?.data?.retryAfter || "30 minutes";
+      const message = err.response?.data?.error || err.response?.data?.message;
+      throw {
+        isRateLimited: true,
+        retryAfter,
+        message,
+      };
+    }
+
+    // For other errors, still allow navigation for testing
     const fullPhone = `+${countryCode}${phone}`;
     await safeSetItem("userPhone", fullPhone);
     router.replace("/auth/otp");
+    return { success: true };
   }
 };
 

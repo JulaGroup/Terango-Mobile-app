@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi, userApi, VendorStats } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
 
 const { width } = Dimensions.get("window");
 
@@ -315,6 +316,11 @@ export default function VendorDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Subscription Status Section */}
+        <View style={styles.subscriptionSection}>
+          <SubscriptionStatus />
+        </View>
+
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
           <Text style={styles.sectionTitle}>Manage Your Business</Text>
@@ -572,6 +578,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
     marginBottom: 16,
+  },
+  subscriptionSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
   },
   navCard: {
     marginBottom: 12,
