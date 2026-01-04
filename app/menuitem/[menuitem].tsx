@@ -19,6 +19,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const IMAGE_HEIGHT = 300;
@@ -162,6 +163,12 @@ export default function MenuItemDetailPage() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
 
+  const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
+    vendorId: menuItem?.menu?.restaurant?.id,
+    vendorType: "restaurant",
+    skip: !menuItem?.menu?.restaurant?.id,
+  });
+
   // Fetch menu item details
   const fetchMenuItemDetails = useCallback(async () => {
     try {
@@ -230,7 +237,16 @@ export default function MenuItemDetailPage() {
 
   const handleQuantityChange = (newQuantity: number) => {
     if (!menuItem) return;
-
+    const currentQuantityLocal = getCartItemQuantity(menuItem.id);
+    if (orderingDisabled && newQuantity > currentQuantityLocal) {
+      Alert.alert(
+        "Ordering unavailable",
+        (
+          disabledReason || "Restaurant is not accepting orders right now."
+        ).trim()
+      );
+      return;
+    }
     if (newQuantity === 0) {
       removeFromCart(menuItem.id);
     } else {
@@ -272,8 +288,7 @@ export default function MenuItemDetailPage() {
   };
 
   const currentQuantity = menuItem ? getCartItemQuantity(menuItem.id) : 0;
-  const canOrder =
-    menuItem?.isAvailable && menuItem?.menu?.restaurant?.acceptsOrders;
+  const canOrder = !!menuItem?.isAvailable && !orderingDisabled;
 
   if (loading) {
     return <MenuItemDetailSkeleton />;
@@ -477,7 +492,10 @@ export default function MenuItemDetailPage() {
             activeOpacity={0.7}
             onPress={() => {
               // Navigate to restaurant details
-              // router.push(`/restaurant/${menuItem.menu.restaurant.id}`);
+              router.push({
+                pathname: "/restaurant-details",
+                params: { restaurantId: menuItem.menu.restaurant.id },
+              });
             }}
           >
             <View style={styles.restaurantImageContainer}>
@@ -598,8 +616,18 @@ export default function MenuItemDetailPage() {
         {currentQuantity === 0 ? (
           <TouchableOpacity
             style={[styles.addToCartButton, { opacity: canOrder ? 1 : 0.5 }]}
-            onPress={() => canOrder && handleAddToCart(menuItem)}
-            disabled={!canOrder}
+            onPress={() => {
+              if (!canOrder) {
+                Alert.alert(
+                  "Ordering unavailable",
+                  (
+                    disabledReason || "Restaurant is not accepting orders"
+                  ).trim()
+                );
+                return;
+              }
+              handleAddToCart(menuItem);
+            }}
             activeOpacity={0.9}
           >
             <LinearGradient

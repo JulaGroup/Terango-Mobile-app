@@ -21,6 +21,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 const IMAGE_HEIGHT = 300;
@@ -224,6 +225,12 @@ export default function ProductDetail() {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
 
+  const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
+    vendorId: product?.shopId,
+    vendorType: "shop",
+    skip: !product?.shopId,
+  });
+
   // Fetch product details
   const fetchProductDetails = useCallback(async () => {
     try {
@@ -300,6 +307,15 @@ export default function ProductDetail() {
   }, [product, loading, fadeAnim, scaleAnim]);
 
   const handleAddToCart = (item: Product) => {
+    if (orderingDisabled) {
+      Alert.alert(
+        "Ordering unavailable",
+        (
+          disabledReason || "This shop is not accepting orders right now."
+        ).trim()
+      );
+      return;
+    }
     if (!item.shop) return;
 
     const cartItem = {
@@ -318,7 +334,17 @@ export default function ProductDetail() {
 
   const handleQuantityChange = (newQuantity: number) => {
     if (!product) return;
-
+    // Prevent increasing quantity when ordering is disabled
+    const currentQuantityLocal = getCartItemQuantity(product.id);
+    if (orderingDisabled && newQuantity > currentQuantityLocal) {
+      Alert.alert(
+        "Ordering unavailable",
+        (
+          disabledReason || "This shop is not accepting orders right now."
+        ).trim()
+      );
+      return;
+    }
     if (newQuantity === 0) {
       removeFromCart(product.id);
     } else {
@@ -787,11 +813,17 @@ export default function ProductDetail() {
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={[PrimaryColor, "#FF6B00"]}
+              colors={
+                orderingDisabled
+                  ? ["#94A3B8", "#64748B"]
+                  : [PrimaryColor, "#FF6B00"]
+              }
               style={styles.addToCartGradient}
             >
               <Ionicons name="cart-outline" size={20} color="#fff" />
-              <Text style={styles.addToCartText}>Add to Cart</Text>
+              <Text style={styles.addToCartText}>
+                {orderingDisabled ? "Unavailable" : "Add to Cart"}
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
         ) : (

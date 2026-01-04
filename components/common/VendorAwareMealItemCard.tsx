@@ -1,15 +1,15 @@
 import React, { useCallback } from "react";
 import { Alert } from "react-native";
-import MealItemCard, {
-  UniversalProduct,
-} from "@/components/common/MealItemCard";
+import ProductCard, {
+  UniversalProduct as ProductUniversal,
+} from "@/components/common/ProductCard";
 import { VendorOrderingMeta } from "@/utils/vendorOrdering";
 import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 
 interface VendorAwareMealItemCardProps {
-  product: UniversalProduct;
+  product: ProductUniversal;
   cartQuantity: number;
-  onAddToCart: (product: UniversalProduct) => void;
+  onAddToCart: (product: ProductUniversal) => void;
   onRemoveFromCart: () => void;
   onPress?: () => void;
   vendor: VendorOrderingMeta;
@@ -43,7 +43,7 @@ const VendorAwareMealItemCard: React.FC<VendorAwareMealItemCardProps> = ({
   }, [orderingDisabled, disabledReason, vendor.vendorType]);
 
   return (
-    <MealItemCard
+    <ProductCard
       product={product}
       cartQuantity={cartQuantity}
       onAddToCart={onAddToCart}

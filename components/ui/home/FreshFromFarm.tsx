@@ -1,48 +1,69 @@
 import React from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard from "./ProductCard";
+import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 import { freshFromFarmProducts } from "@/constants/fakeData";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 
-export default function FreshFromFarm() {
-  const { addToCart, removeFromCart } = useCart();
+const CARD_WIDTH = 160;
 
-  const handleAddToCart = (productId: number) => {
-    // Find the product to get its details
-    const product = freshFromFarmProducts.find((p) => p.id === productId);
-    if (!product) return;
+export default function FreshFromFarm() {
+  const { addToCart, removeFromCart, updateQuantity, getQuantity } = useCart();
+
+  const toUniversalProduct = (item: any): UniversalProduct => {
+    const hasDiscount = typeof item.originalPrice === "number";
+    return {
+      id: item.id,
+      name: item.name,
+      price: hasDiscount ? item.originalPrice : item.price,
+      discountedPrice: hasDiscount ? item.price : undefined,
+      image: item.image,
+      description: item.description,
+      inStock: item.inStock,
+    };
+  };
+
+  const handleAddToCart = (product: UniversalProduct) => {
+    const raw = freshFromFarmProducts.find((p) => p.id === product.id);
+    if (!raw) return;
 
     const cartItem = {
-      id: productId.toString(),
-      name: product.name,
-      price: product.price,
-      description: `Fresh ${product.category.toLowerCase()} - ${
-        product.organic ? "Organic" : "Farm Fresh"
+      id: String(product.id),
+      name: raw.name,
+      price: raw.price,
+      discountedPrice: raw.originalPrice,
+      description: `Fresh ${String(raw.category || "produce").toLowerCase()} - ${
+        raw.organic ? "Organic" : "Farm Fresh"
       }`,
       vendorId: "7", // Default vendor ID for farm products
       vendorName: "Fresh Farm Market",
       entityType: "product",
-      imageUrl: "", // Will be handled by ProductCard component
+      imageUrl: "", // Keep existing behavior
     };
 
     addToCart(cartItem);
-    console.log("Added to cart:", product.name, "from Fresh Farm Market");
+    console.log("Added to cart:", raw.name, "from Fresh Farm Market");
   };
 
-  const handleRemoveFromCart = (productId: number) => {
-    removeFromCart(productId.toString());
-    console.log("Removed from cart:", productId);
+  const handleRemoveFromCart = (productId: string | number) => {
+    const id = String(productId);
+    const q = getQuantity(id);
+    if (q > 1) {
+      updateQuantity(id, q - 1);
+    } else {
+      removeFromCart(id);
+    }
   };
 
   const renderProductCard = ({ item }: { item: any }) => (
     <View style={{ marginRight: 16 }}>
       <ProductCard
-        product={item}
+        product={toUniversalProduct(item)}
+        cartQuantity={getQuantity(String(item.id))}
         onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        compact={true}
+        onRemoveFromCart={() => handleRemoveFromCart(item.id)}
+        cardWidth={CARD_WIDTH}
       />
     </View>
   );

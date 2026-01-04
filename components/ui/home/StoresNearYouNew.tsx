@@ -1,7 +1,6 @@
 import { PrimaryColor } from "@/constants/Colors";
 import { stores } from "@/constants/fakeData";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useRouter } from "expo-router";
 import React from "react";
 import {
   ScrollView,
@@ -15,8 +14,6 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width * 0.7;
 
 const StoresNearYou = () => {
-  const router = useRouter();
-
   return (
     <View style={{ paddingVertical: 20 }}>
       {/* Section Header */}

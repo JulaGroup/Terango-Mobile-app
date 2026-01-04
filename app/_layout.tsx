@@ -557,14 +557,21 @@ export default function RootLayout() {
                     />
 
                     <Stack.Screen
-                      name="custom-delivery/index.tsx"
+                      name="custom-delivery/index"
                       options={{
                         animation: "slide_from_right",
                         headerShown: false,
                       }}
                     />
                     <Stack.Screen
-                      name="custom-delivery/[deliveryId].tsx"
+                      name="custom-delivery/[deliveryId]"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
+                      name="browse/[section]"
                       options={{
                         animation: "slide_from_right",
                         headerShown: false,

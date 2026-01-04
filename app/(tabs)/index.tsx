@@ -6,19 +6,17 @@ import SearchModal from "@/components/common/SearchModal";
 import CategoryRow from "@/components/ui/home/CategoryRow";
 import AdvertCard from "@/components/ui/home/AdvertCard";
 import PromoBanner from "@/components/ui/home/PromoBanner";
+import TeranGOPicks from "@/components/ui/home/TerangoPicks";
 
 // Active home sections
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
 import LocalShops from "@/components/ui/home/LocalShops";
 
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
   Platform,
-  TextInput,
-  TouchableWithoutFeedback,
   View,
   RefreshControl,
 } from "react-native";
@@ -131,12 +129,7 @@ export default function HomeScreen() {
         />
 
         {/* Promo Banner - FREE DELIVERY LAUNCH 2025 */}
-        <PromoBanner
-          onPress={() => {
-            // Navigate to nearby vendors or deals page
-            router.push("/AllCategoriesPage");
-          }}
-        />
+        <PromoBanner />
 
         {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
         <AdvertCard />
@@ -146,6 +139,9 @@ export default function HomeScreen() {
           onCategoryPress={handleCategoryPress}
           refreshKey={refreshKey}
         />
+
+        {/* TeranGO Picks - Official products with priority */}
+        <TeranGOPicks refreshKey={refreshKey} />
 
         {/* Restaurants Near You - Moved Higher */}
         <RestaurantNearYou refreshKey={refreshKey} />

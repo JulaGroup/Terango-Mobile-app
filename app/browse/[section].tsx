@@ -430,31 +430,6 @@ const BrowseSectionScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <StatusBar style="dark" />
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backButton}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-        >
-          <Ionicons name="chevron-back" size={20} color="#111827" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{screenTitle}</Text>
-          <Text style={styles.headerSubtitle}>{metadata.subtitle}</Text>
-        </View>
-        <TouchableOpacity
-          onPress={() =>
-            router.push({
-              pathname: "/(tabs)/browse",
-            })
-          }
-          style={styles.homeChip}
-        >
-          <Ionicons name="grid" size={16} color={PrimaryColor} />
-        </TouchableOpacity>
-      </View>
-
       {loading ? (
         <View style={styles.centerState}>
           <ActivityIndicator size="small" color={PrimaryColor} />

@@ -22,6 +22,7 @@ import { vendorApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { useLocation } from "@/hooks/useLocation";
 import { AddressService } from "@/services/AddressService";
+import TimePickerInput from "@/components/common/TimePickerInput";
 
 interface BusinessHours {
   day: string;
@@ -128,6 +129,7 @@ export default function VendorProfile() {
       email: currentBusiness?.email,
       website: currentBusiness?.website,
       isActive: currentBusiness?.isActive,
+      openingHours: (currentBusiness as any)?.openingHours,
       fullBusinessObject: currentBusiness,
     });
 
@@ -146,6 +148,44 @@ export default function VendorProfile() {
         longitude: currentBusiness.longitude ?? null,
       });
       setProfileImage(currentBusiness.logoUrl);
+
+      // Load business hours from currentBusiness if available
+      const openingHours = (currentBusiness as any)?.openingHours;
+      if (openingHours && typeof openingHours === "object") {
+        console.log("📅 Loading business hours from API:", openingHours);
+        const daysOfWeek = [
+          "monday",
+          "tuesday",
+          "wednesday",
+          "thursday",
+          "friday",
+          "saturday",
+          "sunday",
+        ];
+        const loadedHours = daysOfWeek.map((day) => {
+          const dayData = openingHours[day];
+          const dayCapitalized = day.charAt(0).toUpperCase() + day.slice(1);
+
+          if (dayData) {
+            return {
+              day: dayCapitalized,
+              isOpen: !dayData.closed,
+              openTime: dayData.open || "09:00",
+              closeTime: dayData.close || "18:00",
+            };
+          }
+
+          return {
+            day: dayCapitalized,
+            isOpen: day !== "sunday",
+            openTime: "09:00",
+            closeTime: day === "saturday" ? "17:00" : "18:00",
+          };
+        });
+        setBusinessHours(loadedHours);
+        console.log("✅ Business hours loaded:", loadedHours);
+      }
+
       console.log("📝 Form data set:", {
         name: currentBusiness.name,
         description: currentBusiness.description,
@@ -658,48 +698,56 @@ export default function VendorProfile() {
 
         {/* Business Hours */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Hours</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Business Hours</Text>
+            <Text style={styles.sectionSubtitle}>Set your operating hours</Text>
+          </View>
 
           {businessHours.map((day, index) => (
-            <View key={day.day} style={styles.dayRow}>
-              <Text style={styles.dayName}>{day.day}</Text>
+            <View key={day.day} style={styles.dayRowContainer}>
+              <View style={styles.dayInfoRow}>
+                <View style={styles.dayNameContainer}>
+                  <Text style={styles.dayName}>{day.day}</Text>
+                  {!day.isOpen && (
+                    <Text style={styles.closedLabel}>Closed</Text>
+                  )}
+                </View>
 
-              <Switch
-                value={day.isOpen}
-                onValueChange={(value) =>
-                  handleBusinessHourChange(index, "isOpen", value)
-                }
-                disabled={!isEditing}
-                trackColor={{ false: "#767577", true: PrimaryColor }}
-              />
+                <Switch
+                  value={day.isOpen}
+                  onValueChange={(value) =>
+                    handleBusinessHourChange(index, "isOpen", value)
+                  }
+                  disabled={!isEditing}
+                  trackColor={{ false: "#E5E7EB", true: PrimaryColor }}
+                  ios_backgroundColor="#E5E7EB"
+                />
+              </View>
 
               {day.isOpen && (
-                <View style={styles.timeInputs}>
-                  <TextInput
-                    style={[
-                      styles.timeInput,
-                      !isEditing && styles.disabledInput,
-                    ]}
-                    value={day.openTime}
-                    onChangeText={(text) =>
-                      handleBusinessHourChange(index, "openTime", text)
-                    }
-                    editable={isEditing}
-                    placeholder="09:00"
-                  />
-                  <Text style={styles.timeSeparator}>-</Text>
-                  <TextInput
-                    style={[
-                      styles.timeInput,
-                      !isEditing && styles.disabledInput,
-                    ]}
-                    value={day.closeTime}
-                    onChangeText={(text) =>
-                      handleBusinessHourChange(index, "closeTime", text)
-                    }
-                    editable={isEditing}
-                    placeholder="18:00"
-                  />
+                <View style={styles.timeInputsRow}>
+                  <View style={styles.timePickerGroup}>
+                    <Text style={styles.timeLabel}>Opens</Text>
+                    <TimePickerInput
+                      value={day.openTime}
+                      onChange={(time) =>
+                        handleBusinessHourChange(index, "openTime", time)
+                      }
+                      disabled={!isEditing}
+                      placeholder="09:00"
+                    />
+                  </View>
+                  <View style={styles.timePickerGroup}>
+                    <Text style={styles.timeLabel}>Closes</Text>
+                    <TimePickerInput
+                      value={day.closeTime}
+                      onChange={(time) =>
+                        handleBusinessHourChange(index, "closeTime", time)
+                      }
+                      disabled={!isEditing}
+                      placeholder="18:00"
+                    />
+                  </View>
                 </View>
               )}
             </View>
@@ -790,11 +838,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  sectionHeader: {
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 16,
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "500",
   },
   imageSection: {
     alignItems: "center",
@@ -901,22 +957,56 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  dayRow: {
+  dayRowContainer: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  dayInfoRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    justifyContent: "space-between",
+    marginBottom: 0,
+  },
+  dayNameContainer: {
+    flex: 1,
   },
   dayName: {
     fontSize: 16,
-    color: "#333",
-    width: 80,
+    color: "#1F2937",
+    fontWeight: "600",
+    marginBottom: 2,
   },
-  timeInputs: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 16,
+  closedLabel: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
+  },
+  timeInputsRow: {
+    flexDirection: "column",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    gap: 12,
+  },
+  timePickerGroup: {
+    width: "100%",
+  },
+  timeLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  arrowIcon: {
+    marginHorizontal: 4,
+    marginTop: 18,
   },
   timeInput: {
     borderWidth: 1,
@@ -927,11 +1017,6 @@ const styles = StyleSheet.create({
     width: 60,
     textAlign: "center",
     backgroundColor: "#f8f9fa",
-  },
-  timeSeparator: {
-    marginHorizontal: 8,
-    fontSize: 16,
-    color: "#666",
   },
   actionButtons: {
     padding: 16,

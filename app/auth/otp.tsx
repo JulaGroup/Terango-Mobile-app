@@ -54,8 +54,9 @@ export default function OTP() {
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <BackButton />
       <View style={styles.centerContent}>
-        <Text style={styles.title}>Enter OTP</Text>
-        <Text style={styles.subtitle}>We sent a code to your phone number</Text>
+        <Text style={styles.title}>Enter Verification Code</Text>
+        <Text style={styles.subtitle}>We sent a 4-digit code via WhatsApp</Text>
+        <Text style={styles.timerText}>Code expires in 15 minutes</Text>
 
         <OTPTextInput
           ref={otpInput}
@@ -103,7 +104,13 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     textAlign: "center",
     marginTop: 8,
-    marginBottom: 40,
+    marginBottom: 8,
+  },
+  timerText: {
+    fontSize: 13,
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 32,
   },
   otpInput: {
     width: 50,

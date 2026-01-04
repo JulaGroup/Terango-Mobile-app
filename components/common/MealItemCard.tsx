@@ -8,7 +8,7 @@ export interface UniversalProduct {
   id: number;
   name: string;
   price: number;
-  image?: string;
+  image?: string | number;
   description?: string;
   inStock?: boolean;
   discountedPrice?: number;
@@ -94,7 +94,7 @@ const MealItemCard = ({
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, isOrderingDisabled && styles.cardDisabled]}
       activeOpacity={0.95}
       onPress={onPress}
     >
@@ -146,9 +146,13 @@ const MealItemCard = ({
           </View>
         )}
 
-        {product.image && !imageLoadError ? (
+          {product.image && !imageLoadError ? (
           <Image
-            source={{ uri: product.image }}
+              source={
+                typeof product.image === "string"
+                  ? { uri: product.image }
+                  : product.image
+              }
             style={styles.image}
             contentFit="cover"
             transition={200}
@@ -172,11 +176,7 @@ const MealItemCard = ({
           onPress={handleAdd}
           activeOpacity={isOrderingDisabled ? 1 : 0.8}
         >
-          <Ionicons
-            name={isOrderingDisabled ? "lock-closed" : "add"}
-            size={18}
-            color={isOrderingDisabled ? "#F9FAFB" : "#fff"}
-          />
+          <Ionicons name="add" size={18} color="#fff" />
         </TouchableOpacity>
       ) : expanded ? (
         <View style={styles.overlayControls}>
@@ -198,11 +198,7 @@ const MealItemCard = ({
             onPress={handleAdd}
             activeOpacity={isOrderingDisabled ? 1 : 0.8}
           >
-            <Ionicons
-              name={isOrderingDisabled ? "lock-closed" : "add"}
-              size={14}
-              color="#fff"
-            />
+            <Ionicons name="add" size={14} color="#fff" />
           </TouchableOpacity>
         </View>
       ) : (
@@ -237,6 +233,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     position: "relative",
     minHeight: 92,
+  },
+  cardDisabled: {
+    opacity: 0.55,
   },
   contentContainer: {
     flex: 1,
@@ -416,6 +415,7 @@ const styles = StyleSheet.create({
     gap: 4,
     maxWidth: "75%",
     zIndex: 12,
+    display: "none",
   },
   orderingStatusBadgeText: {
     color: "#F9FAFB",

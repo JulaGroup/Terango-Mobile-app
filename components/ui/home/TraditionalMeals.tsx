@@ -1,26 +1,41 @@
 import React from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard from "./ProductCard";
+import MealItemCard, {
+  UniversalProduct as UniversalMealProduct,
+} from "@/components/common/MealItemCard";
 import { traditionalMealsProducts } from "@/constants/fakeData";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 
 export default function TraditionalMeals() {
-  const { addToCart, removeFromCart } = useCart();
+  const { addToCart, removeFromCart, updateQuantity, getQuantity } = useCart();
 
-  const handleAddToCart = (productId: number) => {
-    // Find the product to get its details
-    const product = traditionalMealsProducts.find((p) => p.id === productId);
-    if (!product) return;
+  const toUniversalMeal = (item: any): UniversalMealProduct => {
+    const hasDiscount = typeof item.originalPrice === "number";
+    return {
+      id: item.id,
+      name: item.name,
+      price: hasDiscount ? item.originalPrice : item.price,
+      discountedPrice: hasDiscount ? item.price : undefined,
+      image: item.image,
+      description: item.description,
+      inStock: item.inStock,
+    };
+  };
+
+  const handleAddToCart = (product: UniversalMealProduct) => {
+    const raw = traditionalMealsProducts.find((p) => p.id === product.id);
+    if (!raw) return;
 
     const cartItem = {
-      id: productId.toString(),
-      name: product.name,
-      price: product.price,
-      description: product.description || "",
-      vendorId: (product.storeId || 5).toString(),
-      vendorName: product.storeName || "Traditional Kitchen",
+      id: String(product.id),
+      name: raw.name,
+      price: raw.price,
+      discountedPrice: raw.originalPrice,
+      description: raw.description || "",
+      vendorId: (raw.storeId || 5).toString(),
+      vendorName: raw.storeName || "Traditional Kitchen",
       entityType: "product",
       imageUrl: "", // Will be handled by ProductCard component
     };
@@ -28,24 +43,29 @@ export default function TraditionalMeals() {
     addToCart(cartItem);
     console.log(
       "Added to cart:",
-      product.name,
+      raw.name,
       "from store:",
-      product.storeName || "Traditional Kitchen"
+      raw.storeName || "Traditional Kitchen"
     );
   };
 
-  const handleRemoveFromCart = (productId: number) => {
-    removeFromCart(productId.toString());
-    console.log("Removed from cart:", productId);
+  const handleRemoveFromCart = (productId: string | number) => {
+    const id = String(productId);
+    const q = getQuantity(id);
+    if (q > 1) {
+      updateQuantity(id, q - 1);
+    } else {
+      removeFromCart(id);
+    }
   };
 
   const renderProductCard = ({ item }: { item: any }) => (
     <View style={{ marginRight: 16 }}>
-      <ProductCard
-        product={item}
+      <MealItemCard
+        product={toUniversalMeal(item)}
+        cartQuantity={getQuantity(String(item.id))}
         onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        compact={true}
+        onRemoveFromCart={() => handleRemoveFromCart(item.id)}
       />
     </View>
   );

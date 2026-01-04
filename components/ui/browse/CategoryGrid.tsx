@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -67,12 +67,8 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
     return () => skeletonAnimation.stop();
   }, [loading, skeletonOpacity]);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
   // Get cache and check if valid
-  const getCachedCategories = async (): Promise<Category[] | null> => {
+  const getCachedCategories = useCallback(async (): Promise<Category[] | null> => {
     try {
       const cached = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
       if (!cached) return null;
@@ -92,10 +88,10 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
       console.error("Error reading cache:", error);
       return null;
     }
-  };
+  }, []);
 
   // Save categories to cache
-  const cacheCategories = async (data: Category[]) => {
+  const cacheCategories = useCallback(async (data: Category[]) => {
     try {
       const cacheData: CachedData = {
         data: data.slice(0, CATEGORIES_LIMIT), // Only cache limited number
@@ -108,9 +104,22 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
     } catch (error) {
       console.error("Error saving cache:", error);
     }
-  };
+  }, []);
 
-  const fetchCategories = async () => {
+  // Fetch in background to update cache without showing loader
+  const fetchCategoriesInBackground = useCallback(async () => {
+    try {
+      const response = await subCategoryApi.getAllSubCategories();
+      const limitedData = (response || []).slice(0, CATEGORIES_LIMIT);
+      setCategories(limitedData);
+      await cacheCategories(limitedData);
+    } catch (error) {
+      // Silently fail in background
+      console.error("Background fetch failed:", error);
+    }
+  }, [cacheCategories]);
+
+  const fetchCategories = useCallback(async () => {
     try {
       setError(null);
 
@@ -139,20 +148,11 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [cacheCategories, fetchCategoriesInBackground, getCachedCategories]);
 
-  // Fetch in background to update cache without showing loader
-  const fetchCategoriesInBackground = async () => {
-    try {
-      const response = await subCategoryApi.getAllSubCategories();
-      const limitedData = (response || []).slice(0, CATEGORIES_LIMIT);
-      setCategories(limitedData);
-      await cacheCategories(limitedData);
-    } catch (error) {
-      // Silently fail in background
-      console.error("Background fetch failed:", error);
-    }
-  };
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleRetry = () => {
     setLoading(true);

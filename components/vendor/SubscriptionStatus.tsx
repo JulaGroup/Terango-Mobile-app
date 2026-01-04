@@ -47,6 +47,7 @@ export default function SubscriptionStatus() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubscription();
@@ -80,16 +81,31 @@ export default function SubscriptionStatus() {
 
   const fetchSubscription = async () => {
     try {
+      setError(null);
       const token = await AsyncStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setError('Not authenticated');
+        return;
+      }
 
       const response = await axios.get(`${API_URL}/api/subscriptions/current`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setSubscription(response.data.subscription);
+      if (response.data.subscription) {
+        setSubscription(response.data.subscription);
+      } else {
+        setSubscription(null);
+      }
     } catch (error: any) {
       console.error('Failed to fetch subscription:', error.response?.data || error.message);
+      // Check if it's a 404 (no subscription) vs actual error
+      if (error.response?.status === 404 || error.response?.data?.message?.includes('No active subscription')) {
+        setSubscription(null);
+        setError(null);
+      } else {
+        setError(error.response?.data?.message || 'Failed to load subscription');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -158,22 +174,25 @@ export default function SubscriptionStatus() {
 
   if (!subscription) {
     return (
-      <ScrollView
-        style={styles.container}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-      >
-        <View style={styles.noSubscriptionCard}>
-          <Ionicons name="alert-circle-outline" size={64} color="#F59E0B" />
-          <Text style={styles.noSubscriptionTitle}>No Active Subscription</Text>
-          <Text style={styles.noSubscriptionText}>
-            Subscribe to a plan to unlock premium features and grow your business
-          </Text>
-          <TouchableOpacity style={styles.subscribeButton}>
-            <Text style={styles.subscribeButtonText}>View Plans</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      <View style={styles.centerContainer}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.centerContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        >
+          <View style={styles.noSubscriptionCard}>
+            <Ionicons name="alert-circle-outline" size={64} color="#F59E0B" />
+            <Text style={styles.noSubscriptionTitle}>No Active Subscription</Text>
+            <Text style={styles.noSubscriptionText}>
+              Subscribe to a plan to unlock premium features and grow your business
+            </Text>
+            <TouchableOpacity style={styles.subscribeButton}>
+              <Text style={styles.subscribeButtonText}>Contact Admin for Subscription</Text>
+              <Ionicons name="mail-outline" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
     );
   }
 
@@ -352,6 +371,17 @@ export default function SubscriptionStatus() {
 }
 
 const styles = StyleSheet.create({
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  centerContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -373,11 +403,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    maxWidth: 400,
+    width: '90%',
+    alignSelf: 'center',
   },
   noSubscriptionTitle: {
     fontSize: 24,
@@ -385,12 +419,14 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   noSubscriptionText: {
     fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 24,
   },
   subscribeButton: {
     flexDirection: 'row',
@@ -400,6 +436,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     gap: 8,
+    shadowColor: '#8B5CF6',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   subscribeButtonText: {
     fontSize: 16,

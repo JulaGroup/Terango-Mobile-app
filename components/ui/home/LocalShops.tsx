@@ -115,7 +115,7 @@ const ShopCard = ({
             position: "absolute",
             top: 8,
             right: 8,
-            backgroundColor: shop.isActive
+            backgroundColor: (shop.isActive && shop.acceptsOrders)
               ? "rgba(0,200,81,0.9)"
               : "rgba(239,68,68,0.9)",
             paddingHorizontal: 8,
@@ -124,7 +124,7 @@ const ShopCard = ({
           }}
         >
           <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>
-            {shop.isActive ? "Open" : "Closed"}
+            {(shop.isActive && shop.acceptsOrders) ? "Open" : "Closed"}
           </Text>
         </View>
       </View>

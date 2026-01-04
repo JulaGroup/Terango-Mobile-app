@@ -8,7 +8,7 @@ export interface UniversalProduct {
   id: string | number;
   name: string;
   price: number;
-  image?: string;
+  image?: string | number;
   description?: string;
   inStock?: boolean;
   discountedPrice?: number;
@@ -130,14 +130,22 @@ const ProductCard = ({
 
   return (
     <TouchableOpacity
-      style={[styles.card, dynamicStyles.card]}
+      style={[
+        styles.card,
+        dynamicStyles.card,
+        isOrderingDisabled && styles.cardDisabled,
+      ]}
       activeOpacity={0.8}
       onPress={handlePress}
     >
       <View style={styles.productImageContainer}>
         {product.image && !imageLoadError ? (
           <Image
-            source={{ uri: product.image }}
+            source={
+              typeof product.image === "string"
+                ? { uri: product.image }
+                : product.image
+            }
             style={styles.image}
             contentFit="cover"
             transition={200}
@@ -176,11 +184,7 @@ const ProductCard = ({
             onPress={handleAdd}
             activeOpacity={isOrderingDisabled ? 1 : 0.8}
           >
-            <Ionicons
-              name={isOrderingDisabled ? "lock-closed" : "add"}
-              size={16}
-              color={isOrderingDisabled ? "#F9FAFB" : "#fff"}
-            />
+            <Ionicons name="add" size={16} color="#fff" />
           </TouchableOpacity>
         ) : expanded ? (
           <View style={styles.overlayControls}>
@@ -202,11 +206,7 @@ const ProductCard = ({
               onPress={handleAdd}
               activeOpacity={isOrderingDisabled ? 1 : 0.8}
             >
-              <Ionicons
-                name={isOrderingDisabled ? "lock-closed" : "add"}
-                size={12}
-                color="#fff"
-              />
+              <Ionicons name="add" size={12} color="#fff" />
             </TouchableOpacity>
           </View>
         ) : (
@@ -271,6 +271,9 @@ const styles = StyleSheet.create({
     elevation: 7,
     borderWidth: 0.8,
     borderColor: "#DFDFDFFF",
+  },
+  cardDisabled: {
+    opacity: 0.55,
   },
   cartIndicator: {
     flexDirection: "row",
@@ -450,6 +453,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     maxWidth: "70%",
+    display: "none",
   },
   orderingStatusBadgeText: {
     color: "#F9FAFB",

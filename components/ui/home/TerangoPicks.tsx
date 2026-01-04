@@ -1,31 +1,153 @@
-import React from "react";
-import { View, Text, TouchableOpacity, FlatList } from "react-native";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard from "./ProductCard";
-import { terangoPicksProducts } from "@/constants/fakeData";
+import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 import { PrimaryColor } from "@/constants/Colors";
+import { API_URL } from "@/constants/config";
+import { useRouter } from "expo-router";
 
-export default function TerangoPicks() {
-  const handleAddToCart = (productId: number) => {
-    console.log("Added to cart:", productId);
-    // TODO: Implement cart functionality
+const CARD_WIDTH = 160;
+
+interface TeranGOProduct {
+  id: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  imageUrl?: string;
+  description?: string;
+  brand?: string;
+  stock?: number;
+  isAvailable: boolean;
+  isFeatured: boolean;
+  priority: number;
+}
+
+interface TeranGOPicksProps {
+  refreshKey?: number;
+}
+
+// Skeleton card for loading state
+const SkeletonCard = () => (
+  <View
+    style={{
+      width: CARD_WIDTH,
+      marginRight: 16,
+      backgroundColor: "#fff",
+      borderRadius: 12,
+      overflow: "hidden",
+      elevation: 2,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 8,
+    }}
+  >
+    <View style={{ width: "100%", height: 140, backgroundColor: "#E8E8E8" }} />
+    <View style={{ padding: 10 }}>
+      <View style={{ width: "80%", height: 14, backgroundColor: "#E8E8E8", borderRadius: 4 }} />
+      <View style={{ width: "50%", height: 12, backgroundColor: "#E8E8E8", borderRadius: 4, marginTop: 6 }} />
+      <View style={{ width: "40%", height: 16, backgroundColor: "#E8E8E8", borderRadius: 4, marginTop: 8 }} />
+    </View>
+  </View>
+);
+
+export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
+  const [products, setProducts] = useState<TeranGOProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const router = useRouter();
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`${API_URL}/api/public/products/terango-featured?limit=10`);
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+      
+      const data = await response.json();
+      setProducts(data.products || []);
+    } catch (err) {
+      console.error("Error fetching TeranGO products:", err);
+      setError("Failed to load products");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts, refreshKey]);
+
+  const getCartQuantity = useCallback(
+    (id: string | number) => quantities[String(id)] ?? 0,
+    [quantities]
+  );
+
+  const handleAddToCart = useCallback((product: UniversalProduct) => {
+    setQuantities((prev) => {
+      const key = String(product.id);
+      return { ...prev, [key]: (prev[key] ?? 0) + 1 };
+    });
+  }, []);
+
+  const handleRemoveFromCart = useCallback((productId: string | number) => {
+    setQuantities((prev) => {
+      const key = String(productId);
+      const next = (prev[key] ?? 0) - 1;
+      if (next <= 0) {
+        const { [key]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [key]: next };
+    });
+  }, []);
+
+  const handleProductPress = (productId: string) => {
+    router.push({
+      pathname: "/productDetails",
+      params: { productId },
+    });
   };
 
-  const handleRemoveFromCart = (productId: number) => {
-    console.log("Removed from cart:", productId);
-    // TODO: Implement cart functionality
-  };
+  const listData = useMemo(
+    () =>
+      products.map((item) => {
+        const product: UniversalProduct = {
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          discountedPrice: item.discountedPrice,
+          image: item.imageUrl,
+          description: item.description,
+          inStock: item.isAvailable && (item.stock ?? 0) > 0,
+        };
+        return { raw: item, product };
+      }),
+    [products]
+  );
 
-  const renderProductCard = ({ item }: { item: any }) => (
+  const renderProductCard = ({ item }: { item: typeof listData[0] }) => (
     <View style={{ marginRight: 16 }}>
       <ProductCard
-        product={item}
+        product={item.product}
+        cartQuantity={getCartQuantity(item.product.id)}
         onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        compact={true}
+        onRemoveFromCart={() => handleRemoveFromCart(item.product.id)}
+        onPress={() => handleProductPress(String(item.product.id))}
+        cardWidth={CARD_WIDTH}
       />
     </View>
   );
+
+  // Don't render if no products and not loading
+  if (!loading && products.length === 0 && !error) {
+    return null;
+  }
 
   return (
     <View style={{ paddingVertical: 20 }}>
@@ -42,24 +164,26 @@ export default function TerangoPicks() {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <View
             style={{
-              backgroundColor: "#FF6B35",
-              borderRadius: 8,
-              padding: 8,
+              backgroundColor: "#1a1a1a",
+              borderRadius: 10,
+              padding: 10,
               marginRight: 12,
             }}
           >
-            <Ionicons name="sparkles" size={20} color="#fff" />
+            <Ionicons name="diamond" size={20} color="#FF6B00" />
           </View>
           <View>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "bold",
-                color: "#333",
-              }}
-            >
-              TeranGo Picks
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}>
+                Teran
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}>
+                GO
+              </Text>
+              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}>
+                {" "}Picks
+              </Text>
+            </View>
             <Text
               style={{
                 fontSize: 12,
@@ -67,12 +191,12 @@ export default function TerangoPicks() {
                 marginTop: 2,
               }}
             >
-              Curated selections just for you
+              Quality products, best prices
             </Text>
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => console.log("See All TeranGo picks")}
+          onPress={() => router.push("/browse")}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -92,54 +216,43 @@ export default function TerangoPicks() {
         </TouchableOpacity>
       </View>
 
-      {/* Featured Badge */}
-      <View
-        style={{
-          marginHorizontal: 16,
-          backgroundColor: "#FFF4E6",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 20,
-          borderLeftWidth: 4,
-          borderLeftColor: "#FF6B35",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Ionicons name="trophy" size={20} color="#FF6B35" />
-          <Text
+      {/* Products Horizontal Slider */}
+      {loading ? (
+        <FlatList
+          data={[1, 2, 3, 4]}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(item) => `skeleton-${item}`}
+          renderItem={() => <SkeletonCard />}
+        />
+      ) : error ? (
+        <View style={{ paddingHorizontal: 16, alignItems: "center", paddingVertical: 20 }}>
+          <Ionicons name="alert-circle-outline" size={32} color="#999" />
+          <Text style={{ color: "#666", marginTop: 8 }}>{error}</Text>
+          <TouchableOpacity
+            onPress={fetchProducts}
             style={{
-              fontSize: 14,
-              fontWeight: "600",
-              color: "#FF6B35",
-              marginLeft: 8,
+              marginTop: 12,
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              backgroundColor: PrimaryColor,
+              borderRadius: 8,
             }}
           >
-            Editor&apos;s Choice
-          </Text>
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Retry</Text>
+          </TouchableOpacity>
         </View>
-        <Text
-          style={{
-            fontSize: 12,
-            color: "#E65100",
-            marginTop: 4,
-            lineHeight: 16,
-          }}
-        >
-          Handpicked products showcasing the best of Gambian culture and quality
-        </Text>
-      </View>
-
-      {/* Products Horizontal Slider */}
-      <FlatList
-        data={terangoPicksProducts}
-        renderItem={renderProductCard}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingHorizontal: 16,
-        }}
-        ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
-      />
+      ) : (
+        <FlatList
+          data={listData}
+          renderItem={renderProductCard}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(item) => String(item.product.id)}
+        />
+      )}
     </View>
   );
 }

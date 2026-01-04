@@ -18,7 +18,6 @@ import TermsModal from "@/components/modals/TermsModal";
 
 export default function CompleteProfile() {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -76,7 +75,7 @@ export default function CompleteProfile() {
   };
 
   const handleComplete = async () => {
-    console.log("Completing profile with:", { name, email });
+    console.log("Completing profile with:", { name });
 
     // Check if terms are accepted first
     if (!termsAccepted) {
@@ -91,29 +90,23 @@ export default function CompleteProfile() {
     if (loading) return;
     setLoading(true);
 
-    if (name && email) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        setLoading(false);
-        return alert("Please enter a valid email address");
-      }
-
+    if (name) {
       const nameRegex = /^[A-Za-z\s]+$/;
       if (!nameRegex.test(name) || name.length < 2) {
         setLoading(false);
-        return alert("Please enter a valid name");
+        return alert("Please enter a valid name (minimum 2 characters)");
       }
 
       try {
         const userId = await SecureStore.getItemAsync("userId");
         if (!userId) throw new Error("User ID not found");
 
-        await completeProfile({ userId, name, email });
+        await completeProfile({ userId, name, email: "" });
 
         // Cache the user data immediately after profile completion
         await UserCacheManager.cacheUserData({
           fullName: name,
-          email: email,
+          email: "",
           phone: "", // Will be updated when user adds phone
           isVerified: false, // New profiles start unverified
         });
@@ -130,7 +123,7 @@ export default function CompleteProfile() {
       }
     } else {
       setLoading(false);
-      alert("Please fill all fields");
+      alert("Please enter your full name");
     }
   };
 
@@ -138,20 +131,14 @@ export default function CompleteProfile() {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
       <Text style={styles.title}>Complete Your Profile</Text>
+      <Text style={styles.subtitle}>Enter your full name to get started</Text>
       <TextInput
         placeholder="Full Name"
         value={name}
         onChangeText={setName}
         style={styles.input}
         placeholderTextColor="#9CA3AF"
-      />
-      <TextInput
-        placeholder="Email Address"
-        value={email}
-        onChangeText={setEmail}
-        style={styles.input}
-        keyboardType="email-address"
-        placeholderTextColor="#9CA3AF"
+        autoFocus
       />
 
       <TouchableOpacity
@@ -202,7 +189,13 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
     color: "#111827",
-    marginBottom: 40,
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 15,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 32,
   },
   input: {
     backgroundColor: "#F3F4F6",

@@ -21,7 +21,7 @@ import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
-import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
+import MealItemCard from "@/components/common/MealItemCard";
 
 const { height } = Dimensions.get("window");
 
@@ -466,7 +466,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   marginBottom: 12,
                 }}
               >
-                <VendorAwareMealItemCard
+                <MealItemCard
                   product={universalProduct}
                   cartQuantity={cartQuantity}
                   onAddToCart={() => {
@@ -487,10 +487,6 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   onPress={() => {
                     onClose();
                     router.push(`/menuitem/${menuItem.id}`);
-                  }}
-                  vendor={{
-                    vendorId: menuItem.menu?.restaurantId,
-                    vendorType: "restaurant",
                   }}
                 />
               </View>

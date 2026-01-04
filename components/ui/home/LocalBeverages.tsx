@@ -1,26 +1,41 @@
 import React from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard from "./ProductCard";
+import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 import { localBeveragesProducts } from "@/constants/fakeData";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 
-export default function LocalBeverages() {
-  const { addToCart, removeFromCart } = useCart();
+const CARD_WIDTH = 160;
 
-  const handleAddToCart = (productId: number) => {
-    // Find the product to get its details
-    const product = localBeveragesProducts.find((p) => p.id === productId);
-    if (!product) return;
+export default function LocalBeverages() {
+  const { addToCart, removeFromCart, updateQuantity, getQuantity } = useCart();
+
+  const toUniversalProduct = (item: any): UniversalProduct => {
+    const hasDiscount = typeof item.originalPrice === "number";
+    return {
+      id: item.id,
+      name: item.name,
+      price: hasDiscount ? item.originalPrice : item.price,
+      discountedPrice: hasDiscount ? item.price : undefined,
+      image: item.image,
+      description: item.description,
+      inStock: item.inStock,
+    };
+  };
+
+  const handleAddToCart = (product: UniversalProduct) => {
+    const raw = localBeveragesProducts.find((p) => p.id === product.id);
+    if (!raw) return;
 
     const cartItem = {
-      id: productId.toString(),
-      name: product.name,
-      price: product.price,
-      description: product.description || "",
-      vendorId: (product.storeId || 8).toString(),
-      vendorName: product.storeName || "Local Store",
+      id: String(product.id),
+      name: raw.name,
+      price: raw.price,
+      discountedPrice: raw.originalPrice,
+      description: raw.description || "",
+      vendorId: (raw.storeId || 8).toString(),
+      vendorName: raw.storeName || "Local Store",
       entityType: "product",
       imageUrl: "", // Will be handled by ProductCard component
     };
@@ -28,24 +43,30 @@ export default function LocalBeverages() {
     addToCart(cartItem);
     console.log(
       "Added to cart:",
-      product.name,
+      raw.name,
       "from store:",
-      product.storeName || "Local Store"
+      raw.storeName || "Local Store"
     );
   };
 
-  const handleRemoveFromCart = (productId: number) => {
-    removeFromCart(productId.toString());
-    console.log("Removed from cart:", productId);
+  const handleRemoveFromCart = (productId: string | number) => {
+    const id = String(productId);
+    const q = getQuantity(id);
+    if (q > 1) {
+      updateQuantity(id, q - 1);
+    } else {
+      removeFromCart(id);
+    }
   };
 
   const renderProductCard = ({ item }: { item: any }) => (
     <View style={{ marginRight: 16 }}>
       <ProductCard
-        product={item}
+        product={toUniversalProduct(item)}
+        cartQuantity={getQuantity(String(item.id))}
         onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        compact={true}
+        onRemoveFromCart={() => handleRemoveFromCart(item.id)}
+        cardWidth={CARD_WIDTH}
       />
     </View>
   );

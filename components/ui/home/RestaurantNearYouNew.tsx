@@ -131,6 +131,7 @@ interface Restaurant {
   address?: string;
   city?: string;
   isActive: boolean;
+  acceptsOrders: boolean;
   createdAt: string;
   updatedAt: string;
   service: {
@@ -627,29 +628,27 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
                 )}
 
                 {/* Active Status Badge */}
-                {restaurant.isActive && (
-                  <View
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 12,
+                    left: 12,
+                    backgroundColor: (restaurant.isActive && restaurant.acceptsOrders) ? "#27AE60" : "#EF4444",
+                    borderRadius: 12,
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                  }}
+                >
+                  <Text
                     style={{
-                      position: "absolute",
-                      top: 12,
-                      left: 12,
-                      backgroundColor: "#27AE60",
-                      borderRadius: 12,
-                      paddingHorizontal: 8,
-                      paddingVertical: 4,
+                      color: "#fff",
+                      fontSize: 10,
+                      fontWeight: "600",
                     }}
                   >
-                    <Text
-                      style={{
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: "600",
-                      }}
-                    >
-                      OPEN
-                    </Text>
-                  </View>
-                )}
+                    {(restaurant.isActive && restaurant.acceptsOrders) ? "OPEN" : "CLOSED"}
+                  </Text>
+                </View>
 
                 {/* Rating Badge */}
                 {/* <View

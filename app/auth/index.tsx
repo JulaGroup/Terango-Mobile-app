@@ -141,6 +141,12 @@ export default function AuthScreen() {
       </View>
       <Text style={styles.header}>Welcome</Text>
       <Text style={styles.subHeader}>Enter your phone number to continue</Text>
+      <View style={styles.whatsappNotice}>
+        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+        <Text style={styles.whatsappText}>
+          {"We'll send a verification code via WhatsApp"}
+        </Text>
+      </View>
 
       <View style={styles.inputContainer}>
         {/* Phone Input with Country Picker */}
@@ -372,6 +378,24 @@ const styles = StyleSheet.create({
   socialText: {
     color: "white",
     fontSize: 16,
+  },
+  whatsappNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F0FDF4",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+  },
+  whatsappText: {
+    color: "#15803D",
+    fontSize: 14,
+    fontWeight: "600",
   },
   // Modal styles
   modalOverlay: {

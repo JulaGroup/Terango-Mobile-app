@@ -1,28 +1,65 @@
-import React from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, Text, TouchableOpacity, FlatList } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard from "./ProductCard";
+import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 import { weeklyDealsProducts } from "@/constants/fakeData";
 import { PrimaryColor } from "@/constants/Colors";
 
-export default function WeeklyDeals() {
-  const handleAddToCart = (productId: number) => {
-    console.log("Added to cart:", productId);
-    // TODO: Implement cart functionality
-  };
+const CARD_WIDTH = 160;
 
-  const handleRemoveFromCart = (productId: number) => {
-    console.log("Removed from cart:", productId);
-    // TODO: Implement cart functionality
-  };
+export default function WeeklyDeals() {
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  const getCartQuantity = useCallback(
+    (id: string | number) => quantities[String(id)] ?? 0,
+    [quantities]
+  );
+
+  const handleAddToCart = useCallback((product: UniversalProduct) => {
+    setQuantities((prev) => {
+      const key = String(product.id);
+      return { ...prev, [key]: (prev[key] ?? 0) + 1 };
+    });
+  }, []);
+
+  const handleRemoveFromCart = useCallback((productId: string | number) => {
+    setQuantities((prev) => {
+      const key = String(productId);
+      const next = (prev[key] ?? 0) - 1;
+      if (next <= 0) {
+        const { [key]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [key]: next };
+    });
+  }, []);
+
+  const listData = useMemo(
+    () =>
+      weeklyDealsProducts.map((item: any) => {
+        const hasDiscount = typeof item.originalPrice === "number";
+        const product: UniversalProduct = {
+          id: item.id,
+          name: item.name,
+          price: hasDiscount ? item.originalPrice : item.price,
+          discountedPrice: hasDiscount ? item.price : undefined,
+          image: item.image,
+          description: item.description,
+          inStock: item.inStock,
+        };
+        return { raw: item, product };
+      }),
+    []
+  );
 
   const renderProductCard = ({ item }: { item: any }) => (
     <View style={{ marginRight: 16 }}>
       <ProductCard
-        product={item}
+        product={item.product}
+        cartQuantity={getCartQuantity(item.product.id)}
         onAddToCart={handleAddToCart}
-        onRemoveFromCart={handleRemoveFromCart}
-        compact={true}
+        onRemoveFromCart={() => handleRemoveFromCart(item.product.id)}
+        cardWidth={CARD_WIDTH}
       />
     </View>
   );
@@ -131,7 +168,7 @@ export default function WeeklyDeals() {
 
       {/* Products Horizontal Slider */}
       <FlatList
-        data={weeklyDealsProducts}
+        data={listData}
         renderItem={renderProductCard}
         horizontal
         showsHorizontalScrollIndicator={false}
