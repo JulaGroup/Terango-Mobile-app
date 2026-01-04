@@ -475,11 +475,15 @@ const BrowseScreen: React.FC = () => {
       params: { subCategoryId: sub.id, subCategoryName: sub.name },
     });
   };
-  const handleCustomDelivery = () => Alert.alert("Coming Soon", "Custom Parcel Delivery is coming soon!");
+  const handleCustomDelivery = () =>
+    Alert.alert("Coming Soon", "Custom Parcel Delivery is coming soon!");
   const handleSeeAll = (section: string, title: string) =>
     router.push({ pathname: "/browse/[section]", params: { section, title } });
   const handleProductPress = (id: string) =>
-    router.push({ pathname: "/product/[productId]", params: { productId: id } });
+    router.push({
+      pathname: "/product/[productId]",
+      params: { productId: id },
+    });
   const handleMenuItemPress = (id: string) =>
     router.push({ pathname: "/menuitem/[menuitem]", params: { menuitem: id } });
   const handleOpenSearch = () => setSearchModalVisible(true);
@@ -487,7 +491,13 @@ const BrowseScreen: React.FC = () => {
   // ───────────────────────────────────────────────────────────────────────────
   // Cart helpers (for product cards)
   // ───────────────────────────────────────────────────────────────────────────
-  const handleAddProduct = (p: UniversalProduct & { vendorId?: string; vendorName?: string; entityType?: string }) => {
+  const handleAddProduct = (
+    p: UniversalProduct & {
+      vendorId?: string;
+      vendorName?: string;
+      entityType?: string;
+    }
+  ) => {
     addToCart({
       id: String(p.id),
       name: p.name,
@@ -539,7 +549,10 @@ const BrowseScreen: React.FC = () => {
   const renderMealCard = (item: MenuItem) => {
     const qty = getQuantity(item.id);
     // MealItemCard expects id as number
-    const numericId = typeof item.id === "string" ? parseInt(item.id, 10) || 0 : Number(item.id) || 0;
+    const numericId =
+      typeof item.id === "string"
+        ? parseInt(item.id, 10) || 0
+        : Number(item.id) || 0;
     const mealProduct = {
       id: numericId,
       name: item.name,
@@ -554,7 +567,13 @@ const BrowseScreen: React.FC = () => {
         <MealItemCard
           product={mealProduct}
           cartQuantity={qty}
-          onAddToCart={() => handleAddProduct({ ...mealProduct, id: item.id, entityType: "menuItem" })}
+          onAddToCart={() =>
+            handleAddProduct({
+              ...mealProduct,
+              id: item.id,
+              entityType: "menuItem",
+            })
+          }
           onRemoveFromCart={() => handleRemoveProduct(item.id)}
           onPress={() => handleMenuItemPress(item.id)}
         />
@@ -884,7 +903,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingBottom: 32 },
   titleSection: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
-  pageTitle: { fontSize: 28, fontWeight: "800", color: "#111827", letterSpacing: -0.5 },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#111827",
+    letterSpacing: -0.5,
+  },
   pageSubtitle: { fontSize: 14, color: "#6B7280", marginTop: 4 },
 
   // Custom Delivery
@@ -911,9 +935,24 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 12,
   },
-  customDeliveryBadgeText: { fontSize: 11, fontWeight: "700", color: "#0B0D0F", letterSpacing: 0.5 },
-  customDeliveryTitle: { fontSize: 20, fontWeight: "700", color: "#FFF", marginBottom: 8 },
-  customDeliveryDesc: { fontSize: 13, color: "#D1D5DB", lineHeight: 18, marginBottom: 16 },
+  customDeliveryBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#0B0D0F",
+    letterSpacing: 0.5,
+  },
+  customDeliveryTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#FFF",
+    marginBottom: 8,
+  },
+  customDeliveryDesc: {
+    fontSize: 13,
+    color: "#D1D5DB",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
   customDeliveryFeatures: { flexDirection: "row", gap: 8, marginBottom: 16 },
   featurePill: {
     flexDirection: "row",
@@ -947,7 +986,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
   sectionSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  seeAllButton: { flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 6, paddingLeft: 8 },
+  seeAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingLeft: 8,
+  },
   seeAllText: { fontSize: 12, fontWeight: "600", color: "#6B7280" },
 
   loader: { marginVertical: 24 },
@@ -965,11 +1010,28 @@ const styles = StyleSheet.create({
 
   // Category groups
   groupSection: { marginBottom: 28 },
-  groupHeader: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, marginBottom: 16, gap: 12 },
-  groupIconGradient: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  groupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  groupIconGradient: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   groupTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   groupSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  subcategoryGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, gap: 12 },
+  subcategoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
   subcategoryCard: {
     width: PRODUCT_CARD_WIDTH,
     backgroundColor: "#FFF",
@@ -994,13 +1056,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  subcategoryName: { flex: 1, fontSize: 13, fontWeight: "600", color: "#374151", lineHeight: 16 },
+  subcategoryName: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#374151",
+    lineHeight: 16,
+  },
 
   // Loading & Empty
-  loadingContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
+  loadingContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
   loadingText: { fontSize: 14, color: "#9CA3AF", marginTop: 12 },
-  emptyContainer: { alignItems: "center", justifyContent: "center", paddingVertical: 60 },
-  emptyText: { fontSize: 16, color: "#9CA3AF", marginTop: 16, marginBottom: 24 },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#9CA3AF",
+    marginTop: 16,
+    marginBottom: 24,
+  },
   retryButton: {
     flexDirection: "row",
     alignItems: "center",

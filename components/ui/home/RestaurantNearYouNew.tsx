@@ -207,8 +207,6 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
     }
   };
 
-  
-
   const getCuisineTypes = (restaurant: Restaurant): string[] => {
     const types: string[] = [];
 
@@ -633,7 +631,10 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
                     position: "absolute",
                     top: 12,
                     left: 12,
-                    backgroundColor: (restaurant.isActive && restaurant.acceptsOrders) ? "#27AE60" : "#EF4444",
+                    backgroundColor:
+                      restaurant.isActive && restaurant.acceptsOrders
+                        ? "#27AE60"
+                        : "#EF4444",
                     borderRadius: 12,
                     paddingHorizontal: 8,
                     paddingVertical: 4,
@@ -646,7 +647,9 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
                       fontWeight: "600",
                     }}
                   >
-                    {(restaurant.isActive && restaurant.acceptsOrders) ? "OPEN" : "CLOSED"}
+                    {restaurant.isActive && restaurant.acceptsOrders
+                      ? "OPEN"
+                      : "CLOSED"}
                   </Text>
                 </View>
 

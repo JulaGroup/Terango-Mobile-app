@@ -146,13 +146,13 @@ const MealItemCard = ({
           </View>
         )}
 
-          {product.image && !imageLoadError ? (
+        {product.image && !imageLoadError ? (
           <Image
-              source={
-                typeof product.image === "string"
-                  ? { uri: product.image }
-                  : product.image
-              }
+            source={
+              typeof product.image === "string"
+                ? { uri: product.image }
+                : product.image
+            }
             style={styles.image}
             contentFit="cover"
             transition={200}

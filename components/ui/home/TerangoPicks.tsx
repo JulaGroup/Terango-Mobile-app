@@ -1,5 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
 import { PrimaryColor } from "@/constants/Colors";
@@ -44,9 +50,32 @@ const SkeletonCard = () => (
   >
     <View style={{ width: "100%", height: 140, backgroundColor: "#E8E8E8" }} />
     <View style={{ padding: 10 }}>
-      <View style={{ width: "80%", height: 14, backgroundColor: "#E8E8E8", borderRadius: 4 }} />
-      <View style={{ width: "50%", height: 12, backgroundColor: "#E8E8E8", borderRadius: 4, marginTop: 6 }} />
-      <View style={{ width: "40%", height: 16, backgroundColor: "#E8E8E8", borderRadius: 4, marginTop: 8 }} />
+      <View
+        style={{
+          width: "80%",
+          height: 14,
+          backgroundColor: "#E8E8E8",
+          borderRadius: 4,
+        }}
+      />
+      <View
+        style={{
+          width: "50%",
+          height: 12,
+          backgroundColor: "#E8E8E8",
+          borderRadius: 4,
+          marginTop: 6,
+        }}
+      />
+      <View
+        style={{
+          width: "40%",
+          height: 16,
+          backgroundColor: "#E8E8E8",
+          borderRadius: 4,
+          marginTop: 8,
+        }}
+      />
     </View>
   </View>
 );
@@ -62,13 +91,15 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
     try {
       setLoading(true);
       setError(null);
-      
-      const response = await fetch(`${API_URL}/api/public/products/terango-featured?limit=10`);
-      
+
+      const response = await fetch(
+        `${API_URL}/api/public/products/terango-featured?limit=10`
+      );
+
       if (!response.ok) {
         throw new Error("Failed to fetch products");
       }
-      
+
       const data = await response.json();
       setProducts(data.products || []);
     } catch (err) {
@@ -131,7 +162,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
     [products]
   );
 
-  const renderProductCard = ({ item }: { item: typeof listData[0] }) => (
+  const renderProductCard = ({ item }: { item: (typeof listData)[0] }) => (
     <View style={{ marginRight: 16 }}>
       <ProductCard
         product={item.product}
@@ -174,14 +205,21 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
           </View>
           <View>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}>
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
+              >
                 Teran
               </Text>
-              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}>
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}
+              >
                 GO
               </Text>
-              <Text style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}>
-                {" "}Picks
+              <Text
+                style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
+              >
+                {" "}
+                Picks
               </Text>
             </View>
             <Text
@@ -227,7 +265,13 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
           renderItem={() => <SkeletonCard />}
         />
       ) : error ? (
-        <View style={{ paddingHorizontal: 16, alignItems: "center", paddingVertical: 20 }}>
+        <View
+          style={{
+            paddingHorizontal: 16,
+            alignItems: "center",
+            paddingVertical: 20,
+          }}
+        >
           <Ionicons name="alert-circle-outline" size={32} color="#999" />
           <Text style={{ color: "#666", marginTop: 8 }}>{error}</Text>
           <TouchableOpacity

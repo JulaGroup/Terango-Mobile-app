@@ -33,9 +33,9 @@ export default function FreshFromFarm() {
       name: raw.name,
       price: raw.price,
       discountedPrice: raw.originalPrice,
-      description: `Fresh ${String(raw.category || "produce").toLowerCase()} - ${
-        raw.organic ? "Organic" : "Farm Fresh"
-      }`,
+      description: `Fresh ${String(
+        raw.category || "produce"
+      ).toLowerCase()} - ${raw.organic ? "Organic" : "Farm Fresh"}`,
       vendorId: "7", // Default vendor ID for farm products
       vendorName: "Fresh Farm Market",
       entityType: "product",

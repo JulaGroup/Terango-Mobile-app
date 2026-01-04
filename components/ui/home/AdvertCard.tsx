@@ -14,9 +14,21 @@ import { PrimaryColor } from "@/constants/Colors";
 
 // Fallback local ads (used when API fails or no ads in DB)
 const FALLBACK_ADS = [
-  { id: "local-1", image: require("../../../assets/images/adverts/advert1.jpg"), isLocal: true },
-  { id: "local-2", image: require("../../../assets/images/adverts/advert2.jpg"), isLocal: true },
-  { id: "local-3", image: require("../../../assets/images/adverts/advert3.jpg"), isLocal: true },
+  {
+    id: "local-1",
+    image: require("../../../assets/images/adverts/advert1.jpg"),
+    isLocal: true,
+  },
+  {
+    id: "local-2",
+    image: require("../../../assets/images/adverts/advert2.jpg"),
+    isLocal: true,
+  },
+  {
+    id: "local-3",
+    image: require("../../../assets/images/adverts/advert3.jpg"),
+    isLocal: true,
+  },
 ];
 
 interface Advertisement {
@@ -32,11 +44,15 @@ const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40; // 20px padding on each side
 
 interface AdvertCardProps {
-  position?: "HOME_TOP" | "HOME_AFTER_RESTAURANTS" | "HOME_AFTER_SHOPS" | "HOME_BOTTOM";
+  position?:
+    | "HOME_TOP"
+    | "HOME_AFTER_RESTAURANTS"
+    | "HOME_AFTER_SHOPS"
+    | "HOME_BOTTOM";
   refreshKey?: number;
 }
 
-const AdvertCard: React.FC<AdvertCardProps> = ({ 
+const AdvertCard: React.FC<AdvertCardProps> = ({
   position = "HOME_TOP",
   refreshKey = 0,
 }) => {
@@ -51,15 +67,17 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     try {
       setLoading(true);
       setError(false);
-      
-      const response = await fetch(`${API_URL}/api/advertisements?position=${position}`);
-      
+
+      const response = await fetch(
+        `${API_URL}/api/advertisements?position=${position}`
+      );
+
       if (!response.ok) {
         throw new Error("Failed to fetch advertisements");
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success && data.data && data.data.length > 0) {
         setAdvertisements(data.data);
         // Track impressions for all loaded ads
@@ -83,7 +101,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
   // Track impression
   const trackImpression = async (adId: string) => {
     if (adId.startsWith("local-")) return; // Don't track local ads
-    
+
     try {
       await fetch(`${API_URL}/api/advertisements/${adId}/impression`, {
         method: "POST",
@@ -96,7 +114,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
   // Track click
   const trackClick = async (adId: string) => {
     if (adId.startsWith("local-")) return; // Don't track local ads
-    
+
     try {
       await fetch(`${API_URL}/api/advertisements/${adId}/click`, {
         method: "POST",
@@ -110,7 +128,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
   const handleAdPress = async (ad: Advertisement) => {
     // Track the click
     await trackClick(ad.id);
-    
+
     // Open link if available
     if (ad.link) {
       try {
@@ -144,7 +162,11 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
   const onScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const newIndex = Math.round(offsetX / width);
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < advertisements.length) {
+    if (
+      newIndex !== currentIndex &&
+      newIndex >= 0 &&
+      newIndex < advertisements.length
+    ) {
       setCurrentIndex(newIndex);
     }
   };

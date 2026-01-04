@@ -68,7 +68,9 @@ export default function CategoryGrid({ onCategoryPress }: CategoryGridProps) {
   }, [loading, skeletonOpacity]);
 
   // Get cache and check if valid
-  const getCachedCategories = useCallback(async (): Promise<Category[] | null> => {
+  const getCachedCategories = useCallback(async (): Promise<
+    Category[] | null
+  > => {
     try {
       const cached = await AsyncStorage.getItem(CATEGORIES_CACHE_KEY);
       if (!cached) return null;
