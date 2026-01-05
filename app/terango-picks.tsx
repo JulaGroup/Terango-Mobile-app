@@ -61,45 +61,48 @@ export default function TeranGOPicksPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchProducts = useCallback(async (pageNum: number = 1, isRefresh: boolean = false) => {
-    try {
-      if (pageNum === 1) {
-        if (isRefresh) {
-          setRefreshing(true);
+  const fetchProducts = useCallback(
+    async (pageNum: number = 1, isRefresh: boolean = false) => {
+      try {
+        if (pageNum === 1) {
+          if (isRefresh) {
+            setRefreshing(true);
+          } else {
+            setLoading(true);
+          }
         } else {
-          setLoading(true);
+          setLoadingMore(true);
         }
-      } else {
-        setLoadingMore(true);
+
+        const response = await fetch(
+          `${API_URL}/api/public/products/official?page=${pageNum}&limit=20`
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch products");
+        }
+
+        const data = await response.json();
+        const newProducts = data.products || [];
+
+        if (pageNum === 1) {
+          setProducts(newProducts);
+        } else {
+          setProducts((prev) => [...prev, ...newProducts]);
+        }
+
+        setHasMore(data.pagination?.pages > pageNum);
+        setPage(pageNum);
+      } catch (err) {
+        console.error("Error fetching TeranGO products:", err);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
       }
-
-      const response = await fetch(
-        `${API_URL}/api/public/products/official?page=${pageNum}&limit=20`
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch products");
-      }
-
-      const data = await response.json();
-      const newProducts = data.products || [];
-      
-      if (pageNum === 1) {
-        setProducts(newProducts);
-      } else {
-        setProducts((prev) => [...prev, ...newProducts]);
-      }
-
-      setHasMore(data.pagination?.pages > pageNum);
-      setPage(pageNum);
-    } catch (err) {
-      console.error("Error fetching TeranGO products:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   useEffect(() => {
     fetchProducts(1);

@@ -8,7 +8,7 @@
  * - Handle bar for visual dragging cue
  */
 
-import React, { useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   StyleSheet,
@@ -18,19 +18,19 @@ import {
   TouchableWithoutFeedback,
   Platform,
   StatusBar,
-} from 'react-native';
+} from "react-native";
 
-const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 const STATUS_BAR_HEIGHT = StatusBar.currentHeight || 0;
 
 // Snap points as percentages of screen height
-export type SnapPoint = 'collapsed' | 'half' | 'expanded' | 'full';
+export type SnapPoint = "collapsed" | "half" | "expanded" | "full";
 
 interface SnapPointConfig {
-  collapsed: number;  // e.g., 0.15 = 15% of screen
-  half: number;       // e.g., 0.5 = 50% of screen
-  expanded: number;   // e.g., 0.75 = 75% of screen
-  full: number;       // e.g., 0.95 = 95% of screen
+  collapsed: number; // e.g., 0.15 = 15% of screen
+  half: number; // e.g., 0.5 = 50% of screen
+  expanded: number; // e.g., 0.75 = 75% of screen
+  full: number; // e.g., 0.95 = 95% of screen
 }
 
 interface BottomSheetProps {
@@ -61,7 +61,7 @@ export default function BottomSheet({
   visible,
   onClose,
   children,
-  initialSnap = 'half',
+  initialSnap = "half",
   snapPoints: customSnapPoints,
   showBackdrop = true,
   backdropOpacity = 0.5,
@@ -69,8 +69,8 @@ export default function BottomSheet({
   enableFullscreen = true,
   onSnapChange,
   headerComponent,
-  handleColor = '#D1D5DB',
-  backgroundColor = '#FFFFFF',
+  handleColor = "#D1D5DB",
+  backgroundColor = "#FFFFFF",
   borderRadius = 24,
 }: BottomSheetProps) {
   const snapConfig = useMemo(
@@ -94,23 +94,25 @@ export default function BottomSheet({
   const findNearestSnap = useCallback(
     (positionFromTop: number): SnapPoint => {
       const positions = {
-        collapsed: SCREEN_HEIGHT - getSnapHeight('collapsed'),
-        half: SCREEN_HEIGHT - getSnapHeight('half'),
-        expanded: SCREEN_HEIGHT - getSnapHeight('expanded'),
-        full: SCREEN_HEIGHT - getSnapHeight('full'),
+        collapsed: SCREEN_HEIGHT - getSnapHeight("collapsed"),
+        half: SCREEN_HEIGHT - getSnapHeight("half"),
+        expanded: SCREEN_HEIGHT - getSnapHeight("expanded"),
+        full: SCREEN_HEIGHT - getSnapHeight("full"),
       };
 
-      let nearest: SnapPoint = 'half';
+      let nearest: SnapPoint = "half";
       let minDistance = Infinity;
 
-      (Object.entries(positions) as [SnapPoint, number][]).forEach(([snap, pos]) => {
-        if (!enableFullscreen && snap === 'full') return;
-        const distance = Math.abs(positionFromTop - pos);
-        if (distance < minDistance) {
-          minDistance = distance;
-          nearest = snap;
+      (Object.entries(positions) as [SnapPoint, number][]).forEach(
+        ([snap, pos]) => {
+          if (!enableFullscreen && snap === "full") return;
+          const distance = Math.abs(positionFromTop - pos);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearest = snap;
+          }
         }
-      });
+      );
 
       return nearest;
     },
@@ -135,13 +137,19 @@ export default function BottomSheet({
       Animated.parallel([
         Animated.spring(translateY, springConfig),
         Animated.timing(backdropOpacityAnim, {
-          toValue: snap === 'collapsed' ? 0.2 : backdropOpacity,
+          toValue: snap === "collapsed" ? 0.2 : backdropOpacity,
           duration: 200,
           useNativeDriver: true,
         }),
       ]).start();
     },
-    [getSnapHeight, translateY, backdropOpacityAnim, backdropOpacity, onSnapChange]
+    [
+      getSnapHeight,
+      translateY,
+      backdropOpacityAnim,
+      backdropOpacity,
+      onSnapChange,
+    ]
   );
 
   // Close animation
@@ -179,13 +187,13 @@ export default function BottomSheet({
       onPanResponderMove: (_, gestureState) => {
         const newPosition = lastGestureY.current + gestureState.dy;
         // Clamp to prevent going above full or below screen
-        const minY = SCREEN_HEIGHT - getSnapHeight('full');
-        const maxY = SCREEN_HEIGHT - getSnapHeight('collapsed') + 50; // Allow some overscroll
+        const minY = SCREEN_HEIGHT - getSnapHeight("full");
+        const maxY = SCREEN_HEIGHT - getSnapHeight("collapsed") + 50; // Allow some overscroll
         const clampedPosition = Math.max(minY, Math.min(maxY, newPosition));
         translateY.setValue(clampedPosition);
 
         // Update backdrop opacity based on position
-        const progress = 1 - (clampedPosition / SCREEN_HEIGHT);
+        const progress = 1 - clampedPosition / SCREEN_HEIGHT;
         backdropOpacityAnim.setValue(progress * backdropOpacity);
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -193,7 +201,11 @@ export default function BottomSheet({
         const velocity = gestureState.vy;
 
         // If swiping down fast and enabled, close the sheet
-        if (enableSwipeDown && velocity > 1.5 && currentPosition > SCREEN_HEIGHT * 0.6) {
+        if (
+          enableSwipeDown &&
+          velocity > 1.5 &&
+          currentPosition > SCREEN_HEIGHT * 0.6
+        ) {
           closeSheet();
           return;
         }
@@ -229,7 +241,15 @@ export default function BottomSheet({
       currentSnap.current = initialSnap;
       onSnapChange?.(initialSnap);
     }
-  }, [visible, initialSnap, getSnapHeight, translateY, backdropOpacityAnim, backdropOpacity, onSnapChange]);
+  }, [
+    visible,
+    initialSnap,
+    getSnapHeight,
+    translateY,
+    backdropOpacityAnim,
+    backdropOpacity,
+    onSnapChange,
+  ]);
 
   if (!visible) return null;
 
@@ -294,7 +314,11 @@ export function BottomSheetHeader({
         {leftIcon}
         <View style={styles.headerText}>
           <Animated.Text style={styles.headerTitle}>{title}</Animated.Text>
-          {subtitle && <Animated.Text style={styles.headerSubtitle}>{subtitle}</Animated.Text>}
+          {subtitle && (
+            <Animated.Text style={styles.headerSubtitle}>
+              {subtitle}
+            </Animated.Text>
+          )}
         </View>
       </View>
       {rightIcon && (
@@ -313,15 +337,15 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000',
+    backgroundColor: "#000",
   },
   sheet: {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
     height: SCREEN_HEIGHT,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 16,
@@ -330,7 +354,7 @@ const styles = StyleSheet.create({
   handleContainer: {
     paddingTop: 12,
     paddingBottom: 8,
-    alignItems: 'center',
+    alignItems: "center",
   },
   handle: {
     width: 40,
@@ -342,15 +366,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
   headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
   },
   headerText: {
@@ -358,12 +382,12 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontWeight: "700",
+    color: "#1F2937",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#6B7280',
+    color: "#6B7280",
     marginTop: 2,
   },
   headerRight: {

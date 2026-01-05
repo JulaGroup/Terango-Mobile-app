@@ -3,8 +3,8 @@
  * This replaces hardcoded zone prices with configurable ones
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { API_BASE_URL } from '../constants/config';
+import { useState, useEffect, useCallback } from "react";
+import { API_BASE_URL } from "../constants/config";
 
 export interface DeliveryZoneFees {
   zone1: number;
@@ -38,11 +38,11 @@ const DEFAULT_SETTINGS: DeliverySettings = {
     zone3: 75,
   },
   distanceTiers: [
-    { range: '0-5km', fee: 100 },
-    { range: '5-10km', fee: 150 },
-    { range: '10-20km', fee: 200 },
-    { range: '20-30km', fee: 300 },
-    { range: '30+km', fee: 350 },
+    { range: "0-5km", fee: 100 },
+    { range: "5-10km", fee: 150 },
+    { range: "10-20km", fee: 200 },
+    { range: "20-30km", fee: 300 },
+    { range: "30+km", fee: 350 },
   ],
   freeDeliveryThreshold: 500,
   freeDeliveryEnabled: true,
@@ -55,7 +55,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useDeliverySettings(): DeliverySettingsState & {
   refetch: () => Promise<void>;
-  getZoneFee: (zone: 'zone1' | 'zone2' | 'zone3') => number;
+  getZoneFee: (zone: "zone1" | "zone2" | "zone3") => number;
   getDistanceFee: (distanceKm: number) => number;
 } {
   const [state, setState] = useState<DeliverySettingsState>({
@@ -71,47 +71,57 @@ export function useDeliverySettings(): DeliverySettingsState & {
       return;
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    setState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/delivery-settings`);
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch delivery settings');
+        throw new Error("Failed to fetch delivery settings");
       }
 
       const json = await response.json();
-      
+
       // Parse API response structure into our expected format
       // API returns: { success: true, data: { zones: {...}, distanceTiers: [...], freeDelivery: {...} } }
       const apiData = json.data || json;
-      
+
       const parsedSettings: DeliverySettings = {
         zoneFees: {
           zone1: apiData.zones?.zone1?.fee ?? DEFAULT_SETTINGS.zoneFees.zone1,
           zone2: apiData.zones?.zone2?.fee ?? DEFAULT_SETTINGS.zoneFees.zone2,
           zone3: apiData.zones?.zone3?.fee ?? DEFAULT_SETTINGS.zoneFees.zone3,
         },
-        distanceTiers: apiData.distanceTiers?.map((tier: { minKm?: number; maxKm?: number | null; fee: number }, index: number) => ({
-          range: tier.maxKm ? `${tier.minKm}-${tier.maxKm}km` : `${tier.minKm}+km`,
-          fee: tier.fee,
-        })) ?? DEFAULT_SETTINGS.distanceTiers,
-        freeDeliveryThreshold: apiData.freeDelivery?.minAmount ?? DEFAULT_SETTINGS.freeDeliveryThreshold,
+        distanceTiers:
+          apiData.distanceTiers?.map(
+            (
+              tier: { minKm?: number; maxKm?: number | null; fee: number },
+              index: number
+            ) => ({
+              range: tier.maxKm
+                ? `${tier.minKm}-${tier.maxKm}km`
+                : `${tier.minKm}+km`,
+              fee: tier.fee,
+            })
+          ) ?? DEFAULT_SETTINGS.distanceTiers,
+        freeDeliveryThreshold:
+          apiData.freeDelivery?.minAmount ??
+          DEFAULT_SETTINGS.freeDeliveryThreshold,
         freeDeliveryEnabled: (apiData.freeDelivery?.minAmount ?? 0) > 0,
       };
-      
+
       // Update cache
       cachedSettings = parsedSettings;
       cacheTimestamp = Date.now();
-      
+
       setState({ settings: parsedSettings, loading: false, error: null });
     } catch (err) {
-      console.error('Error fetching delivery settings:', err);
+      console.error("Error fetching delivery settings:", err);
       // Use default settings as fallback
       setState({
         settings: DEFAULT_SETTINGS,
         loading: false,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: err instanceof Error ? err.message : "Unknown error",
       });
     }
   }, []);
@@ -120,32 +130,38 @@ export function useDeliverySettings(): DeliverySettingsState & {
     fetchSettings();
   }, [fetchSettings]);
 
-  const getZoneFee = useCallback((zone: 'zone1' | 'zone2' | 'zone3'): number => {
-    const settings = state.settings || DEFAULT_SETTINGS;
-    // Defensive check in case zoneFees is undefined
-    if (!settings.zoneFees) {
-      return DEFAULT_SETTINGS.zoneFees[zone];
-    }
-    return settings.zoneFees[zone] ?? DEFAULT_SETTINGS.zoneFees[zone];
-  }, [state.settings]);
+  const getZoneFee = useCallback(
+    (zone: "zone1" | "zone2" | "zone3"): number => {
+      const settings = state.settings || DEFAULT_SETTINGS;
+      // Defensive check in case zoneFees is undefined
+      if (!settings.zoneFees) {
+        return DEFAULT_SETTINGS.zoneFees[zone];
+      }
+      return settings.zoneFees[zone] ?? DEFAULT_SETTINGS.zoneFees[zone];
+    },
+    [state.settings]
+  );
 
-  const getDistanceFee = useCallback((distanceKm: number): number => {
-    const settings = state.settings || DEFAULT_SETTINGS;
-    // Defensive check in case distanceTiers is undefined
-    if (!settings.distanceTiers || settings.distanceTiers.length === 0) {
-      if (distanceKm <= 5) return DEFAULT_SETTINGS.distanceTiers[0].fee;
-      if (distanceKm <= 10) return DEFAULT_SETTINGS.distanceTiers[1].fee;
-      if (distanceKm <= 20) return DEFAULT_SETTINGS.distanceTiers[2].fee;
-      if (distanceKm <= 30) return DEFAULT_SETTINGS.distanceTiers[3].fee;
-      return DEFAULT_SETTINGS.distanceTiers[4].fee;
-    }
-    
-    if (distanceKm <= 5) return settings.distanceTiers[0]?.fee || 100;
-    if (distanceKm <= 10) return settings.distanceTiers[1]?.fee || 150;
-    if (distanceKm <= 20) return settings.distanceTiers[2]?.fee || 200;
-    if (distanceKm <= 30) return settings.distanceTiers[3]?.fee || 300;
-    return settings.distanceTiers[4]?.fee || 350;
-  }, [state.settings]);
+  const getDistanceFee = useCallback(
+    (distanceKm: number): number => {
+      const settings = state.settings || DEFAULT_SETTINGS;
+      // Defensive check in case distanceTiers is undefined
+      if (!settings.distanceTiers || settings.distanceTiers.length === 0) {
+        if (distanceKm <= 5) return DEFAULT_SETTINGS.distanceTiers[0].fee;
+        if (distanceKm <= 10) return DEFAULT_SETTINGS.distanceTiers[1].fee;
+        if (distanceKm <= 20) return DEFAULT_SETTINGS.distanceTiers[2].fee;
+        if (distanceKm <= 30) return DEFAULT_SETTINGS.distanceTiers[3].fee;
+        return DEFAULT_SETTINGS.distanceTiers[4].fee;
+      }
+
+      if (distanceKm <= 5) return settings.distanceTiers[0]?.fee || 100;
+      if (distanceKm <= 10) return settings.distanceTiers[1]?.fee || 150;
+      if (distanceKm <= 20) return settings.distanceTiers[2]?.fee || 200;
+      if (distanceKm <= 30) return settings.distanceTiers[3]?.fee || 300;
+      return settings.distanceTiers[4]?.fee || 350;
+    },
+    [state.settings]
+  );
 
   return {
     ...state,
@@ -156,7 +172,9 @@ export function useDeliverySettings(): DeliverySettingsState & {
 }
 
 // Standalone function to fetch zone fee (for use outside React components)
-export async function fetchZoneFee(zone: 'zone1' | 'zone2' | 'zone3'): Promise<number> {
+export async function fetchZoneFee(
+  zone: "zone1" | "zone2" | "zone3"
+): Promise<number> {
   // Check cache first
   if (cachedSettings && Date.now() - cacheTimestamp < CACHE_DURATION) {
     return cachedSettings.zoneFees[zone];
@@ -164,20 +182,20 @@ export async function fetchZoneFee(zone: 'zone1' | 'zone2' | 'zone3'): Promise<n
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/delivery-settings`);
-    
+
     if (!response.ok) {
       return DEFAULT_SETTINGS.zoneFees[zone];
     }
 
     const data: DeliverySettings = await response.json();
-    
+
     // Update cache
     cachedSettings = data;
     cacheTimestamp = Date.now();
-    
+
     return data.zoneFees[zone];
   } catch (err) {
-    console.error('Error fetching zone fee:', err);
+    console.error("Error fetching zone fee:", err);
     return DEFAULT_SETTINGS.zoneFees[zone];
   }
 }
@@ -185,46 +203,48 @@ export async function fetchZoneFee(zone: 'zone1' | 'zone2' | 'zone3'): Promise<n
 // Standalone function to calculate delivery fee based on vendor and town
 export async function calculateDeliveryFee(params: {
   vendorId?: string;
-  vendorType?: 'restaurant' | 'shop' | 'pharmacy';
+  vendorType?: "restaurant" | "shop" | "pharmacy";
   townLat?: number;
   townLng?: number;
-  zone?: 'zone1' | 'zone2' | 'zone3';
+  zone?: "zone1" | "zone2" | "zone3";
 }): Promise<{ deliveryFee: number; distanceKm?: number; method: string }> {
   try {
     const queryParams = new URLSearchParams();
-    
-    if (params.vendorId) queryParams.append('vendorId', params.vendorId);
-    if (params.vendorType) queryParams.append('vendorType', params.vendorType);
-    if (params.townLat) queryParams.append('townLat', params.townLat.toString());
-    if (params.townLng) queryParams.append('townLng', params.townLng.toString());
-    if (params.zone) queryParams.append('zone', params.zone);
+
+    if (params.vendorId) queryParams.append("vendorId", params.vendorId);
+    if (params.vendorType) queryParams.append("vendorType", params.vendorType);
+    if (params.townLat)
+      queryParams.append("townLat", params.townLat.toString());
+    if (params.townLng)
+      queryParams.append("townLng", params.townLng.toString());
+    if (params.zone) queryParams.append("zone", params.zone);
 
     const response = await fetch(
       `${API_BASE_URL}/api/delivery-settings/calculate?${queryParams.toString()}`
     );
-    
+
     if (!response.ok) {
       // Fallback to zone-based
       if (params.zone) {
         return {
           deliveryFee: DEFAULT_SETTINGS.zoneFees[params.zone],
-          method: 'zone-fallback',
+          method: "zone-fallback",
         };
       }
-      return { deliveryFee: 50, method: 'default' };
+      return { deliveryFee: 50, method: "default" };
     }
 
     return await response.json();
   } catch (err) {
-    console.error('Error calculating delivery fee:', err);
+    console.error("Error calculating delivery fee:", err);
     // Fallback
     if (params.zone) {
       return {
         deliveryFee: DEFAULT_SETTINGS.zoneFees[params.zone],
-        method: 'zone-fallback',
+        method: "zone-fallback",
       };
     }
-    return { deliveryFee: 50, method: 'error-default' };
+    return { deliveryFee: 50, method: "error-default" };
   }
 }
 
