@@ -140,6 +140,7 @@ export interface Order {
   recipientName?: string;
   recipientPhone?: string;
   recipientAddress?: string;
+  recipientTown?: string; // Town ID for zone-based gift order tracking
   totalAmount: number;
   subtotalAmount?: number; // Items subtotal (before fees/discounts) - vendor earnings
   deliveryFee?: number; // Dynamic delivery fee based on distance

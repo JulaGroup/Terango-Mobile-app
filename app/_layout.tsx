@@ -578,6 +578,13 @@ export default function RootLayout() {
                       }}
                     />
                     <Stack.Screen
+                      name="terango-picks"
+                      options={{
+                        animation: "slide_from_right",
+                        headerShown: false,
+                      }}
+                    />
+                    <Stack.Screen
                       name="+not-found"
                       options={{ headerShown: false }}
                     />

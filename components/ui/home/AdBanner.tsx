@@ -26,7 +26,7 @@ export default function AdBanner({
 
   return (
     <View style={{ paddingHorizontal: 2, paddingVertical: 10 }}>
-      <TouchableOpacity
+      <View
         style={{
           width: "100%",
           height: 80,
@@ -39,8 +39,6 @@ export default function AdBanner({
           shadowOpacity: 0.1,
           shadowRadius: 4,
         }}
-        onPress={handlePress}
-        activeOpacity={0.9}
       >
         <View
           style={{
@@ -70,11 +68,11 @@ export default function AdBanner({
                 opacity: 0.9,
               }}
             >
-              Tap to explore amazing offers
+              Discover amazing offers
             </Text>
           </View>
 
-          <View
+          <TouchableOpacity
             style={{
               backgroundColor: "rgba(255, 255, 255, 0.2)",
               borderRadius: 20,
@@ -83,6 +81,8 @@ export default function AdBanner({
               flexDirection: "row",
               alignItems: "center",
             }}
+            onPress={handlePress}
+            activeOpacity={0.7}
           >
             <Text
               style={{
@@ -95,7 +95,7 @@ export default function AdBanner({
               {buttonText}
             </Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Decorative elements */}
@@ -121,7 +121,7 @@ export default function AdBanner({
             backgroundColor: "rgba(255, 255, 255, 0.15)",
           }}
         />
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }

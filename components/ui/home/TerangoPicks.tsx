@@ -7,10 +7,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
+import { UniversalProduct } from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { useRouter } from "expo-router";
+import { useCart } from "@/context/CartContext";
 
 const CARD_WIDTH = 160;
 
@@ -84,8 +86,8 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
   const [products, setProducts] = useState<TeranGOProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
   const router = useRouter();
+  const { addToCart, getQuantity, removeFromCart } = useCart();
 
   const fetchProducts = useCallback(async () => {
     try {
@@ -114,33 +116,24 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
     fetchProducts();
   }, [fetchProducts, refreshKey]);
 
-  const getCartQuantity = useCallback(
-    (id: string | number) => quantities[String(id)] ?? 0,
-    [quantities]
+  const handleAddToCart = useCallback(
+    (product: UniversalProduct, rawProduct: TeranGOProduct) => {
+      addToCart({
+        id: String(product.id),
+        name: product.name,
+        price: product.discountedPrice || product.price,
+        imageUrl: product.image || "",
+        vendorId: "terango-official",
+        vendorName: "TeranGO Official Store",
+        entityType: "SHOP",
+      });
+    },
+    [addToCart]
   );
-
-  const handleAddToCart = useCallback((product: UniversalProduct) => {
-    setQuantities((prev) => {
-      const key = String(product.id);
-      return { ...prev, [key]: (prev[key] ?? 0) + 1 };
-    });
-  }, []);
-
-  const handleRemoveFromCart = useCallback((productId: string | number) => {
-    setQuantities((prev) => {
-      const key = String(productId);
-      const next = (prev[key] ?? 0) - 1;
-      if (next <= 0) {
-        const { [key]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [key]: next };
-    });
-  }, []);
 
   const handleProductPress = (productId: string) => {
     router.push({
-      pathname: "/productDetails",
+      pathname: "/product/[productId]",
       params: { productId },
     });
   };
@@ -164,13 +157,20 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
 
   const renderProductCard = ({ item }: { item: (typeof listData)[0] }) => (
     <View style={{ marginRight: 16 }}>
-      <ProductCard
+      <VendorAwareProductCard
         product={item.product}
-        cartQuantity={getCartQuantity(item.product.id)}
-        onAddToCart={handleAddToCart}
-        onRemoveFromCart={() => handleRemoveFromCart(item.product.id)}
+        cartQuantity={getQuantity(String(item.product.id))}
+        onAddToCart={() => handleAddToCart(item.product, item.raw)}
+        onRemoveFromCart={() => removeFromCart(String(item.product.id))}
         onPress={() => handleProductPress(String(item.product.id))}
         cardWidth={CARD_WIDTH}
+        vendor={{
+          vendorId: "terango-official",
+          vendorType: "shop",
+          vendorName: "TeranGO Official Store",
+          isActive: true,
+          acceptsOrders: true,
+        }}
       />
     </View>
   );
@@ -234,7 +234,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => router.push("/browse")}
+          onPress={() => router.push("/terango-picks")}
           style={{
             flexDirection: "row",
             alignItems: "center",

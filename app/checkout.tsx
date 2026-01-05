@@ -34,6 +34,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AddressService } from "@/services/AddressService";
 import { API_URL } from "@/constants/config";
+import TownPickerModal from "@/components/modals/TownPickerModal";
+import {
+  GambianTown,
+  getZoneInfoForTown,
+  getTownById,
+} from "@/constants/gambianTowns";
+import { useDeliverySettings } from "@/hooks/useDeliverySettings";
 
 export default function Checkout() {
   const router = useRouter();
@@ -44,6 +51,9 @@ export default function Checkout() {
     getTotalQuantity,
     getCartByVendor,
   } = useCart();
+
+  // Fetch dynamic delivery settings from admin panel
+  const { getZoneFee } = useDeliverySettings();
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -135,8 +145,14 @@ export default function Checkout() {
     isGiftOrder: false,
     recipientName: "",
     recipientPhone: "",
-    recipientAddress: "",
+    recipientTown: "", // Town ID for delivery zone calculation
+    recipientTownName: "", // Town name for display
+    recipientAddress: "", // Address description/landmarks
+    recipientDeliveryFee: 0, // Calculated based on town
   });
+
+  // 🎁 Town picker modal for gift orders
+  const [townPickerVisible, setTownPickerVisible] = useState(false);
 
   // Address context for selecting delivery address
   const { addresses, selectedAddress, setSelectedAddress, fetchAddresses } =
@@ -193,9 +209,13 @@ export default function Checkout() {
 
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
   const DEFAULT_DELIVERY_FEE = 0; // GMD - fallback if distance calculation fails
+
+  // For gift orders, use town-based fee; otherwise use distance-based calculation
   let deliveryFee =
     form.orderType === "DELIVERY"
-      ? deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE
+      ? form.isGiftOrder
+        ? form.recipientDeliveryFee // Town-based fee for gift orders
+        : deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE
       : 0;
 
   // Free delivery for first order
@@ -745,10 +765,26 @@ export default function Checkout() {
           );
           return;
         }
+        // Validate phone number is 7 digits
+        const phoneDigits = form.recipientPhone.replace(/\D/g, "");
+        if (phoneDigits.length < 7) {
+          Alert.alert(
+            "Invalid Phone Number",
+            "Please enter a valid 7-digit Gambian phone number."
+          );
+          return;
+        }
+        if (!form.recipientTown) {
+          Alert.alert(
+            "Missing Information",
+            "Please select the recipient's town/area for delivery."
+          );
+          return;
+        }
         if (!form.recipientAddress.trim()) {
           Alert.alert(
             "Missing Information",
-            "Please provide the recipient's delivery address."
+            "Please provide delivery directions or landmarks for the driver."
           );
           return;
         }
@@ -871,8 +907,10 @@ export default function Checkout() {
             customerName: form.name,
             customerPhone: form.phone,
             deliveryAddress:
-              form.orderType === "DELIVERY" && !form.isGiftOrder
-                ? form.address
+              form.orderType === "DELIVERY"
+                ? form.isGiftOrder
+                  ? form.recipientAddress // For gift orders, use recipient address
+                  : form.address // For regular orders, use user's address
                 : null,
             orderType: form.orderType,
             pickupInstructions:
@@ -880,15 +918,24 @@ export default function Checkout() {
             // 🎁 ADD RECIPIENT INFORMATION FOR GIFT ORDERS
             isGiftOrder: form.isGiftOrder || false,
             recipientName: form.isGiftOrder ? form.recipientName : null,
-            recipientPhone: form.isGiftOrder ? form.recipientPhone : null,
+            recipientPhone: form.isGiftOrder
+              ? `+220${form.recipientPhone.replace(/^\+220/, "")}`
+              : null,
             recipientAddress: form.isGiftOrder ? form.recipientAddress : null,
+            // 🎁 For gift orders, include the recipient town ID for zone lookup
+            recipientTown: form.isGiftOrder ? form.recipientTown : null,
             items: itemsPayload,
             notes: form.notes,
             promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
             paymentMethod: "ONLINE", // 💳 Digital payments only
             // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
-            customerLatitude: customerCoordinates?.latitude,
-            customerLongitude: customerCoordinates?.longitude,
+            // For gift orders, use recipient town coordinates for tracking
+            customerLatitude: form.isGiftOrder
+              ? getTownById(form.recipientTown)?.latitude
+              : customerCoordinates?.latitude,
+            customerLongitude: form.isGiftOrder
+              ? getTownById(form.recipientTown)?.longitude
+              : customerCoordinates?.longitude,
             // 🚀 ADD CALCULATED DELIVERY FEE
             deliveryFee: deliveryFee, // Send the calculated delivery fee
             serviceFee: serviceFee, // Send service fee (currently 0)
@@ -896,8 +943,14 @@ export default function Checkout() {
 
           // 🔍 DEBUG: Log coordinates being sent
           console.log("🔍 Sending coordinates:", {
-            customerLatitude: customerCoordinates?.latitude,
-            customerLongitude: customerCoordinates?.longitude,
+            isGiftOrder: form.isGiftOrder,
+            recipientTown: form.recipientTown,
+            customerLatitude: form.isGiftOrder
+              ? getTownById(form.recipientTown)?.latitude
+              : customerCoordinates?.latitude,
+            customerLongitude: form.isGiftOrder
+              ? getTownById(form.recipientTown)?.longitude
+              : customerCoordinates?.longitude,
             deliveryFee,
             serviceFee,
             address: form.address,
@@ -1802,28 +1855,81 @@ export default function Checkout() {
                   <Text style={styles.inputLabel}>
                     Recipient Phone Number *
                   </Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="+220 XXX XXXX"
-                    value={form.recipientPhone}
-                    onChangeText={(text) =>
-                      setForm({ ...form, recipientPhone: text })
-                    }
-                    keyboardType="phone-pad"
-                    editable={!loading}
-                  />
+                  <View style={styles.phoneInputContainer}>
+                    <Text style={styles.phonePrefix}>+220</Text>
+                    <TextInput
+                      style={[styles.input, styles.phoneInput]}
+                      placeholder="XXX XXXX"
+                      value={form.recipientPhone.replace(/^\+220/, "")}
+                      onChangeText={(text) => {
+                        // Remove any non-digit characters and limit to 7 digits
+                        const digits = text.replace(/\D/g, "").slice(0, 7);
+                        setForm({ ...form, recipientPhone: digits });
+                      }}
+                      keyboardType="phone-pad"
+                      editable={!loading}
+                      maxLength={7}
+                    />
+                  </View>
                   <Text style={styles.inputNote}>
                     The driver will call this number for delivery
                   </Text>
                 </View>
 
+                {/* 🏘️ TOWN SELECTOR FOR GIFT ORDERS */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Delivery Town/Area *</Text>
+                  <TouchableOpacity
+                    style={[styles.input, styles.townSelector]}
+                    onPress={() => setTownPickerVisible(true)}
+                    disabled={loading}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.townSelectorContent}>
+                      <Ionicons
+                        name="location"
+                        size={20}
+                        color={form.recipientTown ? PrimaryColor : "#9CA3AF"}
+                      />
+                      <Text
+                        style={[
+                          styles.townSelectorText,
+                          !form.recipientTown && styles.townSelectorPlaceholder,
+                        ]}
+                      >
+                        {form.recipientTownName || "Select town or area"}
+                      </Text>
+                    </View>
+                    <View style={styles.townSelectorRight}>
+                      {form.recipientTown && (
+                        <View style={styles.deliveryFeeBadge}>
+                          <Text style={styles.deliveryFeeBadgeText}>
+                            D{form.recipientDeliveryFee}
+                          </Text>
+                        </View>
+                      )}
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color="#9CA3AF"
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {form.recipientTown && (
+                    <Text style={styles.inputNoteSuccess}>
+                      ✓ Delivery fee: D{form.recipientDeliveryFee} (
+                      {getZoneInfoForTown(form.recipientTown)?.name} zone)
+                    </Text>
+                  )}
+                </View>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>
-                    Recipient Delivery Address *
+                    Delivery Directions/Landmarks *
                   </Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
-                    placeholder="Enter recipient's full delivery address in The Gambia"
+                    placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
                     value={form.recipientAddress}
                     onChangeText={(text) =>
                       setForm({ ...form, recipientAddress: text })
@@ -1833,7 +1939,8 @@ export default function Checkout() {
                     editable={!loading}
                   />
                   <Text style={styles.inputNote}>
-                    Include landmarks or clear directions for the driver
+                    Describe landmarks or give clear directions for the driver
+                    to find the location
                   </Text>
                 </View>
               </Animated.View>
@@ -2039,6 +2146,23 @@ export default function Checkout() {
             setShowLocationModal(false);
           }}
           currentAddress={form.address}
+        />
+
+        {/* 🏘️ Town Picker Modal for Gift Orders */}
+        <TownPickerModal
+          visible={townPickerVisible}
+          onClose={() => setTownPickerVisible(false)}
+          onSelectTown={(town: GambianTown) => {
+            // Get dynamic delivery fee from admin panel settings
+            const deliveryFee = getZoneFee(town.deliveryZone);
+            setForm((prev) => ({
+              ...prev,
+              recipientTown: town.id,
+              recipientTownName: town.name,
+              recipientDeliveryFee: deliveryFee,
+            }));
+          }}
+          selectedTownId={form.recipientTown}
         />
 
         {/* Address Picker Modal (dropdown-like) */}
@@ -2622,6 +2746,29 @@ const styles = StyleSheet.create({
     color: "#1f2937",
     backgroundColor: "#f9fafb",
   },
+  phoneInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 12,
+    backgroundColor: "#f9fafb",
+    overflow: "hidden",
+  },
+  phonePrefix: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#374151",
+    backgroundColor: "#e5e7eb",
+  },
+  phoneInput: {
+    flex: 1,
+    borderWidth: 0,
+    borderRadius: 0,
+    backgroundColor: "transparent",
+  },
   textArea: {
     height: 80,
     textAlignVertical: "top",
@@ -3194,5 +3341,52 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginTop: 6,
     fontStyle: "italic",
+  },
+  inputNoteSuccess: {
+    fontSize: 12,
+    color: "#10B981",
+    marginTop: 6,
+    fontWeight: "500",
+  },
+  townSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  townSelectorContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  townSelectorText: {
+    fontSize: 15,
+    color: "#1F2937",
+    fontWeight: "500",
+  },
+  townSelectorPlaceholder: {
+    fontSize: 15,
+    color: "#9CA3AF",
+  },
+  townSelectorRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  deliveryFeeBadge: {
+    backgroundColor: "#DEF7EC",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  deliveryFeeBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#047857",
   },
 });
