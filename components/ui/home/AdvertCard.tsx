@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   Linking,
   ActivityIndicator,
+  Text,
 } from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 
@@ -34,14 +36,32 @@ const FALLBACK_ADS = [
 interface Advertisement {
   id: string;
   title: string;
+  description?: string;
   imageUrl: string;
   link?: string;
+  orientation?: "PORTRAIT" | "LANDSCAPE"; // Ad orientation type
   isLocal?: boolean;
   image?: any; // For local images
 }
 
 const { width } = Dimensions.get("window");
-const CARD_WIDTH = width - 40; // 20px padding on each side
+
+// Card dimensions based on orientation
+const getCardDimensions = (
+  orientation: "PORTRAIT" | "LANDSCAPE" = "LANDSCAPE"
+) => {
+  if (orientation === "PORTRAIT") {
+    return {
+      width: width * 0.6, // 50% of screen width
+      height: 300, // Taller for portrait
+    };
+  }
+  // LANDSCAPE (default)
+  return {
+    width: width - 40, // Full width minus padding
+    height: 150, // Standard height for landscape
+  };
+};
 
 interface AdvertCardProps {
   position?:
@@ -146,7 +166,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     fetchAdvertisements();
   }, [fetchAdvertisements, refreshKey]);
 
-  // Auto-scroll effect
+  // Auto-scroll effect - 4 seconds interval
   useEffect(() => {
     if (advertisements.length <= 1) return;
 
@@ -154,14 +174,15 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
       const nextIndex = (currentIndex + 1) % advertisements.length;
       flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
       setCurrentIndex(nextIndex);
-    }, 7000); // 7 seconds
+    }, 4000); // 4 seconds
 
     return () => clearInterval(interval);
   }, [currentIndex, advertisements.length]);
 
   const onScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(offsetX / width);
+    const cardWidth = width - 40; // Standard card width with padding
+    const newIndex = Math.round(offsetX / cardWidth);
     if (
       newIndex !== currentIndex &&
       newIndex >= 0 &&
@@ -173,10 +194,21 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
 
   // Loading skeleton
   if (loading) {
+    // Use default landscape dimensions for skeleton
+    const skeletonDimensions = getCardDimensions("LANDSCAPE");
     return (
       <View style={styles.container}>
         <View style={styles.cardWrapper}>
-          <View style={[styles.card, styles.skeletonCard]}>
+          <View
+            style={[
+              styles.card,
+              styles.skeletonCard,
+              {
+                width: skeletonDimensions.width,
+                height: skeletonDimensions.height,
+              },
+            ]}
+          >
             <ActivityIndicator size="small" color={PrimaryColor} />
           </View>
         </View>
@@ -188,6 +220,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     return null;
   }
 
+  // Carousel layout - works for all orientations with side-by-side scrolling
   return (
     <View style={styles.container}>
       <FlatList
@@ -195,27 +228,52 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
         data={advertisements}
         keyExtractor={(item) => item.id}
         horizontal
-        pagingEnabled
+        pagingEnabled={false}
+        scrollEventThrottle={16}
         showsHorizontalScrollIndicator={false}
         onScroll={onScroll}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.cardWrapper}
-            activeOpacity={item.link ? 0.9 : 1}
-            onPress={() => item.link && handleAdPress(item)}
-          >
-            <View style={styles.card}>
-              <Image
-                source={item.isLocal ? item.image : { uri: item.imageUrl }}
-                style={styles.image}
-                contentFit="cover"
-                transition={200}
-                cachePolicy="memory-disk"
-              />
-              {/* Dots inside card, bottom right */}
+        snapToInterval={width - 40 + 20} // Card width + gap
+        snapToAlignment="start"
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingHorizontal: 20, gap: 20 }}
+        renderItem={({ item }) => {
+          const dimensions = getCardDimensions(item.orientation || "LANDSCAPE");
+          return (
+            <TouchableOpacity
+              activeOpacity={item.link ? 0.9 : 1}
+              onPress={() => item.link && handleAdPress(item)}
+              style={{ marginRight: 0 }}
+            >
+              <View style={[styles.card, { width: dimensions.width, height: dimensions.height }]}>
+                <Image
+                  source={item.isLocal ? item.image : { uri: item.imageUrl }}
+                  style={styles.image}
+                  contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory-disk"
+                />
+
+                {/* Gradient overlay for better text visibility */}
+                {item.link && <View style={styles.gradientOverlay} />}
+
+                {/* "See More" button for ads with links */}
+                {item.link && (
+                  <View style={styles.ctaContainer}>
+                    <TouchableOpacity
+                      style={styles.ctaButton}
+                      onPress={() => handleAdPress(item)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.ctaText}>See More</Text>
+                      <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+
+              {/* Dots indicator below card */}
               {advertisements.length > 1 && (
-                <View style={styles.dotsContainer}>
+                <View style={styles.dotsContainerBottom}>
                   {advertisements.map((_, dotIndex) => (
                     <View
                       key={dotIndex}
@@ -227,25 +285,8 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
                   ))}
                 </View>
               )}
-            </View>
-          </TouchableOpacity>
-        )}
-        getItemLayout={(_, index) => ({
-          length: width,
-          offset: width * index,
-          index,
-        })}
-        initialScrollIndex={0}
-        onScrollToIndexFailed={(info) => {
-          // Handle scroll to index failure gracefully
-          setTimeout(() => {
-            if (flatListRef.current && info.index < advertisements.length) {
-              flatListRef.current.scrollToIndex({
-                index: info.index,
-                animated: true,
-              });
-            }
-          }, 100);
+            </TouchableOpacity>
+          );
         }}
       />
     </View>
@@ -263,8 +304,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   card: {
-    width: CARD_WIDTH,
-    height: 130,
     borderRadius: 16,
     overflow: "hidden",
     position: "relative",
@@ -280,6 +319,39 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#f0f0f0",
   },
+  gradientOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: "40%",
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  ctaContainer: {
+    position: "absolute",
+    bottom: 15,
+    left: 15,
+    zIndex: 10,
+  },
+  ctaButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  ctaText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    marginRight: 6,
+  },
   dotsContainer: {
     position: "absolute",
     bottom: 10,
@@ -288,15 +360,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  dotsContainerBottom: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+    gap: 4,
+  },
   dot: {
-    width: 15,
+    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.5)",
-    marginHorizontal: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    marginHorizontal: 3,
   },
   activeDot: {
     backgroundColor: PrimaryColor,
+    width: 20,
   },
 });
 

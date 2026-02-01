@@ -52,7 +52,7 @@ export default function PaymentMethodsPage() {
     try {
       await SecureStore.setItemAsync(
         "paymentMethods",
-        JSON.stringify(paymentData)
+        JSON.stringify(paymentData),
       );
       Alert.alert("Success", "Payment methods saved!");
       router.back();
@@ -114,7 +114,7 @@ export default function PaymentMethodsPage() {
         </View>
 
         {/* Afrimoney */}
-        <View style={styles.methodContainer}>
+        {/* <View style={styles.methodContainer}>
           <View style={styles.methodHeader}>
             <Text style={styles.methodTitle}>Afrimoney</Text>
             <TouchableOpacity onPress={() => setDefault("afrimoney")}>
@@ -136,10 +136,10 @@ export default function PaymentMethodsPage() {
             style={styles.input}
             keyboardType="phone-pad"
           />
-        </View>
+        </View> */}
 
         {/* QMoney */}
-        <View style={styles.methodContainer}>
+        {/* <View style={styles.methodContainer}>
           <View style={styles.methodHeader}>
             <Text style={styles.methodTitle}>QMoney</Text>
             <TouchableOpacity onPress={() => setDefault("qmoney")}>
@@ -161,7 +161,7 @@ export default function PaymentMethodsPage() {
             style={styles.input}
             keyboardType="phone-pad"
           />
-        </View>
+        </View> */}
 
         <TouchableOpacity
           style={[styles.saveButton, loading && styles.disabled]}

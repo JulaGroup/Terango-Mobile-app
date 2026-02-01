@@ -171,10 +171,6 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
     try {
       console.log("🔍 Checking vendor session...");
 
-      // Get current user to verify cached vendor data matches
-      const currentUser = await userApi.getCurrentUser();
-      const currentUserId = currentUser?.user?.id;
-
       const vendorData = await AsyncStorage.getItem("@vendor_data");
       const vendorToken = await AsyncStorage.getItem("@vendor_token");
 
@@ -182,18 +178,25 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
         console.log("📦 Found stored vendor data");
         const parsedVendor = JSON.parse(vendorData);
 
-        // CRITICAL CHECK: Verify cached vendor matches current user
-        if (currentUserId && parsedVendor.id !== currentUserId) {
-          console.log(
-            "⚠️ Cached vendor doesn't match current user! Clearing cache and refreshing..."
-          );
-          await AsyncStorage.removeItem("@vendor_data");
-          await AsyncStorage.removeItem("@vendor_token");
-          await refreshVendorData();
-          return;
+        // KEEP SESSION ACTIVE: Don't clear tokens, just refresh if needed
+        try {
+          const currentUser = await userApi.getCurrentUser();
+          const currentUserId = currentUser?.user?.id;
+          
+          if (currentUserId && parsedVendor.id !== currentUserId) {
+            console.log(
+              "⚠️ Cached vendor doesn't match current user, refreshing silently..."
+            );
+            // Don't remove tokens - just refresh to keep session alive
+            await refreshVendorData();
+            return;
+          }
+        } catch (userCheckError) {
+          // If user check fails, keep vendor session active
+          console.log("⚠️ Could not verify user, keeping vendor session active");
         }
 
-        console.log("✅ Cached vendor matches current user");
+        console.log("✅ Vendor session active");
         setVendor(parsedVendor);
 
         // Set current business (prioritize restaurants, then shops, then pharmacies)

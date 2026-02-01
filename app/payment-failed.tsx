@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function PaymentSuccess() {
+export default function PaymentFailedScreen() {
   const router = useRouter();
-  const { orderId, paymentId } = useLocalSearchParams();
-  const [countdown, setCountdown] = useState(3);
+  const { orderId, paymentId, reason } = useLocalSearchParams();
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     // Countdown and redirect to order details
@@ -30,28 +30,42 @@ export default function PaymentSuccess() {
     return () => clearInterval(timer);
   }, [orderId, router]);
 
+  const handleRetryNow = () => {
+    if (orderId) {
+      router.replace(`/order-details?orderId=${orderId}`);
+    } else {
+      router.replace("/(tabs)/orders");
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={100} color="#10B981" />
+          <Ionicons name="close-circle" size={100} color="#EF4444" />
         </View>
 
-        <Text style={styles.title}>Payment Successful! 🎉</Text>
+        <Text style={styles.title}>Payment Failed</Text>
         <Text style={styles.message}>
-          Your payment has been processed successfully.
+          {reason || "We couldn't process your payment. Please try again."}
         </Text>
 
         {orderId && (
           <Text style={styles.orderId}>Order #{String(orderId).slice(-6)}</Text>
         )}
 
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={PrimaryColor} />
-          <Text style={styles.redirectText}>
-            Redirecting in {countdown} seconds...
-          </Text>
-        </View>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={handleRetryNow}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="refresh" size={20} color="#fff" />
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.redirectText}>
+          Auto-redirecting in {countdown} seconds...
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -88,17 +102,34 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 18,
     fontWeight: "600",
-    color: PrimaryColor,
+    color: "#EF4444",
     marginBottom: 30,
   },
-  loadingContainer: {
+  retryButton: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: PrimaryColor,
+    paddingVertical: 16,
+    paddingHorizontal: 40,
+    borderRadius: 16,
     gap: 10,
-    marginTop: 20,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 20,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
   },
   redirectText: {
     fontSize: 14,
     color: "#9CA3AF",
+    marginTop: 10,
   },
 });

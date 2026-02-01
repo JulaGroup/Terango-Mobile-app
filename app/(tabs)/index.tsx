@@ -146,6 +146,9 @@ export default function HomeScreen() {
         {/* Restaurants Near You - Moved Higher */}
         <RestaurantNearYou refreshKey={refreshKey} />
 
+        {/* Advertisement after restaurants */}
+        <AdvertCard position="HOME_AFTER_RESTAURANTS" />
+
         {/* Stores Near You - Moved Higher */}
         {/* <StoresNearYou /> */}
 

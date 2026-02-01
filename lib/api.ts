@@ -841,10 +841,11 @@ export const orderApi = {
   },
 
   // 💳 Pay for an accepted order
-  payForOrder: async (orderId: string): Promise<Order> => {
-    console.log("💳 Processing payment for order:", orderId);
+  payForOrder: async (orderId: string, network?: string): Promise<Order> => {
+    console.log("💳 Processing payment for order:", orderId, "network:", network);
     return apiCall(`/api/orders/${orderId}/pay`, {
       method: "POST",
+      body: JSON.stringify({ network }),
     });
   },
 

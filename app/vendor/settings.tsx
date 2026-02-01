@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,6 +19,7 @@ import { useRouter } from "expo-router";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
 
 interface NotificationSettings {
   newOrders: boolean;
@@ -567,6 +569,12 @@ export default function VendorSettings() {
             }
             showArrow={false}
           />
+        </View>
+
+        {/* Subscription Section */}
+        <View style={styles.section}>
+          <SectionHeader title="Subscription" />
+          <SubscriptionStatus />
         </View>
 
         {/* Support */}

@@ -84,13 +84,22 @@ export default function SubscriptionStatus() {
   const fetchSubscription = async () => {
     try {
       setError(null);
-      const token = await AsyncStorage.getItem("token");
+      // Try both possible token storage keys for vendor authentication
+      let token = await AsyncStorage.getItem("token");
+      if (!token) {
+        token = await AsyncStorage.getItem("@auth_token");
+      }
+      if (!token) {
+        token = await AsyncStorage.getItem("@vendor_token");
+      }
+      
       if (!token) {
         setError("Not authenticated");
         return;
       }
 
-      const response = await axios.get(`${API_URL}/api/subscriptions/current`, {
+      // Use the correct vendor subscription endpoint
+      const response = await axios.get(`${API_URL}/api/subscriptions/my-subscription`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -185,30 +194,22 @@ export default function SubscriptionStatus() {
   if (!subscription) {
     return (
       <View style={styles.centerContainer}>
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.centerContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-        >
-          <View style={styles.noSubscriptionCard}>
-            <Ionicons name="alert-circle-outline" size={64} color="#F59E0B" />
-            <Text style={styles.noSubscriptionTitle}>
-              No Active Subscription
+        <View style={styles.noSubscriptionCard}>
+          <Ionicons name="alert-circle-outline" size={64} color="#F59E0B" />
+          <Text style={styles.noSubscriptionTitle}>
+            No Active Subscription
+          </Text>
+          <Text style={styles.noSubscriptionText}>
+            Subscribe to a plan to unlock premium features and grow your
+            business
+          </Text>
+          <TouchableOpacity style={styles.subscribeButton}>
+            <Text style={styles.subscribeButtonText}>
+              Contact Admin for Subscription
             </Text>
-            <Text style={styles.noSubscriptionText}>
-              Subscribe to a plan to unlock premium features and grow your
-              business
-            </Text>
-            <TouchableOpacity style={styles.subscribeButton}>
-              <Text style={styles.subscribeButtonText}>
-                Contact Admin for Subscription
-              </Text>
-              <Ionicons name="mail-outline" size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
+            <Ionicons name="mail-outline" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -219,12 +220,7 @@ export default function SubscriptionStatus() {
   const isExpired = timeLeft && timeLeft.days === 0 && timeLeft.hours === 0;
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <View style={styles.centerContainer}>
       {/* Main Subscription Card */}
       <View
         style={[styles.card, { borderColor: packageColor, borderWidth: 2 }]}
@@ -469,7 +465,7 @@ export default function SubscriptionStatus() {
           </TouchableOpacity>
         </View>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
@@ -478,6 +474,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 16,
     backgroundColor: "#F9FAFB",
   },
   centerContent: {

@@ -689,7 +689,7 @@ const BrowseScreen: React.FC = () => {
         {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.pageTitle}>
-            Browse Tera<Text style={{ color: PrimaryColor }}>GO</Text>
+            Browse Teran<Text style={{ color: PrimaryColor }}>GO</Text>
           </Text>
           <Text style={styles.pageSubtitle}>
             Shop by category for everything you need

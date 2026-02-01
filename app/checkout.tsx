@@ -18,7 +18,6 @@ import { useCart } from "@/context/CartContext";
 import { userApi, orderApi } from "@/lib/api";
 import { debugAuthState } from "@/utils/debugAuth";
 import * as SecureStore from "expo-secure-store";
-import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { UserCacheManager } from "@/utils/userCache";
@@ -41,6 +40,18 @@ import {
   getTownById,
 } from "@/constants/gambianTowns";
 import { useDeliverySettings } from "@/hooks/useDeliverySettings";
+/*
+ Try to use expo-linear-gradient if it's available in the project; otherwise
+ fall back to a lightweight stub that uses a plain View so TypeScript and the
+ bundler don't fail when the package isn't installed.
+*/
+let LinearGradient: any = ({ children, colors, style }: any) => (
+  <View
+    style={[style, { backgroundColor: (colors && colors[0]) || PrimaryColor }]}
+  >
+    {children}
+  </View>
+);
 
 export default function Checkout() {
   const router = useRouter();
@@ -89,7 +100,7 @@ export default function Checkout() {
           });
         } else {
           console.log(
-            "handleOrderCreated: successful order already stored, skipping notification"
+            "handleOrderCreated: successful order already stored, skipping notification",
           );
         }
       } catch (e) {
@@ -101,7 +112,7 @@ export default function Checkout() {
       setOrderCreated({ visible: true, orderId });
       setPaymentStatus("completed");
     },
-    [clearCart]
+    [clearCart],
   );
 
   // Legacy polling/deeplink listeners removed for instant checkout
@@ -215,7 +226,7 @@ export default function Checkout() {
     form.orderType === "DELIVERY"
       ? form.isGiftOrder
         ? form.recipientDeliveryFee // Town-based fee for gift orders
-        : deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE
+        : (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE)
       : 0;
 
   // Free delivery for first order
@@ -305,12 +316,12 @@ export default function Checkout() {
         savedAddress = await SecureStore.getItemAsync("userAddress");
         savedOrderType = await SecureStore.getItemAsync("userOrderType");
         savedPickupInstructions = await SecureStore.getItemAsync(
-          "userPickupInstructions"
+          "userPickupInstructions",
         );
       } catch (e) {
         console.log(
           "SecureStore get user preferences failed, falling back:",
-          e
+          e,
         );
         // fallback to AsyncStorage for compatibility if needed
         // @ts-ignore
@@ -343,9 +354,8 @@ export default function Checkout() {
 
         // Load payment methods when cached data is available
         try {
-          const paymentMethodsData = await SecureStore.getItemAsync(
-            "paymentMethods"
-          );
+          const paymentMethodsData =
+            await SecureStore.getItemAsync("paymentMethods");
           if (paymentMethodsData) {
             const data = JSON.parse(paymentMethodsData);
             console.log("Loaded payment methods (cached):", data);
@@ -393,9 +403,8 @@ export default function Checkout() {
 
       // Always load payment methods regardless of cache/fresh data availability
       try {
-        const paymentMethodsData = await SecureStore.getItemAsync(
-          "paymentMethods"
-        );
+        const paymentMethodsData =
+          await SecureStore.getItemAsync("paymentMethods");
         if (paymentMethodsData) {
           const data = JSON.parse(paymentMethodsData);
           console.log("Loaded payment methods:", data);
@@ -566,7 +575,7 @@ export default function Checkout() {
         setPromoError("");
         Alert.alert(
           "Success! 🎉",
-          result.message || "Promo code applied successfully"
+          result.message || "Promo code applied successfully",
         );
       } else {
         setPromoError(result.message || "Invalid promo code");
@@ -605,7 +614,7 @@ export default function Checkout() {
 
         if (!coords) {
           console.warn(
-            "⚠️ Could not geocode address, using default delivery fee"
+            "⚠️ Could not geocode address, using default delivery fee",
           );
           setDeliveryEstimate(null);
           setCustomerCoordinates(null);
@@ -657,7 +666,7 @@ export default function Checkout() {
         setLoadingDeliveryFee(false);
       }
     },
-    [form.orderType, items, restaurantIds, subtotal, appliedPromo]
+    [form.orderType, items, restaurantIds, subtotal, appliedPromo],
   );
 
   // Call estimation when address changes
@@ -742,7 +751,7 @@ export default function Checkout() {
     if (!form.name.trim() || !form.phone.trim()) {
       Alert.alert(
         "Missing Information",
-        "Please fill in your name and phone number."
+        "Please fill in your name and phone number.",
       );
       return;
     }
@@ -754,14 +763,14 @@ export default function Checkout() {
         if (!form.recipientName.trim()) {
           Alert.alert(
             "Missing Information",
-            "Please provide the recipient's name."
+            "Please provide the recipient's name.",
           );
           return;
         }
         if (!form.recipientPhone.trim()) {
           Alert.alert(
             "Missing Information",
-            "Please provide the recipient's phone number."
+            "Please provide the recipient's phone number.",
           );
           return;
         }
@@ -770,21 +779,21 @@ export default function Checkout() {
         if (phoneDigits.length < 7) {
           Alert.alert(
             "Invalid Phone Number",
-            "Please enter a valid 7-digit Gambian phone number."
+            "Please enter a valid 7-digit Gambian phone number.",
           );
           return;
         }
         if (!form.recipientTown) {
           Alert.alert(
             "Missing Information",
-            "Please select the recipient's town/area for delivery."
+            "Please select the recipient's town/area for delivery.",
           );
           return;
         }
         if (!form.recipientAddress.trim()) {
           Alert.alert(
             "Missing Information",
-            "Please provide delivery directions or landmarks for the driver."
+            "Please provide delivery directions or landmarks for the driver.",
           );
           return;
         }
@@ -793,7 +802,7 @@ export default function Checkout() {
         if (!form.address.trim()) {
           Alert.alert(
             "Missing Information",
-            "Please provide a delivery address."
+            "Please provide a delivery address.",
           );
           return;
         }
@@ -824,7 +833,7 @@ export default function Checkout() {
           [
             { text: "Cancel", style: "cancel" },
             { text: "Log In", onPress: () => router.push("/auth") },
-          ]
+          ],
         );
         setLoading(false);
         return;
@@ -853,7 +862,7 @@ export default function Checkout() {
             console.warn(
               "Unable to determine entityType for vendor",
               vendorId,
-              "- defaulting to 'restaurant'"
+              "- defaulting to 'restaurant'",
             );
             entityType = "restaurant";
           }
@@ -866,11 +875,11 @@ export default function Checkout() {
             console.error(
               "Checkout validation failed: missing vendor id for group",
               vendorId,
-              vendorItems
+              vendorItems,
             );
             Alert.alert(
               "Checkout Error",
-              `Missing vendor id for items in cart for vendor group ${vendorId}. Cannot create order.`
+              `Missing vendor id for items in cart for vendor group ${vendorId}. Cannot create order.`,
             );
             setLoading(false);
             return;
@@ -879,11 +888,11 @@ export default function Checkout() {
             console.error(
               "Checkout validation failed: missing entityType for vendor group",
               vendorId,
-              vendorItems
+              vendorItems,
             );
             Alert.alert(
               "Checkout Error",
-              `Unable to determine entity type (restaurant/shop/pharmacy) for vendor group ${vendorId}. Cannot create order.`
+              `Unable to determine entity type (restaurant/shop/pharmacy) for vendor group ${vendorId}. Cannot create order.`,
             );
             setLoading(false);
             return;
@@ -967,7 +976,7 @@ export default function Checkout() {
             "(itemVendorId:",
             itemVendorId,
             ")",
-            orderPayload
+            orderPayload,
           );
 
           const created = await orderApi.createOrder(orderPayload);
@@ -987,7 +996,7 @@ export default function Checkout() {
                 } catch (e) {
                   console.warn(
                     "Failed to navigate home after order create:",
-                    e
+                    e,
                   );
                 }
               }
@@ -1007,14 +1016,14 @@ export default function Checkout() {
         } else {
           Alert.alert(
             "Order Error",
-            "No orders were created. Please try again."
+            "No orders were created. Please try again.",
           );
         }
       } catch (orderErr: any) {
         console.error("Order creation error:", orderErr);
         Alert.alert(
           "Order Failed",
-          orderErr.message || "Unable to create order. Please try again."
+          orderErr.message || "Unable to create order. Please try again.",
         );
         setLoading(false);
         return;
@@ -1028,7 +1037,7 @@ export default function Checkout() {
         if (form.pickupInstructions) {
           await SecureStore.setItemAsync(
             "userPickupInstructions",
-            form.pickupInstructions
+            form.pickupInstructions,
           );
         }
         if (form.email) {
@@ -1058,7 +1067,7 @@ export default function Checkout() {
 
       // Payment initiated successfully - webhook will handle order creation
       console.log(
-        "Payment initiated successfully. Webhook will create order when payment succeeds."
+        "Payment initiated successfully. Webhook will create order when payment succeeds.",
       );
     } catch (error: any) {
       console.error("Error in checkout:", error);
@@ -1075,13 +1084,13 @@ export default function Checkout() {
             },
             { text: "Try Again", onPress: () => router.replace("/checkout") },
             { text: "OK", style: "cancel" },
-          ]
+          ],
         );
       } else {
         Alert.alert(
           "Checkout Error",
           error.message ||
-            "There was an error processing your request. Please try again."
+            "There was an error processing your request. Please try again.",
         );
       }
     } finally {
@@ -1641,7 +1650,7 @@ export default function Checkout() {
                   style={[styles.input, styles.textArea]}
                   placeholder="Any special instructions for pickup (e.g., parking spot, entrance to use)..."
                   value={form.pickupInstructions}
-                  onChangeText={(text) =>
+                  onChangeText={(text: string) =>
                     setForm({ ...form, pickupInstructions: text })
                   }
                   multiline
@@ -1652,9 +1661,9 @@ export default function Checkout() {
             )}
 
             {/* 💳 PAYMENT TYPE (DIGITAL-ONLY) */}
-            <Text style={styles.sectionTitle}>Payment Type</Text>
+            {/* <Text style={styles.sectionTitle}>Payment Type</Text> */}
 
-            <View style={styles.orderTypeContainer}>
+            {/* <View style={styles.orderTypeContainer}>
               <View
                 style={[styles.orderTypeButton, styles.orderTypeButtonSelected]}
               >
@@ -1683,7 +1692,68 @@ export default function Checkout() {
                   <View style={styles.radioButtonInner} />
                 </View>
               </View>
-            </View>
+            </View> */}
+            {/* Payment Method - Digital wallets */}
+            <Animated.View
+              style={[
+                // styles.section,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Payment Method</Text>
+                {paymentStatus === "pending" && (
+                  <View style={styles.pollingIndicator}>
+                    <Ionicons
+                      name="radio-button-on"
+                      size={12}
+                      color="#10B981"
+                    />
+                    <Text style={styles.pollingText}>
+                      Processing payment...
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <PaymentMethodCard
+                method="mobile"
+                icon="wallet"
+                title={
+                  defaultPaymentMethod && paymentMethodsLoaded
+                    ? defaultPaymentMethod.toUpperCase()
+                    : "Mobile Money"
+                }
+                subtitle={
+                  defaultPaymentMethod && paymentMethodsLoaded
+                    ? `Account ending in ***${
+                        paymentMethods?.methods[defaultPaymentMethod]?.slice(
+                          -4,
+                        ) || "****"
+                      }`
+                    : "Select mobile payment method"
+                }
+                selected={selectedPaymentMethod === "mobile"}
+                showArrow={true}
+                onPress={() => {
+                  console.log(
+                    "Payment method pressed. Default:",
+                    defaultPaymentMethod,
+                    "Selected:",
+                    selectedPaymentMethod,
+                    "Loaded:",
+                    paymentMethodsLoaded,
+                    "Methods:",
+                    paymentMethods,
+                  );
+                  // Open payment method picker modal
+                  setPaymentMethodPickerVisible(true);
+                }}
+              />
+            </Animated.View>
 
             <View style={styles.paymentNotice}>
               <Ionicons
@@ -1693,7 +1763,7 @@ export default function Checkout() {
                 style={{ marginRight: 8, marginTop: 2 }}
               />
               <Text style={styles.paymentNoticeText}>
-                Cash on delivery or pickup is no longer supported. Complete your
+                Cash on delivery or pickup is not available yet. Complete your
                 payment digitally to place an order.
               </Text>
             </View>
@@ -1844,7 +1914,7 @@ export default function Checkout() {
                     style={styles.input}
                     placeholder="Enter recipient's full name"
                     value={form.recipientName}
-                    onChangeText={(text) =>
+                    onChangeText={(text: string) =>
                       setForm({ ...form, recipientName: text })
                     }
                     editable={!loading}
@@ -1861,7 +1931,7 @@ export default function Checkout() {
                       style={[styles.input, styles.phoneInput]}
                       placeholder="XXX XXXX"
                       value={form.recipientPhone.replace(/^\+220/, "")}
-                      onChangeText={(text) => {
+                      onChangeText={(text: string) => {
                         // Remove any non-digit characters and limit to 7 digits
                         const digits = text.replace(/\D/g, "").slice(0, 7);
                         setForm({ ...form, recipientPhone: digits });
@@ -1931,7 +2001,7 @@ export default function Checkout() {
                     style={[styles.input, styles.textArea]}
                     placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
                     value={form.recipientAddress}
-                    onChangeText={(text) =>
+                    onChangeText={(text: string) =>
                       setForm({ ...form, recipientAddress: text })
                     }
                     multiline
@@ -2017,68 +2087,14 @@ export default function Checkout() {
                 style={[styles.input, styles.textArea]}
                 placeholder="Any special instructions for your order..."
                 value={form.notes}
-                onChangeText={(text) => setForm({ ...form, notes: text })}
+                onChangeText={(text: string) =>
+                  setForm({ ...form, notes: text })
+                }
                 multiline
                 numberOfLines={2}
                 editable={!loading}
               />
             </View>
-          </Animated.View>
-
-          {/* Payment Method - Digital wallets */}
-          <Animated.View
-            style={[
-              styles.section,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Payment Method</Text>
-              {paymentStatus === "pending" && (
-                <View style={styles.pollingIndicator}>
-                  <Ionicons name="radio-button-on" size={12} color="#10B981" />
-                  <Text style={styles.pollingText}>Processing payment...</Text>
-                </View>
-              )}
-            </View>
-
-            <PaymentMethodCard
-              method="mobile"
-              icon="wallet"
-              title={
-                defaultPaymentMethod && paymentMethodsLoaded
-                  ? defaultPaymentMethod.toUpperCase()
-                  : "Mobile Money"
-              }
-              subtitle={
-                defaultPaymentMethod && paymentMethodsLoaded
-                  ? `Account ending in ***${
-                      paymentMethods?.methods[defaultPaymentMethod]?.slice(
-                        -4
-                      ) || "****"
-                    }`
-                  : "Select mobile payment method"
-              }
-              selected={selectedPaymentMethod === "mobile"}
-              showArrow={true}
-              onPress={() => {
-                console.log(
-                  "Payment method pressed. Default:",
-                  defaultPaymentMethod,
-                  "Selected:",
-                  selectedPaymentMethod,
-                  "Loaded:",
-                  paymentMethodsLoaded,
-                  "Methods:",
-                  paymentMethods
-                );
-                // Open payment method picker modal
-                setPaymentMethodPickerVisible(true);
-              }}
-            />
           </Animated.View>
 
           {restaurantIds.length > 1 ? (
@@ -2525,8 +2541,8 @@ export default function Checkout() {
                   {loading
                     ? "Placing Order..."
                     : loadingDeliveryFee
-                    ? "Calculating Delivery Fee..."
-                    : "Place Order"}
+                      ? "Calculating Delivery Fee..."
+                      : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>

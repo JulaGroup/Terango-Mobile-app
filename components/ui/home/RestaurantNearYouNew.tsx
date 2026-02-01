@@ -460,7 +460,7 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
   }
 
   return (
-    <View style={{ paddingVertical: 20 }}>
+    <View style={{ paddingVertical: 4 }}>
       {/* Section Header */}
       <View
         style={{
@@ -468,7 +468,7 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
           justifyContent: "space-between",
           alignItems: "center",
           paddingHorizontal: 16,
-          marginBottom: 16,
+          marginBottom: 1,
         }}
       >
         <View style={{ flexDirection: "row", alignItems: "center" }}>

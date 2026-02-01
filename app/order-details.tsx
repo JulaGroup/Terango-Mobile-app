@@ -15,6 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
 import { useRouter, useLocalSearchParams } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { on as socketOn, off as socketOff } from "@/services/SocketService";
@@ -71,7 +72,7 @@ export default function OrderDetailsPage() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     if (loading) {
@@ -99,7 +100,7 @@ export default function OrderDetailsPage() {
         setRefreshing(false);
       }
     },
-    [orderId]
+    [orderId],
   );
 
   useEffect(() => {
@@ -130,7 +131,7 @@ export default function OrderDetailsPage() {
                 text: "Stay Here",
                 style: "cancel",
               },
-            ]
+            ],
           );
         }
       }
@@ -158,7 +159,7 @@ export default function OrderDetailsPage() {
           });
         } else {
           console.log(
-            "order-details: successful order already stored, skipping notification"
+            "order-details: successful order already stored, skipping notification",
           );
         }
 
@@ -215,8 +216,50 @@ export default function OrderDetailsPage() {
           onPress: async () => {
             try {
               setLoading(true);
-              const updatedOrder = await orderApi.payForOrder(order.id);
-              setOrder(updatedOrder);
+
+              // Load user's preferred payment method (default to wave)
+              let network = "wave";
+              try {
+                const stored = await SecureStore.getItemAsync("paymentMethods");
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  if (parsed?.default) network = parsed.default;
+                }
+              } catch (e) {
+                console.warn(
+                  "Failed to read payment methods, defaulting to wave",
+                  e,
+                );
+              }
+
+              const result: any = await orderApi.payForOrder(order.id, network);
+
+              // If server returned a Wave session (launch url), open it
+              const launchUrl =
+                result?.wave_launch_url || result?.session?.wave_launch_url;
+              if (launchUrl) {
+                // Attempt to open Wave URL
+                const canOpen = await Linking.canOpenURL(launchUrl);
+                if (!canOpen) {
+                  throw new Error(
+                    "Cannot open Wave payment link. Please ensure Wave app is installed or try again.",
+                  );
+                }
+
+                await Linking.openURL(launchUrl);
+
+                Alert.alert(
+                  "Complete Payment",
+                  "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                  [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
+                );
+
+                // don't overwrite local order state yet; we'll refresh when webhook arrives
+                return;
+              }
+
+              // Otherwise treat the response as an updated order
+              setOrder(result);
 
               Alert.alert(
                 "Payment Successful! 🎉",
@@ -226,22 +269,59 @@ export default function OrderDetailsPage() {
                     text: "OK",
                     onPress: () => fetchOrderDetails(true),
                   },
-                ]
+                ],
               );
             } catch (error: any) {
               console.error("Payment error:", error);
-              Alert.alert(
-                "Payment Failed",
-                error.message || "Failed to process payment. Please try again.",
-                [{ text: "OK" }]
-              );
+
+              // More detailed error messages
+              let errorMessage = "Failed to process payment. Please try again.";
+
+              if (error.message?.includes("Network")) {
+                errorMessage =
+                  "Network error. Please check your connection and try again.";
+              } else if (error.message?.includes("Wave")) {
+                errorMessage = error.message;
+              } else if (error.response?.status === 400) {
+                errorMessage =
+                  "Invalid payment request. Please contact support.";
+              } else if (error.response?.status === 500) {
+                errorMessage = "Server error. Please try again in a moment.";
+              } else if (error.message) {
+                errorMessage = error.message;
+              }
+
+              Alert.alert("Payment Failed", errorMessage, [
+                { text: "Cancel", style: "cancel" },
+                { text: "Retry", onPress: () => handlePayNow() },
+              ]);
             } finally {
               setLoading(false);
             }
           },
         },
-      ]
+      ],
     );
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes, Cancel",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await orderApi.cancelOrder(orderId, "Cancelled by customer");
+            fetchOrderDetails(true);
+            Alert.alert("Success", "Order has been cancelled");
+          } catch (e) {
+            console.error("Cancel error:", e);
+            Alert.alert("Error", "Failed to cancel order");
+          }
+        },
+      },
+    ]);
   };
 
   const SkeletonBox = ({
@@ -408,10 +488,10 @@ export default function OrderDetailsPage() {
   const vendorType = order.restaurant
     ? "Restaurant"
     : order.shop
-    ? "Shop"
-    : order.pharmacy
-    ? "Pharmacy"
-    : "Store";
+      ? "Shop"
+      : order.pharmacy
+        ? "Pharmacy"
+        : "Store";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -613,8 +693,8 @@ export default function OrderDetailsPage() {
                     order.restaurant
                       ? "restaurant-outline"
                       : order.shop
-                      ? "storefront-outline"
-                      : "medical-outline"
+                        ? "storefront-outline"
+                        : "medical-outline"
                   }
                   size={24}
                   color={PrimaryColor}
@@ -678,7 +758,7 @@ export default function OrderDetailsPage() {
                     onPress={() => {
                       if (order?.driverPhone) {
                         Linking.openURL(
-                          `sms:${order.driverPhone}?body=Hi%20Driver`
+                          `sms:${order.driverPhone}?body=Hi%20Driver`,
                         ).catch((err) => {
                           Alert.alert("Error", "Could not open messaging app");
                         });
@@ -835,8 +915,8 @@ export default function OrderDetailsPage() {
                           item.menuItem
                             ? "restaurant"
                             : item.product
-                            ? "cube"
-                            : "medical"
+                              ? "cube"
+                              : "medical"
                         }
                         size={24}
                         color="#9CA3AF"
@@ -849,8 +929,8 @@ export default function OrderDetailsPage() {
                           item.menuItem
                             ? "restaurant"
                             : item.product
-                            ? "cube"
-                            : "medical"
+                              ? "cube"
+                              : "medical"
                         }
                         size={24}
                         color="#9CA3AF"
@@ -892,8 +972,8 @@ export default function OrderDetailsPage() {
               {formatAmount(
                 order.items.reduce(
                   (sum, item) => sum + item.price * item.quantity,
-                  0
-                )
+                  0,
+                ),
               )}
             </Text>
           </View>
@@ -923,57 +1003,41 @@ export default function OrderDetailsPage() {
         </View>
       </ScrollView>
 
-      {/* Fixed Action Buttons */}
+      {/* Fixed Action Buttons: Full-width industry-style buttons */}
       <View style={styles.trackButtonContainer}>
-        {/* Show Pay Now button if order is ACCEPTED and UNPAID */}
-        {order.status === "ACCEPTED" && order.paymentStatus === "UNPAID" ? (
+        {/* Pay Button - Full width when available */}
+        {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" && (
           <TouchableOpacity
             style={styles.payNowButton}
             onPress={handlePayNow}
             activeOpacity={0.8}
           >
             <Ionicons name="card-outline" size={20} color="#fff" />
-            <Text style={styles.payNowButtonText}>
-              Pay Now - {formatAmount(order.totalAmount)}
-            </Text>
+            <Text style={styles.payNowButtonText}>Pay Now</Text>
           </TouchableOpacity>
-        ) : order.status === "PENDING" ? (
-          /* Hide Track Order button when order is PENDING */
-          <View style={styles.pendingMessageContainer}>
-            <Ionicons name="time-outline" size={24} color="#FF9800" />
-            <Text style={styles.pendingMessageText}>
-              Waiting for order confirmation for payment
-            </Text>
-          </View>
-        ) : order.orderType === "PICKUP" ? (
-          /* Show Pickup Status for PICKUP orders */
-          <View style={styles.pickupInfoContainer}>
-            <Ionicons
-              name={
-                order.status === "READY" ? "checkmark-circle" : "storefront"
-              }
-              size={24}
-              color={order.status === "READY" ? "#10B981" : PrimaryColor}
-            />
-            <Text style={styles.pickupInfoText}>
-              {order.status === "READY"
-                ? "✅ Your order is ready for pickup!"
-                : order.status === "PREPARING" || order.status === "PROCESSING"
-                ? "🍳 Your order is being prepared"
-                : order.status === "DELIVERED"
-                ? "✅ Order picked up successfully"
-                : "📦 Pickup order"}
-            </Text>
-          </View>
-        ) : (
-          /* Show Track Order button for DELIVERY orders only */
+        )}
+
+        {/* Track Button - Full width when payment is done */}
+        {(order.status !== "ACCEPTED" || order.paymentStatus === "PAID") && (
           <TouchableOpacity
             style={styles.trackButton}
             onPress={handleTrackOrder}
             activeOpacity={0.8}
           >
-            <Ionicons name="location" size={20} color="#fff" />
+            <Ionicons name="locate-outline" size={20} color="#fff" />
             <Text style={styles.trackButtonText}>Track Order</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Cancel Button - Full width below pay/track button */}
+        {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => handleCancelOrder(order.id)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close-circle-outline" size={20} color="#EF4444" />
+            <Text style={styles.cancelButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -1333,7 +1397,7 @@ const styles = StyleSheet.create({
     color: PrimaryColor,
   },
 
-  // Track Button
+  // Track Button Container
   trackButtonContainer: {
     position: "absolute",
     bottom: 0,
@@ -1341,49 +1405,129 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "#fff",
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: "#F1F5F9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   trackButton: {
     backgroundColor: PrimaryColor,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
-    gap: 8,
+    gap: 10,
     shadowColor: PrimaryColor,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 12,
   },
   trackButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
+    letterSpacing: 0.3,
   },
 
-  // 💳 Pay Now Button (prominent green button)
+  // 💳 Pay Now Button (prominent full-width button)
   payNowButton: {
-    backgroundColor: "#10B981", // Green color for payment
+    backgroundColor: PrimaryColor,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 16,
+    paddingVertical: 18,
     borderRadius: 16,
-    gap: 8,
-    shadowColor: "#10B981",
+    gap: 10,
+    shadowColor: PrimaryColor,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 6,
+    marginBottom: 12,
   },
   payNowButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
+  // ❌ Cancel Button (full-width secondary button)
+  cancelButton: {
+    backgroundColor: "#FEF2F2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    borderRadius: 16,
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#FEE2E2",
+  },
+  cancelButtonText: {
+    color: "#EF4444",
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
+  // Small card-like buttons (match orders card)
+  smallCancelButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  smallCancelButtonText: {
+    fontSize: 12,
+    color: "#EF4444",
+    fontWeight: "600",
+  },
+  smallPayButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: PrimaryColor,
+    borderWidth: 1,
+    borderColor: PrimaryColor,
+  },
+  smallPayButtonText: {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: "700",
+    marginRight: 4,
+  },
+  smallTrackButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#F0F9FF",
+    borderWidth: 1,
+    borderColor: "#E0F2FE",
+  },
+  smallTrackButtonText: {
+    fontSize: 12,
+    color: PrimaryColor,
+    fontWeight: "600",
+    marginRight: 4,
   },
 
   // Pending Message (when waiting for payment)

@@ -10,6 +10,7 @@ import {
   StatusBar,
   ActivityIndicator,
   ScrollView,
+  Linking,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
@@ -89,7 +90,7 @@ export default function Orders() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     if (loading) {
@@ -132,7 +133,7 @@ export default function Orders() {
         setLoadingMore(false);
       }
     },
-    []
+    [],
   );
 
   const checkAuthentication = useCallback(async () => {
@@ -206,7 +207,7 @@ export default function Orders() {
         fetchOrders();
       }
     },
-    [router, fetchOrders]
+    [router, fetchOrders],
   );
 
   useEffect(() => {
@@ -243,7 +244,7 @@ export default function Orders() {
         // Also check for successful orders when page comes into focus
         checkSuccessfulOrder();
       }
-    }, [userId, isLoggedIn, fetchOrders, checkSuccessfulOrder])
+    }, [userId, isLoggedIn, fetchOrders, checkSuccessfulOrder]),
   );
 
   const onRefresh = () => {
@@ -279,6 +280,104 @@ export default function Orders() {
         },
       },
     ]);
+  };
+
+  // Pay from orders list (confirmation + native handling similar to order-details)
+  const handlePayFromList = async (orderId: string, amount: number) => {
+    Alert.alert(
+      "Confirm Payment",
+      `Proceed with payment of ${formatAmount(amount)}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Pay Now",
+          onPress: async () => {
+            try {
+              setLoading(true);
+
+              // Load user's preferred payment method (default to wave)
+              let network = "wave";
+              try {
+                const stored = await SecureStore.getItemAsync("paymentMethods");
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  if (parsed?.default) network = parsed.default;
+                }
+              } catch (e) {
+                console.warn(
+                  "Failed to read payment methods, defaulting to wave",
+                  e,
+                );
+              }
+
+              const result: any = await orderApi.payForOrder(orderId, network);
+
+              // If server returned a Wave session (launch url), open it
+              const launchUrl =
+                result?.wave_launch_url || result?.session?.wave_launch_url;
+              if (launchUrl) {
+                // Attempt to open Wave URL
+                const canOpen = await Linking.canOpenURL(launchUrl);
+                if (!canOpen) {
+                  throw new Error(
+                    "Cannot open Wave payment link. Please ensure Wave app is installed or try again.",
+                  );
+                }
+
+                await Linking.openURL(launchUrl);
+
+                Alert.alert(
+                  "Complete Payment",
+                  "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                  [{ text: "OK", onPress: () => fetchOrders() }],
+                );
+
+                return;
+              }
+
+              // Otherwise treat the response as an updated order
+              // Refresh orders list so payment status updates
+              fetchOrders();
+
+              Alert.alert(
+                "Payment Successful! 🎉",
+                "Your payment has been processed. The vendor will now prepare your order.",
+                [{ text: "OK", onPress: () => fetchOrders() }],
+              );
+            } catch (error: any) {
+              console.error("Payment error:", error);
+
+              // More detailed error messages
+              let errorMessage = "Failed to process payment. Please try again.";
+
+              if (error.message?.includes("Network")) {
+                errorMessage =
+                  "Network error. Please check your connection and try again.";
+              } else if (error.message?.includes("Wave")) {
+                errorMessage = error.message;
+              } else if (error.response?.status === 400) {
+                errorMessage =
+                  "Invalid payment request. Please contact support.";
+              } else if (error.response?.status === 500) {
+                errorMessage = "Server error. Please try again in a moment.";
+              } else if (error.message) {
+                errorMessage = error.message;
+              }
+
+              Alert.alert("Payment Failed", errorMessage, [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Retry",
+                  onPress: () => handlePayFromList(orderId, amount),
+                },
+              ]);
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const SkeletonBox = ({
@@ -369,11 +468,11 @@ export default function Orders() {
           "PROCESSING",
           "READY",
           "DISPATCHED",
-        ].includes(order.status)
+        ].includes(order.status),
       );
     } else {
       return orders.filter((order) =>
-        ["DELIVERED", "CANCELLED"].includes(order.status)
+        ["DELIVERED", "CANCELLED"].includes(order.status),
       );
     }
   };
@@ -462,10 +561,10 @@ export default function Orders() {
             order.restaurant
               ? "restaurant-outline"
               : order["shop"]
-              ? "cart-outline"
-              : order["pharmacy"]
-              ? "medkit-outline"
-              : "storefront-outline"
+                ? "cart-outline"
+                : order["pharmacy"]
+                  ? "medkit-outline"
+                  : "storefront-outline"
           }
           size={16}
           color="#666"
@@ -518,7 +617,7 @@ export default function Orders() {
                 item.menuItem?.name ||
                 item.product?.name ||
                 item.medicine?.name ||
-                "Item"
+                "Item",
             )
             .join(", ")}
           {order.items.length > 2 ? ` +${order.items.length - 2} more` : null}
@@ -576,29 +675,52 @@ export default function Orders() {
               </Text>
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 8,
-              backgroundColor: "#F0F9FF",
-              borderWidth: 1,
-              borderColor: "#E0F2FE",
-            }}
-            onPress={() =>
-              Alert.alert("Track Order", `Tracking order ${order.id}`)
-            }
-          >
-            <Text
-              style={{ fontSize: 12, color: PrimaryColor, fontWeight: "600" }}
+          {/* Pay button for accepted + unpaid orders */}
+          {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" ? (
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: PrimaryColor,
+                borderWidth: 1,
+                borderColor: PrimaryColor,
+              }}
+              onPress={() => handlePayFromList(order.id, order.totalAmount)}
             >
-              Track
-            </Text>
-            <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
-          </TouchableOpacity>
+              <Text style={{ fontSize: 12, color: "#fff", fontWeight: "700" }}>
+                Pay
+              </Text>
+              <Ionicons name="card-outline" size={12} color="#fff" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8,
+                backgroundColor: "#F0F9FF",
+                borderWidth: 1,
+                borderColor: "#E0F2FE",
+              }}
+              onPress={() =>
+                Alert.alert("Track Order", `Tracking order ${order.id}`)
+              }
+            >
+              <Text
+                style={{ fontSize: 12, color: PrimaryColor, fontWeight: "600" }}
+              >
+                Track
+              </Text>
+              <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -845,7 +967,7 @@ export default function Orders() {
                     "PROCESSING",
                     "READY",
                     "DISPATCHED",
-                  ].includes(o.status)
+                  ].includes(o.status),
                 ).length
               }
               )
@@ -872,7 +994,7 @@ export default function Orders() {
               Past Orders (
               {
                 orders.filter((o) =>
-                  ["DELIVERED", "CANCELLED"].includes(o.status)
+                  ["DELIVERED", "CANCELLED"].includes(o.status),
                 ).length
               }
               )
