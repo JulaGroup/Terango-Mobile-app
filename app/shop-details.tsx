@@ -450,6 +450,9 @@ interface Shop {
   acceptsOrders: boolean;
   minimumOrderAmount?: number;
   products?: Product[];
+  vendor?: {
+    id: string;
+  };
 }
 
 // Product Interface
@@ -500,7 +503,7 @@ export default function ShopDetails() {
 
   const vendorMeta = React.useMemo<VendorOrderingMeta>(() => {
     return {
-      vendorId: shop?.id ?? null,
+      vendorId: shop?.vendor?.id ?? null,
       vendorType: "shop",
       vendorName: shop?.name ?? null,
       openingHours: shop?.openingHours ?? null,
@@ -508,7 +511,7 @@ export default function ShopDetails() {
       acceptsOrders: shop?.acceptsOrders ?? null,
     };
   }, [
-    shop?.id,
+    shop?.vendor?.id,
     shop?.name,
     shop?.openingHours,
     shop?.isActive,
@@ -757,7 +760,7 @@ export default function ShopDetails() {
       price: item.price,
       discountedPrice: item.discountedPrice, // Add discounted price
       description: item.description || "",
-      vendorId: shop.id,
+      vendorId: shop.vendor?.id || shop.id,
       vendorName: shop.name,
       imageUrl: item.imageUrl || "",
       entityType: "shop",

@@ -196,14 +196,9 @@ export default function Cart() {
           <View style={styles.itemPriceContainer}>
             {item.discountedPrice && item.discountedPrice < item.price ? (
               <>
-                <View style={styles.priceRow}>
-                  <Text style={styles.itemPriceStrikethrough}>
-                    D{item.price.toFixed(2)}
-                  </Text>
-                  <Text style={styles.itemPriceDiscounted}>
-                    D{item.discountedPrice.toFixed(2)}
-                  </Text>
-                </View>
+                <Text style={styles.itemPriceStrikethrough}>
+                  D{item.price.toFixed(2)}
+                </Text>
                 <Text style={styles.itemTotal}>
                   D{(item.discountedPrice * item.quantity).toFixed(2)}
                 </Text>
@@ -703,6 +698,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#f8fafc",
     borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    gap: 8,
   },
   quantityButton: {
     width: 28,
@@ -717,7 +715,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#1f2937",
-    minWidth: 30,
+    minWidth: 35,
     textAlign: "center",
   },
   removeButton: {

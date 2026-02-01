@@ -65,9 +65,17 @@ export default function PaymentMethodsPage() {
   };
 
   const updateMethod = (provider: keyof PaymentMethods, value: string) => {
+    // Remove +220 prefix if present for Wave numbers
+    let cleanedValue = value;
+    if (provider === 'wave' && value.startsWith('+220')) {
+      cleanedValue = value.substring(4); // Remove +220
+    } else if (provider === 'wave' && value.startsWith('220')) {
+      cleanedValue = value.substring(3); // Remove 220
+    }
+    
     setPaymentData((prev) => ({
       ...prev,
-      methods: { ...prev.methods, [provider]: value },
+      methods: { ...prev.methods, [provider]: cleanedValue },
     }));
   };
 
@@ -105,7 +113,7 @@ export default function PaymentMethodsPage() {
             </TouchableOpacity>
           </View>
           <TextInput
-            placeholder="Enter Wave phone number"
+            placeholder="Enter Wave phone number (e.g., 7012345)"
             value={paymentData.methods.wave || ""}
             onChangeText={(value) => updateMethod("wave", value)}
             style={styles.input}

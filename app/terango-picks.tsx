@@ -36,6 +36,7 @@ interface TeranGOProduct {
     id: string;
     name: string;
     imageUrl?: string;
+    vendorId: string;
   };
 }
 
@@ -131,7 +132,7 @@ export default function TeranGOPicksPage() {
       name: product.name,
       price: product.discountedPrice || product.price,
       imageUrl: product.imageUrl || "",
-      vendorId: product.shop?.id || "terango-official",
+      vendorId: product.shop?.vendorId || "terango-official",
       vendorName: product.shop?.name || "TeranGO Official Store",
       entityType: "SHOP",
     });
@@ -155,7 +156,7 @@ export default function TeranGOPicksPage() {
         onPress={() => handleProductPress(item)}
         cardWidth={CARD_WIDTH}
         vendor={{
-          vendorId: item.shop?.id,
+          vendorId: item.shop?.vendorId,
           vendorType: "shop",
           vendorName: item.shop?.name || "TeranGO Official Store",
           isActive: true,

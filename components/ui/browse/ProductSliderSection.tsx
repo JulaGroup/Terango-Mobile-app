@@ -73,7 +73,7 @@ export default function ProductSliderSection({
       price: item.price,
       discountedPrice: item.discountedPrice,
       description: item.shopName || item.shop?.name || "",
-      vendorId: item.shop?.id || "",
+      vendorId: item.shop?.vendorId || "",
       vendorName: item.shopName || item.shop?.name || "",
       imageUrl: item.imageUrl || "",
       entityType: "product",
@@ -125,7 +125,7 @@ export default function ProductSliderSection({
         onPress={() => handlePress(item)}
         cardWidth={166}
         vendor={{
-          vendorId: item.shop?.id,
+          vendorId: item.shop?.vendorId,
           vendorType: "shop",
           vendorName: item.shopName || item.shop?.name,
         }}

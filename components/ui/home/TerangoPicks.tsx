@@ -28,6 +28,12 @@ interface TeranGOProduct {
   isAvailable: boolean;
   isFeatured: boolean;
   priority: number;
+  shop?: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+    vendorId: string;
+  };
 }
 
 interface TeranGOPicksProps {
@@ -123,8 +129,8 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
         name: product.name,
         price: product.discountedPrice || product.price,
         imageUrl: product.image || "",
-        vendorId: "terango-official",
-        vendorName: "TeranGO Official Store",
+        vendorId: rawProduct.shop?.vendorId || "terango-official",
+        vendorName: rawProduct.shop?.name || "TeranGO Official Store",
         entityType: "SHOP",
       });
     },

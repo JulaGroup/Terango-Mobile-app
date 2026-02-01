@@ -79,7 +79,7 @@ const ProductList: React.FC<ProductListProps> = ({
       name: product.name,
       price: product.price,
       description: product.description || "",
-      vendorId: product.shop?.id || "",
+      vendorId: product.shop?.vendorId || "",
       vendorName: product.shop?.name || "",
       imageUrl: product.imageUrl || "",
       entityType: "product",
@@ -122,7 +122,7 @@ const ProductList: React.FC<ProductListProps> = ({
           onPress={() => router.push(`/product/${item.id}`)}
           cardWidth={(width - 48) / 3} // 3 columns with proper spacing
           vendor={{
-            vendorId: item.shop?.id,
+            vendorId: item.shop?.vendorId,
             vendorType: "shop",
             vendorName: item.shop?.name,
           }}

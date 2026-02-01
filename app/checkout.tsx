@@ -13,7 +13,7 @@ import {
   Animated,
   Modal,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { useCart } from "@/context/CartContext";
 import { userApi, orderApi } from "@/lib/api";
 import { debugAuthState } from "@/utils/debugAuth";
@@ -70,6 +70,11 @@ export default function Checkout() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const headerScale = useRef(new Animated.Value(0.95)).current;
+  
+  // Distance loader animation
+  const distanceDot1 = useRef(new Animated.Value(0.3)).current;
+  const distanceDot2 = useRef(new Animated.Value(0.6)).current;
+  const distanceDot3 = useRef(new Animated.Value(1)).current;
 
   const [loading, setLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<
@@ -272,6 +277,69 @@ export default function Checkout() {
     }
   }, [form.orderType, addresses, addressesLoaded]);
 
+  // Animate distance loader dots
+  useEffect(() => {
+    if (loadingDeliveryFee) {
+      const animation = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(distanceDot1, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot2, {
+              toValue: 0.3,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot3, {
+              toValue: 0.6,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(distanceDot1, {
+              toValue: 0.6,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot2, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot3, {
+              toValue: 0.3,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(distanceDot1, {
+              toValue: 0.3,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot2, {
+              toValue: 0.6,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+            Animated.timing(distanceDot3, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+  }, [loadingDeliveryFee, distanceDot1, distanceDot2, distanceDot3]);
+
   // Ensure addresses are loaded once when checkout mounts to avoid false-empty state
   useEffect(() => {
     let mounted = true;
@@ -306,6 +374,34 @@ export default function Checkout() {
   }, [addresses, form.address, selectedAddress]);
 
   // AppState handling removed for instant checkout. Legacy hosted flow no longer used.
+
+  // Load payment methods from SecureStore
+  const loadPaymentMethods = useCallback(async () => {
+    try {
+      const paymentMethodsData =
+        await SecureStore.getItemAsync("paymentMethods");
+      if (paymentMethodsData) {
+        const data = JSON.parse(paymentMethodsData);
+        console.log("Loaded payment methods:", data);
+        setDefaultPaymentMethod(data.default || null);
+        setPaymentMethods(data);
+        if (data.default) {
+          console.log("Setting selected payment method to mobile");
+          setSelectedPaymentMethod("mobile");
+        } else {
+          setSelectedPaymentMethod("mobile");
+        }
+      } else {
+        console.log("No payment methods data found");
+        setSelectedPaymentMethod("mobile");
+      }
+      setPaymentMethodsLoaded(true);
+    } catch {
+      console.log("Failed to load payment methods");
+      setSelectedPaymentMethod("mobile");
+      setPaymentMethodsLoaded(true);
+    }
+  }, []);
 
   const loadUserInfo = useCallback(async () => {
     try {
@@ -402,30 +498,7 @@ export default function Checkout() {
       }
 
       // Always load payment methods regardless of cache/fresh data availability
-      try {
-        const paymentMethodsData =
-          await SecureStore.getItemAsync("paymentMethods");
-        if (paymentMethodsData) {
-          const data = JSON.parse(paymentMethodsData);
-          console.log("Loaded payment methods:", data);
-          setDefaultPaymentMethod(data.default || null);
-          setPaymentMethods(data);
-          if (data.default) {
-            console.log("Setting selected payment method to mobile");
-            setSelectedPaymentMethod("mobile");
-          } else {
-            setSelectedPaymentMethod("mobile");
-          }
-        } else {
-          console.log("No payment methods data found");
-          setSelectedPaymentMethod("mobile");
-        }
-        setPaymentMethodsLoaded(true);
-      } catch {
-        console.log("Failed to load payment methods");
-        setSelectedPaymentMethod("mobile");
-        setPaymentMethodsLoaded(true);
-      }
+      await loadPaymentMethods();
 
       // Only fall back to legacy AsyncStorage if both cache and API fail
       if (!cached && !freshData) {
@@ -705,13 +778,8 @@ export default function Checkout() {
 
     checkAuthAndLoadUserInfo();
     checkFirstOrder(); // ✅ Check if first order on component mount
-  }, [
-    fadeAnim,
-    slideAnim,
-    headerScale,
-    checkAuthAndLoadUserInfo,
-    checkFirstOrder,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Debug effect to monitor payment method state changes
   useEffect(() => {
@@ -744,6 +812,34 @@ export default function Checkout() {
       console.log("📱 [Checkout] Component unmounting");
     };
   }, [items.length]);
+
+  // Auto-prompt payment method setup for new users
+  useEffect(() => {
+    if (
+      paymentMethodsLoaded &&
+      (!paymentMethods ||
+        !paymentMethods.methods ||
+        Object.keys(paymentMethods.methods).length === 0)
+    ) {
+      // No payment methods configured - auto-show the picker/prompt
+      console.log(
+        "⚠️ No payment methods found, opening payment method picker automatically",
+      );
+      // Delay slightly to ensure UI is ready
+      const timer = setTimeout(() => {
+        setPaymentMethodPickerVisible(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [paymentMethodsLoaded, paymentMethods]);
+
+  // Reload payment methods when screen comes into focus (e.g., after adding a payment method)
+  useFocusEffect(
+    useCallback(() => {
+      console.log("🔄 Screen focused, reloading payment methods");
+      loadPaymentMethods();
+    }, [loadPaymentMethods]),
+  );
 
   // Legacy polling / deep-link handlers removed: instant checkout handles order creation synchronously.
 
@@ -1364,15 +1460,16 @@ export default function Checkout() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.totalLabel}>Delivery Fee</Text>
                       {loadingDeliveryFee && (
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: "#6B7280",
-                            marginTop: 2,
-                          }}
-                        >
-                          Calculating distance...
-                        </Text>
+                        <View style={styles.distanceLoaderContainer}>
+                          <View style={styles.distanceLoaderDots}>
+                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot1 }]} />
+                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot2 }]} />
+                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot3 }]} />
+                          </View>
+                          <Text style={styles.distanceLoaderText}>
+                            Calculating distance
+                          </Text>
+                        </View>
                       )}
                       {deliveryEstimate && !loadingDeliveryFee && (
                         <Text
@@ -1826,6 +1923,7 @@ export default function Checkout() {
               </Text>
             </View>
 
+            {/* EMAIL ADDRESS FIELD - COMMENTED OUT
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Email Address</Text>
               <View style={[styles.input, styles.readOnlyInput]}>
@@ -1839,6 +1937,7 @@ export default function Checkout() {
                 here.
               </Text>
             </View>
+            */}
 
             {/* 🎁 ORDER FOR SOMEONE ELSE TOGGLE - Only show for delivery orders */}
             {form.orderType === "DELIVERY" && (
@@ -2725,6 +2824,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#1f2937",
+  },
+  distanceLoaderContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    gap: 8,
+  },
+  distanceLoaderDots: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  distanceLoaderDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: PrimaryColor,
+  },
+  distanceLoaderText: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontStyle: "italic",
   },
   grandTotalRow: {
     marginTop: 8,

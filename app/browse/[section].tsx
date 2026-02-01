@@ -335,7 +335,7 @@ const BrowseSectionScreen: React.FC = () => {
         price: item.price,
         discountedPrice: item.discountedPrice,
         description: item.shopName || item.shop?.name || "",
-        vendorId: item.shop?.id || "",
+        vendorId: item.shop?.vendorId || "",
         vendorName: item.shopName || item.shop?.name || "",
         imageUrl: item.imageUrl,
         entityType: "product",
@@ -383,7 +383,7 @@ const BrowseSectionScreen: React.FC = () => {
           onPress={() => handleProductPress(item)}
           cardWidth={(width - 16 * 2 - 12) / 2}
           vendor={{
-            vendorId: item.shop?.id,
+            vendorId: item.shop?.vendorId,
             vendorType: "shop",
             vendorName: item.shopName || item.shop?.name,
           }}
