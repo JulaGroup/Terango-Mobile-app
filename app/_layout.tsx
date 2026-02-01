@@ -69,7 +69,7 @@ export default function RootLayout() {
         setShowOrderSuccessModal(true);
       } else if (orderData) {
         console.log(
-          "[RootLayout] Found successful order but not on home path, skipping modal"
+          "[RootLayout] Found successful order but not on home path, skipping modal",
         );
       }
     };
@@ -84,11 +84,14 @@ export default function RootLayout() {
       // Debug: Check what type of URL this is
       if (url.includes("payment-success")) {
         console.log("[DeepLink] ✅ This is a payment-success URL");
-      } else if (url.includes("payment-cancel") || url.includes("payment-failed")) {
+      } else if (
+        url.includes("payment-cancel") ||
+        url.includes("payment-failed")
+      ) {
         console.log("[DeepLink] ❌ This is a payment-cancel/failed URL");
       } else {
         console.log(
-          "[DeepLink] 🔍 This is a generic deep link, ignoring for payment purposes"
+          "[DeepLink] 🔍 This is a generic deep link, ignoring for payment purposes",
         );
         return; // Exit early for non-payment URLs
       }
@@ -109,11 +112,11 @@ export default function RootLayout() {
             verified: true,
           });
           console.log(
-            "[DeepLink] ✅ Verified payment success - emitting cart clear event"
+            "[DeepLink] ✅ Verified payment success - emitting cart clear event",
           );
         } else {
           console.log(
-            "[DeepLink] ⚠️ Unverified payment success - skipping cart clear"
+            "[DeepLink] ⚠️ Unverified payment success - skipping cart clear",
           );
         }
 
@@ -122,11 +125,11 @@ export default function RootLayout() {
           // We'll need to get cart context differently since this is at provider level
           // For now, we'll dispatch a custom event that the checkout component can listen to
           console.log(
-            "[DeepLink] Payment successful - cart should be cleared by checkout component"
+            "[DeepLink] Payment successful - cart should be cleared by checkout component",
           );
         } catch {
           console.log(
-            "[DeepLink] Note: Cart clearing will be handled by checkout component"
+            "[DeepLink] Note: Cart clearing will be handled by checkout component",
           );
         }
 
@@ -190,7 +193,7 @@ export default function RootLayout() {
                 text: "View All Orders",
                 onPress: () => router.replace("/(tabs)/orders"),
               },
-            ]
+            ],
           );
         } else {
           // Fallback to orders page
@@ -202,12 +205,15 @@ export default function RootLayout() {
                 text: "View Orders",
                 onPress: () => router.replace("/(tabs)/orders"),
               },
-            ]
+            ],
           );
         }
-      } else if (url.includes("payment-cancel") || url.includes("payment-failed")) {
+      } else if (
+        url.includes("payment-cancel") ||
+        url.includes("payment-failed")
+      ) {
         console.log(
-          "[DeepLink] Payment cancelled/failed detected - dismissing browser and returning to app"
+          "[DeepLink] Payment cancelled/failed detected - dismissing browser and returning to app",
         );
 
         // Dismiss any open browser
@@ -220,7 +226,12 @@ export default function RootLayout() {
         const orderId = urlParams.get("orderId");
         const reason = urlParams.get("reason");
 
-        console.log("[DeepLink] Payment failed for order:", orderId, "Reason:", reason);
+        console.log(
+          "[DeepLink] Payment failed for order:",
+          orderId,
+          "Reason:",
+          reason,
+        );
 
         // User is already back in the app - the checkout page will handle showing the error
         // No need for additional alerts here
@@ -308,7 +319,7 @@ export default function RootLayout() {
         url.includes("teranggo://payment/success")
       ) {
         console.log(
-          "[Deep Link] Payment success detected, navigating to orders"
+          "[Deep Link] Payment success detected, navigating to orders",
         );
         // Navigate to orders page
         router.replace("/(tabs)/orders");

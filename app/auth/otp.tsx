@@ -13,7 +13,7 @@ import {
   Clipboard,
   Platform,
 } from "react-native";
-import * as ExpoClipboard from 'expo-clipboard';
+import * as ExpoClipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function OTP() {
@@ -21,11 +21,11 @@ export default function OTP() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  
+
   // Loader animations
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
-  
+
   // Loader animations
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
@@ -39,7 +39,7 @@ export default function OTP() {
           toValue: 1,
           duration: 1000,
           useNativeDriver: true,
-        })
+        }),
       ).start();
 
       // Pulsing animation
@@ -55,7 +55,7 @@ export default function OTP() {
             duration: 500,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     }
   }, [loading]);
@@ -74,17 +74,17 @@ export default function OTP() {
           }
         }
       } catch (error) {
-        console.log('Clipboard check error:', error);
+        console.log("Clipboard check error:", error);
       }
     };
-    
+
     // Check clipboard when component mounts
     checkClipboard();
   }, []);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
+    outputRange: ["0deg", "360deg"],
   });
 
   const handleVerify = async () => {
@@ -99,7 +99,7 @@ export default function OTP() {
     const phone = await safeGetItem("userPhone");
     if (!phone) {
       alert(
-        "Missing phone number. Please go back and enter your phone number again."
+        "Missing phone number. Please go back and enter your phone number again.",
       );
       setLoading(false);
       return;
