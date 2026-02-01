@@ -129,7 +129,7 @@ export default function VendorSettings() {
           case "RESTAURANT":
             await vendorApi.updateRestaurantDetails(
               currentBusiness.id,
-              updateData
+              updateData,
             );
             break;
           case "SHOP":
@@ -137,7 +137,7 @@ export default function VendorSettings() {
             // For now, use the restaurant method as a placeholder
             await vendorApi.updateRestaurantDetails(
               currentBusiness.id,
-              updateData
+              updateData,
             );
             break;
           case "PHARMACY":
@@ -145,7 +145,7 @@ export default function VendorSettings() {
             // For now, use the restaurant method as a placeholder
             await vendorApi.updateRestaurantDetails(
               currentBusiness.id,
-              updateData
+              updateData,
             );
             break;
           default:
@@ -552,12 +552,12 @@ export default function VendorSettings() {
 
                     await vendorApi.updateRestaurantDetails(
                       currentBusiness.id,
-                      updateData
+                      updateData,
                     );
                     await refreshVendorData();
                     Alert.alert(
                       "Success",
-                      `Business is now ${value ? "open" : "closed"}`
+                      `Business is now ${value ? "open" : "closed"}`,
                     );
                   } catch (error) {
                     console.error("Error updating business status:", error);

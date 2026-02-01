@@ -119,11 +119,11 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
           businesses: businesses,
           totalRevenue: businesses.reduce(
             (sum, b) => sum + (b.revenue || 0),
-            0
+            0,
           ),
           totalOrders: businesses.reduce(
             (sum, b) => sum + (b.todayOrders || 0),
-            0
+            0,
           ),
         };
 
@@ -153,12 +153,12 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
 
         console.log(
           "📝 Setting basic vendor data (no businesses):",
-          basicVendorData
+          basicVendorData,
         );
         setVendor(basicVendorData);
         await AsyncStorage.setItem(
           "@vendor_data",
-          JSON.stringify(basicVendorData)
+          JSON.stringify(basicVendorData),
         );
         setCurrentBusiness(null); // No current business
       }
@@ -182,10 +182,10 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
         try {
           const currentUser = await userApi.getCurrentUser();
           const currentUserId = currentUser?.user?.id;
-          
+
           if (currentUserId && parsedVendor.id !== currentUserId) {
             console.log(
-              "⚠️ Cached vendor doesn't match current user, refreshing silently..."
+              "⚠️ Cached vendor doesn't match current user, refreshing silently...",
             );
             // Don't remove tokens - just refresh to keep session alive
             await refreshVendorData();
@@ -193,7 +193,9 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
           }
         } catch (userCheckError) {
           // If user check fails, keep vendor session active
-          console.log("⚠️ Could not verify user, keeping vendor session active");
+          console.log(
+            "⚠️ Could not verify user, keeping vendor session active",
+          );
         }
 
         console.log("✅ Vendor session active");
@@ -205,7 +207,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
         }
       } else {
         console.log(
-          "🔍 No stored vendor data, checking if current user is a vendor..."
+          "🔍 No stored vendor data, checking if current user is a vendor...",
         );
         // Check if current user is a vendor (for users accessing via profile)
         try {
@@ -242,7 +244,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
 
   const loginAsVendor = async (
     email: string,
-    password: string
+    password: string,
   ): Promise<boolean> => {
     try {
       setIsVendorLoading(true);
@@ -289,7 +291,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
       console.error("Vendor login error:", error);
       Alert.alert(
         "Login Error",
-        "Failed to load vendor data. Please try again."
+        "Failed to load vendor data. Please try again.",
       );
       return false;
     } finally {

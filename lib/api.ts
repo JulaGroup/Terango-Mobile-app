@@ -211,14 +211,14 @@ const getAuthToken = async (): Promise<string | null> => {
     }
     console.log(
       "🔐 Auth Token Retrieved:",
-      token ? "✅ Token found" : "❌ No token"
+      token ? "✅ Token found" : "❌ No token",
     );
 
     // Debug: Print first and last few characters of token
     if (token) {
       console.log(
         "🔍 Token Preview:",
-        `${token.substring(0, 20)}...${token.substring(token.length - 20)}`
+        `${token.substring(0, 20)}...${token.substring(token.length - 20)}`,
       );
 
       // Try to decode and check expiration
@@ -231,14 +231,14 @@ const getAuthToken = async (): Promise<string | null> => {
             .map(function (c) {
               return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
             })
-            .join("")
+            .join(""),
         );
 
         const decoded = JSON.parse(jsonPayload);
         console.log("🕒 Token expires:", new Date(decoded.exp * 1000));
         console.log(
           "🔄 Token valid:",
-          decoded.exp * 1000 > Date.now() ? "✅ Valid" : "❌ EXPIRED"
+          decoded.exp * 1000 > Date.now() ? "✅ Valid" : "❌ EXPIRED",
         );
         console.log("👤 User ID from token:", decoded.userId);
 
@@ -273,7 +273,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   console.log(`🌐 API Call: ${options.method || "GET"} ${endpoint}`);
   console.log(
-    `🔐 Auth Header: ${token ? "✅ Bearer token included" : "❌ No token"}`
+    `🔐 Auth Header: ${token ? "✅ Bearer token included" : "❌ No token"}`,
   );
 
   const response = await fetch(`${API_URL}${endpoint}`, config);
@@ -287,7 +287,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   const data = await response.json();
   console.log(
     `✅ API Response for ${endpoint}:`,
-    Array.isArray(data) ? `Array[${data.length}]` : typeof data
+    Array.isArray(data) ? `Array[${data.length}]` : typeof data,
   );
 
   return data;
@@ -429,7 +429,7 @@ export const vendorApi = {
   // Update business
   updateBusiness: async (
     businessId: string,
-    data: Partial<Business>
+    data: Partial<Business>,
   ): Promise<Business> => {
     return apiCall(`/api/vendor/businesses/${businessId}`, {
       method: "PUT",
@@ -463,7 +463,7 @@ export const vendorApi = {
   // Get analytics data
   getAnalytics: async (
     userId: string,
-    period: "day" | "week" | "month" | "year" = "week"
+    period: "day" | "week" | "month" | "year" = "week",
   ) => {
     return apiCall(`/api/vendor/${userId}/analytics?period=${period}`);
   },
@@ -511,7 +511,7 @@ export const vendorApi = {
       estimatedDeliveryTime?: string;
       isActive?: boolean;
       acceptsOrders?: boolean;
-    }
+    },
   ) => {
     return apiCall(`/api/restaurants/${restaurantId}/details`, {
       method: "PUT",
@@ -533,7 +533,7 @@ export const vendorApi = {
       friday: { open: string; close: string; closed: boolean };
       saturday: { open: string; close: string; closed: boolean };
       sunday: { open: string; close: string; closed: boolean };
-    }
+    },
   ) => {
     return apiCall(`/api/restaurants/${restaurantId}/hours`, {
       method: "PUT",
@@ -561,7 +561,7 @@ export const vendorApi = {
       acceptsOrders?: boolean;
       latitude?: number;
       longitude?: number;
-    }
+    },
   ) => {
     return apiCall(`/api/shops/${shopId}`, {
       method: "PUT",
@@ -709,7 +709,7 @@ export const userApi = {
           .map(function (c) {
             return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
           })
-          .join("")
+          .join(""),
       );
 
       const decoded = JSON.parse(jsonPayload);
@@ -747,7 +747,7 @@ export const userApi = {
           .map(function (c) {
             return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
           })
-          .join("")
+          .join(""),
       );
 
       const decoded = JSON.parse(jsonPayload);
@@ -775,7 +775,7 @@ export const orderApi = {
     const token = await getAuthToken();
     console.log(
       "🔐 Token for order creation:",
-      token ? "✅ Available" : "❌ Missing"
+      token ? "✅ Available" : "❌ Missing",
     );
 
     return apiCall("/api/orders", {
@@ -787,7 +787,7 @@ export const orderApi = {
   // Get orders for a customer with pagination
   getCustomerOrders: async (
     page: number = 1,
-    limit: number = 15
+    limit: number = 15,
   ): Promise<{
     orders: Order[];
     totalCount: number;
@@ -812,7 +812,7 @@ export const orderApi = {
   updateOrderStatus: async (
     orderId: string,
     status: Order["status"],
-    estimatedDeliveryTime?: string
+    estimatedDeliveryTime?: string,
   ): Promise<Order> => {
     return apiCall(`/api/orders/${orderId}/status`, {
       method: "PATCH",
@@ -827,7 +827,7 @@ export const orderApi = {
 
   // Get QR code for an order
   getOrderQRCode: async (
-    orderId: string
+    orderId: string,
   ): Promise<{ qrCode: string; qrCodeUrl: string; orderInfo: any }> => {
     return apiCall(`/api/qrcode/order/${orderId}`);
   },
@@ -842,7 +842,12 @@ export const orderApi = {
 
   // 💳 Pay for an accepted order
   payForOrder: async (orderId: string, network?: string): Promise<Order> => {
-    console.log("💳 Processing payment for order:", orderId, "network:", network);
+    console.log(
+      "💳 Processing payment for order:",
+      orderId,
+      "network:",
+      network,
+    );
     return apiCall(`/api/orders/${orderId}/pay`, {
       method: "POST",
       body: JSON.stringify({ network }),
@@ -931,7 +936,7 @@ export const customDeliveryApi = {
       note?: string | null;
       locationLatitude?: number | null;
       locationLongitude?: number | null;
-    }
+    },
   ) => {
     return apiCall(`/api/custom-deliveries/${deliveryId}/status`, {
       method: "PATCH",
@@ -985,7 +990,7 @@ export const adminApi = {
     filters?: {
       page?: number;
       limit?: number;
-    }
+    },
   ) => {
     const params = new URLSearchParams();
     if (filters) {
@@ -994,7 +999,7 @@ export const adminApi = {
       });
     }
     return apiCall(
-      `/api/admin/menuItems/restaurant/${restaurantId}?${params.toString()}`
+      `/api/admin/menuItems/restaurant/${restaurantId}?${params.toString()}`,
     );
   },
 
@@ -1041,7 +1046,7 @@ export const adminApi = {
     filters?: {
       page?: number;
       limit?: number;
-    }
+    },
   ) => {
     const params = new URLSearchParams();
     if (filters) {
@@ -1095,7 +1100,7 @@ export const adminApi = {
     filters?: {
       page?: number;
       limit?: number;
-    }
+    },
   ) => {
     const params = new URLSearchParams();
     if (filters) {
@@ -1104,7 +1109,7 @@ export const adminApi = {
       });
     }
     return apiCall(
-      `/api/admin/medicines/pharmacy/${pharmacyId}?${params.toString()}`
+      `/api/admin/medicines/pharmacy/${pharmacyId}?${params.toString()}`,
     );
   },
 
@@ -1138,7 +1143,7 @@ export const adminApi = {
       status: string;
       driverId?: string;
       estimatedDeliveryTime?: string;
-    }
+    },
   ) => {
     return apiCall(`/api/admin/orders/${orderId}/status`, {
       method: "PATCH",

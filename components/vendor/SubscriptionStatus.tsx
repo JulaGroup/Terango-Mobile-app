@@ -44,7 +44,7 @@ interface TimeLeft {
 
 export default function SubscriptionStatus() {
   const [subscription, setSubscription] = useState<VendorSubscription | null>(
-    null
+    null,
   );
   const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -92,16 +92,19 @@ export default function SubscriptionStatus() {
       if (!token) {
         token = await AsyncStorage.getItem("@vendor_token");
       }
-      
+
       if (!token) {
         setError("Not authenticated");
         return;
       }
 
       // Use the correct vendor subscription endpoint
-      const response = await axios.get(`${API_URL}/api/subscriptions/my-subscription`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.get(
+        `${API_URL}/api/subscriptions/my-subscription`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
       if (response.data.subscription) {
         setSubscription(response.data.subscription);
@@ -111,7 +114,7 @@ export default function SubscriptionStatus() {
     } catch (error: any) {
       console.error(
         "Failed to fetch subscription:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
       // Check if it's a 404 (no subscription) vs actual error
       if (
@@ -122,7 +125,7 @@ export default function SubscriptionStatus() {
         setError(null);
       } else {
         setError(
-          error.response?.data?.message || "Failed to load subscription"
+          error.response?.data?.message || "Failed to load subscription",
         );
       }
     } finally {
@@ -196,9 +199,7 @@ export default function SubscriptionStatus() {
       <View style={styles.centerContainer}>
         <View style={styles.noSubscriptionCard}>
           <Ionicons name="alert-circle-outline" size={64} color="#F59E0B" />
-          <Text style={styles.noSubscriptionTitle}>
-            No Active Subscription
-          </Text>
+          <Text style={styles.noSubscriptionTitle}>No Active Subscription</Text>
           <Text style={styles.noSubscriptionText}>
             Subscribe to a plan to unlock premium features and grow your
             business
