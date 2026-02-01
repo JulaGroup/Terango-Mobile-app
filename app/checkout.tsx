@@ -1461,6 +1461,12 @@ export default function Checkout() {
                       <Text style={styles.totalLabel}>Delivery Fee</Text>
                       {loadingDeliveryFee && (
                         <View style={styles.distanceLoaderContainer}>
+                          <Ionicons
+                            name="location"
+                            size={14}
+                            color="#F97316"
+                            style={{ marginRight: 4 }}
+                          />
                           <View style={styles.distanceLoaderDots}>
                             <Animated.View
                               style={[
@@ -1482,7 +1488,7 @@ export default function Checkout() {
                             />
                           </View>
                           <Text style={styles.distanceLoaderText}>
-                            Calculating distance
+                            Calculating route & fee
                           </Text>
                         </View>
                       )}
@@ -2844,7 +2850,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginTop: 6,
-    gap: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: "#FEF3E7",
+    borderRadius: 6,
+    alignSelf: "flex-start",
   },
   distanceLoaderDots: {
     flexDirection: "row",
@@ -2858,8 +2868,9 @@ const styles = StyleSheet.create({
   },
   distanceLoaderText: {
     fontSize: 11,
-    color: "#6B7280",
-    fontStyle: "italic",
+    color: "#D97706",
+    fontWeight: "500",
+    marginLeft: 4,
   },
   grandTotalRow: {
     marginTop: 8,

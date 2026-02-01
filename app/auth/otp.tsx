@@ -2,20 +2,90 @@ import { verifyOtp, safeGetItem } from "@/actions/auth.ts/action";
 import BackButton from "@/components/common/BackButton";
 import OTPTextInput from "react-native-otp-textinput";
 import { useRouter } from "expo-router";
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
+  Animated,
+  Clipboard,
+  Platform,
 } from "react-native";
+import * as ExpoClipboard from 'expo-clipboard';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function OTP() {
   const otpInput = useRef<OTPTextInput>(null);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  
+  // Loader animations
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
+  
+  // Loader animations
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(1)).current;
+
+  // Start animations when loading
+  useEffect(() => {
+    if (loading) {
+      // Spinning animation
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Pulsing animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseValue, {
+            toValue: 1.2,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseValue, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    }
+  }, [loading]);
+
+  // Auto-detect clipboard paste for OTP
+  useEffect(() => {
+    const checkClipboard = async () => {
+      try {
+        const clipboardContent = await ExpoClipboard.getStringAsync();
+        // Check if clipboard contains 4 digits
+        if (clipboardContent && /^\d{4}$/.test(clipboardContent.trim())) {
+          setCode(clipboardContent.trim());
+          // Auto-fill the OTP input
+          if (otpInput.current) {
+            otpInput.current.setValue(clipboardContent.trim());
+          }
+        }
+      } catch (error) {
+        console.log('Clipboard check error:', error);
+      }
+    };
+    
+    // Check clipboard when component mounts
+    checkClipboard();
+  }, []);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const handleVerify = async () => {
     if (loading) return;
@@ -70,12 +140,24 @@ export default function OTP() {
 
         <TouchableOpacity
           disabled={loading}
-          style={styles.button}
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleVerify}
         >
-          <Text style={styles.buttonText}>
-            {loading ? "Loading..." : "Verify"}
-          </Text>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Animated.View
+                style={[
+                  styles.spinner,
+                  { transform: [{ rotate: spin }, { scale: pulseValue }] },
+                ]}
+              >
+                <Ionicons name="sync" size={20} color="white" />
+              </Animated.View>
+              <Text style={styles.buttonText}>Verifying...</Text>
+            </View>
+          ) : (
+            <Text style={styles.buttonText}>Verify</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -130,9 +212,21 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: 200,
   },
+  buttonDisabled: {
+    opacity: 0.8,
+  },
   buttonText: {
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  spinner: {
+    width: 20,
+    height: 20,
   },
 });

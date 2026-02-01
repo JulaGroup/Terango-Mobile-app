@@ -84,8 +84,8 @@ export default function RootLayout() {
       // Debug: Check what type of URL this is
       if (url.includes("payment-success")) {
         console.log("[DeepLink] ✅ This is a payment-success URL");
-      } else if (url.includes("payment-cancel")) {
-        console.log("[DeepLink] ❌ This is a payment-cancel URL");
+      } else if (url.includes("payment-cancel") || url.includes("payment-failed")) {
+        console.log("[DeepLink] ❌ This is a payment-cancel/failed URL");
       } else {
         console.log(
           "[DeepLink] 🔍 This is a generic deep link, ignoring for payment purposes"
@@ -205,9 +205,9 @@ export default function RootLayout() {
             ]
           );
         }
-      } else if (url.includes("payment-cancel")) {
+      } else if (url.includes("payment-cancel") || url.includes("payment-failed")) {
         console.log(
-          "[DeepLink] Payment cancelled detected - letting checkout component handle this"
+          "[DeepLink] Payment cancelled/failed detected - dismissing browser and returning to app"
         );
 
         // Dismiss any open browser
@@ -215,8 +215,15 @@ export default function RootLayout() {
           console.log("[DeepLink] No browser to dismiss");
         });
 
-        // Let the checkout component handle the cancellation logic
-        // No alert here to avoid duplicate alerts
+        // Extract orderId and reason from URL
+        const urlParams = new URLSearchParams(url.split("?")[1]);
+        const orderId = urlParams.get("orderId");
+        const reason = urlParams.get("reason");
+
+        console.log("[DeepLink] Payment failed for order:", orderId, "Reason:", reason);
+
+        // User is already back in the app - the checkout page will handle showing the error
+        // No need for additional alerts here
       }
     };
 
