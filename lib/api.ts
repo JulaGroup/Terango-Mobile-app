@@ -778,9 +778,16 @@ export const orderApi = {
       token ? "✅ Available" : "❌ Missing",
     );
 
+    // Add deep link URLs for Wave payment redirect
+    const orderPayloadWithUrls = {
+      ...orderData,
+      success_url: "teranggo://payment-success",
+      error_url: "teranggo://payment-failed",
+    };
+
     return apiCall("/api/orders", {
       method: "POST",
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(orderPayloadWithUrls),
     });
   },
 

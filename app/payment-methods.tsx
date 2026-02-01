@@ -67,12 +67,12 @@ export default function PaymentMethodsPage() {
   const updateMethod = (provider: keyof PaymentMethods, value: string) => {
     // Remove +220 prefix if present for Wave numbers
     let cleanedValue = value;
-    if (provider === 'wave' && value.startsWith('+220')) {
+    if (provider === "wave" && value.startsWith("+220")) {
       cleanedValue = value.substring(4); // Remove +220
-    } else if (provider === 'wave' && value.startsWith('220')) {
+    } else if (provider === "wave" && value.startsWith("220")) {
       cleanedValue = value.substring(3); // Remove 220
     }
-    
+
     setPaymentData((prev) => ({
       ...prev,
       methods: { ...prev.methods, [provider]: cleanedValue },

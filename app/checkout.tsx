@@ -70,7 +70,7 @@ export default function Checkout() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const headerScale = useRef(new Animated.Value(0.95)).current;
-  
+
   // Distance loader animation
   const distanceDot1 = useRef(new Animated.Value(0.3)).current;
   const distanceDot2 = useRef(new Animated.Value(0.6)).current;
@@ -333,7 +333,7 @@ export default function Checkout() {
               useNativeDriver: true,
             }),
           ]),
-        ])
+        ]),
       );
       animation.start();
       return () => animation.stop();
@@ -1462,9 +1462,24 @@ export default function Checkout() {
                       {loadingDeliveryFee && (
                         <View style={styles.distanceLoaderContainer}>
                           <View style={styles.distanceLoaderDots}>
-                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot1 }]} />
-                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot2 }]} />
-                            <Animated.View style={[styles.distanceLoaderDot, { opacity: distanceDot3 }]} />
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot1 },
+                              ]}
+                            />
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot2 },
+                              ]}
+                            />
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot3 },
+                              ]}
+                            />
                           </View>
                           <Text style={styles.distanceLoaderText}>
                             Calculating distance

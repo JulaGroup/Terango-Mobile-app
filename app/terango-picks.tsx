@@ -76,7 +76,7 @@ export default function TeranGOPicksPage() {
         }
 
         const response = await fetch(
-          `${API_URL}/api/public/products/official?page=${pageNum}&limit=20`
+          `${API_URL}/api/public/products/official?page=${pageNum}&limit=20`,
         );
 
         if (!response.ok) {
@@ -102,7 +102,7 @@ export default function TeranGOPicksPage() {
         setLoadingMore(false);
       }
     },
-    []
+    [],
   );
 
   useEffect(() => {

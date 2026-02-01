@@ -109,9 +109,9 @@ const LoadingCategoryAnimation = () => {
                 duration: 600,
                 useNativeDriver: true,
               }),
-            ])
+            ]),
           ),
-        ])
+        ]),
       );
 
       Animated.parallel(animations).start();
@@ -131,7 +131,7 @@ const LoadingCategoryAnimation = () => {
             duration: 1000,
             useNativeDriver: true,
           }),
-        ])
+        ]),
       ).start();
     };
 
@@ -254,11 +254,11 @@ const CategorySection = ({
               params: {
                 shopId: String((products[0] && products[0].shopId) || ""),
                 subCategoryId: String(
-                  (products[0] && products[0].subCategory?.id) || ""
+                  (products[0] && products[0].subCategory?.id) || "",
                 ),
                 shopName: String(vendor?.vendorName || ""),
                 subCategoryName: String(
-                  (products[0] && products[0].subCategory?.name) || ""
+                  (products[0] && products[0].subCategory?.name) || "",
                 ),
               },
             })
@@ -550,12 +550,12 @@ export default function ShopDetails() {
       let categoriesKeys: string[] = [];
       try {
         const sampleResponse = await fetch(
-          `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=1`
+          `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=1`,
         );
 
         if (!sampleResponse.ok) {
           throw new Error(
-            `Failed to fetch products by category: ${sampleResponse.statusText}`
+            `Failed to fetch products by category: ${sampleResponse.statusText}`,
           );
         }
 
@@ -581,17 +581,17 @@ export default function ShopDetails() {
         // Check if there are more categories to load
         // If we got fewer categories than requested, we've reached the end
         setHasMoreCategories(
-          sampleData.categories.length >= CATEGORIES_PER_PAGE
+          sampleData.categories.length >= CATEGORIES_PER_PAGE,
         );
       } catch (e) {
         console.warn("Falling back to includeProducts flow due to error:", e);
         // Fallback: fetch includeProducts and locally cap to N per category
         const productsResponse = await fetch(
-          `${API_URL}/api/shops/${shopId}?includeProducts=true`
+          `${API_URL}/api/shops/${shopId}?includeProducts=true`,
         );
         if (!productsResponse.ok) {
           throw new Error(
-            `Failed to fetch products: ${productsResponse.statusText}`
+            `Failed to fetch products: ${productsResponse.statusText}`,
           );
         }
         const shopWithProducts = await productsResponse.json();
@@ -606,7 +606,7 @@ export default function ShopDetails() {
         // Only take first CATEGORIES_PER_PAGE categories for initial load
         const categoryList = Array.from(allCategories).slice(
           0,
-          CATEGORIES_PER_PAGE
+          CATEGORIES_PER_PAGE,
         );
 
         shopWithProducts.products?.forEach((product: Product) => {
@@ -645,7 +645,7 @@ export default function ShopDetails() {
       const nextPage = currentCategoryPage + 1;
 
       const sampleResponse = await fetch(
-        `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=${nextPage}`
+        `${API_URL}/api/shops/${shopId}/products/by-category?productsPerCategory=${PRODUCTS_PER_CATEGORY}&categoriesPerPage=${CATEGORIES_PER_PAGE}&categoryPage=${nextPage}`,
       );
 
       if (!sampleResponse.ok) {
@@ -820,26 +820,26 @@ export default function ShopDetails() {
             shadow: "#10B981",
           }
         : statusReason === "inactive"
-        ? {
-            label: "Offline",
-            badge: "Offline",
-            color: "rgba(107,114,128,0.95)",
-            shadow: "#6B7280",
-          }
-        : statusReason === "not_accepting_orders"
-        ? {
-            label: "Paused",
-            badge: "Paused",
-            color: "rgba(234,179,8,0.95)",
-            shadow: "#CA8A04",
-          }
-        : {
-            label: "Closed",
-            badge: "Closed",
-            color: "rgba(239,68,68,0.95)",
-            shadow: "#EF4444",
-          },
-    [isOpen, statusReason]
+          ? {
+              label: "Offline",
+              badge: "Offline",
+              color: "rgba(107,114,128,0.95)",
+              shadow: "#6B7280",
+            }
+          : statusReason === "not_accepting_orders"
+            ? {
+                label: "Paused",
+                badge: "Paused",
+                color: "rgba(234,179,8,0.95)",
+                shadow: "#CA8A04",
+              }
+            : {
+                label: "Closed",
+                badge: "Closed",
+                color: "rgba(239,68,68,0.95)",
+                shadow: "#EF4444",
+              },
+    [isOpen, statusReason],
   );
 
   const nextOpening = operatingStatus?.nextOpening;
@@ -848,14 +848,14 @@ export default function ShopDetails() {
   const nextOpeningText =
     !isOpen && nextOpening
       ? `Opens ${formatDayLabel(nextOpening.day)} ${formatTimeLabel(
-          nextOpening.time
+          nextOpening.time,
         )}`
       : null;
 
   const closesAtText =
     isOpen && closesAt
       ? `Closes ${formatDayLabel(closesAt.day)} ${formatTimeLabel(
-          closesAt.time
+          closesAt.time,
         )}`
       : null;
 
@@ -1007,7 +1007,7 @@ export default function ShopDetails() {
                 loadMoreCategories();
               }
             },
-          }
+          },
         )}
         scrollEventThrottle={400}
         showsVerticalScrollIndicator={false}
@@ -1241,7 +1241,7 @@ export default function ShopDetails() {
                     vendor={vendorMeta}
                   />
                 </View>
-              )
+              ),
             )
           ) : (
             <View style={styles.emptyStateContainer}>

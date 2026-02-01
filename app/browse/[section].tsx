@@ -157,7 +157,7 @@ const BrowseSectionScreen: React.FC = () => {
     setError(null);
     try {
       const response = await fetch(
-        `${API_URL}/api/public/collections/featured`
+        `${API_URL}/api/public/collections/featured`,
       );
       if (!response.ok) {
         throw new Error("Unable to load collections");
@@ -183,8 +183,8 @@ const BrowseSectionScreen: React.FC = () => {
     try {
       const response = await fetch(
         `${API_URL}/api/search?q=${encodeURIComponent(
-          query
-        )}&type=products&page=1&limit=60`
+          query,
+        )}&type=products&page=1&limit=60`,
       );
       if (!response.ok) {
         throw new Error("Search request failed");
@@ -209,13 +209,13 @@ const BrowseSectionScreen: React.FC = () => {
           await Promise.all([
             fetch(`${API_URL}/api/public/products/trending?page=1&limit=30`),
             fetch(
-              `${API_URL}/api/public/products/new-arrivals?page=1&limit=30`
+              `${API_URL}/api/public/products/new-arrivals?page=1&limit=30`,
             ),
             fetch(
-              `${API_URL}/api/public/products?limit=40&sortBy=orders&sortOrder=desc`
+              `${API_URL}/api/public/products?limit=40&sortBy=orders&sortOrder=desc`,
             ),
             fetch(
-              `${API_URL}/api/public/products?limit=30&sortBy=orders&sortOrder=desc`
+              `${API_URL}/api/public/products?limit=30&sortBy=orders&sortOrder=desc`,
             ),
           ]);
 
@@ -230,13 +230,13 @@ const BrowseSectionScreen: React.FC = () => {
             parseProducts(arrivalsRes),
             parseProducts(flashRes),
             parseProducts(topRatedRes),
-          ]
+          ],
         );
 
         const flashDeals = flashPool
           .filter(
             (p) =>
-              p.discountedPrice !== undefined && p.discountedPrice < p.price
+              p.discountedPrice !== undefined && p.discountedPrice < p.price,
           )
           .slice(0, 20);
 
@@ -246,14 +246,14 @@ const BrowseSectionScreen: React.FC = () => {
             ...topRatedPool.slice(0, 20),
             ...trending.slice(0, 20),
             ...arrivals.slice(0, 20),
-          ])
+          ]),
         );
         return;
       }
 
       if (sectionKey === "trending") {
         const response = await fetch(
-          `${API_URL}/api/public/products/trending?page=1&limit=60`
+          `${API_URL}/api/public/products/trending?page=1&limit=60`,
         );
         const json = await response.json();
         setProducts((json.data || []).map(mapProductResponse));
@@ -262,7 +262,7 @@ const BrowseSectionScreen: React.FC = () => {
 
       if (sectionKey === "fresh") {
         const response = await fetch(
-          `${API_URL}/api/public/products/new-arrivals?page=1&limit=60`
+          `${API_URL}/api/public/products/new-arrivals?page=1&limit=60`,
         );
         const json = await response.json();
         setProducts((json.data || []).map(mapProductResponse));
@@ -271,7 +271,7 @@ const BrowseSectionScreen: React.FC = () => {
 
       if (sectionKey === "nearby") {
         const response = await fetch(
-          `${API_URL}/api/public/products?limit=60&sortBy=price&sortOrder=asc`
+          `${API_URL}/api/public/products?limit=60&sortBy=price&sortOrder=asc`,
         );
         const json = await response.json();
         setProducts((json.data || []).map(mapProductResponse));
@@ -280,7 +280,7 @@ const BrowseSectionScreen: React.FC = () => {
 
       if (sectionKey === "essentials" || sectionKey === "beauty") {
         const response = await fetch(
-          `${API_URL}/api/public/products?limit=80&sortBy=orders&sortOrder=desc`
+          `${API_URL}/api/public/products?limit=80&sortBy=orders&sortOrder=desc`,
         );
         const json = await response.json();
         const pool: Product[] = (json.data || []).map(mapProductResponse);
@@ -293,7 +293,7 @@ const BrowseSectionScreen: React.FC = () => {
 
       // Default fallback: trending
       const response = await fetch(
-        `${API_URL}/api/public/products/trending?page=1&limit=60`
+        `${API_URL}/api/public/products/trending?page=1&limit=60`,
       );
       const json = await response.json();
       setProducts((json.data || []).map(mapProductResponse));
@@ -324,7 +324,7 @@ const BrowseSectionScreen: React.FC = () => {
       const item = cartItems.find((c) => c.id === productId);
       return item ? item.quantity : 0;
     },
-    [cartItems]
+    [cartItems],
   );
 
   const handleAdd = useCallback(
@@ -342,7 +342,7 @@ const BrowseSectionScreen: React.FC = () => {
       } as any;
       addToCart(cartItem);
     },
-    [addToCart]
+    [addToCart],
   );
 
   const handleRemove = useCallback(
@@ -354,7 +354,7 @@ const BrowseSectionScreen: React.FC = () => {
         removeFromCart(productId);
       }
     },
-    [cartItems, removeFromCart, updateQuantity]
+    [cartItems, removeFromCart, updateQuantity],
   );
 
   const handleProductPress = useCallback((product: Product) => {
@@ -390,7 +390,7 @@ const BrowseSectionScreen: React.FC = () => {
         />
       </View>
     ),
-    [getCartQuantity, handleAdd, handleRemove, handleProductPress]
+    [getCartQuantity, handleAdd, handleRemove, handleProductPress],
   );
 
   const renderCollection = useCallback(
@@ -415,7 +415,7 @@ const BrowseSectionScreen: React.FC = () => {
         <Ionicons name="chevron-forward" size={20} color={PrimaryColor} />
       </TouchableOpacity>
     ),
-    []
+    [],
   );
 
   const dataIsEmpty = useMemo(() => {

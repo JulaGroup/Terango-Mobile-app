@@ -101,7 +101,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
       setError(null);
 
       const response = await fetch(
-        `${API_URL}/api/public/products/terango-featured?limit=10`
+        `${API_URL}/api/public/products/terango-featured?limit=10`,
       );
 
       if (!response.ok) {
@@ -134,7 +134,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
         entityType: "SHOP",
       });
     },
-    [addToCart]
+    [addToCart],
   );
 
   const handleProductPress = (productId: string) => {
@@ -158,7 +158,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
         };
         return { raw: item, product };
       }),
-    [products]
+    [products],
   );
 
   const renderProductCard = ({ item }: { item: (typeof listData)[0] }) => (

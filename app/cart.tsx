@@ -75,7 +75,7 @@ export default function Cart() {
           style: "destructive",
           onPress: clearCart,
         },
-      ]
+      ],
     );
   };
 
@@ -152,13 +152,13 @@ export default function Cart() {
                   "Failed to load cart item image for:",
                   item.name,
                   "URL:",
-                  item.imageUrl
+                  item.imageUrl,
                 );
               }}
               onLoad={() => {
                 console.log(
                   "Successfully loaded cart item image for:",
-                  item.name
+                  item.name,
                 );
               }}
             />
