@@ -162,7 +162,7 @@ export default function VendorOrdersEnhanced() {
       "🔄 Orders effect triggered - vendor:",
       vendor?.id,
       "business:",
-      currentBusiness?.id
+      currentBusiness?.id,
     );
     fetchOrders();
   }, [fetchOrders]); // fetchOrders already depends on vendor and currentBusiness
@@ -179,7 +179,7 @@ export default function VendorOrdersEnhanced() {
     // Sort by creation date (newest first)
     filtered.sort(
       (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
     setFilteredOrders(filtered);
@@ -194,7 +194,7 @@ export default function VendorOrdersEnhanced() {
       delivered: orders.filter((o) => o.status === "DELIVERED").length,
       totalRevenue: orders.reduce(
         (sum, order) => sum + (order.subtotalAmount || order.totalAmount || 0),
-        0
+        0,
       ),
     };
   }, [orders]);
@@ -257,7 +257,7 @@ export default function VendorOrdersEnhanced() {
       | "READY"
       | "DISPATCHED"
       | "DELIVERED"
-      | "CANCELLED"
+      | "CANCELLED",
   ) => {
     try {
       await orderApi.updateOrderStatus(orderId, newStatus);
@@ -342,6 +342,28 @@ export default function VendorOrdersEnhanced() {
               {item.items?.length || 0}{" "}
               {item.items?.length === 1 ? "item" : "items"}
             </Text>
+            {item.items && item.items.length > 0 && (
+              <View style={styles.orderItemsList}>
+                {item.items.slice(0, 3).map((orderItem, index) => (
+                  <Text
+                    key={index}
+                    style={styles.orderItemPreview}
+                    numberOfLines={1}
+                  >
+                    •{" "}
+                    {orderItem.menuItem?.name ||
+                      orderItem.product?.name ||
+                      "Item"}{" "}
+                    x{orderItem.quantity}
+                  </Text>
+                ))}
+                {item.items.length > 3 && (
+                  <Text style={styles.orderItemPreview}>
+                    • +{item.items.length - 3} more...
+                  </Text>
+                )}
+              </View>
+            )}
             <Text style={styles.totalAmount}>
               GMD {(item.subtotalAmount || item.totalAmount)?.toLocaleString()}
             </Text>
@@ -376,7 +398,7 @@ export default function VendorOrdersEnhanced() {
                         onPress: () =>
                           handleUpdateStatus(item.id, action.status),
                       },
-                    ]
+                    ],
                   );
                 }}
               >
@@ -397,7 +419,7 @@ export default function VendorOrdersEnhanced() {
     title: string,
     value: number | string,
     icon: string,
-    color: string
+    color: string,
   ) => (
     <View style={[styles.statsCard, { borderLeftColor: color }]}>
       <View
@@ -467,25 +489,25 @@ export default function VendorOrdersEnhanced() {
               "Total",
               stats.total,
               "receipt-outline",
-              "#2196F3"
+              "#2196F3",
             )}
             {renderStatsCard(
               "Pending",
               stats.pending,
               "time-outline",
-              "#FF9800"
+              "#FF9800",
             )}
             {renderStatsCard(
               "Preparing",
               stats.preparing,
               "restaurant-outline",
-              "#9C27B0"
+              "#9C27B0",
             )}
             {renderStatsCard(
               "Revenue",
               `${(stats.totalRevenue / 1000).toFixed(0)}K`,
               "cash-outline",
-              "#4CAF50"
+              "#4CAF50",
             )}
           </ScrollView>
 
@@ -509,7 +531,7 @@ export default function VendorOrdersEnhanced() {
                 Active (
                 {
                   orders.filter(
-                    (o) => !["DELIVERED", "CANCELLED"].includes(o.status)
+                    (o) => !["DELIVERED", "CANCELLED"].includes(o.status),
                   ).length
                 }
                 )
@@ -536,7 +558,7 @@ export default function VendorOrdersEnhanced() {
                 Completed (
                 {
                   orders.filter((o) =>
-                    ["DELIVERED", "CANCELLED"].includes(o.status)
+                    ["DELIVERED", "CANCELLED"].includes(o.status),
                   ).length
                 }
                 )
@@ -720,7 +742,7 @@ export default function VendorOrdersEnhanced() {
                       Alert.alert(
                         "Track Order",
                         "Tracking feature coming soon!",
-                        [{ text: "OK" }]
+                        [{ text: "OK" }],
                       );
                     }}
                   >
@@ -1179,6 +1201,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#F57C00",
     fontWeight: "600",
+  },
+  orderItemsList: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  orderItemPreview: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 4,
   },
   vendorNote: {
     fontSize: 11,

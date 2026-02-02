@@ -183,11 +183,11 @@ export default function VendorMenuEnhanced() {
       mealTime: validateField("mealTime", formData.mealTime),
       preparationTime: validateField(
         "preparationTime",
-        formData.preparationTime
+        formData.preparationTime,
       ),
       discountedPrice: validateField(
         "discountedPrice",
-        formData.discountedPrice
+        formData.discountedPrice,
       ),
     };
 
@@ -211,7 +211,7 @@ export default function VendorMenuEnhanced() {
 
     const error = validateField(
       field,
-      formData[field as keyof typeof formData] as string
+      formData[field as keyof typeof formData] as string,
     );
     setFormErrors((prev) => ({ ...prev, [field]: error }));
   };
@@ -261,7 +261,7 @@ export default function VendorMenuEnhanced() {
     if (!currentBusiness || currentBusiness.type !== "RESTAURANT") {
       console.log(
         "🏪 No current business or not a restaurant:",
-        currentBusiness
+        currentBusiness,
       );
       setMenuItems([]);
       return;
@@ -273,7 +273,7 @@ export default function VendorMenuEnhanced() {
 
       // Use the correct API endpoint that matches your VM system
       const response = await menuApi.getMenuItemsByRestaurant(
-        currentBusiness.id
+        currentBusiness.id,
       );
       console.log("📋 Menu items response:", response);
 
@@ -282,14 +282,14 @@ export default function VendorMenuEnhanced() {
         console.log(
           "✅ Menu items data (from response.data):",
           menuItemsData.length,
-          "items"
+          "items",
         );
         setMenuItems(menuItemsData);
       } else if (Array.isArray(response)) {
         console.log(
           "✅ Menu items data (direct array):",
           response.length,
-          "items"
+          "items",
         );
         setMenuItems(response);
       } else {
@@ -344,23 +344,23 @@ export default function VendorMenuEnhanced() {
               await menuApi.updateMenuItemAvailability(itemId, isAvailable);
               setMenuItems((prevItems) =>
                 prevItems.map((item) =>
-                  item.id === itemId ? { ...item, isAvailable } : item
-                )
+                  item.id === itemId ? { ...item, isAvailable } : item,
+                ),
               );
               Alert.alert(
                 "Success",
-                `Menu item ${isAvailable ? "enabled" : "disabled"} successfully`
+                `Menu item ${isAvailable ? "enabled" : "disabled"} successfully`,
               );
             } catch (error) {
               console.error("Error updating availability:", error);
               Alert.alert(
                 "Error",
-                "Failed to update item availability. Please try again."
+                "Failed to update item availability. Please try again.",
               );
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -443,7 +443,7 @@ export default function VendorMenuEnhanced() {
     if (!validateForm()) {
       Alert.alert(
         "Validation Error",
-        "Please fix the errors in the form before saving."
+        "Please fix the errors in the form before saving.",
       );
       return;
     }
@@ -491,13 +491,13 @@ export default function VendorMenuEnhanced() {
       await fetchMenuItems();
       Alert.alert(
         "Success",
-        `Menu item ${editMode ? "updated" : "added"} successfully`
+        `Menu item ${editMode ? "updated" : "added"} successfully`,
       );
     } catch (error) {
       console.error("Error saving menu item:", error);
       Alert.alert(
         "Error",
-        `Failed to ${editMode ? "update" : "add"} menu item`
+        `Failed to ${editMode ? "update" : "add"} menu item`,
       );
     }
   };
@@ -516,7 +516,7 @@ export default function VendorMenuEnhanced() {
   const getMenuSummary = () => {
     const availableItems = menuItems.filter((item) => item.isAvailable).length;
     const unavailableItems = menuItems.filter(
-      (item) => !item.isAvailable
+      (item) => !item.isAvailable,
     ).length;
     const totalItems = menuItems.length;
     return { availableItems, unavailableItems, totalItems };
@@ -541,7 +541,7 @@ export default function VendorMenuEnhanced() {
         {
           compress: 0.7, // 70% quality (good balance between quality and size)
           format: ImageManipulator.SaveFormat.JPEG,
-        }
+        },
       );
 
       console.log("✅ Image compressed successfully");
@@ -604,7 +604,7 @@ export default function VendorMenuEnhanced() {
       if (permissionResult.granted === false) {
         Alert.alert(
           "Permission Required",
-          "Permission to access camera roll is required!"
+          "Permission to access camera roll is required!",
         );
         return;
       }
@@ -652,7 +652,7 @@ export default function VendorMenuEnhanced() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -708,11 +708,11 @@ export default function VendorMenuEnhanced() {
 
         {/* Item Info */}
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName} numberOfLines={1}>
+          <Text style={styles.itemName} numberOfLines={2}>
             {item.name}
           </Text>
           {item.description && (
-            <Text style={styles.itemDescription} numberOfLines={2}>
+            <Text style={styles.itemDescription} numberOfLines={3}>
               {item.description}
             </Text>
           )}
@@ -793,7 +793,7 @@ export default function VendorMenuEnhanced() {
   const renderMenuItem = useCallback(
     ({ item }: { item: MenuItem }) => <MenuItemCard item={item} />,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   if (currentBusiness?.type !== "RESTAURANT") {
@@ -988,8 +988,6 @@ export default function VendorMenuEnhanced() {
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.flatListContent}
-            numColumns={2}
-            columnWrapperStyle={styles.columnWrapper}
             // 🚀 Performance optimizations
             removeClippedSubviews={true}
             maxToRenderPerBatch={10}
@@ -1262,7 +1260,7 @@ export default function VendorMenuEnhanced() {
                             ((parseFloat(formData.price) -
                               parseFloat(formData.discountedPrice)) /
                               parseFloat(formData.price)) *
-                              100
+                              100,
                           )}
                           % OFF - Customers will see this discount badge
                         </Text>
@@ -1860,17 +1858,18 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderRadius: 15,
     marginBottom: 15,
-    width: (width - 45) / 2, // 2 columns with padding
+    marginHorizontal: 15,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
     overflow: "hidden",
+    flexDirection: "row",
   },
   itemImageContainer: {
-    width: "100%",
-    height: 120,
+    width: 140,
+    height: 140,
     position: "relative",
   },
   itemImage: {
@@ -1908,18 +1907,21 @@ const styles = StyleSheet.create({
   },
   itemInfo: {
     padding: 12,
+    flex: 1,
   },
   itemName: {
     fontSize: 16,
     fontWeight: "700",
     color: "#333",
     marginBottom: 4,
+    flexWrap: "wrap",
   },
   itemDescription: {
     fontSize: 12,
     color: "#666",
     lineHeight: 16,
     marginBottom: 8,
+    flexWrap: "wrap",
   },
   itemDetails: {
     flexDirection: "row",

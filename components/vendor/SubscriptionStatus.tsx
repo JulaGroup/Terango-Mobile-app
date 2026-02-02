@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { API_URL } from "@/constants/config";
 
 interface SubscriptionPackage {
@@ -84,14 +84,18 @@ export default function SubscriptionStatus() {
   const fetchSubscription = async () => {
     try {
       setError(null);
-      // Try both possible token storage keys for vendor authentication
-      let token = await AsyncStorage.getItem("token");
-      if (!token) {
-        token = await AsyncStorage.getItem("@auth_token");
-      }
-      if (!token) {
-        token = await AsyncStorage.getItem("@vendor_token");
-      }
+      // Get token from SecureStore (where it's actually stored)
+      const token = await SecureStore.getItemAsync("token");
+
+      console.log("🔍 [SUBSCRIPTION] Token found:", token ? "YES" : "NO");
+      console.log(
+        "🔍 [SUBSCRIPTION] Token preview:",
+        token?.substring(0, 20) + "...",
+      );
+      console.log(
+        "🔍 [SUBSCRIPTION] API URL:",
+        `${API_URL}/api/subscriptions/my-subscription`,
+      );
 
       if (!token) {
         setError("Not authenticated");
@@ -106,6 +110,8 @@ export default function SubscriptionStatus() {
         },
       );
 
+      console.log("🔍 [SUBSCRIPTION] Response:", response.data);
+
       if (response.data.subscription) {
         setSubscription(response.data.subscription);
       } else {
@@ -113,9 +119,10 @@ export default function SubscriptionStatus() {
       }
     } catch (error: any) {
       console.error(
-        "Failed to fetch subscription:",
+        "❌ [SUBSCRIPTION] Failed to fetch subscription:",
         error.response?.data || error.message,
       );
+      console.error("❌ [SUBSCRIPTION] Status:", error.response?.status);
       // Check if it's a 404 (no subscription) vs actual error
       if (
         error.response?.status === 404 ||
@@ -230,7 +237,7 @@ export default function SubscriptionStatus() {
           <View style={styles.headerLeft}>
             <Ionicons
               name={getPackageIcon(subscription.package.name) as any}
-              size={32}
+              size={24}
               color="white"
             />
             <View style={styles.headerTextContainer}>
@@ -239,7 +246,7 @@ export default function SubscriptionStatus() {
               </Text>
               {subscription.isTrial && (
                 <View style={styles.trialBadge}>
-                  <Ionicons name="gift" size={12} color="white" />
+                  <Ionicons name="gift" size={10} color="white" />
                   <Text style={styles.trialBadgeText}>FREE TRIAL</Text>
                 </View>
               )}
@@ -372,7 +379,7 @@ export default function SubscriptionStatus() {
         {/* Subscription Details */}
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Start Date</Text>
               <Text style={styles.detailValue}>
@@ -386,7 +393,7 @@ export default function SubscriptionStatus() {
           </View>
 
           <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+            <Ionicons name="calendar-outline" size={16} color="#6B7280" />
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>End Date</Text>
               <Text style={styles.detailValue}>
@@ -400,7 +407,7 @@ export default function SubscriptionStatus() {
           </View>
 
           <View style={styles.detailRow}>
-            <Ionicons name="cash-outline" size={20} color="#6B7280" />
+            <Ionicons name="cash-outline" size={16} color="#6B7280" />
             <View style={styles.detailTextContainer}>
               <Text style={styles.detailLabel}>Price</Text>
               <Text style={styles.detailValue}>
@@ -413,7 +420,7 @@ export default function SubscriptionStatus() {
       </View>
 
       {/* Features Card */}
-      <View style={styles.featuresCard}>
+      {/* <View style={styles.featuresCard}>
         <Text style={styles.featuresTitle}>Your Plan Features</Text>
         <View style={styles.featuresGrid}>
           {subscription.package.maxProducts && (
@@ -451,7 +458,7 @@ export default function SubscriptionStatus() {
             </Text>
           </View>
         </View>
-      </View>
+      </View> */}
 
       {/* Renew/Upgrade Buttons */}
       {isExpiringSoon && (
@@ -549,32 +556,32 @@ const styles = StyleSheet.create({
     color: "white",
   },
   card: {
-    margin: 16,
+    marginVertical: 8,
     backgroundColor: "white",
-    borderRadius: 16,
+    borderRadius: 12,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
+    padding: 12,
   },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   headerTextContainer: {
-    gap: 6,
+    gap: 4,
   },
   packageName: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "700",
     color: "white",
   },
@@ -603,7 +610,7 @@ const styles = StyleSheet.create({
     color: "white",
   },
   timerContainer: {
-    padding: 20,
+    padding: 12,
     backgroundColor: "#F3F4F6",
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
@@ -612,11 +619,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF3C7",
   },
   timerLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "600",
     color: "#6B7280",
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   timerLabelExpiring: {
     color: "#D97706",
@@ -630,18 +637,18 @@ const styles = StyleSheet.create({
   timerBox: {
     alignItems: "center",
     backgroundColor: "white",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    minWidth: 70,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    minWidth: 50,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   timerValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
     color: "#111827",
   },
@@ -649,16 +656,16 @@ const styles = StyleSheet.create({
     color: "#D97706",
   },
   timerUnit: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "600",
     color: "#6B7280",
-    marginTop: 2,
+    marginTop: 1,
   },
   timerUnitExpiring: {
     color: "#92400E",
   },
   timerColon: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
     color: "#6B7280",
   },
@@ -666,24 +673,24 @@ const styles = StyleSheet.create({
     color: "#D97706",
   },
   detailsContainer: {
-    padding: 20,
-    gap: 16,
+    padding: 12,
+    gap: 10,
   },
   detailRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 8,
   },
   detailTextContainer: {
     flex: 1,
   },
   detailLabel: {
-    fontSize: 13,
+    fontSize: 11,
     color: "#6B7280",
-    marginBottom: 2,
+    marginBottom: 1,
   },
   detailValue: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "600",
     color: "#111827",
   },
