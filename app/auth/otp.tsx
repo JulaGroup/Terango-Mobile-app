@@ -26,10 +26,6 @@ export default function OTP() {
   const spinValue = useRef(new Animated.Value(0)).current;
   const pulseValue = useRef(new Animated.Value(1)).current;
 
-  // Loader animations
-  const spinValue = useRef(new Animated.Value(0)).current;
-  const pulseValue = useRef(new Animated.Value(1)).current;
-
   // Start animations when loading
   useEffect(() => {
     if (loading) {
