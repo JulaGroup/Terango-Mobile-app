@@ -31,7 +31,8 @@
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.INTERNET",
         "android.permission.POST_NOTIFICATIONS"
-      ]
+      ],
+      "privacyPolicy": "https://terango.gm/privacy-policy.html"
     },
     "web": {
       "bundler": "metro",
