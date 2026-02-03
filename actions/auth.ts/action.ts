@@ -111,7 +111,7 @@ export const verifyOtp = async ({
     // This is done in the background and doesn't block user navigation
     // The useRegisterPushToken hook will pick up the userId and complete registration
     console.log(
-      "[Auth] ✅ OTP verified and auth stored. Push token registration will happen via useRegisterPushToken hook"
+      "[Auth] ✅ OTP verified and auth stored. Push token registration will happen via useRegisterPushToken hook",
     );
 
     return isNewUser;
@@ -125,30 +125,28 @@ export const verifyOtp = async ({
 export const completeProfile = async ({
   userId,
   name,
-  email,
 }: {
   userId: string;
   name: string;
-  email: string;
 }) => {
   try {
     const token = await safeGetItem("token");
 
     const res = await axios.post(
       `${API_URL}/api/users/${userId}/profile`,
-      { name, email },
+      { name },
       {
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }
+      },
     );
 
     return res.data;
   } catch (err: any) {
     console.error("Complete profile error:", err.response?.data || err.message);
     throw new Error(
-      err.response?.data?.message || "Failed to complete profile"
+      err.response?.data?.message || "Failed to complete profile",
     );
   }
 };

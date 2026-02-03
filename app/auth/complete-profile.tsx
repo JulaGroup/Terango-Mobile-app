@@ -70,7 +70,7 @@ export default function CompleteProfile() {
           style: "destructive",
           onPress: () => router.replace("/auth"),
         },
-      ]
+      ],
     );
   };
 
@@ -82,7 +82,7 @@ export default function CompleteProfile() {
       Alert.alert(
         "Terms Required",
         "Please accept the Terms and Conditions to continue",
-        [{ text: "OK", onPress: () => setShowTermsModal(true) }]
+        [{ text: "OK", onPress: () => setShowTermsModal(true) }],
       );
       return;
     }
@@ -101,12 +101,11 @@ export default function CompleteProfile() {
         const userId = await SecureStore.getItemAsync("userId");
         if (!userId) throw new Error("User ID not found");
 
-        await completeProfile({ userId, name, email: "" });
+        await completeProfile({ userId, name });
 
         // Cache the user data immediately after profile completion
         await UserCacheManager.cacheUserData({
           fullName: name,
-          email: "",
           phone: "", // Will be updated when user adds phone
           isVerified: false, // New profiles start unverified
         });

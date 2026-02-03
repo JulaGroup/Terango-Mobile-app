@@ -27,7 +27,6 @@ import EditProfileModal from "@/components/modals/EditProfileModal";
 export default function ProfilePage() {
   const [user, setUser] = useState<{
     fullName?: string;
-    email?: string;
     phone?: string;
     role?: string;
     avatarUrl?: string;
@@ -76,7 +75,7 @@ export default function ProfilePage() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
 
         console.log("Profile data fetched successfully:", response.data);
@@ -88,7 +87,6 @@ export default function ProfilePage() {
 
         setUser({
           fullName: userData?.fullName,
-          email: userData?.email,
           phone: userData?.phone || userPhone,
           role: userData?.role,
           avatarUrl: userData?.avatarUrl || profileData?.avatarUrl,
@@ -111,7 +109,7 @@ export default function ProfilePage() {
               };
               console.log(
                 "✅ Setting vendor application data:",
-                applicationData
+                applicationData,
               );
               setVendorApplication(applicationData);
 
@@ -127,20 +125,20 @@ export default function ProfilePage() {
                         Alert.alert(
                           "Vendor Web Portal",
                           "Visit our vendor web portal on your computer or tablet to manage your products, view orders, and track your business analytics. The web portal provides better tools for business management.",
-                          [{ text: "OK" }]
+                          [{ text: "OK" }],
                         ),
                     },
                     {
                       text: "OK",
                       style: "cancel",
                     },
-                  ]
+                  ],
                 );
               }
             } else {
               // No application data returned
               console.log(
-                "❌ No vendor application data found, setting to null"
+                "❌ No vendor application data found, setting to null",
               );
               setVendorApplication(null);
             }
@@ -148,7 +146,7 @@ export default function ProfilePage() {
             // If no application found (404), that's fine - user hasn't applied yet
             if (error.message?.includes("No application found")) {
               console.log(
-                "❌ No vendor application found (404), setting to null"
+                "❌ No vendor application found (404), setting to null",
               );
               setVendorApplication(null);
             } else {
@@ -158,7 +156,7 @@ export default function ProfilePage() {
         } else {
           // User is already a vendor, clear any application status
           console.log(
-            "👑 User is already a vendor, clearing application status"
+            "👑 User is already a vendor, clearing application status",
           );
           setVendorApplication(null);
         }
@@ -201,6 +199,79 @@ export default function ProfilePage() {
     setUser(updatedUser);
   };
 
+  const handleDeleteAccount = async () => {
+    Alert.alert(
+      "Delete Account",
+      "Are you sure you want to delete your account? This action cannot be undone.\n\n• All your data will be permanently deleted\n• Active orders must be completed first\n• Vendors must deactivate their shop first",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: confirmDeleteAccount,
+        },
+      ],
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      const token = await SecureStorage.getItem("token");
+
+      if (!token) {
+        Alert.alert("Error", "You must be logged in to delete your account");
+        return;
+      }
+
+      // Show loading indicator
+      Alert.alert("Deleting Account", "Please wait...", [], {
+        cancelable: false,
+      });
+
+      const response = await axios.delete(
+        `${API_URL}/api/auth/delete-account`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (response.status === 200) {
+        // Clear all user data
+        await SecureStorage.removeItem("token");
+        await SecureStorage.removeItem("userId");
+        await SecureStorage.removeItem("userPhone");
+        await SecureStorage.removeItem("userData");
+
+        Alert.alert(
+          "Account Deleted",
+          "Your account has been successfully deleted. We're sorry to see you go!",
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                setUser(null);
+                router.replace("/auth");
+              },
+            },
+          ],
+        );
+      }
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+
+      const errorMessage =
+        error.response?.data?.error ||
+        "Failed to delete account. Please try again or contact support.";
+
+      Alert.alert("Error", errorMessage);
+    }
+  };
+
   useEffect(() => {
     // Start skeleton animation
     const skeletonAnimation = Animated.loop(
@@ -215,7 +286,7 @@ export default function ProfilePage() {
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     if (loading) {
@@ -258,7 +329,7 @@ export default function ProfilePage() {
   useFocusEffect(
     useCallback(() => {
       fetchUserData();
-    }, [fetchUserData])
+    }, [fetchUserData]),
   );
 
   const handleLogout = async () => {
@@ -287,7 +358,7 @@ export default function ProfilePage() {
           Alert.alert(
             "Application Submitted",
             `Your vendor application for "${vendorApplication.businessName}" is currently being reviewed. We'll notify you once a decision has been made.`,
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
           break;
         case "APPROVED":
@@ -306,17 +377,17 @@ export default function ProfilePage() {
                   Alert.alert(
                     "New Application",
                     "To submit a new vendor application, please contact our support team who will guide you through the process.",
-                    [{ text: "OK" }]
+                    [{ text: "OK" }],
                   ),
               },
-            ]
+            ],
           );
           break;
         case "WAITING_LIST":
           Alert.alert(
             "Application on Waiting List",
             `Your vendor application for "${vendorApplication.businessName}" has been placed on our waiting list. We'll contact you when a spot becomes available.`,
-            [{ text: "OK" }]
+            [{ text: "OK" }],
           );
           break;
         default:
@@ -344,7 +415,7 @@ export default function ProfilePage() {
             router.push("/vendor-application");
           },
         },
-      ]
+      ],
     );
   };
 
@@ -378,6 +449,13 @@ export default function ProfilePage() {
       title: "Help & Support",
       subtitle: "Get help or contact support",
       onPress: () => setShowHelpModal(true),
+    },
+    {
+      icon: "trash-outline",
+      title: "Delete Account",
+      subtitle: "Permanently delete your account",
+      onPress: handleDeleteAccount,
+      danger: true,
     },
   ];
 
@@ -683,16 +761,6 @@ export default function ProfilePage() {
             </View>
 
             <View style={styles.infoRow}>
-              <Ionicons name="mail-outline" size={20} color="#FF6B35" />
-              <View style={styles.infoText}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>
-                  {user?.email || "Not available"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.infoRow}>
               <Ionicons name="call-outline" size={20} color="#FF6B35" />
               <View style={styles.infoText}>
                 <Text style={styles.infoLabel}>Phone</Text>
@@ -771,15 +839,31 @@ export default function ProfilePage() {
           {menuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
-              style={styles.menuItem}
+              style={[styles.menuItem, item.danger && styles.menuItemDanger]}
               onPress={item.onPress}
             >
               <View style={styles.menuItemLeft}>
-                <View style={styles.menuIcon}>
-                  <Ionicons name={item.icon as any} size={20} color="#FF6B35" />
+                <View
+                  style={[
+                    styles.menuIcon,
+                    item.danger && styles.menuIconDanger,
+                  ]}
+                >
+                  <Ionicons
+                    name={item.icon as any}
+                    size={20}
+                    color={item.danger ? "#EF4444" : "#FF6B35"}
+                  />
                 </View>
                 <View>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  <Text
+                    style={[
+                      styles.menuTitle,
+                      item.danger && styles.menuTitleDanger,
+                    ]}
+                  >
+                    {item.title}
+                  </Text>
                   <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                 </View>
               </View>
@@ -1115,16 +1199,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: 16,
   },
+  menuIconDanger: {
+    backgroundColor: "#FEE2E2",
+  },
   menuTitle: {
     fontSize: 16,
     fontWeight: "600",
     color: "#111827",
     marginBottom: 2,
   },
+  menuTitleDanger: {
+    color: "#EF4444",
+  },
   menuSubtitle: {
     fontSize: 13,
     color: "#6B7280",
     lineHeight: 18,
+  },
+  menuItemDanger: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#EF4444",
   },
 
   // Logout Button - Matching Vendor Button Style
