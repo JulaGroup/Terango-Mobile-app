@@ -22,6 +22,11 @@
         "foregroundImage": "./assets/App-Icon.jpg",
         "backgroundColor": "#ffffff"
       },
+      "splash": {
+        "image": "./assets/images/splash-icon.jpg",
+        "resizeMode": "contain",
+        "backgroundColor": "#ffffff"
+      },
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "package": "com.darboedev.terango",
