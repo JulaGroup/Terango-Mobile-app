@@ -138,14 +138,16 @@ export default function RootLayout() {
           console.log("[DeepLink] No browser to dismiss");
         });
 
-        // Extract paymentId from URL if present
+        // Extract paymentId and orderId from URL if present
         const urlParams = new URLSearchParams(url.split("?")[1]);
         const paymentId = urlParams.get("paymentId");
+        const urlOrderId = urlParams.get("orderId");
         console.log("[DeepLink] PaymentId from URL:", paymentId);
+        console.log("[DeepLink] OrderId from URL:", urlOrderId);
 
         // Check for recent successful order to get orderId
         const orderData = await getSuccessfulOrder();
-        let orderId = orderData?.orderId;
+        let orderId = urlOrderId || orderData?.orderId; // Prefer URL param
 
         // If no stored order data, try to find order by checking recent orders
         if (!orderId && paymentId) {

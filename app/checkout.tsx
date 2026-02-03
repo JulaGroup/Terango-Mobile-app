@@ -710,6 +710,7 @@ export default function Checkout() {
 
         // Step 3: Call delivery fee estimation API
         console.log("💰 Estimating delivery fee for vendor:", vendorId);
+        console.log("📦 Vendor type:", vendorType);
         const response = await fetch(`${API_URL}/api/delivery-fee/estimate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -964,6 +965,7 @@ export default function Checkout() {
           }
 
           // Prefer vendor-specific id on the item if present
+          // Note: For shops, vendorId field actually contains shopId
           const itemVendorId = vendorItems[0].vendorId || vendorId;
 
           // Validation: ensure we resolved a vendor id and entityType is set
@@ -1349,6 +1351,60 @@ export default function Checkout() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
+          {/* QUICK SUMMARY CARD AT TOP */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <View style={styles.quickSummaryCard}>
+              <Text style={styles.sectionTitle}>Order Details</Text>
+
+              {/* Order Type */}
+              <View style={styles.quickSummaryRow}>
+                <View style={styles.quickSummaryLabel}>
+                  <Ionicons
+                    name={
+                      form.orderType === "DELIVERY" ? "bicycle" : "bag-check"
+                    }
+                    size={20}
+                    color={PrimaryColor}
+                  />
+                  <Text style={styles.quickSummaryLabelText}>Type</Text>
+                </View>
+                <Text style={styles.quickSummaryValue}>
+                  {form.orderType === "DELIVERY" ? "🚴 Delivery" : "🛍️ Pickup"}
+                </Text>
+              </View>
+
+              {/* Payment Method */}
+              <View style={styles.quickSummaryRow}>
+                <View style={styles.quickSummaryLabel}>
+                  <Ionicons name="card" size={20} color={PrimaryColor} />
+                  <Text style={styles.quickSummaryLabelText}>Payment</Text>
+                </View>
+                <Text style={styles.quickSummaryValue}>
+                  📱 Wave Mobile Money
+                </Text>
+              </View>
+
+              {/* Total Amount */}
+              <View style={[styles.quickSummaryRow, styles.quickSummaryTotal]}>
+                <View style={styles.quickSummaryLabel}>
+                  <Ionicons name="cash" size={20} color={PrimaryColor} />
+                  <Text style={styles.quickSummaryLabelText}>Total</Text>
+                </View>
+                <Text style={styles.quickSummaryTotalValue}>
+                  D{total.toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </Animated.View>
+
           {/* Order Summary */}
           <Animated.View
             style={[
@@ -2742,6 +2798,49 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
     marginBottom: 16,
+  },
+  quickSummaryCard: {
+    backgroundColor: "#F0F9FF",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: -4,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  quickSummaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0F2FE",
+  },
+  quickSummaryTotal: {
+    borderBottomWidth: 0,
+    marginTop: 4,
+    paddingTop: 14,
+    borderTopWidth: 2,
+    borderTopColor: "#BFDBFE",
+  },
+  quickSummaryLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  quickSummaryLabelText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  quickSummaryValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  quickSummaryTotalValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: PrimaryColor,
   },
   restaurantOrder: {
     marginBottom: 16,

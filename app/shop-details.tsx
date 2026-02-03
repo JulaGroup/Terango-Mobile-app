@@ -25,6 +25,7 @@ import { OpeningHours } from "@/lib/api";
 import { formatDayLabel, formatTimeLabel } from "@/utils/openingHours";
 import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 import { VendorOrderingMeta } from "@/utils/vendorOrdering";
+import SearchBar from "@/components/common/SearchBar"; // Reuse app-wide search UI
 
 const HEADER_HEIGHT = 300;
 const STICKY_HEADER_HEIGHT = Platform.OS === "ios" ? 100 : 84;
@@ -488,6 +489,24 @@ export default function ShopDetails() {
     [key: string]: Product[];
   }>({});
 
+  // Filter grouped products by search text (client-side) so search works instantly
+  const filteredGroupedProducts = React.useMemo(() => {
+    if (!searchText || searchText.trim().length === 0) return groupedProducts;
+    const q = searchText.trim().toLowerCase();
+    const out: { [key: string]: Product[] } = {};
+    Object.entries(groupedProducts).forEach(([category, products]) => {
+      const matches = products.filter((p) => {
+        return (
+          p.name.toLowerCase().includes(q) ||
+          (p.description || "").toLowerCase().includes(q) ||
+          (p.subCategory?.name || "").toLowerCase().includes(q)
+        );
+      });
+      if (matches.length > 0) out[category] = matches;
+    });
+    return out;
+  }, [groupedProducts, searchText]);
+
   // Category tabs state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const scrollViewRef = useRef<ScrollView>(null);
@@ -760,7 +779,7 @@ export default function ShopDetails() {
       price: item.price,
       discountedPrice: item.discountedPrice, // Add discounted price
       description: item.description || "",
-      vendorId: shop.vendor?.id || shop.id,
+      vendorId: shop.id, // Use shopId for shop orders
       vendorName: shop.name,
       imageUrl: item.imageUrl || "",
       entityType: "shop",
@@ -1116,21 +1135,12 @@ export default function ShopDetails() {
           </View>
         </View>
         <View style={styles.searchBarWrapper}>
-          <View style={styles.searchBarContainer}>
-            <Ionicons
-              name="search"
-              size={20}
-              color="#999"
-              style={{ marginRight: 8 }}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder={`Search in ${shop.name}`}
-              placeholderTextColor="#999"
-              value={searchText}
-              onChangeText={setSearchText}
-            />
-          </View>
+          <SearchBar
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder={`Search in ${shop?.name || "shop"}`}
+            fullWidth
+          />
         </View>
 
         {orderingDisabled && (
@@ -1194,7 +1204,7 @@ export default function ShopDetails() {
           </View>
         </Animated.View>
         {/* Horizontal Scrollable Category Tabs - Uber Eats Style */}
-        {Object.keys(groupedProducts).length > 0 ? (
+        {Object.keys(filteredGroupedProducts).length > 0 ? (
           <View style={styles.categoryTabsContainer}>
             <ScrollView
               ref={categoryTabsRef}
@@ -1202,7 +1212,7 @@ export default function ShopDetails() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.categoryTabsContent}
             >
-              {Object.keys(groupedProducts).map((category) => (
+              {Object.keys(filteredGroupedProducts).map((category) => (
                 <TouchableOpacity
                   key={category}
                   style={[styles.categoryTab]}
@@ -1228,8 +1238,8 @@ export default function ShopDetails() {
 
         {/* Category Sections as Sliders */}
         <View style={styles.categoriesContainer}>
-          {Object.keys(groupedProducts).length > 0 ? (
-            Object.entries(groupedProducts).map(
+          {Object.keys(filteredGroupedProducts).length > 0 ? (
+            Object.entries(filteredGroupedProducts).map(
               ([category, products], index) => (
                 <View key={category}>
                   <CategorySection

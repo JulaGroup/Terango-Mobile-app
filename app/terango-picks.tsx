@@ -16,6 +16,7 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import SearchBar from "@/components/common/SearchBar"; // Reusable, animated search UI
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 columns with padding
@@ -61,6 +62,26 @@ export default function TeranGOPicksPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  // Search state (debounced) to provide smooth typing UX and avoid re-filtering on every keystroke
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(searchQuery.trim()), 250);
+    return () => clearTimeout(id);
+  }, [searchQuery]);
+
+  const filteredProducts = React.useMemo(() => {
+    if (!debouncedQuery) return products;
+    const q = debouncedQuery.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.brand || "").toLowerCase().includes(q) ||
+        (p.shop?.name || "").toLowerCase().includes(q),
+    );
+  }, [products, debouncedQuery]);
 
   const fetchProducts = useCallback(
     async (pageNum: number = 1, isRefresh: boolean = false) => {
@@ -132,9 +153,9 @@ export default function TeranGOPicksPage() {
       name: product.name,
       price: product.discountedPrice || product.price,
       imageUrl: product.imageUrl || "",
-      vendorId: product.shop?.vendorId || "terango-official",
-      vendorName: product.shop?.name || "TeranGO Official Store",
-      entityType: "SHOP",
+      vendorId: product.shop?.id || "terango-official", // Use shop ID, not vendor ID
+      vendorName: product.shop?.name || "T-Mart",
+      entityType: "shop", // Lowercase for consistency
     });
   };
 
@@ -221,6 +242,16 @@ export default function TeranGOPicksPage() {
         </Text>
       </View>
 
+      {/* Search */}
+      <View style={{ paddingVertical: 8 }}>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search TeranGO products..."
+          fullWidth
+        />
+      </View>
+
       {/* Products Grid */}
       {loading ? (
         <FlatList
@@ -232,7 +263,7 @@ export default function TeranGOPicksPage() {
         />
       ) : (
         <FlatList
-          data={products}
+          data={filteredProducts}
           numColumns={2}
           contentContainerStyle={styles.gridContainer}
           keyExtractor={(item) => item.id}
@@ -247,7 +278,21 @@ export default function TeranGOPicksPage() {
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={renderFooter}
-          ListEmptyComponent={renderEmpty}
+          ListEmptyComponent={() => (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cube-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyTitle}>
+                {debouncedQuery
+                  ? `No products found for "${debouncedQuery}"`
+                  : "No Products Yet"}
+              </Text>
+              <Text style={styles.emptySubtitle}>
+                {debouncedQuery
+                  ? "Try another search term"
+                  : "TeranGO products will appear here soon"}
+              </Text>
+            </View>
+          )}
         />
       )}
     </SafeAreaView>

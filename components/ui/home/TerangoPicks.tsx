@@ -129,7 +129,7 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
         name: product.name,
         price: product.discountedPrice || product.price,
         imageUrl: product.image || "",
-        vendorId: rawProduct.shop?.vendorId || "terango-official",
+        vendorId: rawProduct.shop?.id || "terango-official", // Use shopId for shop orders
         vendorName: rawProduct.shop?.name || "TeranGO Official Store",
         entityType: "SHOP",
       });

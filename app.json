@@ -10,7 +10,8 @@
     "scheme": ["teranggo"],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.darboedev.terango"
+      "bundleIdentifier": "com.darboedev.terango",
+      "associatedDomains": ["applinks:terango.gm"]
     },
     "splash": {
       "image": "./assets/images/splash-icon.jpg",
@@ -30,6 +31,25 @@
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "package": "com.darboedev.terango",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "terango.gm",
+              "pathPrefix": "/payment-success"
+            },
+            {
+              "scheme": "https",
+              "host": "terango.gm",
+              "pathPrefix": "/payment-cancel"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
