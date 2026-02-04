@@ -243,7 +243,13 @@ export default function TeranGOPicksPage() {
       </View>
 
       {/* Search */}
-      <View style={{ paddingVertical: 8 }}>
+      <View
+        style={{
+          paddingVertical: 8,
+          paddingHorizontal: 16,
+          // backgroundColor: "#fff",
+        }}
+      >
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}

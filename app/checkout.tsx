@@ -1351,351 +1351,6 @@ export default function Checkout() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
-          {/* QUICK SUMMARY CARD AT TOP */}
-          <Animated.View
-            style={[
-              styles.section,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <View style={styles.quickSummaryCard}>
-              <Text style={styles.sectionTitle}>Order Details</Text>
-
-              {/* Order Type */}
-              <View style={styles.quickSummaryRow}>
-                <View style={styles.quickSummaryLabel}>
-                  <Ionicons
-                    name={
-                      form.orderType === "DELIVERY" ? "bicycle" : "bag-check"
-                    }
-                    size={20}
-                    color={PrimaryColor}
-                  />
-                  <Text style={styles.quickSummaryLabelText}>Type</Text>
-                </View>
-                <Text style={styles.quickSummaryValue}>
-                  {form.orderType === "DELIVERY" ? "🚴 Delivery" : "🛍️ Pickup"}
-                </Text>
-              </View>
-
-              {/* Payment Method */}
-              <View style={styles.quickSummaryRow}>
-                <View style={styles.quickSummaryLabel}>
-                  <Ionicons name="card" size={20} color={PrimaryColor} />
-                  <Text style={styles.quickSummaryLabelText}>Payment</Text>
-                </View>
-                <Text style={styles.quickSummaryValue}>
-                  📱 Wave Mobile Money
-                </Text>
-              </View>
-
-              {/* Total Amount */}
-              <View style={[styles.quickSummaryRow, styles.quickSummaryTotal]}>
-                <View style={styles.quickSummaryLabel}>
-                  <Ionicons name="cash" size={20} color={PrimaryColor} />
-                  <Text style={styles.quickSummaryLabelText}>Total</Text>
-                </View>
-                <Text style={styles.quickSummaryTotalValue}>
-                  D{total.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          </Animated.View>
-
-          {/* Order Summary */}
-          <Animated.View
-            style={[
-              styles.section,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
-          >
-            <Text style={styles.sectionTitle}>Order Summary</Text>
-
-            {restaurantIds.map((restaurantId, index) => {
-              const restaurantItems = restaurantCarts[restaurantId];
-              const restaurantName =
-                restaurantItems[0]?.vendorName || "Restaurant";
-              // ✅ FIX: Use discounted price if available, otherwise use regular price
-              const restaurantTotal = restaurantItems.reduce((sum, item) => {
-                const itemPrice = item.discountedPrice || item.price;
-                return sum + itemPrice * item.quantity;
-              }, 0);
-
-              return (
-                <View key={restaurantId} style={styles.restaurantOrder}>
-                  <View style={styles.restaurantHeader}>
-                    <View style={styles.restaurantIcon}>
-                      <Ionicons
-                        name="restaurant"
-                        size={16}
-                        color={PrimaryColor}
-                      />
-                    </View>
-                    <Text style={styles.restaurantName}>{restaurantName}</Text>
-                  </View>
-
-                  {restaurantItems.map((item) => {
-                    // ✅ FIX: Display discounted price if available
-                    const itemPrice = item.discountedPrice || item.price;
-                    const itemTotal = itemPrice * item.quantity;
-                    const hasDiscount =
-                      item.discountedPrice && item.discountedPrice < item.price;
-
-                    return (
-                      <View key={item.id} style={styles.orderItem}>
-                        <Text style={styles.orderItemQuantity}>
-                          {item.quantity}x
-                        </Text>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.orderItemName}>{item.name}</Text>
-                          {hasDiscount && (
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                color: "#9CA3AF",
-                                marginTop: 2,
-                              }}
-                            >
-                              <Text
-                                style={{ textDecorationLine: "line-through" }}
-                              >
-                                D{item.price.toFixed(2)}
-                              </Text>
-                              {" → "}
-                              <Text
-                                style={{ color: "#EF4444", fontWeight: "600" }}
-                              >
-                                D{item.discountedPrice!.toFixed(2)}
-                              </Text>
-                            </Text>
-                          )}
-                        </View>
-                        <Text
-                          style={[
-                            styles.orderItemPrice,
-                            hasDiscount ? { color: "#EF4444" } : null,
-                          ]}
-                        >
-                          D{itemTotal.toFixed(2)}
-                        </Text>
-                      </View>
-                    );
-                  })}
-
-                  <View style={styles.restaurantTotal}>
-                    <Text style={styles.restaurantTotalText}>
-                      Total: D{restaurantTotal.toFixed(2)}
-                    </Text>
-                  </View>
-
-                  {index < restaurantIds.length - 1 && (
-                    <View style={styles.divider} />
-                  )}
-                </View>
-              );
-            })}
-
-            <View style={styles.orderTotals}>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>D{subtotal.toFixed(2)}</Text>
-              </View>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Service Fee</Text>
-                <Text style={styles.totalValue}>D{serviceFee.toFixed(2)}</Text>
-              </View>
-              {form.orderType === "DELIVERY" && (
-                <>
-                  <View style={styles.totalRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.totalLabel}>Delivery Fee</Text>
-                      {loadingDeliveryFee && (
-                        <View style={styles.distanceLoaderContainer}>
-                          <Ionicons
-                            name="location"
-                            size={14}
-                            color="#F97316"
-                            style={{ marginRight: 4 }}
-                          />
-                          <View style={styles.distanceLoaderDots}>
-                            <Animated.View
-                              style={[
-                                styles.distanceLoaderDot,
-                                { opacity: distanceDot1 },
-                              ]}
-                            />
-                            <Animated.View
-                              style={[
-                                styles.distanceLoaderDot,
-                                { opacity: distanceDot2 },
-                              ]}
-                            />
-                            <Animated.View
-                              style={[
-                                styles.distanceLoaderDot,
-                                { opacity: distanceDot3 },
-                              ]}
-                            />
-                          </View>
-                          <Text style={styles.distanceLoaderText}>
-                            Calculating route & fee
-                          </Text>
-                        </View>
-                      )}
-                      {deliveryEstimate && !loadingDeliveryFee && (
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: "#6B7280",
-                            marginTop: 2,
-                          }}
-                        >
-                          📍Range {deliveryEstimate.distanceKm.toFixed(1)} km •
-                          🏍️ ~{deliveryEstimate.estimatedDeliveryTimeMinutes}{" "}
-                          mins
-                        </Text>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.totalValue,
-                        (appliedPromo?.freeDelivery ||
-                          isFirstOrder ||
-                          deliveryEstimate?.isFreeDelivery) && {
-                          textDecorationLine: "line-through",
-                          color: "#9CA3AF",
-                        },
-                      ]}
-                    >
-                      D
-                      {deliveryFee > 0
-                        ? deliveryFee.toFixed(2)
-                        : DEFAULT_DELIVERY_FEE.toFixed(2)}
-                    </Text>
-                    {(appliedPromo?.freeDelivery ||
-                      isFirstOrder ||
-                      deliveryEstimate?.isFreeDelivery) && (
-                      <Text
-                        style={{
-                          color: "#10B981",
-                          fontWeight: "600",
-                          marginLeft: 8,
-                        }}
-                      >
-                        FREE 🎉
-                      </Text>
-                    )}
-                  </View>
-
-                  {/* Show free delivery promotion hint */}
-                  {deliveryEstimate?.freeDeliveryPromotion?.available &&
-                    !deliveryEstimate.isFreeDelivery && (
-                      <View
-                        style={{
-                          backgroundColor: "#FEF3C7",
-                          padding: 10,
-                          borderRadius: 8,
-                          marginTop: 8,
-                          flexDirection: "row",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Ionicons
-                          name="gift"
-                          size={16}
-                          color="#F59E0B"
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text
-                          style={{ fontSize: 12, color: "#92400E", flex: 1 }}
-                        >
-                          {deliveryEstimate.freeDeliveryPromotion.message}
-                        </Text>
-                      </View>
-                    )}
-                </>
-              )}
-
-              {/* 🎉 PROMO CODE DISCOUNT */}
-              {appliedPromo && discountAmount > 0 && (
-                <View style={styles.totalRow}>
-                  <Text style={[styles.totalLabel, { color: "#10B981" }]}>
-                    Promo Discount
-                  </Text>
-                  <Text style={[styles.totalValue, { color: "#10B981" }]}>
-                    -D{discountAmount.toFixed(2)}
-                  </Text>
-                </View>
-              )}
-
-              <View style={[styles.totalRow, styles.grandTotalRow]}>
-                <Text style={styles.grandTotalLabel}>Total</Text>
-                <Text style={styles.grandTotalValue}>D{total.toFixed(2)}</Text>
-              </View>
-            </View>
-
-            {/* 🎉 PROMO CODE INPUT */}
-            {!appliedPromo ? (
-              <View style={styles.promoCodeSection}>
-                <Text style={styles.promoCodeLabel}>Have a promo code?</Text>
-                <View style={styles.promoCodeInputContainer}>
-                  <TextInput
-                    style={styles.promoCodeInput}
-                    placeholder="Enter code (e.g. LAUNCH2025)"
-                    value={promoCode}
-                    onChangeText={setPromoCode}
-                    autoCapitalize="characters"
-                    editable={!isValidatingPromo && !loading}
-                  />
-                  <TouchableOpacity
-                    style={[
-                      styles.promoCodeButton,
-                      (isValidatingPromo || loading || !promoCode.trim()) &&
-                        styles.promoCodeButtonDisabled,
-                    ]}
-                    onPress={validatePromoCode}
-                    disabled={isValidatingPromo || loading || !promoCode.trim()}
-                  >
-                    <Text style={styles.promoCodeButtonText}>
-                      {isValidatingPromo ? "Validating..." : "Apply"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                {promoError ? (
-                  <Text style={styles.promoErrorText}>{promoError}</Text>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.appliedPromoContainer}>
-                <View style={styles.appliedPromoContent}>
-                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={styles.appliedPromoCode}>
-                      {promoCode.toUpperCase()}
-                    </Text>
-                    <Text style={styles.appliedPromoDescription}>
-                      {appliedPromo.message ||
-                        appliedPromo.description ||
-                        "Promo applied successfully!"}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={removePromoCode}
-                    disabled={loading}
-                  >
-                    <Ionicons name="close-circle" size={24} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-          </Animated.View>
-
           {/* Customer Information */}
           <Animated.View
             style={[
@@ -2271,6 +1926,297 @@ export default function Checkout() {
                 editable={!loading}
               />
             </View>
+          </Animated.View>
+
+          {/* Order Summary */}
+          <Animated.View
+            style={[
+              styles.section,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Order Summary</Text>
+
+            {restaurantIds.map((restaurantId, index) => {
+              const restaurantItems = restaurantCarts[restaurantId];
+              const restaurantName =
+                restaurantItems[0]?.vendorName || "Restaurant";
+              // ✅ FIX: Use discounted price if available, otherwise use regular price
+              const restaurantTotal = restaurantItems.reduce((sum, item) => {
+                const itemPrice = item.discountedPrice || item.price;
+                return sum + itemPrice * item.quantity;
+              }, 0);
+
+              return (
+                <View key={restaurantId} style={styles.restaurantOrder}>
+                  <View style={styles.restaurantHeader}>
+                    <View style={styles.restaurantIcon}>
+                      <Ionicons
+                        name="restaurant"
+                        size={16}
+                        color={PrimaryColor}
+                      />
+                    </View>
+                    <Text style={styles.restaurantName}>{restaurantName}</Text>
+                  </View>
+
+                  {restaurantItems.map((item) => {
+                    // ✅ FIX: Display discounted price if available
+                    const itemPrice = item.discountedPrice || item.price;
+                    const itemTotal = itemPrice * item.quantity;
+                    const hasDiscount =
+                      item.discountedPrice && item.discountedPrice < item.price;
+
+                    return (
+                      <View key={item.id} style={styles.orderItem}>
+                        <Text style={styles.orderItemQuantity}>
+                          {item.quantity}x
+                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.orderItemName}>{item.name}</Text>
+                          {hasDiscount && (
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#9CA3AF",
+                                marginTop: 2,
+                              }}
+                            >
+                              <Text
+                                style={{ textDecorationLine: "line-through" }}
+                              >
+                                D{item.price.toFixed(2)}
+                              </Text>
+                              {" → "}
+                              <Text
+                                style={{ color: "#EF4444", fontWeight: "600" }}
+                              >
+                                D{item.discountedPrice!.toFixed(2)}
+                              </Text>
+                            </Text>
+                          )}
+                        </View>
+                        <Text
+                          style={[
+                            styles.orderItemPrice,
+                            hasDiscount ? { color: "#EF4444" } : null,
+                          ]}
+                        >
+                          D{itemTotal.toFixed(2)}
+                        </Text>
+                      </View>
+                    );
+                  })}
+
+                  <View style={styles.restaurantTotal}>
+                    <Text style={styles.restaurantTotalText}>
+                      Total: D{restaurantTotal.toFixed(2)}
+                    </Text>
+                  </View>
+
+                  {index < restaurantIds.length - 1 && (
+                    <View style={styles.divider} />
+                  )}
+                </View>
+              );
+            })}
+
+            <View style={styles.orderTotals}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Subtotal</Text>
+                <Text style={styles.totalValue}>D{subtotal.toFixed(2)}</Text>
+              </View>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Service Fee</Text>
+                <Text style={styles.totalValue}>D{serviceFee.toFixed(2)}</Text>
+              </View>
+              {form.orderType === "DELIVERY" && (
+                <>
+                  <View style={styles.totalRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.totalLabel}>Delivery Fee</Text>
+                      {loadingDeliveryFee && (
+                        <View style={styles.distanceLoaderContainer}>
+                          <Ionicons
+                            name="location"
+                            size={14}
+                            color="#F97316"
+                            style={{ marginRight: 4 }}
+                          />
+                          <View style={styles.distanceLoaderDots}>
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot1 },
+                              ]}
+                            />
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot2 },
+                              ]}
+                            />
+                            <Animated.View
+                              style={[
+                                styles.distanceLoaderDot,
+                                { opacity: distanceDot3 },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.distanceLoaderText}>
+                            Calculating route & fee
+                          </Text>
+                        </View>
+                      )}
+                      {deliveryEstimate && !loadingDeliveryFee && (
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: "#6B7280",
+                            marginTop: 2,
+                          }}
+                        >
+                          📍Range {deliveryEstimate.distanceKm.toFixed(1)} km •
+                          🏍️ ~{deliveryEstimate.estimatedDeliveryTimeMinutes}{" "}
+                          mins
+                        </Text>
+                      )}
+                    </View>
+                    <Text
+                      style={[
+                        styles.totalValue,
+                        (appliedPromo?.freeDelivery ||
+                          isFirstOrder ||
+                          deliveryEstimate?.isFreeDelivery) && {
+                          textDecorationLine: "line-through",
+                          color: "#9CA3AF",
+                        },
+                      ]}
+                    >
+                      D
+                      {deliveryFee > 0
+                        ? deliveryFee.toFixed(2)
+                        : DEFAULT_DELIVERY_FEE.toFixed(2)}
+                    </Text>
+                    {(appliedPromo?.freeDelivery ||
+                      isFirstOrder ||
+                      deliveryEstimate?.isFreeDelivery) && (
+                      <Text
+                        style={{
+                          color: "#10B981",
+                          fontWeight: "600",
+                          marginLeft: 8,
+                        }}
+                      >
+                        FREE 🎉
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* Show free delivery promotion hint */}
+                  {deliveryEstimate?.freeDeliveryPromotion?.available &&
+                    !deliveryEstimate.isFreeDelivery && (
+                      <View
+                        style={{
+                          backgroundColor: "#FEF3C7",
+                          padding: 10,
+                          borderRadius: 8,
+                          marginTop: 8,
+                          flexDirection: "row",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Ionicons
+                          name="gift"
+                          size={16}
+                          color="#F59E0B"
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text
+                          style={{ fontSize: 12, color: "#92400E", flex: 1 }}
+                        >
+                          {deliveryEstimate.freeDeliveryPromotion.message}
+                        </Text>
+                      </View>
+                    )}
+                </>
+              )}
+
+              {/* 🎉 PROMO CODE DISCOUNT */}
+              {appliedPromo && discountAmount > 0 && (
+                <View style={styles.totalRow}>
+                  <Text style={[styles.totalLabel, { color: "#10B981" }]}>
+                    Promo Discount
+                  </Text>
+                  <Text style={[styles.totalValue, { color: "#10B981" }]}>
+                    -D{discountAmount.toFixed(2)}
+                  </Text>
+                </View>
+              )}
+
+              <View style={[styles.totalRow, styles.grandTotalRow]}>
+                <Text style={styles.grandTotalLabel}>Total</Text>
+                <Text style={styles.grandTotalValue}>D{total.toFixed(2)}</Text>
+              </View>
+            </View>
+
+            {/* 🎉 PROMO CODE INPUT */}
+            {!appliedPromo ? (
+              <View style={styles.promoCodeSection}>
+                <Text style={styles.promoCodeLabel}>Have a promo code?</Text>
+                <View style={styles.promoCodeInputContainer}>
+                  <TextInput
+                    style={styles.promoCodeInput}
+                    placeholder="Enter code (e.g. LAUNCH2025)"
+                    value={promoCode}
+                    onChangeText={setPromoCode}
+                    autoCapitalize="characters"
+                    editable={!isValidatingPromo && !loading}
+                  />
+                  <TouchableOpacity
+                    style={[
+                      styles.promoCodeButton,
+                      (isValidatingPromo || loading || !promoCode.trim()) &&
+                        styles.promoCodeButtonDisabled,
+                    ]}
+                    onPress={validatePromoCode}
+                    disabled={isValidatingPromo || loading || !promoCode.trim()}
+                  >
+                    <Text style={styles.promoCodeButtonText}>
+                      {isValidatingPromo ? "Validating..." : "Apply"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {promoError ? (
+                  <Text style={styles.promoErrorText}>{promoError}</Text>
+                ) : null}
+              </View>
+            ) : (
+              <View style={styles.appliedPromoContainer}>
+                <View style={styles.appliedPromoContent}>
+                  <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={styles.appliedPromoCode}>
+                      {promoCode.toUpperCase()}
+                    </Text>
+                    <Text style={styles.appliedPromoDescription}>
+                      {appliedPromo.message ||
+                        appliedPromo.description ||
+                        "Promo applied successfully!"}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={removePromoCode}
+                    disabled={loading}
+                  >
+                    <Ionicons name="close-circle" size={24} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
           </Animated.View>
 
           {restaurantIds.length > 1 ? (
