@@ -1,0 +1,33 @@
+name: terango-web-app
+static_sites:
+- name: web
+  source_dir: /
+  github:
+    repo: your-username/your-repo
+    branch: main
+  build_command: npm ci && npm run build
+  output_dir: dist
+  index_document: index.html
+  error_document: index.html
+  catchall_document: index.html
+  routes:
+  - path: /
+  cors:
+    allow_origins:
+    - "*"
+    allow_methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - OPTIONS
+  envs:
+  - key: EXPO_PUBLIC_API_URL
+    value: https://monkfish-app-korrv.ondigitalocean.app
+    type: GENERAL
+  - key: NODE_ENV
+    value: production
+    type: GENERAL
+  - key: EXPO_PUBLIC_ENVIRONMENT
+    value: production
+    type: GENERAL
