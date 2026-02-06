@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   Linking,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
@@ -203,19 +204,37 @@ export default function OrderDetailsPage() {
   const handlePayNow = async () => {
     if (!order) return;
 
-    Alert.alert(
-      "Confirm Payment",
-      `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Pay Now",
-          onPress: async () => {
-            try {
-              setLoading(true);
+    // On web, use confirm() instead of Alert.alert() for better UX
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `Proceed with payment of ${formatAmount(order.totalAmount)}?`
+      );
+      if (!confirmed) return;
+      
+      await processPayment();
+    } else {
+      Alert.alert(
+        "Confirm Payment",
+        `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
+        [
+          {
+            text: "Cancel",
+            style: "cancel",
+          },
+          {
+            text: "Pay Now",
+            onPress: processPayment,
+          },
+        ],
+      );
+    }
+  };
+
+  const processPayment = async () => {
+    if (!order) return;
+
+    try {
+      setLoading(true);
 
               // Load user's preferred payment method (default to wave)
               let network = "wave";
@@ -238,36 +257,56 @@ export default function OrderDetailsPage() {
               const launchUrl =
                 result?.wave_launch_url || result?.session?.wave_launch_url;
               if (launchUrl) {
-                // Attempt to open Wave URL - try directly without canOpenURL check
-                // (Android 11+ requires QUERY_ALL_PACKAGES permission for canOpenURL)
+                // Attempt to open Wave URL
                 try {
-                  await Linking.openURL(launchUrl);
-
-                  Alert.alert(
-                    "Complete Payment",
-                    "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-                    [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
-                  );
+                  if (Platform.OS === "web") {
+                    // On web, open in new window for payment
+                    window.open(launchUrl, "_blank");
+                    if (Platform.OS === "web") {
+                      alert(
+                        "Complete Payment\nYou'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically."
+                      );
+                    } else {
+                      Alert.alert(
+                        "Complete Payment",
+                        "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                        [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
+                      );
+                    }
+                  } else {
+                    await Linking.openURL(launchUrl);
+                    Alert.alert(
+                      "Complete Payment",
+                      "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                      [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
+                    );
+                  }
 
                   // don't overwrite local order state yet; we'll refresh when webhook arrives
                   return;
                 } catch (linkError) {
                   // If direct open fails, show helpful error
-                  Alert.alert(
-                    "Payment Failed",
-                    "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Install Wave",
-                        onPress: () => {
-                          Linking.openURL(
-                            "https://play.google.com/store/apps/details?id=com.wave.personal",
-                          );
+                  if (Platform.OS === "web") {
+                    alert(
+                      "Payment Failed\nCannot open Wave payment link. Please try again."
+                    );
+                  } else {
+                    Alert.alert(
+                      "Payment Failed",
+                      "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Install Wave",
+                          onPress: () => {
+                            Linking.openURL(
+                              "https://play.google.com/store/apps/details?id=com.wave.personal",
+                            );
+                          },
                         },
-                      },
-                    ],
-                  );
+                      ],
+                    );
+                  }
                   return;
                 }
               }
@@ -275,16 +314,23 @@ export default function OrderDetailsPage() {
               // Otherwise treat the response as an updated order
               setOrder(result);
 
-              Alert.alert(
-                "Payment Successful! 🎉",
-                "Your payment has been processed. The vendor will now prepare your order.",
-                [
-                  {
-                    text: "OK",
-                    onPress: () => fetchOrderDetails(true),
-                  },
-                ],
-              );
+              if (Platform.OS === "web") {
+                alert(
+                  "Payment Successful! 🎉\nYour payment has been processed. The vendor will now prepare your order."
+                );
+              } else {
+                Alert.alert(
+                  "Payment Successful! 🎉",
+                  "Your payment has been processed. The vendor will now prepare your order.",
+                  [
+                    {
+                      text: "OK",
+                      onPress: () => fetchOrderDetails(true),
+                    },
+                  ],
+                );
+              }
+              fetchOrderDetails(true);
             } catch (error: any) {
               console.error("Payment error:", error);
 
@@ -305,37 +351,55 @@ export default function OrderDetailsPage() {
                 errorMessage = error.message;
               }
 
-              Alert.alert("Payment Failed", errorMessage, [
-                { text: "Cancel", style: "cancel" },
-                { text: "Retry", onPress: () => handlePayNow() },
-              ]);
+              if (Platform.OS === "web") {
+                alert(`Payment Failed\n${errorMessage}`);
+              } else {
+                Alert.alert("Payment Failed", errorMessage, [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Retry", onPress: () => handlePayNow() },
+                ]);
+              }
             } finally {
               setLoading(false);
             }
-          },
-        },
-      ],
-    );
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
-      { text: "No", style: "cancel" },
-      {
-        text: "Yes, Cancel",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await orderApi.cancelOrder(orderId, "Cancelled by customer");
-            fetchOrderDetails(true);
-            Alert.alert("Success", "Order has been cancelled");
-          } catch (e) {
-            console.error("Cancel error:", e);
-            Alert.alert("Error", "Failed to cancel order");
-          }
+    // On web, use confirm() instead of Alert.alert()
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Are you sure you want to cancel this order?"
+      );
+      if (!confirmed) return;
+
+      try {
+        await orderApi.cancelOrder(orderId, "Cancelled by customer");
+        fetchOrderDetails(true);
+        alert("Success\nOrder has been cancelled");
+      } catch (e) {
+        console.error("Cancel error:", e);
+        alert("Error\nFailed to cancel order");
+      }
+    } else {
+      Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+        { text: "No", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await orderApi.cancelOrder(orderId, "Cancelled by customer");
+              fetchOrderDetails(true);
+              Alert.alert("Success", "Order has been cancelled");
+            } catch (e) {
+              console.error("Cancel error:", e);
+              Alert.alert("Error", "Failed to cancel order");
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    }
+  };
   };
 
   const SkeletonBox = ({
@@ -1023,7 +1087,7 @@ export default function OrderDetailsPage() {
         {/* Pay Button - Full width when available */}
         {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" && (
           <TouchableOpacity
-            style={styles.payNowButton}
+            style={[styles.payNowButton, Platform.OS === "web" && { cursor: "pointer" }]}
             onPress={handlePayNow}
             activeOpacity={0.8}
           >
@@ -1035,7 +1099,7 @@ export default function OrderDetailsPage() {
         {/* Track Button - Full width when payment is done */}
         {(order.status !== "ACCEPTED" || order.paymentStatus === "PAID") && (
           <TouchableOpacity
-            style={styles.trackButton}
+            style={[styles.trackButton, Platform.OS === "web" && { cursor: "pointer" }]}
             onPress={handleTrackOrder}
             activeOpacity={0.8}
           >
@@ -1047,7 +1111,7 @@ export default function OrderDetailsPage() {
         {/* Cancel Button - Full width below pay/track button */}
         {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
           <TouchableOpacity
-            style={styles.cancelButton}
+            style={[styles.cancelButton, Platform.OS === "web" && { cursor: "pointer" }]}
             onPress={() => handleCancelOrder(order.id)}
             activeOpacity={0.8}
           >

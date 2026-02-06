@@ -378,6 +378,13 @@ export default function RootLayout() {
 
                     <Stack>
                       <Stack.Screen
+                        name="landing"
+                        options={{
+                          headerShown: false,
+                          animation: "fade_from_bottom",
+                        }}
+                      />
+                      <Stack.Screen
                         name="onboarding"
                         options={{
                           headerShown: false,
