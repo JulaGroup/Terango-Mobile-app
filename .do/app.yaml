@@ -12,22 +12,10 @@ static_sites:
   catchall_document: index.html
   routes:
   - path: /
-  cors:
-    allow_origins:
-    - "*"
-    allow_methods:
-    - GET
-    - POST
-    - PUT
-    - DELETE
-    - OPTIONS
   envs:
   - key: EXPO_PUBLIC_API_URL
     value: https://monkfish-app-korrv.ondigitalocean.app
     type: GENERAL
   - key: NODE_ENV
-    value: production
-    type: GENERAL
-  - key: EXPO_PUBLIC_ENVIRONMENT
     value: production
     type: GENERAL
