@@ -3,34 +3,39 @@ static_sites:
 - name: web
   source_dir: /
   github:
-    repo: your-username/your-repo
+    repo: JulaGroup/Terango-Mobile-app
     branch: main
+    deploy_on_push: true
   build_command: npm install && npm run build
   output_dir: dist
   index_document: index.html
-  error_document: index.html
   catchall_document: index.html
-  routes:
-  - path: /
-  envs:
-  - key: NODE_ENV
-    value: production
-    type: GENERAL
-  - key: EXPO_PUBLIC_API_URL
-    value: https://monkfish-app-korrv.ondigitalocean.app
-    type: GENERAL
-  - key: SERPAPI_API_KEY
-    value: 4a2ad4965d9ff1626242fe6d06f375600c612f830b044854629053e25cfd00ad
-    type: SECRET
-  - key: CLOUDINARY_CLOUD_NAME
-    value: dkpi5ij2t
-    type: GENERAL
-  - key: CLOUDINARY_UPLOAD_PRESET
-    value: unsigned_preset
-    type: GENERAL
-  - key: SHOP_ID
-    value: c1d0a80f-e91b-4655-bf3f-8facd6571add
-    type: GENERAL
-  - key: DATABASE_URL
-    value: https://monkfish-app-korrv.ondigitalocean.app
-    type: GENERAL
+envs:
+- key: NODE_ENV
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: production
+- key: EXPO_PUBLIC_API_URL
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: https://monkfish-app-korrv.ondigitalocean.app
+- key: SERPAPI_API_KEY
+  scope: RUN_AND_BUILD_TIME
+  type: SECRET
+  value: 4a2ad4965d9ff1626242fe6d06f375600c612f830b044854629053e25cfd00ad
+- key: CLOUDINARY_CLOUD_NAME
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: dkpi5ij2t
+- key: CLOUDINARY_UPLOAD_PRESET
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: unsigned_preset
+- key: SHOP_ID
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: c1d0a80f-e91b-4655-bf3f-8facd6571add
+- key: DATABASE_URL
+  scope: RUN_AND_BUILD_TIME
+  type: GENERAL
+  value: https://monkfish-app-korrv.ondigitalocean.app

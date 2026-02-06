@@ -6,6 +6,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Platform,
   StatusBar,
   StyleSheet,
   Text,
@@ -60,13 +61,35 @@ export default function Onboarding() {
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+      const nextIndex = currentIndex + 1;
+      
+      // Update state immediately for web compatibility
+      setCurrentIndex(nextIndex);
+      
+      // Scroll to next slide with web-specific handling
+      if (Platform.OS === 'web') {
+        // On web, use scrollTo for more reliable scrolling
+        const scrollX = nextIndex * width;
+        flatListRef.current?.scrollToOffset({
+          offset: scrollX,
+          animated: true
+        });
+      } else {
+        // On native, use scrollToIndex
+        flatListRef.current?.scrollToIndex({ 
+          index: nextIndex, 
+          animated: true
+        });
+      }
     }
   };
 
   const handleScroll = (event: any) => {
     const index = Math.round(event.nativeEvent.contentOffset.x / width);
-    setCurrentIndex(index);
+    // Only update if the index has actually changed (prevents unnecessary re-renders)
+    if (index !== currentIndex && index >= 0 && index < slides.length) {
+      setCurrentIndex(index);
+    }
   };
 
   const renderItem = ({ item }: { item: (typeof slides)[0] }) => (
@@ -122,12 +145,19 @@ export default function Onboarding() {
         ref={flatListRef}
         data={slides}
         horizontal
-        pagingEnabled
+        pagingEnabled={Platform.OS !== 'web'} // Disable on web for better control
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
+        // Web-specific props for better performance
+        {...(Platform.OS === 'web' && {
+          snapToInterval: width,
+          snapToAlignment: 'start',
+          decelerationRate: 'fast',
+          scrollEnabled: true
+        })}
       />
 
       <View style={styles.bottomContainer}>
@@ -152,9 +182,17 @@ export default function Onboarding() {
           </View>
           {currentIndex < slides.length - 1 ? (
             <TouchableOpacity
-              style={styles.nextButton} // Black button
+              style={styles.nextButton}
               onPress={handleNext}
               activeOpacity={0.8}
+              // Web-specific accessibility and interaction
+              accessible={true}
+              accessibilityLabel="Next slide"
+              accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+              {...(Platform.OS === 'web' && {
+                onPressIn: () => {}, // Ensure touch events work on web
+                cursor: 'pointer'
+              })}
             >
               <Text style={styles.nextButtonText}>Next</Text>
             </TouchableOpacity>
