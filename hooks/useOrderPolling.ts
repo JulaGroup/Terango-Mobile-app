@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import * as SecureStore from "expo-secure-store";
+﻿import { useEffect, useRef, useState } from "react";
+import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 
 type Order = any;
 
 export function useOrderPolling(
   orderId: string | null,
-  onUpdate: (order: Order) => void
+  onUpdate: (order: Order) => void,
 ) {
   const [loading, setLoading] = useState(false);
   const stopped = useRef(false);
@@ -24,7 +24,7 @@ export function useOrderPolling(
 
     const doPoll = async () => {
       try {
-        const token = await SecureStore.getItemAsync("token");
+        const token = await SecureStorage.getItem("token");
         if (!token) {
           setLoading(false);
           return;
@@ -56,7 +56,7 @@ export function useOrderPolling(
 
         const delay = Math.min(
           5000,
-          Math.round(1000 * Math.pow(1.8, attempts.current))
+          Math.round(1000 * Math.pow(1.8, attempts.current)),
         );
         if (stopped.current) return;
         timer.current = setTimeout(doPoll, delay);
@@ -69,7 +69,7 @@ export function useOrderPolling(
         }
         const delay = Math.min(
           5000,
-          Math.round(1000 * Math.pow(1.8, attempts.current))
+          Math.round(1000 * Math.pow(1.8, attempts.current)),
         );
         timer.current = setTimeout(doPoll, delay);
       }

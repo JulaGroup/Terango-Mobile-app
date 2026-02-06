@@ -1,5 +1,5 @@
-// Enhanced API service for home page data fetching
-import * as SecureStore from "expo-secure-store";
+﻿// Enhanced API service for home page data fetching
+import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 
 // Types for home page data
@@ -84,7 +84,7 @@ class HomeApiService {
     lng: number;
   } | null> {
     try {
-      const savedLocation = await SecureStore.getItemAsync("userLocation");
+      const savedLocation = await SecureStorage.getItem("userLocation");
       if (savedLocation) {
         return JSON.parse(savedLocation);
       }
@@ -138,7 +138,7 @@ class HomeApiService {
       queryParams.append("limit", "6"); // Limit items per section for performance
 
       const response = await fetch(
-        `${API_URL}/api/public/home-data?${queryParams}`
+        `${API_URL}/api/public/home-data?${queryParams}`,
       );
 
       if (!response.ok) {
@@ -173,11 +173,11 @@ class HomeApiService {
   async getMoreSectionItems(
     subcategoryId: string,
     page: number = 1,
-    limit: number = 10
+    limit: number = 10,
   ): Promise<{ items: HomePageSection[]; hasMore: boolean }> {
     try {
       const response = await fetch(
-        `${API_URL}/api/public/products-by-subcategory/${subcategoryId}?page=${page}&limit=${limit}`
+        `${API_URL}/api/public/products-by-subcategory/${subcategoryId}?page=${page}&limit=${limit}`,
       );
 
       if (!response.ok) {
@@ -209,7 +209,7 @@ class HomeApiService {
       minPrice?: number;
       maxPrice?: number;
     } = {},
-    page: number = 1
+    page: number = 1,
   ): Promise<{ items: HomePageSection[]; hasMore: boolean }> {
     try {
       const queryParams = new URLSearchParams({
@@ -228,7 +228,7 @@ class HomeApiService {
         queryParams.append("maxPrice", filters.maxPrice.toString());
 
       const response = await fetch(
-        `${API_URL}/api/public/search?${queryParams}`
+        `${API_URL}/api/public/search?${queryParams}`,
       );
 
       if (!response.ok) {

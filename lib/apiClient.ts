@@ -12,7 +12,7 @@
  */
 
 import { API_URL } from "@/constants/config";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
 
 // Configuration
@@ -29,7 +29,7 @@ interface RequestOptions extends RequestInit {
  */
 export async function getAuthToken(): Promise<string | null> {
   try {
-    return await SecureStore.getItemAsync("token");
+    return await SecureStorage.getItem("token");
   } catch (error) {
     console.error("[APIClient] Failed to retrieve auth token:", error);
     return null;
@@ -49,10 +49,10 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function logout(): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync("token");
-    await SecureStore.deleteItemAsync("userId");
-    await SecureStore.deleteItemAsync("userPhone");
-    await SecureStore.deleteItemAsync("isLoggedIn");
+    await SecureStorage.deleteItem("token");
+    await SecureStorage.deleteItem("userId");
+    await SecureStorage.deleteItem("userPhone");
+    await SecureStorage.deleteItem("isLoggedIn");
     console.log("[APIClient] ✅ User logged out");
     router.replace("/auth");
   } catch (error) {
@@ -65,7 +65,7 @@ export async function logout(): Promise<void> {
  */
 export async function apiCall(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   const retryCount = options.retryCount ?? 0;
 
@@ -114,7 +114,7 @@ export async function apiCall(
 
         // Clear the old token
         try {
-          await SecureStore.deleteItemAsync("token");
+          await SecureStorage.deleteItem("token");
         } catch (e) {
           console.warn("[APIClient] Failed to clear token:", e);
         }
@@ -126,7 +126,7 @@ export async function apiCall(
       } else {
         // Second attempt failed, user needs to login again
         console.error(
-          "[APIClient] ❌ Authentication failed - redirecting to login"
+          "[APIClient] ❌ Authentication failed - redirecting to login",
         );
         await logout();
         throw new Error("Session expired. Please log in again.");
@@ -145,7 +145,7 @@ export async function apiCall(
             response.status
           }) - retrying in ${delayMs}ms (attempt ${
             retryCount + 1
-          }/${MAX_RETRIES})`
+          }/${MAX_RETRIES})`,
         );
 
         // Wait before retrying
@@ -167,7 +167,7 @@ export async function apiCall(
       error.data = errorData;
 
       console.error(
-        `[APIClient] ❌ Request failed: ${response.status} - ${errorMessage}`
+        `[APIClient] ❌ Request failed: ${response.status} - ${errorMessage}`,
       );
 
       throw error;
@@ -185,7 +185,7 @@ export async function apiCall(
     if (error.name === "AbortError") {
       console.error("[APIClient] ❌ Request timeout after 30 seconds");
       const timeoutError: any = new Error(
-        "Request timeout - please check your connection"
+        "Request timeout - please check your connection",
       );
       timeoutError.isTimeout = true;
       throw timeoutError;
@@ -197,7 +197,7 @@ export async function apiCall(
       console.warn(
         `[APIClient] Network error: ${
           error.message
-        } - retrying in ${delayMs}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+        } - retrying in ${delayMs}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`,
       );
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -207,7 +207,7 @@ export async function apiCall(
     // Exhausted all retries
     console.error(
       "[APIClient] ❌ Request failed after retries:",
-      error.message
+      error.message,
     );
     throw error;
   }
@@ -218,7 +218,7 @@ export async function apiCall(
  */
 export async function apiGet(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   return apiCall(endpoint, {
     ...options,
@@ -232,7 +232,7 @@ export async function apiGet(
 export async function apiPost(
   endpoint: string,
   data?: any,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   return apiCall(endpoint, {
     ...options,
@@ -247,7 +247,7 @@ export async function apiPost(
 export async function apiPut(
   endpoint: string,
   data?: any,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   return apiCall(endpoint, {
     ...options,
@@ -262,7 +262,7 @@ export async function apiPut(
 export async function apiPatch(
   endpoint: string,
   data?: any,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   return apiCall(endpoint, {
     ...options,
@@ -276,7 +276,7 @@ export async function apiPatch(
  */
 export async function apiDelete(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions = {},
 ): Promise<any> {
   return apiCall(endpoint, {
     ...options,

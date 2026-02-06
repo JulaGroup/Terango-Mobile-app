@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 import { useOrderPolling } from "@/hooks/useOrderPolling";
 
@@ -64,7 +64,7 @@ export default function OrderPending() {
   useEffect(() => {
     // Save viewed order id locally
     if (localOrderId) {
-      SecureStore.setItemAsync("lastOrderId", localOrderId as string).catch(
+      SecureStorage.setItem("lastOrderId", localOrderId as string).catch(
         async () => {
           try {
             // @ts-ignore
@@ -80,7 +80,7 @@ export default function OrderPending() {
 
   const checkNow = async () => {
     try {
-      const token = await SecureStore.getItemAsync("token");
+      const token = await SecureStorage.getItem("token");
       if (!token) return;
       const res = await fetch(`${API_URL}/api/orders/${localOrderId}`, {
         headers: { Authorization: `Bearer ${token}` },

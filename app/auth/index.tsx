@@ -1,7 +1,9 @@
-import { loginUser } from "@/actions/auth.ts/action";
+﻿import { loginUser } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import RateLimitModal from "@/components/modals/RateLimitModal";
+import { router } from "expo-router";
+import { SecureStorage } from "@/utils/secureStorage";
 import React, { useState } from "react";
 import {
   Image,
@@ -81,7 +83,7 @@ export default function AuthScreen() {
     }
     if (!isValidPhone) {
       alert(
-        `Please enter a valid ${selectedCountry.name} phone number (${selectedCountry.maxLength} digits)`
+        `Please enter a valid ${selectedCountry.name} phone number (${selectedCountry.maxLength} digits)`,
       );
       return;
     }
@@ -196,6 +198,19 @@ export default function AuthScreen() {
         <Text style={styles.buttonText}>
           {loading ? "Loading..." : "Continue"}
         </Text>
+      </TouchableOpacity>
+
+      {/* Browse as Guest Button */}
+      <TouchableOpacity
+        style={styles.guestButton}
+        onPress={() => {
+          // Mark onboarding as seen to prevent showing it again
+          SecureStorage.setItem("hasSeenOnboarding", "true");
+          router.replace("/(tabs)");
+        }}
+      >
+        <Ionicons name="eye-outline" size={20} color={PrimaryColor} />
+        <Text style={styles.guestButtonText}>Browse as Guest</Text>
       </TouchableOpacity>
 
       <Text style={styles.or}>or</Text>
@@ -358,6 +373,24 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     fontWeight: "700",
+  },
+  guestButton: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: PrimaryColor,
+    backgroundColor: "transparent",
+  },
+  guestButtonText: {
+    color: PrimaryColor,
+    fontSize: 16,
+    fontWeight: "600",
   },
   or: {
     textAlign: "center",

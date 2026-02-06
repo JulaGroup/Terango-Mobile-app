@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useCart } from "@/context/CartContext";
 import { userApi, orderApi } from "@/lib/api";
 import { debugAuthState } from "@/utils/debugAuth";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { UserCacheManager } from "@/utils/userCache";
@@ -193,6 +193,9 @@ export default function Checkout() {
     isVerified?: boolean;
   } | null>(null);
 
+  // Track auth state for UX
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState<boolean | null>(null);
+
   // 💳 DIGITAL PAYMENT METHOD STATE
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("mobile");
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState<
@@ -249,12 +252,14 @@ export default function Checkout() {
   const serviceFee = Math.round(subtotal * 0.05 * 100) / 100; // 5% of subtotal, rounded to 2 decimals
   const total = subtotal - discountAmount + deliveryFee + serviceFee;
 
-  // Disable placing order for DELIVERY if:
-  // 1. Loading state is active
-  // 2. For regular delivery: no address is entered
-  // 3. For gift orders: recipient info is missing
-  // 4. Delivery fee is still being calculated (loadingDeliveryFee)
+  // Disable placing order if:
+  // 1. User is not logged in
+  // 2. Loading state is active
+  // 3. For regular delivery: no address is entered
+  // 4. For gift orders: recipient info is missing
+  // 5. Delivery fee is still being calculated (loadingDeliveryFee)
   const isPlaceOrderDisabled =
+    isUserLoggedIn === false ||
     loading ||
     (form.orderType === "DELIVERY" &&
       !form.isGiftOrder &&
@@ -378,8 +383,7 @@ export default function Checkout() {
   // Load payment methods from SecureStore
   const loadPaymentMethods = useCallback(async () => {
     try {
-      const paymentMethodsData =
-        await SecureStore.getItemAsync("paymentMethods");
+      const paymentMethodsData = await SecureStorage.getItem("paymentMethods");
       if (paymentMethodsData) {
         const data = JSON.parse(paymentMethodsData);
         console.log("Loaded payment methods:", data);
@@ -409,9 +413,9 @@ export default function Checkout() {
       let savedOrderType = null;
       let savedPickupInstructions = null;
       try {
-        savedAddress = await SecureStore.getItemAsync("userAddress");
-        savedOrderType = await SecureStore.getItemAsync("userOrderType");
-        savedPickupInstructions = await SecureStore.getItemAsync(
+        savedAddress = await SecureStorage.getItem("userAddress");
+        savedOrderType = await SecureStorage.getItem("userOrderType");
+        savedPickupInstructions = await SecureStorage.getItem(
           "userPickupInstructions",
         );
       } catch (e) {
@@ -451,7 +455,7 @@ export default function Checkout() {
         // Load payment methods when cached data is available
         try {
           const paymentMethodsData =
-            await SecureStore.getItemAsync("paymentMethods");
+            await SecureStorage.getItem("paymentMethods");
           if (paymentMethodsData) {
             const data = JSON.parse(paymentMethodsData);
             console.log("Loaded payment methods (cached):", data);
@@ -509,7 +513,7 @@ export default function Checkout() {
         const values: (string | null)[] = [];
         for (const k of keys) {
           try {
-            const v = await SecureStore.getItemAsync(k);
+            const v = await SecureStorage.getItem(k);
             values.push(v);
           } catch {
             // fallback: dynamic import of AsyncStorage
@@ -544,33 +548,31 @@ export default function Checkout() {
 
   const checkAuthAndLoadUserInfo = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync("token");
-      const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
+      const token = await SecureStorage.getItem("token");
+      const isLoggedIn = await SecureStorage.getItem("isLoggedIn");
+
+      console.log("🔐 Checkout auth check:", {
+        hasToken: !!token,
+        isLoggedIn: !!isLoggedIn,
+      });
 
       if (!token || !isLoggedIn) {
-        Alert.alert("Login Required", "Please log in to place an order.", [
-          { text: "Cancel", onPress: () => router.back() },
-          {
-            text: "Log In",
-            onPress: () => router.push("/auth"),
-          },
-        ]);
+        setIsUserLoggedIn(false);
         return;
       }
 
+      setIsUserLoggedIn(true);
       await loadUserInfo();
     } catch (error) {
       console.error("Error checking authentication:", error);
-      Alert.alert("Error", "Please try again or log in to continue.", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
+      setIsUserLoggedIn(false);
     }
   }, [router, loadUserInfo]);
 
   // 🎉 CHECK IF FIRST ORDER FOR FREE DELIVERY
   const checkFirstOrder = useCallback(async () => {
     try {
-      const token = await SecureStore.getItemAsync("token");
+      const token = await SecureStorage.getItem("token");
       if (!token) {
         setIsCheckingFirstOrder(false);
         return;
@@ -608,8 +610,8 @@ export default function Checkout() {
     setPromoError("");
 
     try {
-      const token = await SecureStore.getItemAsync("token");
-      const userId = await SecureStore.getItemAsync("userId");
+      const token = await SecureStorage.getItem("token");
+      const userId = await SecureStorage.getItem("userId");
       const { API_URL } = await import("@/constants/config");
 
       if (!userId) {
@@ -1130,16 +1132,16 @@ export default function Checkout() {
       // Since we're using mobile payment, save user data and let webhook handle order creation
       // Save address for future use and update user data cache
       try {
-        await SecureStore.setItemAsync("userAddress", form.address);
-        await SecureStore.setItemAsync("userOrderType", form.orderType);
+        await SecureStorage.setItem("userAddress", form.address);
+        await SecureStorage.setItem("userOrderType", form.orderType);
         if (form.pickupInstructions) {
-          await SecureStore.setItemAsync(
+          await SecureStorage.setItem(
             "userPickupInstructions",
             form.pickupInstructions,
           );
         }
         if (form.email) {
-          await SecureStore.setItemAsync("userEmail", form.email);
+          await SecureStorage.setItem("userEmail", form.email);
         }
       } catch (e) {
         console.log("SecureStore set fallback to AsyncStorage:", e);
@@ -1351,6 +1353,29 @@ export default function Checkout() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 20 }}
         >
+          {/* LOGIN REQUIRED BANNER */}
+          {isUserLoggedIn === false && (
+            <View style={styles.loginBanner}>
+              <View style={styles.loginBannerContent}>
+                <View style={styles.loginBannerIcon}>
+                  <Ionicons name="lock-open" size={20} color={PrimaryColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.loginBannerTitle}>Login Required</Text>
+                  <Text style={styles.loginBannerMessage}>
+                    Sign in to complete your order and proceed to payment
+                  </Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.loginBannerButton}
+                onPress={() => router.push("/auth")}
+              >
+                <Text style={styles.loginBannerButtonText}>Sign In</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Customer Information */}
           <Animated.View
             style={[
@@ -2684,6 +2709,55 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
+  },
+  // Login banner styles
+  loginBanner: {
+    backgroundColor: "#FEF3E2",
+    borderLeftWidth: 4,
+    borderLeftColor: PrimaryColor,
+    marginHorizontal: 16,
+    marginVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  loginBannerContent: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  loginBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${PrimaryColor}20`,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loginBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1f2937",
+  },
+  loginBannerMessage: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  loginBannerButton: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  loginBannerButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 12,
   },
   header: {
     flexDirection: "row",

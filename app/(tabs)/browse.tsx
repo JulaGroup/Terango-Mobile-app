@@ -26,9 +26,16 @@ import MealItemCard from "@/components/common/MealItemCard";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
+import {
+  getResponsivePadding,
+  getGridColumns,
+  getProductCardWidth,
+} from "@/utils/responsive";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PRODUCT_CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
+const RESPONSIVE_PADDING = getResponsivePadding();
+const GRID_COLUMNS = getGridColumns();
+const PRODUCT_CARD_WIDTH = getProductCardWidth(GRID_COLUMNS);
 const HORIZONTAL_CARD_WIDTH = 160;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -292,7 +299,7 @@ const BrowseScreen: React.FC = () => {
         icon: "restaurant" as const,
         gradient: SECTION_GRADIENTS.food,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, foodKeywords)
+          matchesKeywords(s.name, foodKeywords),
         ),
       },
       {
@@ -302,7 +309,7 @@ const BrowseScreen: React.FC = () => {
         icon: "basket" as const,
         gradient: SECTION_GRADIENTS.groceries,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, groceryKeywords)
+          matchesKeywords(s.name, groceryKeywords),
         ),
       },
       {
@@ -312,7 +319,7 @@ const BrowseScreen: React.FC = () => {
         icon: "sparkles" as const,
         gradient: SECTION_GRADIENTS.beauty,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, beautyKeywords)
+          matchesKeywords(s.name, beautyKeywords),
         ),
       },
       {
@@ -322,7 +329,7 @@ const BrowseScreen: React.FC = () => {
         icon: "home" as const,
         gradient: SECTION_GRADIENTS.home,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, homeKeywords)
+          matchesKeywords(s.name, homeKeywords),
         ),
       },
       {
@@ -332,7 +339,7 @@ const BrowseScreen: React.FC = () => {
         icon: "construct" as const,
         gradient: SECTION_GRADIENTS.hardware,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, hardwareKeywords)
+          matchesKeywords(s.name, hardwareKeywords),
         ),
       },
       {
@@ -342,7 +349,7 @@ const BrowseScreen: React.FC = () => {
         icon: "medkit" as const,
         gradient: SECTION_GRADIENTS.pharmacy,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, pharmacyKeywords)
+          matchesKeywords(s.name, pharmacyKeywords),
         ),
       },
     ].filter((g) => g.subcategories.length > 0);
@@ -353,10 +360,10 @@ const BrowseScreen: React.FC = () => {
   // ───────────────────────────────────────────────────────────────────────────
   const fetchProductsBySubcategory = async (
     subCategoryId: string,
-    limit = 12
+    limit = 12,
   ): Promise<PublicProduct[]> => {
     const res = await fetch(
-      `${API_URL}/api/subcategories/${subCategoryId}/entities?limit=${limit}`
+      `${API_URL}/api/subcategories/${subCategoryId}/entities?limit=${limit}`,
     );
     if (!res.ok) return [];
     const json = await res.json();
@@ -365,10 +372,10 @@ const BrowseScreen: React.FC = () => {
 
   const fetchMenuItemsBySubcategory = async (
     subCategoryId: string,
-    limit = 12
+    limit = 12,
   ): Promise<MenuItem[]> => {
     const res = await fetch(
-      `${API_URL}/api/subcategories/${subCategoryId}/entities?limit=${limit}`
+      `${API_URL}/api/subcategories/${subCategoryId}/entities?limit=${limit}`,
     );
     if (!res.ok) return [];
     const json = await res.json();
@@ -444,7 +451,7 @@ const BrowseScreen: React.FC = () => {
         setSubcategories(data || []);
         await AsyncStorage.setItem(
           CACHE_KEY,
-          JSON.stringify({ data: data || [], timestamp: Date.now() })
+          JSON.stringify({ data: data || [], timestamp: Date.now() }),
         );
         void fetchDynamicSections();
       } catch (err) {
@@ -454,7 +461,7 @@ const BrowseScreen: React.FC = () => {
         setRefreshing(false);
       }
     },
-    [fetchDynamicSections]
+    [fetchDynamicSections],
   );
 
   useEffect(() => {
@@ -496,7 +503,7 @@ const BrowseScreen: React.FC = () => {
       vendorId?: string;
       vendorName?: string;
       entityType?: string;
-    }
+    },
   ) => {
     addToCart({
       id: String(p.id),
@@ -894,7 +901,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: RESPONSIVE_PADDING,
     paddingVertical: 12,
     gap: 12,
     backgroundColor: "#FFF",
@@ -902,7 +909,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F1F5F9",
   },
   scrollContent: { paddingBottom: 32 },
-  titleSection: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 16 },
+  titleSection: {
+    paddingHorizontal: RESPONSIVE_PADDING,
+    paddingTop: 24,
+    paddingBottom: 16,
+  },
   pageTitle: {
     fontSize: 28,
     fontWeight: "800",
@@ -913,7 +924,7 @@ const styles = StyleSheet.create({
 
   // Custom Delivery
   customDeliveryCard: {
-    marginHorizontal: 16,
+    marginHorizontal: RESPONSIVE_PADDING,
     marginBottom: 24,
     borderRadius: 16,
     overflow: "hidden",
@@ -980,7 +991,7 @@ const styles = StyleSheet.create({
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: 16,
+    paddingHorizontal: RESPONSIVE_PADDING,
     marginBottom: 12,
     gap: 12,
   },
@@ -998,14 +1009,14 @@ const styles = StyleSheet.create({
   loader: { marginVertical: 24 },
 
   // Horizontal list
-  horizontalList: { paddingLeft: 16, paddingRight: 8, gap: 12 },
+  horizontalList: { paddingLeft: RESPONSIVE_PADDING, paddingRight: 8, gap: 12 },
   horizontalCardWrap: { width: HORIZONTAL_CARD_WIDTH },
 
   // Grid card (2 columns)
   gridCardWrap: { width: PRODUCT_CARD_WIDTH },
 
   // Meals (vertical list)
-  mealsList: { paddingHorizontal: 16, gap: 12 },
+  mealsList: { paddingHorizontal: RESPONSIVE_PADDING, gap: 12 },
   mealCardWrap: {},
 
   // Category groups
@@ -1013,7 +1024,7 @@ const styles = StyleSheet.create({
   groupHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: RESPONSIVE_PADDING,
     marginBottom: 16,
     gap: 12,
   },
@@ -1029,7 +1040,7 @@ const styles = StyleSheet.create({
   subcategoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    paddingHorizontal: 16,
+    paddingHorizontal: RESPONSIVE_PADDING,
     gap: 12,
   },
   subcategoryCard: {

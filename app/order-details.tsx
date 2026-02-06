@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+﻿import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
 import { useRouter, useLocalSearchParams } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { on as socketOn, off as socketOff } from "@/services/SocketService";
@@ -220,7 +220,7 @@ export default function OrderDetailsPage() {
               // Load user's preferred payment method (default to wave)
               let network = "wave";
               try {
-                const stored = await SecureStore.getItemAsync("paymentMethods");
+                const stored = await SecureStorage.getItem("paymentMethods");
                 if (stored) {
                   const parsed = JSON.parse(stored);
                   if (parsed?.default) network = parsed.default;
@@ -238,24 +238,38 @@ export default function OrderDetailsPage() {
               const launchUrl =
                 result?.wave_launch_url || result?.session?.wave_launch_url;
               if (launchUrl) {
-                // Attempt to open Wave URL
-                const canOpen = await Linking.canOpenURL(launchUrl);
-                if (!canOpen) {
-                  throw new Error(
-                    "Cannot open Wave payment link. Please ensure Wave app is installed or try again.",
+                // Attempt to open Wave URL - try directly without canOpenURL check
+                // (Android 11+ requires QUERY_ALL_PACKAGES permission for canOpenURL)
+                try {
+                  await Linking.openURL(launchUrl);
+
+                  Alert.alert(
+                    "Complete Payment",
+                    "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                    [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
                   );
+
+                  // don't overwrite local order state yet; we'll refresh when webhook arrives
+                  return;
+                } catch (linkError) {
+                  // If direct open fails, show helpful error
+                  Alert.alert(
+                    "Payment Failed",
+                    "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Install Wave",
+                        onPress: () => {
+                          Linking.openURL(
+                            "https://play.google.com/store/apps/details?id=com.wave.personal",
+                          );
+                        },
+                      },
+                    ],
+                  );
+                  return;
                 }
-
-                await Linking.openURL(launchUrl);
-
-                Alert.alert(
-                  "Complete Payment",
-                  "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-                  [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
-                );
-
-                // don't overwrite local order state yet; we'll refresh when webhook arrives
-                return;
               }
 
               // Otherwise treat the response as an updated order
@@ -593,7 +607,8 @@ export default function OrderDetailsPage() {
         </View>
 
         {/* QR Code Card - Prominent at top for delivery verification (or pickup verification) */}
-        {(order.status === "DISPATCHED" || order.status === "READY") &&
+        {/* Show QR code once order is ACCEPTED by vendor (and all subsequent statuses) */}
+        {["ACCEPTED", "PREPARING", "PROCESSING", "READY", "DISPATCHED", "DELIVERED"].includes(order.status) &&
           (order.qrCodeUrl || order.qrCode) && (
             <View style={[styles.qrCodeCard, styles.qrCardElevated]}>
               <View style={styles.qrCodeHeaderRow}>

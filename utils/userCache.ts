@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+﻿import { SecureStorage } from "@/utils/secureStorage";
 import axios from "axios";
 import { API_URL } from "@/constants/config";
 
@@ -25,23 +25,23 @@ export class UserCacheManager {
    */
   static async cacheUserData(userData: any): Promise<void> {
     try {
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         this.CACHE_KEYS.NAME,
         userData?.fullName || ""
       );
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         this.CACHE_KEYS.PHONE,
         userData?.phone || ""
       );
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         this.CACHE_KEYS.EMAIL,
         userData?.email || ""
       );
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         this.CACHE_KEYS.VERIFIED,
         userData?.isVerified?.toString() || "false"
       );
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         this.CACHE_KEYS.TIMESTAMP,
         Date.now().toString()
       );
@@ -56,7 +56,7 @@ export class UserCacheManager {
    */
   static async loadCachedUserData(): Promise<UserCacheData | null> {
     try {
-      const cacheTimestamp = await SecureStore.getItemAsync(
+      const cacheTimestamp = await SecureStorage.getItem(
         this.CACHE_KEYS.TIMESTAMP
       );
       const isStale =
@@ -67,10 +67,10 @@ export class UserCacheManager {
         return null;
       }
 
-      const name = await SecureStore.getItemAsync(this.CACHE_KEYS.NAME);
-      const phone = await SecureStore.getItemAsync(this.CACHE_KEYS.PHONE);
-      const email = await SecureStore.getItemAsync(this.CACHE_KEYS.EMAIL);
-      const verified = await SecureStore.getItemAsync(this.CACHE_KEYS.VERIFIED);
+      const name = await SecureStorage.getItem(this.CACHE_KEYS.NAME);
+      const phone = await SecureStorage.getItem(this.CACHE_KEYS.PHONE);
+      const email = await SecureStorage.getItem(this.CACHE_KEYS.EMAIL);
+      const verified = await SecureStorage.getItem(this.CACHE_KEYS.VERIFIED);
 
       const cachedData: UserCacheData = {
         fullName: name || "",
@@ -100,8 +100,8 @@ export class UserCacheManager {
    */
   static async fetchAndCacheUserData(): Promise<UserCacheData | null> {
     try {
-      const userId = await SecureStore.getItemAsync("userId");
-      const token = await SecureStore.getItemAsync("token");
+      const userId = await SecureStorage.getItem("userId");
+      const token = await SecureStorage.getItem("token");
 
       if (!userId || !token) {
         console.log("⚠️ No user credentials found");
@@ -157,11 +157,11 @@ export class UserCacheManager {
   static async clearCache(): Promise<void> {
     try {
       try {
-        await SecureStore.deleteItemAsync(this.CACHE_KEYS.NAME);
-        await SecureStore.deleteItemAsync(this.CACHE_KEYS.PHONE);
-        await SecureStore.deleteItemAsync(this.CACHE_KEYS.EMAIL);
-        await SecureStore.deleteItemAsync(this.CACHE_KEYS.VERIFIED);
-        await SecureStore.deleteItemAsync(this.CACHE_KEYS.TIMESTAMP);
+        await SecureStorage.deleteItem(this.CACHE_KEYS.NAME);
+        await SecureStorage.deleteItem(this.CACHE_KEYS.PHONE);
+        await SecureStorage.deleteItem(this.CACHE_KEYS.EMAIL);
+        await SecureStorage.deleteItem(this.CACHE_KEYS.VERIFIED);
+        await SecureStorage.deleteItem(this.CACHE_KEYS.TIMESTAMP);
         console.log("🗑️ User cache cleared");
       } catch (error) {
         console.error("❌ Error clearing cache:", error);
@@ -177,7 +177,7 @@ export class UserCacheManager {
    */
   static async isCacheValid(): Promise<boolean> {
     try {
-      const cacheTimestamp = await SecureStore.getItemAsync(
+      const cacheTimestamp = await SecureStorage.getItem(
         this.CACHE_KEYS.TIMESTAMP
       );
       if (!cacheTimestamp) return false;

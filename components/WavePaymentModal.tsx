@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -8,9 +8,10 @@ import {
   Alert,
   StyleSheet,
   Linking,
+  Platform,
 } from "react-native";
 import { API_URL } from "@/constants/config";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 
 // Minimal uuidv4 generator (no deps)
 const uuidv4 = () => {
@@ -57,7 +58,7 @@ export default function WavePaymentModal({
 
   const loadPaymentMethod = async () => {
     try {
-      const paymentMethods = await SecureStore.getItemAsync("paymentMethods");
+      const paymentMethods = await SecureStorage.getItem("paymentMethods");
       if (paymentMethods) {
         const data = JSON.parse(paymentMethods);
         const defaultMethod = data.default;
@@ -77,7 +78,7 @@ export default function WavePaymentModal({
   const persistIdempotency = async (key: string, payload: any) => {
     const storageKey = `checkout.idempotency.${key}`;
     try {
-      await SecureStore.setItemAsync(storageKey, JSON.stringify(payload));
+      await SecureStorage.setItem(storageKey, JSON.stringify(payload));
     } catch (e) {
       console.log("SecureStore persist idempotency failed, falling back:", e);
       try {
@@ -95,7 +96,7 @@ export default function WavePaymentModal({
     if (!paymentMethod) {
       Alert.alert(
         "No Payment Method",
-        "Please set up a payment method in your profile."
+        "Please set up a payment method in your profile.",
       );
       return;
     }
@@ -104,7 +105,7 @@ export default function WavePaymentModal({
     const idempotencyKey = uuidv4();
 
     try {
-      const token = await SecureStore.getItemAsync("token");
+      const token = await SecureStorage.getItem("token");
       if (!token) {
         Alert.alert("Unauthorized", "Please log in and try again.");
         setLoading(false);
@@ -160,7 +161,13 @@ export default function WavePaymentModal({
         // If paymentLink is present (legacy), open it. For instant checkout, there won't be one.
         if (paymentLink) {
           try {
-            await Linking.openURL(paymentLink);
+            if (Platform.OS === "web") {
+              // On web, open payment link in new window
+              window.open(paymentLink, "_blank");
+            } else {
+              // On mobile, use deep link
+              await Linking.openURL(paymentLink);
+            }
           } catch (e) {
             console.log("Failed to open payment link:", e);
           }
@@ -183,7 +190,7 @@ export default function WavePaymentModal({
       console.error("Wave payment error:", err);
       Alert.alert(
         "Network error",
-        "Failed to contact server. Check your connection and try again."
+        "Failed to contact server. Check your connection and try again.",
       );
     } finally {
       setLoading(false);

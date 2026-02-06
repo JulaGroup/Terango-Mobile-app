@@ -1,8 +1,8 @@
-import * as Notifications from "expo-notifications";
+﻿import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 
 // Configure notification behavior
@@ -106,7 +106,7 @@ class NotificationService {
         return false;
       }
 
-      const authToken = await SecureStore.getItemAsync("authToken");
+      const authToken = await SecureStorage.getItem("authToken");
 
       // Fixed: Changed from /api/push-tokens to /api/push-token (singular) to match server route
       // Server expects: { userId, expoPushToken, deviceInfo }

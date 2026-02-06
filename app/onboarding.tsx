@@ -1,5 +1,5 @@
-import { PrimaryColor } from "@/constants/Colors";
-import * as SecureStore from "expo-secure-store";
+﻿import { PrimaryColor } from "@/constants/Colors";
+import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
 import React, { useRef, useState } from "react";
 import {
@@ -91,7 +91,7 @@ export default function Onboarding() {
         onPress={async () => {
           if (loading) return;
           setLoading(true);
-          await SecureStore.setItemAsync("hasSeenOnboarding", "true");
+          await SecureStorage.setItem("hasSeenOnboarding", "true");
           router.replace("/(tabs)");
         }}
       >
@@ -164,7 +164,7 @@ export default function Onboarding() {
               onPress={async () => {
                 if (loading) return;
                 setLoading(true);
-                await SecureStore.setItemAsync("hasSeenOnboarding", "true");
+                await SecureStorage.setItem("hasSeenOnboarding", "true");
                 router.replace("/(tabs)");
               }}
               activeOpacity={0.8}

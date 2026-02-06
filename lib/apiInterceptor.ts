@@ -1,9 +1,9 @@
-/**
+﻿/**
  * FIX: Axios Interceptor for Automatic Token Refresh and Retry
- * 
- * ISSUE: When tokens expired, users would get stuck in a loading state with 
+ *
+ * ISSUE: When tokens expired, users would get stuck in a loading state with
  * no clear error message or way to recover.
- * 
+ *
  * SOLUTION:
  * 1. Intercept all 401 (Unauthorized) responses
  * 2. Attempt to refresh the token using backend endpoint
@@ -12,8 +12,12 @@
  * 5. Add retry logic with exponential backoff for network errors
  */
 
-import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
-import * as SecureStore from "expo-secure-store";
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
+import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 import { API_URL } from "@/constants/config";
@@ -43,9 +47,9 @@ const addRefreshSubscriber = (callback: (token: string) => void) => {
 async function refreshAuthToken(): Promise<string | null> {
   try {
     console.log("[ApiInterceptor] 🔄 Attempting to refresh token...");
-    
-    const refreshToken = await SecureStore.getItemAsync("refreshToken");
-    const userId = await SecureStore.getItemAsync("userId");
+
+    const refreshToken = await SecureStorage.getItem("refreshToken");
+    const userId = await SecureStorage.getItem("userId");
 
     if (!refreshToken || !userId) {
       console.warn("[ApiInterceptor] ❌ No refresh token or userId found");
@@ -60,14 +64,14 @@ async function refreshAuthToken(): Promise<string | null> {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     const { token: newToken } = response.data;
 
     if (newToken) {
       console.log("[ApiInterceptor] ✅ Token refreshed successfully");
-      await SecureStore.setItemAsync("token", newToken);
+      await SecureStorage.setItem("token", newToken);
       return newToken;
     }
 
@@ -135,7 +139,9 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
           } else {
             // Refresh failed - redirect to login
             isRefreshing = false;
-            console.error("[ApiInterceptor] 🔴 Token refresh failed, redirecting to login");
+            console.error(
+              "[ApiInterceptor] 🔴 Token refresh failed, redirecting to login",
+            );
 
             Alert.alert(
               "Session Expired",
@@ -145,16 +151,16 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
                   text: "OK",
                   onPress: async () => {
                     // Clear auth data
-                    await SecureStore.deleteItemAsync("token");
-                    await SecureStore.deleteItemAsync("userId");
-                    await SecureStore.deleteItemAsync("refreshToken");
-                    await SecureStore.deleteItemAsync("isLoggedIn");
+                    await SecureStorage.deleteItem("token");
+                    await SecureStorage.deleteItem("userId");
+                    await SecureStorage.deleteItem("refreshToken");
+                    await SecureStorage.deleteItem("isLoggedIn");
 
                     // Redirect to login
                     router.replace("/auth");
                   },
                 },
-              ]
+              ],
             );
 
             return Promise.reject(error);
@@ -180,7 +186,7 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
           // Exponential backoff: 1s, 2s, 4s
           const delay = Math.pow(2, retryCount) * 1000;
           console.log(
-            `[ApiInterceptor] 🔄 Network error - Retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`
+            `[ApiInterceptor] 🔄 Network error - Retrying in ${delay}ms (attempt ${retryCount + 1}/${maxRetries})`,
           );
 
           return new Promise((resolve) => {
@@ -193,7 +199,7 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
 
       // For all other errors, reject
       return Promise.reject(error);
-    }
+    },
   );
 
   /**
@@ -202,7 +208,7 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
   instance.interceptors.request.use(
     async (config) => {
       try {
-        const token = await SecureStore.getItemAsync("token");
+        const token = await SecureStorage.getItem("token");
 
         if (token && config.headers) {
           config.headers["Authorization"] = `Bearer ${token}`;
@@ -216,7 +222,7 @@ export function setupAxiosInterceptors(instance: AxiosInstance) {
     },
     (error) => {
       return Promise.reject(error);
-    }
+    },
   );
 }
 

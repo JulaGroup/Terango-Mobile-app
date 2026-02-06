@@ -22,8 +22,10 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { getResponsivePadding } from "@/utils/responsive";
 
 const { width } = Dimensions.get("window");
+const RESPONSIVE_PADDING = getResponsivePadding();
 
 export default function HomeScreen() {
   const [searchText, setSearchText] = useState("");
@@ -64,17 +66,17 @@ export default function HomeScreen() {
       <Animated.View
         style={{
           position: "absolute",
-          top: Platform.OS === "android" ? 25 : 40,
+          top: Platform.OS === "web" ? 0 : Platform.OS === "android" ? 25 : 40,
+          left: 0,
+          right: 0,
           zIndex: 1000,
           opacity: showStickySearchBar,
           backgroundColor: "#fff",
           flexDirection: "row",
-          paddingHorizontal: 16,
+          paddingHorizontal: RESPONSIVE_PADDING,
           paddingVertical: 10,
-          width: width,
-          borderRadius: 8,
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.08,
@@ -87,8 +89,8 @@ export default function HomeScreen() {
             onChangeText={(text) => setSearchText(text)}
             value={searchText}
             onPress={() => setSearchModalVisible(true)}
-            editable={false} // Make it non-editable to force modal usage
-            fullWidth={true} // Remove horizontal margins for full width
+            editable={false}
+            fullWidth={true}
           />
         </View>
         <Cart />
@@ -102,7 +104,7 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: false },
         )}
         refreshControl={
           <RefreshControl

@@ -1,7 +1,7 @@
-// app/complete-profile.tsx
+﻿// app/complete-profile.tsx
 import { completeProfile } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -32,7 +32,7 @@ export default function CompleteProfile() {
 
   const checkTermsAcceptance = async () => {
     try {
-      const accepted = await SecureStore.getItemAsync("termsAccepted");
+      const accepted = await SecureStorage.getItem("termsAccepted");
       if (accepted === "true") {
         setTermsAccepted(true);
       } else {
@@ -47,7 +47,7 @@ export default function CompleteProfile() {
 
   const handleTermsAccept = async () => {
     try {
-      await SecureStore.setItemAsync("termsAccepted", "true");
+      await SecureStorage.setItem("termsAccepted", "true");
       setTermsAccepted(true);
       setShowTermsModal(false);
     } catch (error) {
@@ -98,7 +98,7 @@ export default function CompleteProfile() {
       }
 
       try {
-        const userId = await SecureStore.getItemAsync("userId");
+        const userId = await SecureStorage.getItem("userId");
         if (!userId) throw new Error("User ID not found");
 
         await completeProfile({ userId, name });
@@ -110,7 +110,7 @@ export default function CompleteProfile() {
           isVerified: false, // New profiles start unverified
         });
 
-        await SecureStore.setItemAsync("isLoggedIn", "true");
+        await SecureStorage.setItem("isLoggedIn", "true");
 
         console.log("✅ Profile completed and cached successfully");
         // Navigate to add home address onboarding

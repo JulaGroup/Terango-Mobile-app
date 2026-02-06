@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -38,7 +38,7 @@ export default function PaymentMethodsPage() {
 
   const loadPaymentMethods = async () => {
     try {
-      const stored = await SecureStore.getItemAsync("paymentMethods");
+      const stored = await SecureStorage.getItem("paymentMethods");
       if (stored) {
         setPaymentData(JSON.parse(stored));
       }
@@ -50,7 +50,7 @@ export default function PaymentMethodsPage() {
   const savePaymentMethods = async () => {
     setLoading(true);
     try {
-      await SecureStore.setItemAsync(
+      await SecureStorage.setItem(
         "paymentMethods",
         JSON.stringify(paymentData),
       );

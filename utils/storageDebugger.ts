@@ -1,5 +1,5 @@
+﻿import { SecureStorage } from "@/utils/secureStorage";
 import { SecureStorage } from "@/utils/secureStorage";
-import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
@@ -16,10 +16,10 @@ export class StorageDebugger {
     // Test SecureStore directly
     console.log("\n1. Testing SecureStore directly...");
     try {
-      await SecureStore.setItemAsync("test_secure", "test_value");
-      const secureValue = await SecureStore.getItemAsync("test_secure");
+      await SecureStorage.setItem("test_secure", "test_value");
+      const secureValue = await SecureStorage.getItem("test_secure");
       console.log("✅ SecureStore works:", secureValue === "test_value");
-      await SecureStore.deleteItemAsync("test_secure");
+      await SecureStorage.deleteItem("test_secure");
     } catch (error) {
       console.log("❌ SecureStore failed:", error);
     }

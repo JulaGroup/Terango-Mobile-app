@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,7 +14,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useLocation } from "@/hooks/useLocation";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService } from "@/services/AddressService";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function AddHomeAddress() {
@@ -93,7 +93,7 @@ export default function AddHomeAddress() {
 
     setLoading(true);
     try {
-      const userId = await SecureStore.getItemAsync("userId");
+      const userId = await SecureStorage.getItem("userId");
       if (!userId) throw new Error("User ID not found");
 
       // Save as default home address
@@ -107,7 +107,7 @@ export default function AddHomeAddress() {
       });
 
       // Mark onboarding as complete
-      await SecureStore.setItemAsync("addressOnboardingComplete", "true");
+      await SecureStorage.setItem("addressOnboardingComplete", "true");
 
       // Navigate to main app
       router.replace("/(tabs)");
@@ -122,7 +122,7 @@ export default function AddHomeAddress() {
   const handleSkip = async () => {
     try {
       // Mark that user skipped this step
-      await SecureStore.setItemAsync("addressOnboardingComplete", "skipped");
+      await SecureStorage.setItem("addressOnboardingComplete", "skipped");
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Error skipping:", error);

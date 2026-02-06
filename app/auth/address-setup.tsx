@@ -1,4 +1,4 @@
-// app/auth/address-setup.tsx
+﻿// app/auth/address-setup.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
@@ -21,7 +21,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import * as Location from "expo-location";
 import { LinearGradient } from "expo-linear-gradient";
 import { userApi } from "@/lib/api";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 const { width } = Dimensions.get("window");
 
@@ -46,7 +46,7 @@ export default function AddressSetup() {
   useEffect(() => {
     const checkExistingAddress = async () => {
       try {
-        const userId = await SecureStore.getItemAsync("userId");
+        const userId = await SecureStorage.getItem("userId");
         if (!userId) {
           setCheckingExistingAddress(false);
           return;
@@ -166,7 +166,7 @@ export default function AddressSetup() {
 
     setLoading(true);
     try {
-      const userId = await SecureStore.getItemAsync("userId");
+      const userId = await SecureStorage.getItem("userId");
       if (!userId) throw new Error("User ID not found");
 
       // Get coordinates if not already detected

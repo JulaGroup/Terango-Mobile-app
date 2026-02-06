@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { API_URL } from "@/constants/config";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 
 export type SocketEventType =
   | "new_order"
@@ -42,7 +42,7 @@ class WebSocketService {
     this.isConnecting = true;
 
     try {
-      const authToken = await SecureStore.getItemAsync("authToken");
+      const authToken = await SecureStorage.getItem("authToken");
 
       const socketUrl = API_URL.replace(/^http/, "ws");
 

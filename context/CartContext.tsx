@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   createContext,
   ReactNode,
   useContext,
@@ -6,9 +6,9 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface CartItem {
@@ -77,7 +77,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           console.log(
             "[CartContext] ✅ Loaded cart from storage:",
             parsedCart.length,
-            "items"
+            "items",
           );
         }
       } catch (error) {
@@ -108,7 +108,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           console.log(
             "[CartContext] ✅ Cart saved to storage:",
             items.length,
-            "items"
+            "items",
           );
         } else {
           // Clear storage if cart is empty
@@ -129,52 +129,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   }, [items]);
 
   const addToCart = async (
-    newItem: Omit<CartItem, "quantity"> & { quantity?: number }
+    newItem: Omit<CartItem, "quantity"> & { quantity?: number },
   ) => {
-    // Check if user is logged in before adding to cart
-    try {
-      const token = await SecureStore.getItemAsync("token");
-      const isLoggedIn = await SecureStore.getItemAsync("isLoggedIn");
-
-      console.debug(
-        "CartContext.addToCart: auth check -> token present:",
-        !!token,
-        "isLoggedIn:",
-        !!isLoggedIn
-      );
-
-      if (!token || !isLoggedIn) {
-        Alert.alert(
-          "Login Required",
-          "Please log in to add items to your cart.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Log In",
-              onPress: () => router.push("/auth"),
-            },
-          ]
-        );
-        console.debug("CartContext.addToCart: aborting - user not logged in");
-        return;
-      }
-    } catch (error) {
-      console.error("Error checking authentication:", error);
-      Alert.alert(
-        "Login Required",
-        "Please log in to add items to your cart.",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Log In",
-            onPress: () => router.push("/auth"),
-          },
-        ]
-      );
-      console.debug("CartContext.addToCart: aborting - SecureStore error");
-      return;
-    }
-
+    // Allow adding to cart without login (login required at checkout)
     // Check if we already have items from a different vendor
     if (items.length > 0 && items[0].vendorId !== newItem.vendorId) {
       Alert.alert(
@@ -191,21 +148,21 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
               setItems([{ ...newItem, quantity: newItem.quantity || 1 }]);
             },
           },
-        ]
+        ],
       );
       console.debug(
         "CartContext.addToCart: aborting - vendor mismatch",
         "existing:",
         items[0]?.vendorId,
         "new:",
-        newItem.vendorId
+        newItem.vendorId,
       );
       return;
     }
     console.debug(
       "CartContext.addToCart: proceeding to add/update item",
       newItem.id,
-      newItem.vendorId
+      newItem.vendorId,
     );
 
     setItems((currentItems) => {
@@ -217,10 +174,10 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
           ["restaurant", "shop", "pharmacy"].includes(newItem.entityType)
             ? newItem.entityType
             : // map common non-standard values to 'shop'
-            newItem.entityType === "product" ||
-              newItem.entityType === "menuItem"
-            ? "shop"
-            : "shop",
+              newItem.entityType === "product" ||
+                newItem.entityType === "menuItem"
+              ? "shop"
+              : "shop",
         vendorId:
           (newItem as any).vendorId?.toString?.() ||
           (newItem as any).storeId?.toString?.() ||
@@ -234,7 +191,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         console.warn(
           "CartContext.addToCart: vendorId missing for item",
           newItem,
-          "— defaulting to empty string; consider passing vendorId/vendorName/entityType"
+          "— defaulting to empty string; consider passing vendorId/vendorName/entityType",
         );
       }
       const existingItem = currentItems.find((item) => item.id === newItem.id);
@@ -243,12 +200,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         // Update quantity of existing item
         console.debug(
           "CartContext.addToCart: updating existing item",
-          existingItem.id
+          existingItem.id,
         );
         return currentItems.map((item) =>
           item.id === newItem.id
             ? { ...item, quantity: item.quantity + (newItem.quantity || 1) }
-            : item
+            : item,
         );
       }
 
@@ -257,7 +214,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         "CartContext.addToCart: adding new item",
         safeNewItem.id,
         "vendor:",
-        safeNewItem.vendorId
+        safeNewItem.vendorId,
       );
       return [
         ...currentItems,
@@ -268,7 +225,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
   const removeFromCart = (itemId: string) => {
     setItems((currentItems) =>
-      currentItems.filter((item) => item.id !== itemId)
+      currentItems.filter((item) => item.id !== itemId),
     );
   };
 
@@ -280,8 +237,8 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     setItems((currentItems) =>
       currentItems.map((item) =>
-        item.id === itemId ? { ...item, quantity } : item
-      )
+        item.id === itemId ? { ...item, quantity } : item,
+      ),
     );
   };
 
@@ -298,12 +255,12 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         .catch((error) => {
           console.error(
             "[CartContext] Error clearing cart from storage:",
-            error
+            error,
           );
         });
 
       // Store payment success flag to prevent cart from being restored
-      SecureStore.setItemAsync("paymentSuccessCleared", "true").then(() => {
+      SecureStorage.setItem("paymentSuccessCleared", "true").then(() => {
         console.log("[CartContext] ✅ Payment success flag stored");
       });
     } catch (error) {

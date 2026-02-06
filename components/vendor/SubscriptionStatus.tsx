@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 
 interface SubscriptionPackage {
@@ -85,7 +85,7 @@ export default function SubscriptionStatus() {
     try {
       setError(null);
       // Get token from SecureStore (where it's actually stored)
-      const token = await SecureStore.getItemAsync("token");
+      const token = await SecureStorage.getItem("token");
 
       console.log("🔍 [SUBSCRIPTION] Token found:", token ? "YES" : "NO");
       console.log(

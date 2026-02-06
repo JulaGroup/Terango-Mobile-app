@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
     width: "100%",
-    maxWidth: 480,
+    maxWidth: "100%",
     alignSelf: "center",
     gap: 10,
     marginTop: 20,

@@ -33,9 +33,22 @@ import {
   off as socketOff,
   emit,
 } from "@/services/SocketService";
-import MapView, { Marker, PROVIDER_DEFAULT, Polyline } from "react-native-maps";
 import { LinearGradient } from "expo-linear-gradient";
 import { getTownById } from "@/constants/gambianTowns";
+
+// Conditionally import MapView only for native platforms
+let MapView: any, Marker: any, PROVIDER_DEFAULT: any, Polyline: any;
+if (Platform.OS !== "web") {
+  try {
+    const Maps = require("react-native-maps");
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+    PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+    Polyline = Maps.Polyline;
+  } catch (e) {
+    console.warn("Maps not available on web");
+  }
+}
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -109,7 +122,7 @@ const toRadians = (value: number) => (value * Math.PI) / 180;
 
 const buildCurvedRoute = (
   start: { latitude: number; longitude: number },
-  end: { latitude: number; longitude: number }
+  end: { latitude: number; longitude: number },
 ) => {
   const points: { latitude: number; longitude: number }[] = [];
   const numPoints = 25;
@@ -160,7 +173,7 @@ export default function OrderTrackingPage() {
 
   // Bottom sheet animation
   const sheetY = useRef(
-    new Animated.Value(SCREEN_HEIGHT - SNAP_POINTS.half)
+    new Animated.Value(SCREEN_HEIGHT - SNAP_POINTS.half),
   ).current;
   const lastGestureY = useRef(0);
   const currentSnap = useRef<"collapsed" | "half" | "expanded">("half");
@@ -172,7 +185,7 @@ export default function OrderTrackingPage() {
     const R = 6371; // Earth's radius in km
     const dLat = toRadians(deliveryLocation.latitude - driverLocation.latitude);
     const dLon = toRadians(
-      deliveryLocation.longitude - driverLocation.longitude
+      deliveryLocation.longitude - driverLocation.longitude,
     );
     const lat1 = toRadians(driverLocation.latitude);
     const lat2 = toRadians(deliveryLocation.latitude);
@@ -195,7 +208,7 @@ export default function OrderTrackingPage() {
   const distanceBetween = useCallback(
     (
       start: { latitude: number; longitude: number },
-      end: { latitude: number; longitude: number }
+      end: { latitude: number; longitude: number },
     ) => {
       const R = 6371000;
       const dLat = toRadians(end.latitude - start.latitude);
@@ -213,7 +226,7 @@ export default function OrderTrackingPage() {
 
       return R * c;
     },
-    []
+    [],
   );
 
   // Fetch route using OSRM
@@ -221,7 +234,7 @@ export default function OrderTrackingPage() {
     async (
       origin: { latitude: number; longitude: number },
       destination: { latitude: number; longitude: number },
-      force = false
+      force = false,
     ) => {
       if (isFetchingRouteRef.current) return;
 
@@ -262,7 +275,7 @@ export default function OrderTrackingPage() {
         isFetchingRouteRef.current = false;
       }
     },
-    [distanceBetween]
+    [distanceBetween],
   );
 
   // Fetch order details
@@ -354,10 +367,10 @@ export default function OrderTrackingPage() {
               driverLatitude: data.latitude,
               driverLongitude: data.longitude,
               driverLastLocationUpdate: new Date(
-                data.timestamp || Date.now()
+                data.timestamp || Date.now(),
               ).toISOString(),
             }
-          : null
+          : null,
       );
     };
 
@@ -376,7 +389,7 @@ export default function OrderTrackingPage() {
       fetchRoute(
         driverLocation,
         deliveryLocation,
-        routeCoordinates.length === 0
+        routeCoordinates.length === 0,
       );
     }
   }, [driverLocation, deliveryLocation, fetchRoute, routeCoordinates.length]);
@@ -476,7 +489,7 @@ export default function OrderTrackingPage() {
           useNativeDriver: true,
         }).start();
       },
-    })
+    }),
   ).current;
 
   const handleCallDriver = () => {
@@ -566,7 +579,7 @@ export default function OrderTrackingPage() {
       />
 
       {/* Full Screen Map */}
-      {!isPickup && deliveryLocation ? (
+      {Platform.OS !== "web" && !isPickup && deliveryLocation ? (
         <MapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
@@ -629,13 +642,23 @@ export default function OrderTrackingPage() {
         <View style={styles.noMapContainer}>
           <View style={styles.noMapIcon}>
             <Ionicons
-              name={isPickup ? "storefront" : "location"}
+              name={
+                Platform.OS === "web"
+                  ? "globe"
+                  : isPickup
+                    ? "storefront"
+                    : "location"
+              }
               size={48}
               color="#D1D5DB"
             />
           </View>
           <Text style={styles.noMapText}>
-            {isPickup ? "Pick up at restaurant" : "Map not available"}
+            {Platform.OS === "web"
+              ? "Map view available on mobile app"
+              : isPickup
+                ? "Pick up at restaurant"
+                : "Map not available"}
           </Text>
         </View>
       )}

@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+﻿import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 
 // Types for vendor-related data
@@ -205,9 +205,9 @@ export interface CreateOrderData {
 const getAuthToken = async (): Promise<string | null> => {
   try {
     // Try both token keys for compatibility
-    let token = await SecureStore.getItemAsync("token");
+    let token = await SecureStorage.getItem("token");
     if (!token) {
-      token = await SecureStore.getItemAsync("authToken");
+      token = await SecureStorage.getItem("authToken");
     }
     console.log(
       "🔐 Auth Token Retrieved:",

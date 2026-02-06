@@ -1,4 +1,4 @@
-import React, {
+﻿import React, {
   createContext,
   useContext,
   useState,
@@ -6,7 +6,7 @@ import React, {
   ReactNode,
   useCallback,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { Address, AddressService } from "@/services/AddressService";
 
 interface AddressContextType {
@@ -26,14 +26,14 @@ interface AddressContextType {
 }
 
 export const AddressContext = createContext<AddressContextType | undefined>(
-  undefined
+  undefined,
 );
 
 const SELECTED_ADDRESS_KEY = "teranggo_selected_address";
 
 export function AddressProvider({ children }: { children: ReactNode }) {
   const [selectedAddress, setSelectedAddressState] = useState<Address | null>(
-    null
+    null,
   );
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +46,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
   const getUserId = async (): Promise<string | null> => {
     try {
-      const userId = await SecureStore.getItemAsync("userId");
+      const userId = await SecureStorage.getItem("userId");
       return userId;
     } catch (error) {
       console.error("Failed to get user ID:", error);
@@ -56,7 +56,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
   const loadSelectedAddress = async () => {
     try {
-      const savedAddress = await SecureStore.getItemAsync(SELECTED_ADDRESS_KEY);
+      const savedAddress = await SecureStorage.getItem(SELECTED_ADDRESS_KEY);
       if (savedAddress) {
         setSelectedAddressState(JSON.parse(savedAddress));
       }
@@ -68,12 +68,12 @@ export function AddressProvider({ children }: { children: ReactNode }) {
     try {
       setSelectedAddressState(address);
       if (address) {
-        await SecureStore.setItemAsync(
+        await SecureStorage.setItem(
           SELECTED_ADDRESS_KEY,
-          JSON.stringify(address)
+          JSON.stringify(address),
         );
       } else {
-        await SecureStore.deleteItemAsync(SELECTED_ADDRESS_KEY);
+        await SecureStorage.deleteItem(SELECTED_ADDRESS_KEY);
       }
     } catch (error) {
       console.error("Failed to save selected address:", error);
@@ -118,7 +118,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
 
       const newAddress = await AddressService.createAddress(
         userId,
-        addressData
+        addressData,
       );
       setAddresses((prev) => [...prev, newAddress]);
 
@@ -139,10 +139,10 @@ export function AddressProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       const updatedAddress = await AddressService.updateAddress(
         addressId,
-        addressData
+        addressData,
       );
       setAddresses((prev) =>
-        prev.map((addr) => (addr.id === addressId ? updatedAddress : addr))
+        prev.map((addr) => (addr.id === addressId ? updatedAddress : addr)),
       );
 
       // If the updated address is currently selected, update it
@@ -166,7 +166,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
       // If the deleted address was selected, clear selection or select another
       if (selectedAddress?.id === addressId) {
         const remainingAddresses = addresses.filter(
-          (addr) => addr.id !== addressId
+          (addr) => addr.id !== addressId,
         );
         const newSelected =
           remainingAddresses.find((addr) => addr.isDefault) ||
@@ -192,7 +192,7 @@ export function AddressProvider({ children }: { children: ReactNode }) {
         prev.map((addr) => ({
           ...addr,
           isDefault: addr.id === addressId,
-        }))
+        })),
       );
 
       // Set as selected address

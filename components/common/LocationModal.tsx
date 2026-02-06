@@ -1,4 +1,4 @@
-/**
+﻿/**
  * LocationModal Component
  *
  * A modern, sleek location selection modal for TeranGo app.
@@ -40,6 +40,7 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
@@ -47,8 +48,9 @@ import { useLocation } from "@/hooks/useLocation";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService, Address } from "@/services/AddressService";
 import { GOOGLE_PLACES_API_KEY } from "@/constants/config";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
+import { PrimaryColor } from "@/constants/Colors";
 
 const { height } = Dimensions.get("window");
 
@@ -66,9 +68,10 @@ const LocationModal = ({
   currentAddress,
 }: LocationModalProps) => {
   const [selectedTab, setSelectedTab] = useState<"Home" | "Office" | "Other">(
-    "Home"
+    "Home",
   );
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const { getCurrentLocation } = useLocation();
   const {
     addresses,
@@ -89,6 +92,24 @@ const LocationModal = ({
   } | null>(null);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
+
+  // Check if user is logged in when modal opens
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = await SecureStorage.getItem("token");
+        const loggedIn = await SecureStorage.getItem("isLoggedIn");
+        setIsLoggedIn(!!(token && loggedIn));
+      } catch (error) {
+        console.error("Error checking auth:", error);
+        setIsLoggedIn(false);
+      }
+    };
+
+    if (visible) {
+      checkAuth();
+    }
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -143,16 +164,16 @@ const LocationModal = ({
           details.address_components?.find(
             (comp: any) =>
               comp.types.includes("locality") ||
-              comp.types.includes("administrative_area_level_1")
+              comp.types.includes("administrative_area_level_1"),
           )?.long_name || "Banjul",
         state:
           details.address_components?.find((comp: any) =>
-            comp.types.includes("administrative_area_level_1")
+            comp.types.includes("administrative_area_level_1"),
           )?.long_name || "",
         country: "The Gambia",
         postalCode:
           details.address_components?.find((comp: any) =>
-            comp.types.includes("postal_code")
+            comp.types.includes("postal_code"),
           )?.long_name || "",
         latitude: details.geometry.location.lat,
         longitude: details.geometry.location.lng,
@@ -175,14 +196,14 @@ const LocationModal = ({
       if (!currentLoc) {
         Alert.alert(
           "Location",
-          "Unable to get current location. Please check permissions and try again."
+          "Unable to get current location. Please check permissions and try again.",
         );
         return;
       }
       // Reverse geocode to a human readable address (uses frontend service which calls Nominatim)
       const displayAddress = await AddressService.getAddressFromCoordinates(
         currentLoc.latitude,
-        currentLoc.longitude
+        currentLoc.longitude,
       );
 
       // Set preview so user can confirm and save
@@ -196,7 +217,7 @@ const LocationModal = ({
       console.error("Error using current location:", error);
       Alert.alert(
         "Error",
-        "Failed to get current location. Please check your location permissions."
+        "Failed to get current location. Please check your location permissions.",
       );
     }
   };
@@ -209,9 +230,8 @@ const LocationModal = ({
     }
     setSearching(true);
     try {
-      const coords = await AddressService.getCoordinatesFromAddress(
-        searchQuery
-      );
+      const coords =
+        await AddressService.getCoordinatesFromAddress(searchQuery);
       if (!coords) {
         Alert.alert("Not found", "Could not find that address");
         return;
@@ -219,7 +239,7 @@ const LocationModal = ({
 
       const display = await AddressService.getAddressFromCoordinates(
         coords.latitude,
-        coords.longitude
+        coords.longitude,
       );
 
       setCurrentPreview({
@@ -279,13 +299,13 @@ const LocationModal = ({
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const getAddressesByLabel = (label: string) => {
     return addresses.filter(
-      (addr) => addr.label.toLowerCase() === label.toLowerCase()
+      (addr) => addr.label.toLowerCase() === label.toLowerCase(),
     );
   };
 
@@ -309,8 +329,8 @@ const LocationModal = ({
             tab === "Home"
               ? "home"
               : tab === "Office"
-              ? "briefcase"
-              : "location"
+                ? "briefcase"
+                : "location"
           }
           size={20}
           color={isSelected ? "#ff6b00" : !hasAddresses ? "#ff6b00" : "#929292"}
@@ -344,9 +364,9 @@ const LocationModal = ({
         address.isDefault ? styles.addressItemDefault : null,
       ]}
       onPress={async () => {
-        const userId = await SecureStore.getItemAsync("userId");
-        const token = await SecureStore.getItemAsync("token");
-        const userPhone = await SecureStore.getItemAsync("userPhone");
+        const userId = await SecureStorage.getItem("userId");
+        const token = await SecureStorage.getItem("token");
+        const userPhone = await SecureStorage.getItem("userPhone");
 
         if (!userId || !token || !userPhone) {
           Alert.alert(
@@ -355,7 +375,7 @@ const LocationModal = ({
             [
               { text: "Cancel", style: "cancel" },
               { text: "Login", onPress: () => router.push("/auth") },
-            ]
+            ],
           );
           return;
         }
@@ -375,8 +395,8 @@ const LocationModal = ({
             address.label.toLowerCase().includes("home")
               ? "home"
               : address.label.toLowerCase().includes("office")
-              ? "briefcase"
-              : "location"
+                ? "briefcase"
+                : "location"
           }
           size={24}
           color="#ff6b00"
@@ -491,33 +511,35 @@ const LocationModal = ({
             </View>
           ) : (
             <View style={styles.manualAddressContainer}>
-              <View style={styles.searchRow}>
-                <View style={styles.searchBox}>
-                  <Ionicons name="search" size={18} color="#999" />
-                  <TextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder={`Search for ${selectedTab} address`}
-                    style={styles.searchInput}
-                    returnKeyType="search"
-                    onSubmitEditing={searchAddress}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.locateButton}
-                  onPress={async () => {
-                    setSearching(true);
-                    await handleUseCurrentLocation();
-                    setSearching(false);
-                  }}
-                >
-                  {searching ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Ionicons name="locate" size={20} color="#fff" />
-                  )}
-                </TouchableOpacity>
-              </View>
+              {/* BIG FETCH LOCATION BUTTON - PRIMARY ACTION */}
+              <TouchableOpacity
+                style={styles.bigFetchLocationButton}
+                onPress={async () => {
+                  setSearching(true);
+                  await handleUseCurrentLocation();
+                  setSearching(false);
+                }}
+                activeOpacity={0.8}
+              >
+                {searching ? (
+                  <View style={styles.fetchLoadingContainer}>
+                    <ActivityIndicator size={32} color="#fff" />
+                    <Text style={styles.fetchLoadingText}>
+                      Finding your location...
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.fetchContentContainer}>
+                    <Ionicons name="locate" size={40} color="#fff" />
+                    <Text style={styles.fetchButtonTitle}>
+                      Find My Location
+                    </Text>
+                    <Text style={styles.fetchButtonSubtitle}>
+                      Use GPS to find your current address
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
 
               {currentPreview ? (
                 <View style={styles.previewCard}>
@@ -620,8 +642,8 @@ const LocationModal = ({
             selectedTab === "Home"
               ? "home-outline"
               : selectedTab === "Office"
-              ? "briefcase-outline"
-              : "location-outline"
+                ? "briefcase-outline"
+                : "location-outline"
           }
           size={64}
           color="#E0E0E0"
@@ -636,8 +658,8 @@ const LocationModal = ({
         {selectedTab === "Home"
           ? "Add your home address for quick and easy ordering"
           : selectedTab === "Office"
-          ? "Add your office address for lunch and work orders"
-          : "Add other frequently visited locations"}
+            ? "Add your office address for lunch and work orders"
+            : "Add other frequently visited locations"}
       </Text>
 
       <TouchableOpacity
@@ -665,6 +687,35 @@ const LocationModal = ({
   );
 
   const renderContent = () => {
+    // Show login banner if user is not logged in
+    if (isLoggedIn === false) {
+      return (
+        <View style={styles.loginBannerContainer}>
+          <View style={styles.loginBannerContent}>
+            <Ionicons
+              name="lock-closed"
+              size={48}
+              color="#ff6b00"
+              style={styles.loginBannerIcon}
+            />
+            <Text style={styles.loginBannerTitle}>Sign In Required</Text>
+            <Text style={styles.loginBannerMessage}>
+              You need to sign in to save delivery addresses
+            </Text>
+            <TouchableOpacity
+              style={styles.loginBannerButton}
+              onPress={() => {
+                onClose();
+                router.push("/auth");
+              }}
+            >
+              <Text style={styles.loginBannerButtonText}>Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     if (showAddForm) {
       return renderAddForm();
     }
@@ -1138,6 +1189,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginVertical: 12,
+    display: "none", // Hide search row
   },
   searchBox: {
     flex: 1,
@@ -1149,12 +1201,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#F0F0F0",
+    display: "none", // Hide search box
   },
   searchInput: {
     marginLeft: 8,
     fontSize: 15,
     color: "#262626",
     flex: 1,
+    display: "none", // Hide search input
   },
   locateButton: {
     backgroundColor: "#ff6b00",
@@ -1162,6 +1216,47 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
+    display: "none", // Hide old locate button
+  },
+  // BIG FETCH LOCATION BUTTON STYLES
+  bigFetchLocationButton: {
+    backgroundColor: "#ff6b00",
+    borderRadius: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
+    marginVertical: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#ff6b00",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  fetchContentContainer: {
+    alignItems: "center",
+    gap: 12,
+  },
+  fetchLoadingContainer: {
+    alignItems: "center",
+    gap: 12,
+  },
+  fetchButtonTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#fff",
+    textAlign: "center",
+  },
+  fetchButtonSubtitle: {
+    fontSize: 13,
+    color: "#ffe6d0",
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  fetchLoadingText: {
+    fontSize: 14,
+    color: "#fff",
+    fontWeight: "600",
   },
   previewCard: {
     backgroundColor: "#fff",
@@ -1307,6 +1402,51 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     flex: 1,
     fontStyle: "italic",
+  },
+  loginBannerContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  loginBannerContent: {
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 24,
+    paddingVertical: 40,
+    borderRadius: 20,
+    width: "100%",
+    maxWidth: 400, // Limit width on larger screens
+  },
+  loginBannerIcon: {
+    marginBottom: 16,
+  },
+  loginBannerTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#262626",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  loginBannerMessage: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  loginBannerButton: {
+    backgroundColor: "#ff6b00",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    width: "100%",
+    alignItems: "center",
+  },
+  loginBannerButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });
 

@@ -1,6 +1,6 @@
-// React hook for managing home page data with optimization
+﻿// React hook for managing home page data with optimization
 import { useState, useEffect, useCallback } from "react";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { homeApi } from "@/lib/homeApi";
 
 export interface Product {
@@ -174,9 +174,9 @@ export const useHomeData = (): UseHomeDataReturn => {
   // Preload on app start
   useEffect(() => {
     const preloadData = async () => {
-      const isFirstLaunch = await SecureStore.getItemAsync("hasLaunched");
+      const isFirstLaunch = await SecureStorage.getItem("hasLaunched");
       if (!isFirstLaunch) {
-        await SecureStore.setItemAsync("hasLaunched", "true");
+        await SecureStorage.setItem("hasLaunched", "true");
         homeApi.preloadCriticalData();
       }
     };

@@ -1,10 +1,10 @@
-import * as SecureStore from "expo-secure-store";
+﻿import * as SecureStore from "expo-secure-store";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 /**
  * Enhanced secure storage utility with automatic fallback to AsyncStorage
- * Handles Android SecureStore issues gracefully
+ * Handles Android SecureStore issues gracefully and uses AsyncStorage on web
  */
 
 interface StorageOptions {
@@ -18,7 +18,7 @@ export class SecureStorage {
   private static logError = (operation: string, key: string, error: any) => {
     console.log(
       `SecureStore ${operation} error (${key}) on ${Platform.OS}:`,
-      error
+      error,
     );
     console.log(`Falling back to AsyncStorage for ${key}`);
   };
@@ -29,8 +29,19 @@ export class SecureStorage {
   static async setItem(
     key: string,
     value: string,
-    options?: StorageOptions
+    options?: StorageOptions,
   ): Promise<void> {
+    // Use AsyncStorage directly on web since SecureStore doesn't work
+    if (Platform.OS === "web") {
+      try {
+        await AsyncStorage.setItem(key, value);
+        return;
+      } catch (error) {
+        console.error(`AsyncStorage setItem error (${key}):`, error);
+        throw new Error(`Failed to store ${key} on web: ${error}`);
+      }
+    }
+
     try {
       await SecureStore.setItemAsync(key, value, options);
     } catch (error) {
@@ -40,7 +51,7 @@ export class SecureStorage {
       } catch (asyncError) {
         console.error(`AsyncStorage setItem error (${key}):`, asyncError);
         throw new Error(
-          `Failed to store ${key} on ${Platform.OS}: ${asyncError}`
+          `Failed to store ${key} on ${Platform.OS}: ${asyncError}`,
         );
       }
     }
@@ -51,8 +62,18 @@ export class SecureStorage {
    */
   static async getItem(
     key: string,
-    options?: StorageOptions
+    options?: StorageOptions,
   ): Promise<string | null> {
+    // Use AsyncStorage directly on web since SecureStore doesn't work
+    if (Platform.OS === "web") {
+      try {
+        return await AsyncStorage.getItem(key);
+      } catch (error) {
+        console.error(`AsyncStorage getItem error (${key}):`, error);
+        return null;
+      }
+    }
+
     try {
       return await SecureStore.getItemAsync(key, options);
     } catch (error) {
@@ -71,8 +92,19 @@ export class SecureStorage {
    */
   static async deleteItem(
     key: string,
-    options?: StorageOptions
+    options?: StorageOptions,
   ): Promise<void> {
+    // Use AsyncStorage directly on web since SecureStore doesn't work
+    if (Platform.OS === "web") {
+      try {
+        await AsyncStorage.removeItem(key);
+        return;
+      } catch (error) {
+        console.error(`AsyncStorage deleteItem error (${key}):`, error);
+        throw new Error(`Failed to delete ${key} on web: ${error}`);
+      }
+    }
+
     try {
       await SecureStore.deleteItemAsync(key, options);
     } catch (error) {
@@ -114,7 +146,7 @@ export class SecureStorage {
    * Get multiple items at once with fallback
    */
   static async getMultiple(
-    keys: string[]
+    keys: string[],
   ): Promise<Record<string, string | null>> {
     const result: Record<string, string | null> = {};
 

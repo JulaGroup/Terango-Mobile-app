@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+﻿import { SecureStorage } from "@/utils/secureStorage";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { API_URL } from "@/constants/config";
@@ -20,10 +20,10 @@ export async function registerForPushNotificationsAsync() {
     const token = (await Notifications.getExpoPushTokenAsync()).data;
 
     // Save token locally
-    await SecureStore.setItemAsync("expoPushToken", token);
+    await SecureStorage.setItem("expoPushToken", token);
 
     // Send to backend if logged in
-    const jwt = await SecureStore.getItemAsync("token");
+    const jwt = await SecureStorage.getItem("token");
     if (jwt) {
       try {
         await fetch(`${API_URL}/api/push-tokens`, {

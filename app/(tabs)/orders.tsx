@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
+﻿import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -25,7 +25,7 @@ import {
 } from "@/services/NotificationService";
 import { useRouter } from "expo-router";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
-import * as SecureStore from "expo-secure-store";
+import { SecureStorage } from "@/utils/secureStorage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -138,8 +138,8 @@ export default function Orders() {
 
   const checkAuthentication = useCallback(async () => {
     try {
-      const storedUserId = await SecureStore.getItemAsync("userId");
-      const loggedInStatus = await SecureStore.getItemAsync("isLoggedIn");
+      const storedUserId = await SecureStorage.getItem("userId");
+      const loggedInStatus = await SecureStorage.getItem("isLoggedIn");
 
       if (storedUserId && loggedInStatus === "true") {
         setUserId(storedUserId);
@@ -298,7 +298,7 @@ export default function Orders() {
               // Load user's preferred payment method (default to wave)
               let network = "wave";
               try {
-                const stored = await SecureStore.getItemAsync("paymentMethods");
+                const stored = await SecureStorage.getItem("paymentMethods");
                 if (stored) {
                   const parsed = JSON.parse(stored);
                   if (parsed?.default) network = parsed.default;
@@ -316,23 +316,36 @@ export default function Orders() {
               const launchUrl =
                 result?.wave_launch_url || result?.session?.wave_launch_url;
               if (launchUrl) {
-                // Attempt to open Wave URL
-                const canOpen = await Linking.canOpenURL(launchUrl);
-                if (!canOpen) {
-                  throw new Error(
-                    "Cannot open Wave payment link. Please ensure Wave app is installed or try again.",
+                // Attempt to open Wave URL - try directly without canOpenURL check
+                try {
+                  await Linking.openURL(launchUrl);
+
+                  Alert.alert(
+                    "Complete Payment",
+                    "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
+                    [{ text: "OK", onPress: () => fetchOrders() }],
                   );
+
+                  return;
+                } catch (linkError) {
+                  // If direct open fails, show helpful error
+                  Alert.alert(
+                    "Payment Failed",
+                    "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Install Wave",
+                        onPress: () => {
+                          Linking.openURL(
+                            "https://play.google.com/store/apps/details?id=com.wave.personal",
+                          );
+                        },
+                      },
+                    ],
+                  );
+                  return;
                 }
-
-                await Linking.openURL(launchUrl);
-
-                Alert.alert(
-                  "Complete Payment",
-                  "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-                  [{ text: "OK", onPress: () => fetchOrders() }],
-                );
-
-                return;
               }
 
               // Otherwise treat the response as an updated order
