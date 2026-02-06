@@ -13,9 +13,24 @@ static_sites:
   routes:
   - path: /
   envs:
+  - key: NODE_ENV
+    value: production
+    type: GENERAL
   - key: EXPO_PUBLIC_API_URL
     value: https://monkfish-app-korrv.ondigitalocean.app
     type: GENERAL
-  - key: NODE_ENV
-    value: production
+  - key: SERPAPI_API_KEY
+    value: 4a2ad4965d9ff1626242fe6d06f375600c612f830b044854629053e25cfd00ad
+    type: SECRET
+  - key: CLOUDINARY_CLOUD_NAME
+    value: dkpi5ij2t
+    type: GENERAL
+  - key: CLOUDINARY_UPLOAD_PRESET
+    value: unsigned_preset
+    type: GENERAL
+  - key: SHOP_ID
+    value: c1d0a80f-e91b-4655-bf3f-8facd6571add
+    type: GENERAL
+  - key: DATABASE_URL
+    value: https://monkfish-app-korrv.ondigitalocean.app
     type: GENERAL
