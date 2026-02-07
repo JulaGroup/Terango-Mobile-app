@@ -187,6 +187,47 @@ export default function OrderDetailsPage() {
     };
   }, [orderId, fetchOrderDetails, router]);
 
+  // Listen for postMessage events from payment popup windows
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handlePaymentMessage = (event: MessageEvent) => {
+      console.log("[Payment] Received message:", event.data);
+
+      if (event.data?.type === "PAYMENT_SUCCESS") {
+        console.log("[Payment] ✅ Payment success confirmed!");
+        setModalType("alert");
+        setModalTitle("Payment Successful! 🎉");
+        setModalMessage("Your payment has been processed. Your order is being prepared.");
+        setModalAction(() => fetchOrderDetails(true));
+        setModalVisible(true);
+
+        // Also refresh order after a moment to ensure backend is updated
+        setTimeout(() => {
+          fetchOrderDetails(true);
+        }, 1000);
+      } else if (event.data?.type === "PAYMENT_CANCELLED") {
+        console.log("[Payment] ❌ Payment was cancelled");
+        setModalType("alert");
+        setModalTitle("Payment Cancelled");
+        setModalMessage("Payment was not completed. You can try again or use a different payment method.");
+        setModalAction(null);
+        setModalVisible(true);
+      }
+    };
+
+    // Add listener for postMessage events
+    if (typeof window !== "undefined") {
+      window.addEventListener("message", handlePaymentMessage);
+      console.log("[Payment] Message listener added");
+
+      return () => {
+        window.removeEventListener("message", handlePaymentMessage);
+        console.log("[Payment] Message listener removed");
+      };
+    }
+  }, [fetchOrderDetails]);
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchOrderDetails(true);
@@ -216,7 +257,7 @@ export default function OrderDetailsPage() {
       setModalType("confirm");
       setModalTitle("Confirm Payment");
       setModalMessage(`Proceed with payment of ${formatAmount(order.totalAmount)}?`);
-      setModalAction(() => processPayment());
+      setModalAction(processPayment);
       setModalVisible(true);
     } else {
       Alert.alert(
@@ -359,7 +400,7 @@ export default function OrderDetailsPage() {
                 setModalType("alert");
                 setModalTitle("Payment Failed");
                 setModalMessage(errorMessage);
-                setModalAction(() => handlePayNow());
+                setModalAction(handlePayNow);
                 setModalVisible(true);
               } else {
                 Alert.alert("Payment Failed", errorMessage, [
