@@ -82,6 +82,8 @@ export default function HomeScreen() {
           shadowOpacity: 0.08,
           shadowRadius: 4,
           elevation: 5,
+          // On web, disable pointer events when opacity is low to prevent blocking location clicks
+          pointerEvents: Platform.OS === "web" ? "none" : "auto",
         }}
       >
         <View style={{ flex: 1 }}>
