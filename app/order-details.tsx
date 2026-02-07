@@ -400,7 +400,6 @@ export default function OrderDetailsPage() {
       ]);
     }
   };
-  };
 
   const SkeletonBox = ({
     width,
