@@ -57,6 +57,13 @@ export default function OrderDetailsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Web Modal State (for confirmations and alerts on web platform)
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<"confirm" | "alert">("alert");
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalMessage, setModalMessage] = useState("");
+  const [modalAction, setModalAction] = useState<(() => void) | null>(null);
+
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
@@ -204,14 +211,13 @@ export default function OrderDetailsPage() {
   const handlePayNow = async () => {
     if (!order) return;
 
-    // On web, use confirm() instead of Alert.alert() for better UX
+    // On web, use modal for better UX
     if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        `Proceed with payment of ${formatAmount(order.totalAmount)}?`
-      );
-      if (!confirmed) return;
-      
-      await processPayment();
+      setModalType("confirm");
+      setModalTitle("Confirm Payment");
+      setModalMessage(`Proceed with payment of ${formatAmount(order.totalAmount)}?`);
+      setModalAction(() => processPayment);
+      setModalVisible(true);
     } else {
       Alert.alert(
         "Confirm Payment",
@@ -262,17 +268,11 @@ export default function OrderDetailsPage() {
                   if (Platform.OS === "web") {
                     // On web, open in new window for payment
                     window.open(launchUrl, "_blank");
-                    if (Platform.OS === "web") {
-                      alert(
-                        "Complete Payment\nYou'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically."
-                      );
-                    } else {
-                      Alert.alert(
-                        "Complete Payment",
-                        "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-                        [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
-                      );
-                    }
+                    setModalType("alert");
+                    setModalTitle("Complete Payment");
+                    setModalMessage("You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.");
+                    setModalAction(() => () => fetchOrderDetails(true));
+                    setModalVisible(true);
                   } else {
                     await Linking.openURL(launchUrl);
                     Alert.alert(
@@ -284,12 +284,14 @@ export default function OrderDetailsPage() {
 
                   // don't overwrite local order state yet; we'll refresh when webhook arrives
                   return;
-                } catch (linkError) {
+                } catch (linkError: any) {
                   // If direct open fails, show helpful error
                   if (Platform.OS === "web") {
-                    alert(
-                      "Payment Failed\nCannot open Wave payment link. Please try again."
-                    );
+                    setModalType("alert");
+                    setModalTitle("Payment Failed");
+                    setModalMessage("Cannot open Wave payment link. Please try again.");
+                    setModalAction(null);
+                    setModalVisible(true);
                   } else {
                     Alert.alert(
                       "Payment Failed",
@@ -315,9 +317,11 @@ export default function OrderDetailsPage() {
               setOrder(result);
 
               if (Platform.OS === "web") {
-                alert(
-                  "Payment Successful! 🎉\nYour payment has been processed. The vendor will now prepare your order."
-                );
+                setModalType("alert");
+                setModalTitle("Payment Successful! 🎉");
+                setModalMessage("Your payment has been processed. The vendor will now prepare your order.");
+                setModalAction(() => () => fetchOrderDetails(true));
+                setModalVisible(true);
               } else {
                 Alert.alert(
                   "Payment Successful! 🎉",
@@ -352,7 +356,11 @@ export default function OrderDetailsPage() {
               }
 
               if (Platform.OS === "web") {
-                alert(`Payment Failed\n${errorMessage}`);
+                setModalType("alert");
+                setModalTitle("Payment Failed");
+                setModalMessage(errorMessage);
+                setModalAction(() => handlePayNow);
+                setModalVisible(true);
               } else {
                 Alert.alert("Payment Failed", errorMessage, [
                   { text: "Cancel", style: "cancel" },
@@ -365,40 +373,51 @@ export default function OrderDetailsPage() {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    // On web, use confirm() instead of Alert.alert()
+    // On web, use modal for confirmation
     if (Platform.OS === "web") {
-      const confirmed = window.confirm(
-        "Are you sure you want to cancel this order?"
-      );
-      if (!confirmed) return;
-
-      try {
-        await orderApi.cancelOrder(orderId, "Cancelled by customer");
-        fetchOrderDetails(true);
-        alert("Success\nOrder has been cancelled");
-      } catch (e) {
-        console.error("Cancel error:", e);
-        alert("Error\nFailed to cancel order");
-      }
-    } else {
-      Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
-        { text: "No", style: "cancel" },
-        {
-          text: "Yes, Cancel",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await orderApi.cancelOrder(orderId, "Cancelled by customer");
-              fetchOrderDetails(true);
-              Alert.alert("Success", "Order has been cancelled");
-            } catch (e) {
-              console.error("Cancel error:", e);
-              Alert.alert("Error", "Failed to cancel order");
-            }
-          },
-        },
-      ]);
+      setModalType("confirm");
+      setModalTitle("Cancel Order");
+      setModalMessage("Are you sure you want to cancel this order?");
+      setModalAction(() => async () => {
+        try {
+          await orderApi.cancelOrder(orderId, "Cancelled by customer");
+          fetchOrderDetails(true);
+          setModalType("alert");
+          setModalMessage("Order has been cancelled");
+          setModalTitle("Success");
+          setModalAction(null);
+          setModalVisible(true);
+        } catch (e) {
+          console.error("Cancel error:", e);
+          setModalType("alert");
+          setModalTitle("Error");
+          setModalMessage("Failed to cancel order");
+          setModalAction(null);
+          setModalVisible(true);
+        }
+      });
+      setModalVisible(true);
+      return;
     }
+
+    // Native platform handling
+    Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
+      { text: "No", style: "cancel" },
+      {
+        text: "Yes, Cancel",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await orderApi.cancelOrder(orderId, "Cancelled by customer");
+            fetchOrderDetails(true);
+            Alert.alert("Success", "Order has been cancelled");
+          } catch (e) {
+            console.error("Cancel error:", e);
+            Alert.alert("Error", "Failed to cancel order");
+          }
+        },
+      },
+    ]);
   };
 
   const SkeletonBox = ({
@@ -1119,6 +1138,57 @@ export default function OrderDetailsPage() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Web Modal for Confirmations and Alerts */}
+      {Platform.OS === "web" && modalVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{modalTitle}</Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setModalVisible(false)}
+              >
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalMessage}>{modalMessage}</Text>
+
+            <View style={styles.modalFooter}>
+              {modalType === "confirm" ? (
+                <>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonSecondary]}
+                    onPress={() => setModalVisible(false)}
+                  >
+                    <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.modalButtonPrimary]}
+                    onPress={() => {
+                      if (modalAction) modalAction();
+                      setModalVisible(false);
+                    }}
+                  >
+                    <Text style={styles.modalButtonText}>Confirm</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={() => {
+                    if (modalAction) modalAction();
+                    setModalVisible(false);
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>OK</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -1904,5 +1974,76 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#FFD4A3",
     marginVertical: 12,
+  },
+  // 🌐 Web Modal Styles
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+  } as any,
+  modalBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    minWidth: 320,
+    maxWidth: 480,
+    boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)",
+  } as any,
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1F2937",
+    flex: 1,
+  },
+  modalCloseBtn: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#6B7280",
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  modalButtonPrimary: {
+    backgroundColor: PrimaryColor,
+  },
+  modalButtonSecondary: {
+    backgroundColor: "#E5E7EB",
+  },
+  modalButtonText: {
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#fff",
+  },
+  modalButtonTextSecondary: {
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#374151",
   },
 });
