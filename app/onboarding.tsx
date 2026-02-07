@@ -62,23 +62,23 @@ export default function Onboarding() {
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
       const nextIndex = currentIndex + 1;
-      
+
       // Update state immediately for web compatibility
       setCurrentIndex(nextIndex);
-      
+
       // Scroll to next slide with web-specific handling
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         // On web, use scrollTo for more reliable scrolling
         const scrollX = nextIndex * width;
         flatListRef.current?.scrollToOffset({
           offset: scrollX,
-          animated: true
+          animated: true,
         });
       } else {
         // On native, use scrollToIndex
-        flatListRef.current?.scrollToIndex({ 
-          index: nextIndex, 
-          animated: true
+        flatListRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
         });
       }
     }
@@ -145,18 +145,18 @@ export default function Onboarding() {
         ref={flatListRef}
         data={slides}
         horizontal
-        pagingEnabled={Platform.OS !== 'web'} // Disable on web for better control
+        pagingEnabled={Platform.OS !== "web"} // Disable on web for better control
         showsHorizontalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         keyExtractor={(item) => item.key}
         renderItem={renderItem}
         // Web-specific props for better performance
-        {...(Platform.OS === 'web' && {
+        {...(Platform.OS === "web" && {
           snapToInterval: width,
-          snapToAlignment: 'start',
-          decelerationRate: 'fast',
-          scrollEnabled: true
+          snapToAlignment: "start",
+          decelerationRate: "fast",
+          scrollEnabled: true,
         })}
       />
 
@@ -188,10 +188,10 @@ export default function Onboarding() {
               // Web-specific accessibility and interaction
               accessible={true}
               accessibilityLabel="Next slide"
-              accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
-              {...(Platform.OS === 'web' && {
+              accessibilityRole={Platform.OS === "web" ? "button" : undefined}
+              {...(Platform.OS === "web" && {
                 onPressIn: () => {}, // Ensure touch events work on web
-                cursor: 'pointer'
+                cursor: "pointer",
               })}
             >
               <Text style={styles.nextButtonText}>Next</Text>

@@ -62,7 +62,7 @@ export default function OrderDetailsPage() {
   const [modalType, setModalType] = useState<"confirm" | "alert">("alert");
   const [modalTitle, setModalTitle] = useState("");
   const [modalMessage, setModalMessage] = useState("");
-  const [modalAction, setModalAction] = useState<(() => void) | null>(null);
+  const [modalAction, setModalAction] = useState<((() => void) | (() => Promise<void>) | null)>(null);
 
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -216,7 +216,7 @@ export default function OrderDetailsPage() {
       setModalType("confirm");
       setModalTitle("Confirm Payment");
       setModalMessage(`Proceed with payment of ${formatAmount(order.totalAmount)}?`);
-      setModalAction(() => processPayment);
+      setModalAction(() => processPayment());
       setModalVisible(true);
     } else {
       Alert.alert(
@@ -271,7 +271,7 @@ export default function OrderDetailsPage() {
                     setModalType("alert");
                     setModalTitle("Complete Payment");
                     setModalMessage("You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.");
-                    setModalAction(() => () => fetchOrderDetails(true));
+                    setModalAction(() => fetchOrderDetails(true));
                     setModalVisible(true);
                   } else {
                     await Linking.openURL(launchUrl);
@@ -320,7 +320,7 @@ export default function OrderDetailsPage() {
                 setModalType("alert");
                 setModalTitle("Payment Successful! 🎉");
                 setModalMessage("Your payment has been processed. The vendor will now prepare your order.");
-                setModalAction(() => () => fetchOrderDetails(true));
+                setModalAction(() => fetchOrderDetails(true));
                 setModalVisible(true);
               } else {
                 Alert.alert(
@@ -359,7 +359,7 @@ export default function OrderDetailsPage() {
                 setModalType("alert");
                 setModalTitle("Payment Failed");
                 setModalMessage(errorMessage);
-                setModalAction(() => handlePayNow);
+                setModalAction(() => handlePayNow());
                 setModalVisible(true);
               } else {
                 Alert.alert("Payment Failed", errorMessage, [
@@ -378,7 +378,7 @@ export default function OrderDetailsPage() {
       setModalType("confirm");
       setModalTitle("Cancel Order");
       setModalMessage("Are you sure you want to cancel this order?");
-      setModalAction(() => async () => {
+      setModalAction(async () => {
         try {
           await orderApi.cancelOrder(orderId, "Cancelled by customer");
           fetchOrderDetails(true);
@@ -1166,8 +1166,8 @@ export default function OrderDetailsPage() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonPrimary]}
-                    onPress={() => {
-                      if (modalAction) modalAction();
+                    onPress={async () => {
+                      if (modalAction) await modalAction();
                       setModalVisible(false);
                     }}
                   >
@@ -1177,8 +1177,8 @@ export default function OrderDetailsPage() {
               ) : (
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
-                  onPress={() => {
-                    if (modalAction) modalAction();
+                  onPress={async () => {
+                    if (modalAction) await modalAction();
                     setModalVisible(false);
                   }}
                 >
@@ -1202,7 +1202,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: Platform.OS === "web" ? 12 : 20,
     paddingVertical: 15,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
@@ -1223,7 +1223,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    padding: 20,
+    padding: Platform.OS === "web" ? 12 : 20,
   },
 
   // Status Card
@@ -1991,9 +1991,9 @@ const styles = StyleSheet.create({
   modalBox: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 24,
+    padding: Platform.OS === "web" ? 20 : 24,
     minWidth: 320,
-    maxWidth: 480,
+    maxWidth: Platform.OS === "web" ? "calc(100% - 32px)" : 480,
     boxShadow: "0 20px 60px rgba(0, 0, 0, 0.15)",
   } as any,
   modalHeader: {
