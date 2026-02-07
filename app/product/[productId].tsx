@@ -217,7 +217,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [similarBrandProducts, setSimilarBrandProducts] = useState<Product[]>(
-    []
+    [],
   );
   const [error, setError] = useState<string | null>(null);
   const [imageLoadError, setImageLoadError] = useState(false);
@@ -250,7 +250,7 @@ export default function ProductDetail() {
       if (data.shopId) {
         try {
           const relatedResponse = await fetch(
-            `${API_URL}/api/public/products/${productId}/related?limit=6`
+            `${API_URL}/api/public/products/${productId}/related?limit=6`,
           );
           if (relatedResponse.ok) {
             const relatedData = await relatedResponse.json();
@@ -264,7 +264,7 @@ export default function ProductDetail() {
       // Fetch similar brand products
       try {
         const similarResponse = await fetch(
-          `${API_URL}/api/public/products/${productId}/similar-brand?limit=6`
+          `${API_URL}/api/public/products/${productId}/similar-brand?limit=6`,
         );
         if (similarResponse.ok) {
           const similarData = await similarResponse.json();
@@ -312,7 +312,7 @@ export default function ProductDetail() {
         "Ordering unavailable",
         (
           disabledReason || "This shop is not accepting orders right now."
-        ).trim()
+        ).trim(),
       );
       return;
     }
@@ -341,7 +341,7 @@ export default function ProductDetail() {
         "Ordering unavailable",
         (
           disabledReason || "This shop is not accepting orders right now."
-        ).trim()
+        ).trim(),
       );
       return;
     }
@@ -374,7 +374,7 @@ export default function ProductDetail() {
     // Here you would typically make an API call to save/remove from favorites
     Alert.alert(
       "Add to Favorites:",
-      "Coming soon! This feature is under development."
+      "Coming soon! This feature is under development.",
     );
   };
 
@@ -505,7 +505,7 @@ export default function ProductDetail() {
                   {Math.round(
                     ((product.price - product.discountedPrice) /
                       product.price) *
-                      100
+                      100,
                   )}
                   %
                 </Text>
@@ -645,7 +645,7 @@ export default function ProductDetail() {
                     onAddToCart={() => handleAddToCart(item)}
                     onRemoveFromCart={() => {
                       const cartItem = cartItems.find(
-                        (ci) => String(ci.id) === item.id
+                        (ci) => String(ci.id) === item.id,
                       );
                       if (cartItem && cartItem.quantity > 1) {
                         updateQuantity(item.id, cartItem.quantity - 1);
@@ -718,7 +718,7 @@ export default function ProductDetail() {
                     onAddToCart={() => handleAddToCart(item)}
                     onRemoveFromCart={() => {
                       const cartItem = cartItems.find(
-                        (ci) => String(ci.id) === item.id
+                        (ci) => String(ci.id) === item.id,
                       );
                       if (cartItem && cartItem.quantity > 1) {
                         updateQuantity(item.id, cartItem.quantity - 1);
