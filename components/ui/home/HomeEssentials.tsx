@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 
@@ -263,8 +263,11 @@ export default function HomeEssentials({ onViewAll }: HomeEssentialsProps) {
             <View style={styles.imageContainer}>
               {product.image ? (
                 <Image
-                  source={{ uri: product.image }}
+                  source={product.image}
                   style={styles.productImage}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={200}
                 />
               ) : (
                 <View style={styles.imagePlaceholder}>

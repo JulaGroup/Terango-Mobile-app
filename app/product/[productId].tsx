@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   StatusBar,
   Animated,
-  Image,
   FlatList,
   Share,
   Dimensions,
   Alert,
 } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -480,9 +480,11 @@ export default function ProductDetail() {
         >
           {product.imageUrl && !imageLoadError ? (
             <Image
-              source={{ uri: product.imageUrl }}
+              source={product.imageUrl}
               style={styles.productImage}
-              resizeMode="contain"
+              contentFit="contain"
+              cachePolicy="memory-disk"
+              transition={200}
               onError={() => setImageLoadError(true)}
             />
           ) : (

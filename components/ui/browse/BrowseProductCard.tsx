@@ -86,9 +86,7 @@ export default function BrowseProductCard({
         }}
       >
         <Image
-          source={{
-            uri: product.imageUrl || "https://via.placeholder.com/300",
-          }}
+          source={product.imageUrl || "https://via.placeholder.com/300"}
           style={{
             width: "100%",
             height: "100%",

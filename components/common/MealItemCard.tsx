@@ -150,7 +150,7 @@ const MealItemCard = ({
           <Image
             source={
               typeof product.image === "string"
-                ? { uri: product.image }
+                ? product.image
                 : product.image
             }
             style={styles.image}
