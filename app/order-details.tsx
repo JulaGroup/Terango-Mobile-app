@@ -50,8 +50,11 @@ const statusIcons = {
 
 export default function OrderDetailsPage() {
   const router = useRouter();
-  const { orderId } = useLocalSearchParams();
-  const { from } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { orderId } = params;
+  const { from } = params;
+  const status = params.status as string;
+  const paymentId = params.paymentId as string;
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -123,6 +126,44 @@ export default function OrderDetailsPage() {
       fetchOrderDetails();
     }
   }, [orderId, fetchOrderDetails]);
+
+  // Handle URL parameters for payment status (when redirected back from payment)
+  useEffect(() => {
+    if (Platform.OS === "web" && order && status) {
+      console.log(
+        "[Payment] Handling URL status parameter:",
+        status,
+        "paymentId:",
+        paymentId,
+      );
+
+      if (status === "cancelled") {
+        setModalType("alert");
+        setModalTitle("Payment Cancelled");
+        setModalMessage(
+          "Payment was not completed. You can try again or use a different payment method.",
+        );
+        setModalAction(null);
+        setModalVisible(true);
+      } else if (status === "success" || status === "successful") {
+        setModalType("alert");
+        setModalTitle("Payment Successful! 🎉");
+        setModalMessage(
+          "Your payment has been processed. Your order is being prepared.",
+        );
+        setModalAction(() => fetchOrderDetails(true));
+        setModalVisible(true);
+      }
+
+      // Clear the status from URL to prevent re-showing on refresh
+      if (typeof window !== "undefined" && window.history.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("status");
+        url.searchParams.delete("paymentId");
+        window.history.replaceState({}, "", url.toString());
+      }
+    }
+  }, [order, status, paymentId, fetchOrderDetails]);
 
   // Socket listeners for order status updates
   useEffect(() => {
