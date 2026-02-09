@@ -1389,6 +1389,16 @@ export default function OrderDetailsPage() {
                           e?.message || "An error occurred. Please try again.",
                         );
                         setModalAction(null);
+
+                        // Fallback: if there is no modalAction, attempt to refresh order details
+                        try {
+                          fetchOrderDetails(true);
+                        } catch (err) {
+                          console.warn(
+                            "fetchOrderDetails fallback failed",
+                            err,
+                          );
+                        }
                       } finally {
                         isProcessingPayment.current = false;
                         setModalVisible(false);
