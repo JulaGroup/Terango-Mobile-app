@@ -1333,7 +1333,12 @@ export default function OrderDetailsPage() {
               <Text style={styles.modalTitle}>{modalTitle}</Text>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
-                onPress={() => setModalVisible(false)}
+                onPress={() => {
+                  setModalVisible(false);
+                  // Reset processing state when modal is manually closed
+                  isProcessingPayment.current = false;
+                  setLoading(false);
+                }}
               >
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
@@ -1368,6 +1373,7 @@ export default function OrderDetailsPage() {
 
                         if (!popupRef.current) {
                           isProcessingPayment.current = false;
+                          setLoading(false); // Reset loading state
                           setModalType("alert");
                           setModalTitle("Popup Blocked");
                           setModalMessage(
@@ -1448,10 +1454,17 @@ export default function OrderDetailsPage() {
                         e?.message || "An error occurred. Please try again.",
                       );
                       setModalAction(null);
+                      // Keep modal visible to show error, but reset processing state
+                      isProcessingPayment.current = false;
+                      setLoading(false);
+                      return; // Don't close modal
                     } finally {
                       isProcessingPayment.current = false;
-                      setModalVisible(false);
+                      setLoading(false);
                     }
+
+                    // Close modal after successful action
+                    setModalVisible(false);
                   }}
                 >
                   <Text style={styles.modalButtonText}>OK</Text>
