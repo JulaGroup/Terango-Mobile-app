@@ -1381,6 +1381,14 @@ export default function OrderDetailsPage() {
 
                       try {
                         if (modalAction) await modalAction();
+                      } catch (e: any) {
+                        console.error("Modal action error:", e);
+                        setModalType("alert");
+                        setModalTitle("Error");
+                        setModalMessage(
+                          e?.message || "An error occurred. Please try again.",
+                        );
+                        setModalAction(null);
                       } finally {
                         isProcessingPayment.current = false;
                         setModalVisible(false);
@@ -1422,6 +1430,14 @@ export default function OrderDetailsPage() {
 
                     try {
                       if (modalAction) await modalAction();
+                    } catch (e: any) {
+                      console.error("Modal action error:", e);
+                      setModalType("alert");
+                      setModalTitle("Error");
+                      setModalMessage(
+                        e?.message || "An error occurred. Please try again.",
+                      );
+                      setModalAction(null);
                     } finally {
                       isProcessingPayment.current = false;
                       setModalVisible(false);
