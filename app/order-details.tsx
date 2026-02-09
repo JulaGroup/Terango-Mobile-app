@@ -66,6 +66,11 @@ export default function OrderDetailsPage() {
     (() => void) | (() => Promise<void>) | null
   >(null);
 
+  // Popup reference used to avoid popup blockers (open in click handler)
+  const popupRef = useRef<Window | null>(null);
+  // Guard to prevent multiple concurrent payment attempts
+  const isProcessingPayment = useRef(false);
+
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
@@ -303,13 +308,16 @@ export default function OrderDetailsPage() {
         console.warn("Failed to read payment methods, defaulting to wave", e);
       }
 
-      // On web, open a blank popup synchronously to avoid popup blockers
-      let popup: Window | null = null;
+      // Reuse popup opened by modal click handler to avoid popup blockers
+      let popup: Window | null = popupRef.current || null;
       if (Platform.OS === "web") {
-        try {
-          popup = window.open("", "_blank"); // open blank window immediately
-        } catch (e) {
-          popup = null;
+        if (!popup) {
+          try {
+            popupRef.current = window.open("", "_blank");
+          } catch (e) {
+            popupRef.current = null;
+          }
+          popup = popupRef.current;
         }
 
         if (!popup) {
@@ -324,6 +332,9 @@ export default function OrderDetailsPage() {
         }
       }
 
+      // Prevent concurrent payment runs
+      if (isProcessingPayment.current) return;
+      isProcessingPayment.current = true;
       const result: any = await orderApi.payForOrder(order.id, network);
 
       // If server returned a Wave session (launch url), open it
@@ -337,11 +348,12 @@ export default function OrderDetailsPage() {
           if (Platform.OS === "web") {
             // Navigate the previously opened popup to the Wave launch URL
             try {
-              popup!.location.href = launchUrl;
+              (popupRef.current || popup)!.location.href = launchUrl;
             } catch (e) {
               // As a fallback, write a link into the popup for the user to click
               try {
-                popup!.document.body.innerHTML = `<p>Click <a href="${launchUrl}" target="_blank">here</a> to open Wave payment.</p>`;
+                (popupRef.current || popup)!.document.body.innerHTML =
+                  `<p>Click <a href="${launchUrl}" target="_blank">here</a> to open Wave payment.</p>`;
               } catch (err) {
                 // swallow
               }
@@ -373,8 +385,12 @@ export default function OrderDetailsPage() {
                   if (json.status === "completed") {
                     stopPolling();
                     try {
-                      popup?.close();
+                      (popupRef.current || popup)?.close();
+                      popupRef.current = null;
                     } catch (e) {}
+
+                    // Clear processing flag
+                    isProcessingPayment.current = false;
 
                     setModalType("alert");
                     setModalTitle("Payment Successful! 🎉");
@@ -390,8 +406,12 @@ export default function OrderDetailsPage() {
                     // Anything other than pending or completed treat as cancelled/failed
                     stopPolling();
                     try {
-                      popup?.close();
+                      (popupRef.current || popup)?.close();
+                      popupRef.current = null;
                     } catch (e) {}
+
+                    // Clear processing flag
+                    isProcessingPayment.current = false;
 
                     setModalType("alert");
                     setModalTitle("Payment Not Completed");
@@ -415,6 +435,12 @@ export default function OrderDetailsPage() {
 
               // stop after timeout
               setTimeout(() => stopPolling(), 5 * 60 * 1000);
+
+              // Ensure processing flag is cleared when polling finishes or timeout occurs
+              const cleanupProcessingFlag = () => {
+                isProcessingPayment.current = false;
+              };
+              setTimeout(cleanupProcessingFlag, 5 * 60 * 1000);
             }
           } else {
             await Linking.openURL(launchUrl);
@@ -1327,8 +1353,38 @@ export default function OrderDetailsPage() {
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonPrimary]}
                     onPress={async () => {
-                      if (modalAction) await modalAction();
-                      setModalVisible(false);
+                      if (isProcessingPayment.current) return; // ignore duplicate clicks
+
+                      if (
+                        Platform.OS === "web" &&
+                        modalAction === processPayment
+                      ) {
+                        isProcessingPayment.current = true;
+                        try {
+                          popupRef.current = window.open("", "_blank");
+                        } catch (e) {
+                          popupRef.current = null;
+                        }
+
+                        if (!popupRef.current) {
+                          isProcessingPayment.current = false;
+                          setModalType("alert");
+                          setModalTitle("Popup Blocked");
+                          setModalMessage(
+                            "Your browser blocked the payment popup. Please allow popups for this site and try again.",
+                          );
+                          setModalAction(null);
+                          setModalVisible(true);
+                          return;
+                        }
+                      }
+
+                      try {
+                        if (modalAction) await modalAction();
+                      } finally {
+                        isProcessingPayment.current = false;
+                        setModalVisible(false);
+                      }
                     }}
                   >
                     <Text style={styles.modalButtonText}>Confirm</Text>
@@ -1338,8 +1394,38 @@ export default function OrderDetailsPage() {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
                   onPress={async () => {
-                    if (modalAction) await modalAction();
-                    setModalVisible(false);
+                    if (isProcessingPayment.current) return; // ignore duplicate clicks
+
+                    if (
+                      Platform.OS === "web" &&
+                      modalAction === processPayment
+                    ) {
+                      isProcessingPayment.current = true;
+                      try {
+                        popupRef.current = window.open("", "_blank");
+                      } catch (e) {
+                        popupRef.current = null;
+                      }
+
+                      if (!popupRef.current) {
+                        isProcessingPayment.current = false;
+                        setModalType("alert");
+                        setModalTitle("Popup Blocked");
+                        setModalMessage(
+                          "Your browser blocked the payment popup. Please allow popups for this site and try again.",
+                        );
+                        setModalAction(null);
+                        setModalVisible(true);
+                        return;
+                      }
+                    }
+
+                    try {
+                      if (modalAction) await modalAction();
+                    } finally {
+                      isProcessingPayment.current = false;
+                      setModalVisible(false);
+                    }
                   }}
                 >
                   <Text style={styles.modalButtonText}>OK</Text>
