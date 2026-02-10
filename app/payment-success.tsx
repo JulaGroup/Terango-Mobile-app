@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStorage from "expo-secure-store";
+import { orderApi } from "@/lib/api";
 
 export default function PaymentSuccess() {
   const router = useRouter();
@@ -26,53 +27,35 @@ export default function PaymentSuccess() {
     console.log("🔥 PAYMENT SUCCESS PAGE ACCESSED");
     console.log("Order ID:", orderId);
     console.log("Payment ID:", paymentId);
-    console.log("Current URL:", window.location.href);
+    // Check if we're in web environment
+    if (typeof window !== "undefined") {
+      console.log("Current URL:", window.location.href);
+    }
   }, [orderId, paymentId]);
 
   useEffect(() => {
     // Confirm payment success with backend
     const confirmPayment = async () => {
       if (!orderId) {
+        console.warn("No orderId provided to payment success page");
         setConfirmationError("Order ID is missing");
         setIsConfirming(false);
         return;
       }
 
       try {
-        const token = await SecureStorage.getItem("token");
-        if (!token) {
-          console.warn(
-            "No auth token found, proceeding without authentication",
-          );
-        }
-
-        const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/orders/${orderId}/confirm-payment`;
-        console.log("🔗 Confirming payment with API:", apiUrl);
-        console.log("📝 Payment ID:", paymentId);
-
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token && { Authorization: `Bearer ${token}` }),
-          },
-          body: JSON.stringify({ paymentId }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to confirm payment");
-        }
-
-        const data = await response.json();
-        console.log("Payment confirmed successfully:", data);
+        console.log("🔄 Confirming payment with API...");
+        const data = await orderApi.confirmPaymentSuccess(
+          orderId as string,
+          paymentId as string,
+        );
+        console.log("✅ Payment confirmed successfully:", data);
         setIsConfirming(false);
       } catch (error: any) {
-        console.error("Payment confirmation failed:", error);
+        console.error("❌ Payment confirmation failed:", error);
         setConfirmationError(error.message || "Failed to confirm payment");
         setIsConfirming(false);
-        // Don't block the user - still allow them to proceed
-        // The webhook might still update the order status
+        // Don't throw - we still want to show the success page
       }
     };
 

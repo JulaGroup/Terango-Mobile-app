@@ -861,6 +861,23 @@ export const orderApi = {
     });
   },
 
+  // 💳 Confirm payment success (called from payment success page)
+  confirmPaymentSuccess: async (
+    orderId: string,
+    paymentId?: string,
+  ): Promise<{ message: string; order: Order }> => {
+    console.log(
+      "💳 Confirming payment success for order:",
+      orderId,
+      "payment:",
+      paymentId,
+    );
+    return apiCall(`/api/orders/${orderId}/confirm-payment`, {
+      method: "POST",
+      body: JSON.stringify({ paymentId }),
+    });
+  },
+
   // Shop Products Management - FIX: Use correct endpoint
   getShopProducts: async (shopId: string) => {
     return apiCall(`/api/products/shop/${shopId}`);
