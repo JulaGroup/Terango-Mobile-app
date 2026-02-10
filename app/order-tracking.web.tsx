@@ -215,7 +215,7 @@ export default function OrderTrackingWeb() {
           <Text style={styles.cardTitle}>Need Help?</Text>
           <Text style={styles.contactSubtext}>
             {isPickup
-              ? "Contact the restaurant if you have questions about your pickup order"
+              ? "Contact the TeranGO Admin if you have questions about your pickup order"
               : "Our team is here to ensure smooth delivery"}
           </Text>
 
