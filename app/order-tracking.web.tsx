@@ -47,9 +47,7 @@ export default function OrderTrackingWeb() {
     }
   };
 
-  const handleContactSupport = () => {
-    Linking.openURL("tel:+2203839999"); // TeranGO support number
-  };
+  const isPickup = order?.orderType === "PICKUP";
 
   if (loading) {
     return (
@@ -76,15 +74,20 @@ export default function OrderTrackingWeb() {
       <View style={styles.mobileNotice}>
         <View style={styles.iconContainer}>
           <Ionicons
-            name="phone-portrait-outline"
+            name={isPickup ? "storefront-outline" : "phone-portrait-outline"}
             size={48}
             color={PrimaryColor}
           />
         </View>
-        <Text style={styles.noticeTitle}>Real-Time Tracking on Mobile</Text>
+        <Text style={styles.noticeTitle}>
+          {isPickup
+            ? "Pickup Tracking on Mobile"
+            : "Real-Time Tracking on Mobile"}
+        </Text>
         <Text style={styles.noticeText}>
-          Live map tracking with driver location is available exclusively on our
-          iOS and Android apps.
+          {isPickup
+            ? "Track your pickup order status and see the restaurant location on our iOS and Android apps."
+            : "Live map tracking with driver location is available exclusively on our iOS and Android apps."}
         </Text>
         <Text style={styles.noticeSubtext}>
           Download TeranGO app for the full tracking experience!
@@ -111,7 +114,7 @@ export default function OrderTrackingWeb() {
           <Text style={styles.detailLabel}>Order ID</Text>
           <Text style={styles.detailValue}>#{orderId}</Text>
         </View>
-        {order?.estimatedDeliveryTime && (
+        {order?.estimatedDeliveryTime && !isPickup && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Estimated Delivery</Text>
             <Text style={styles.detailValue}>
@@ -119,11 +122,30 @@ export default function OrderTrackingWeb() {
             </Text>
           </View>
         )}
-        {order?.deliveryAddress && (
+        {order?.deliveryAddress && !isPickup && (
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Delivery Address</Text>
             <Text style={[styles.detailValue, styles.addressText]}>
               {order.deliveryAddress}
+            </Text>
+          </View>
+        )}
+        {isPickup && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Pickup Location</Text>
+            <Text style={[styles.detailValue, styles.addressText]}>
+              {order?.restaurant?.name ||
+                order?.shop?.name ||
+                order?.pharmacy?.name ||
+                "Restaurant"}
+            </Text>
+          </View>
+        )}
+        {isPickup && order?.pickupInstructions && (
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Pickup Instructions</Text>
+            <Text style={[styles.detailValue, styles.addressText]}>
+              {order.pickupInstructions}
             </Text>
           </View>
         )}
@@ -133,16 +155,28 @@ export default function OrderTrackingWeb() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Need Help?</Text>
         <Text style={styles.contactSubtext}>
-          Our team is here to ensure smooth delivery
+          {isPickup
+            ? "Contact the restaurant if you have questions about your pickup order"
+            : "Our team is here to ensure smooth delivery"}
         </Text>
 
-        {order?.driverPhone && (
+        {order?.driverPhone && !isPickup && (
           <TouchableOpacity
             style={styles.contactButton}
             onPress={handleContactDriver}
           >
             <Ionicons name="call" size={20} color="#fff" />
             <Text style={styles.contactButtonText}>Contact Driver</Text>
+          </TouchableOpacity>
+        )}
+
+        {isPickup && order?.restaurant?.phone && (
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={() => Linking.openURL(`tel:${order.restaurant.phone}`)}
+          >
+            <Ionicons name="call" size={20} color="#fff" />
+            <Text style={styles.contactButtonText}>Contact Restaurant</Text>
           </TouchableOpacity>
         )}
 

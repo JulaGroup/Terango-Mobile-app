@@ -505,18 +505,24 @@ export default function OrderTrackingPage() {
   };
 
   const recenterMap = () => {
-    if (!deliveryLocation || !mapRef.current) return;
-    const markers = [deliveryLocation];
-    if (driverLocation) markers.push(driverLocation);
-    mapRef.current.fitToCoordinates(markers, {
-      edgePadding: {
-        top: 100,
-        right: 50,
-        bottom: SNAP_POINTS.half + 50,
-        left: 50,
-      },
-      animated: true,
-    });
+    if (!mapRef.current) return;
+
+    const markers = [];
+    if (vendorLocation) markers.push(vendorLocation);
+    if (driverLocation && !isPickup) markers.push(driverLocation);
+    if (deliveryLocation && !isPickup) markers.push(deliveryLocation);
+
+    if (markers.length > 0) {
+      mapRef.current.fitToCoordinates(markers, {
+        edgePadding: {
+          top: 100,
+          right: 50,
+          bottom: SNAP_POINTS.half + 50,
+          left: 50,
+        },
+        animated: true,
+      });
+    }
   };
 
   // Derived values
@@ -579,31 +585,36 @@ export default function OrderTrackingPage() {
       />
 
       {/* Full Screen Map */}
-      {Platform.OS !== "web" && !isPickup && deliveryLocation ? (
+      {Platform.OS !== "web" && vendorLocation ? (
         <MapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}
           style={StyleSheet.absoluteFillObject}
           initialRegion={{
-            latitude: deliveryLocation.latitude,
-            longitude: deliveryLocation.longitude,
+            latitude: isPickup
+              ? vendorLocation.latitude
+              : deliveryLocation?.latitude || vendorLocation.latitude,
+            longitude: isPickup
+              ? vendorLocation.longitude
+              : deliveryLocation?.longitude || vendorLocation.longitude,
             latitudeDelta: 0.025,
             longitudeDelta: 0.025,
           }}
           showsUserLocation={false}
           showsMyLocationButton={false}
         >
-          {/* Vendor/Pickup Location */}
-          {vendorLocation && (
-            <Marker coordinate={vendorLocation} title="Restaurant">
-              <View style={styles.vendorMarker}>
-                <Ionicons name="storefront" size={16} color="#FFF" />
-              </View>
-            </Marker>
-          )}
+          {/* Vendor/Restaurant Location */}
+          <Marker
+            coordinate={vendorLocation}
+            title={isPickup ? "Pickup Location" : "Restaurant"}
+          >
+            <View style={styles.vendorMarker}>
+              <Ionicons name="storefront" size={16} color="#FFF" />
+            </View>
+          </Marker>
 
-          {/* Driver Marker */}
-          {driverLocation && isDispatched && (
+          {/* Driver Marker (only for delivery orders) */}
+          {driverLocation && isDispatched && !isPickup && (
             <Marker coordinate={driverLocation} title="Driver">
               <View style={styles.driverMarkerContainer}>
                 <LinearGradient
@@ -617,18 +628,20 @@ export default function OrderTrackingPage() {
             </Marker>
           )}
 
-          {/* Delivery Location */}
-          <Marker coordinate={deliveryLocation} title="Delivery">
-            <View style={styles.deliveryMarkerContainer}>
-              <View style={styles.deliveryMarker}>
-                <Ionicons name="location" size={20} color="#FFF" />
+          {/* Delivery Location (only for delivery orders) */}
+          {deliveryLocation && !isPickup && (
+            <Marker coordinate={deliveryLocation} title="Delivery">
+              <View style={styles.deliveryMarkerContainer}>
+                <View style={styles.deliveryMarker}>
+                  <Ionicons name="location" size={20} color="#FFF" />
+                </View>
+                <View style={styles.deliveryMarkerShadow} />
               </View>
-              <View style={styles.deliveryMarkerShadow} />
-            </View>
-          </Marker>
+            </Marker>
+          )}
 
-          {/* Route Line */}
-          {routeCoordinates.length > 0 && isDispatched && (
+          {/* Route Line (only for delivery orders) */}
+          {routeCoordinates.length > 0 && isDispatched && !isPickup && (
             <Polyline
               coordinates={routeCoordinates}
               strokeWidth={4}
@@ -642,13 +655,7 @@ export default function OrderTrackingPage() {
         <View style={styles.noMapContainer}>
           <View style={styles.noMapIcon}>
             <Ionicons
-              name={
-                Platform.OS === "web"
-                  ? "globe"
-                  : isPickup
-                    ? "storefront"
-                    : "location"
-              }
+              name={Platform.OS === "web" ? "globe" : "storefront"}
               size={48}
               color="#D1D5DB"
             />
@@ -657,7 +664,7 @@ export default function OrderTrackingPage() {
             {Platform.OS === "web"
               ? "Map view available on mobile app"
               : isPickup
-                ? "Pick up at restaurant"
+                ? "Pickup location shown on mobile app"
                 : "Map not available"}
           </Text>
         </View>
@@ -673,7 +680,7 @@ export default function OrderTrackingPage() {
       </TouchableOpacity>
 
       {/* Recenter Button */}
-      {!isPickup && deliveryLocation && (
+      {vendorLocation && (
         <TouchableOpacity
           style={styles.recenterButton}
           onPress={recenterMap}
@@ -713,11 +720,23 @@ export default function OrderTrackingPage() {
                 />
               </View>
               <View style={styles.statusInfo}>
-                <Text style={styles.statusLabel}>{statusConfig.label}</Text>
-                {eta && isDispatched && (
+                <Text style={styles.statusLabel}>
+                  {isPickup && order?.status === "READY"
+                    ? "Ready for Pickup"
+                    : statusConfig.label}
+                </Text>
+                {eta && isDispatched && !isPickup && (
                   <Text style={styles.etaText}>Arriving in ~{eta} min</Text>
                 )}
-                {!isDispatched && !isDelivered && (
+                {isPickup && order?.status === "READY" && (
+                  <Text style={styles.etaText}>Please pick up your order</Text>
+                )}
+                {!isDispatched && !isDelivered && !isPickup && (
+                  <Text style={styles.orderIdText}>
+                    Order #{order.id.slice(-6).toUpperCase()}
+                  </Text>
+                )}
+                {isPickup && order?.status !== "READY" && (
                   <Text style={styles.orderIdText}>
                     Order #{order.id.slice(-6).toUpperCase()}
                   </Text>
@@ -725,11 +744,17 @@ export default function OrderTrackingPage() {
               </View>
             </View>
             <View style={styles.statusRight}>
-              {distance && isDispatched && (
+              {distance && isDispatched && !isPickup && (
                 <View style={styles.distanceBadge}>
                   <Text style={styles.distanceText}>
                     {distance.toFixed(1)} km
                   </Text>
+                </View>
+              )}
+              {isPickup && order?.status === "READY" && (
+                <View style={styles.pickupBadge}>
+                  <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                  <Text style={styles.pickupBadgeText}>Ready</Text>
                 </View>
               )}
             </View>
@@ -823,6 +848,34 @@ export default function OrderTrackingPage() {
               <Text style={styles.addressText} numberOfLines={2}>
                 {order.address}
               </Text>
+            </View>
+          )}
+
+          {/* Pickup Information */}
+          {isPickup && (
+            <View style={styles.pickupCard}>
+              <View style={styles.pickupIcon}>
+                <Ionicons name="storefront" size={18} color={PrimaryColor} />
+              </View>
+              <View style={styles.pickupInfo}>
+                <Text style={styles.pickupTitle}>Pickup Location</Text>
+                <Text style={styles.pickupAddress} numberOfLines={2}>
+                  {typeof (
+                    order.restaurant?.address ||
+                    order.shop?.address ||
+                    order.pharmacy?.address
+                  ) === "string"
+                    ? order.restaurant?.address ||
+                      order.shop?.address ||
+                      order.pharmacy?.address
+                    : "See order details for location"}
+                </Text>
+                {order.pickupInstructions && (
+                  <Text style={styles.pickupInstructions} numberOfLines={3}>
+                    {order.pickupInstructions}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -1382,5 +1435,62 @@ const styles = StyleSheet.create({
     color: "#B45309",
     marginTop: 4,
     lineHeight: 18,
+  },
+
+  // Pickup Badge
+  pickupBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#D1FAE5",
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  pickupBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#065F46",
+    marginLeft: 4,
+  },
+
+  // Pickup Card
+  pickupCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#F0F9FF",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  pickupIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: PrimaryColor + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  pickupInfo: {
+    flex: 1,
+  },
+  pickupTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1F2937",
+    marginBottom: 4,
+  },
+  pickupAddress: {
+    fontSize: 14,
+    color: "#374151",
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  pickupInstructions: {
+    fontSize: 13,
+    color: "#6B7280",
+    lineHeight: 18,
+    fontStyle: "italic",
   },
 });
