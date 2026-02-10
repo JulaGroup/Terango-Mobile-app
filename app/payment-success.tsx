@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  TouchableOpacity,
+} from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
@@ -11,7 +17,17 @@ export default function PaymentSuccess() {
   const { orderId, paymentId } = useLocalSearchParams();
   const [countdown, setCountdown] = useState(3);
   const [isConfirming, setIsConfirming] = useState(true);
-  const [confirmationError, setConfirmationError] = useState<string | null>(null);
+  const [confirmationError, setConfirmationError] = useState<string | null>(
+    null,
+  );
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔥 PAYMENT SUCCESS PAGE ACCESSED");
+    console.log("Order ID:", orderId);
+    console.log("Payment ID:", paymentId);
+    console.log("Current URL:", window.location.href);
+  }, [orderId, paymentId]);
 
   useEffect(() => {
     // Confirm payment success with backend
@@ -25,20 +41,23 @@ export default function PaymentSuccess() {
       try {
         const token = await SecureStorage.getItem("token");
         if (!token) {
-          console.warn("No auth token found, proceeding without authentication");
+          console.warn(
+            "No auth token found, proceeding without authentication",
+          );
         }
 
-        const response = await fetch(
-          `${process.env.EXPO_PUBLIC_API_URL}/api/orders/${orderId}/confirm-payment`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(token && { Authorization: `Bearer ${token}` }),
-            },
-            body: JSON.stringify({ paymentId }),
-          }
-        );
+        const apiUrl = `${process.env.EXPO_PUBLIC_API_URL}/api/orders/${orderId}/confirm-payment`;
+        console.log("🔗 Confirming payment with API:", apiUrl);
+        console.log("📝 Payment ID:", paymentId);
+
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
+          },
+          body: JSON.stringify({ paymentId }),
+        });
 
         if (!response.ok) {
           const errorData = await response.json();
@@ -52,7 +71,8 @@ export default function PaymentSuccess() {
         console.error("Payment confirmation failed:", error);
         setConfirmationError(error.message || "Failed to confirm payment");
         setIsConfirming(false);
-        // Still proceed with redirect even if confirmation fails
+        // Don't block the user - still allow them to proceed
+        // The webhook might still update the order status
       }
     };
 
@@ -67,11 +87,12 @@ export default function PaymentSuccess() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          if (orderId) {
-            router.replace(`/order-details?orderId=${orderId}`);
-          } else {
-            router.replace("/(tabs)/orders");
-          }
+          // Don't auto-redirect for now - let user manually navigate
+          // if (orderId) {
+          //   router.replace(`/order-details?orderId=${orderId}`);
+          // } else {
+          //   router.replace("/(tabs)/orders");
+          // }
           return 0;
         }
         return prev - 1;
@@ -110,16 +131,33 @@ export default function PaymentSuccess() {
               ⚠️ Payment confirmation delayed: {confirmationError}
             </Text>
             <Text style={styles.errorSubtext}>
-              Your order will still be processed. Check your orders page for updates.
+              Your order will still be processed. Check your orders page for
+              updates.
             </Text>
           </View>
         )}
 
         {!isConfirming && !confirmationError && (
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={() => {
+                if (orderId) {
+                  router.replace(`/order-details?orderId=${orderId}`);
+                } else {
+                  router.replace("/(tabs)/orders");
+                }
+              }}
+            >
+              <Text style={styles.buttonText}>View Order Details</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {!isConfirming && (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={PrimaryColor} />
             <Text style={styles.redirectText}>
-              Redirecting in {countdown} seconds...
+              Auto-redirect disabled for debugging
             </Text>
           </View>
         )}
@@ -189,6 +227,21 @@ const styles = StyleSheet.create({
   errorSubtext: {
     fontSize: 12,
     color: "#78350F",
+  },
+  buttonContainer: {
+    marginTop: 20,
+  },
+  button: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
   loadingContainer: {
     flexDirection: "row",
