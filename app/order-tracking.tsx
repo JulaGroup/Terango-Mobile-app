@@ -564,14 +564,31 @@ export default function OrderTrackingPage() {
           <Ionicons name="arrow-back" size={24} color="#1F2937" />
         </TouchableOpacity>
         <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-        <Text style={styles.errorTitle}>Something went wrong</Text>
-        <Text style={styles.errorMessage}>{error || "Order not found"}</Text>
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={fetchOrderDetails}
-        >
-          <Text style={styles.retryButtonText}>Try Again</Text>
-        </TouchableOpacity>
+        <Text style={styles.errorTitle}>
+          {isPickup && !vendorLocation
+            ? "Pickup Location Not Available"
+            : "Something went wrong"}
+        </Text>
+        <Text style={styles.errorMessage}>
+          {isPickup && !vendorLocation
+            ? "The pickup location coordinates are not available. Please contact the vendor directly."
+            : error || "Order not found"}
+        </Text>
+        {!isPickup || vendorLocation ? (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={fetchOrderDetails}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.retryButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        )}
       </View>
     );
   }
@@ -585,7 +602,9 @@ export default function OrderTrackingPage() {
       />
 
       {/* Full Screen Map */}
-      {Platform.OS !== "web" && vendorLocation ? (
+      {Platform.OS !== "web" &&
+      vendorLocation &&
+      (!isPickup || vendorLocation) ? (
         <MapView
           ref={mapRef}
           provider={PROVIDER_DEFAULT}

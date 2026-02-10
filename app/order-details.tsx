@@ -19,7 +19,11 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
-import { on as socketOn, off as socketOff } from "@/services/SocketService";
+import {
+  on as socketOn,
+  off as socketOff,
+  emit as socketEmit,
+} from "@/services/SocketService";
 import {
   storeSuccessfulOrder,
   NotificationService,
@@ -229,9 +233,19 @@ export default function OrderDetailsPage() {
     socketOn("orderStatusUpdate", onOrderStatusUpdate);
     socketOn("paymentSuccess", onPaymentSuccess);
 
+    // Start tracking this order for real-time updates
+    if (orderId) {
+      socketEmit("customer:trackOrder", orderId);
+    }
+
     return () => {
       socketOff("orderStatusUpdate", onOrderStatusUpdate);
       socketOff("paymentSuccess", onPaymentSuccess);
+
+      // Stop tracking when component unmounts
+      if (orderId) {
+        socketEmit("customer:stopTracking", orderId);
+      }
     };
   }, [orderId, fetchOrderDetails, router]);
 
@@ -1171,28 +1185,73 @@ export default function OrderDetailsPage() {
 
           {/* Regular delivery address - only show if not a gift order */}
           {!order.isGiftOrder && (
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Ionicons name="location-outline" size={16} color="#6B7280" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>
-                  {order.orderType === "PICKUP"
-                    ? "Pickup Location / Instructions"
-                    : "Delivery Address"}
-                </Text>
-                <Text style={styles.infoValue}>
-                  {order.orderType === "PICKUP"
-                    ? order.pickupInstructions ||
-                      order.address ||
-                      order.deliveryAddress ||
-                      "Pickup details not provided"
-                    : order.deliveryAddress ||
-                      order.address ||
-                      "Delivery address not set"}
-                </Text>
-              </View>
-            </View>
+            <>
+              {/* Pickup Location - show vendor address */}
+              {order.orderType === "PICKUP" && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIcon}>
+                    <Ionicons
+                      name="storefront-outline"
+                      size={16}
+                      color="#6B7280"
+                    />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Pickup Location</Text>
+                    <Text style={styles.infoValue}>
+                      {vendor?.name || "Vendor"}
+                      {vendor?.address && typeof vendor.address === "string"
+                        ? `\n${vendor.address}`
+                        : vendor?.address &&
+                            typeof vendor.address === "object" &&
+                            vendor.address.street
+                          ? `\n${vendor.address.street}, ${vendor.address.city || ""}`
+                          : ""}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Pickup Instructions - show only if provided */}
+              {order.orderType === "PICKUP" && order.pickupInstructions && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIcon}>
+                    <Ionicons
+                      name="information-circle-outline"
+                      size={16}
+                      color="#6B7280"
+                    />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Pickup Instructions</Text>
+                    <Text style={styles.infoValue}>
+                      {order.pickupInstructions}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Delivery Address - for delivery orders */}
+              {order.orderType === "DELIVERY" && (
+                <View style={styles.infoRow}>
+                  <View style={styles.infoIcon}>
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color="#6B7280"
+                    />
+                  </View>
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Delivery Address</Text>
+                    <Text style={styles.infoValue}>
+                      {order.deliveryAddress ||
+                        order.address ||
+                        "Delivery address not set"}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </>
           )}
 
           {order.notes && (

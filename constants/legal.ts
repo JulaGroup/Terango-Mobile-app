@@ -16,7 +16,10 @@ export const LegalConfig = {
   PRIVACY_URL: "https://docs.google.com/document/d/e/2PACX-TERANGO-PRIVACY/pub",
 
   // Support Email
-  SUPPORT_EMAIL: "support@terango.gm",
+  SUPPORT_EMAIL: "info@terango.gm",
+
+  // Support Phone
+  SUPPORT_PHONE: "+220 6335524",
 
   // Company Information
   COMPANY_NAME: "TeranGO",
