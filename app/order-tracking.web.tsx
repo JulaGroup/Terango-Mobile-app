@@ -23,16 +23,19 @@ export default function OrderTrackingWeb() {
   const { orderId } = useLocalSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
 
     const fetchOrder = async () => {
       try {
+        setError(null);
         const response = await orderApi.getOrderById(orderId as string);
-        setOrder(response.data);
-      } catch (error) {
+        setOrder(response);
+      } catch (error: any) {
         console.error("Error fetching order:", error);
+        setError(error.message || "Failed to load order details");
       } finally {
         setLoading(false);
       }
@@ -53,6 +56,28 @@ export default function OrderTrackingWeb() {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color={PrimaryColor} />
+      </View>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <View style={styles.errorContainer}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+        </TouchableOpacity>
+        <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorMessage}>{error || "Order not found"}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => window.location.reload()}
+        >
+          <Text style={styles.retryButtonText}>Try Again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -410,5 +435,36 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#333",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#fff",
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#EF4444",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  retryButton: {
+    backgroundColor: PrimaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
