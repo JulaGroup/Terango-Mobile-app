@@ -21,6 +21,89 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Browser notification utilities for web platform
+class BrowserNotificationService {
+  private static permission: NotificationPermission = "default";
+
+  static async requestPermission(): Promise<NotificationPermission> {
+    if (Platform.OS !== "web") return "default";
+
+    if (!("Notification" in window)) {
+      console.warn(
+        "[BrowserNotification] This browser does not support notifications",
+      );
+      return "denied";
+    }
+
+    if (Notification.permission === "granted") {
+      this.permission = "granted";
+      return "granted";
+    }
+
+    if (Notification.permission === "denied") {
+      this.permission = "denied";
+      return "denied";
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      this.permission = permission;
+      return permission;
+    } catch (error) {
+      console.error(
+        "[BrowserNotification] Error requesting permission:",
+        error,
+      );
+      return "denied";
+    }
+  }
+
+  static async showNotification(
+    title: string,
+    options?: NotificationOptions,
+  ): Promise<void> {
+    if (Platform.OS !== "web" || this.permission !== "granted") return;
+
+    try {
+      const notification = new Notification(title, {
+        icon: "/favicon.ico", // You can customize this
+        badge: "/favicon.ico",
+        ...options,
+      });
+
+      // Auto-close after 5 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 5000);
+
+      // Handle click
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    } catch (error) {
+      console.error("[BrowserNotification] Error showing notification:", error);
+    }
+  }
+
+  static async showOrderStatusNotification(
+    orderId: string,
+    status: string,
+    message?: string,
+  ): Promise<void> {
+    const title = `Order Status Update`;
+    const body =
+      message ||
+      `Your order #${orderId.slice(-8).toUpperCase()} status changed to ${status}`;
+
+    await this.showNotification(title, {
+      body,
+      tag: `order-${orderId}`, // Prevents duplicate notifications
+      data: { orderId, type: "order_status_update" },
+    });
+  }
+}
+
 // Global callback for refreshing orders
 let onOrdersRefresh: (() => void) | null = null;
 export function setOrdersRefreshCallback(cb: () => void) {
@@ -54,7 +137,7 @@ export async function storeSuccessfulOrder(orderData: {
           existing.orderId === orderData.orderId
         ) {
           console.log(
-            "[NotificationService] Same order already stored, skipping store"
+            "[NotificationService] Same order already stored, skipping store",
           );
           return false; // not new
         }
@@ -62,7 +145,7 @@ export async function storeSuccessfulOrder(orderData: {
         // If parse fails, fall through and overwrite
         console.warn(
           "[NotificationService] Failed to parse existing successful order, will overwrite",
-          e
+          e,
         );
       }
     }
@@ -73,7 +156,7 @@ export async function storeSuccessfulOrder(orderData: {
   } catch (error) {
     console.warn(
       "[NotificationService] Failed to store successful order:",
-      error
+      error,
     );
     return false;
   }
@@ -102,7 +185,7 @@ export async function getSuccessfulOrder() {
   } catch (error) {
     console.warn(
       "[NotificationService] Failed to get successful order:",
-      error
+      error,
     );
   }
   return null;
@@ -114,7 +197,7 @@ export async function clearSuccessfulOrder() {
   } catch (error) {
     console.warn(
       "[NotificationService] Failed to clear successful order:",
-      error
+      error,
     );
   }
 }
@@ -146,6 +229,20 @@ export function useRegisterPushToken(userId: string) {
       console.log("[Socket] paymentSuccess", data);
       if (onOrdersRefresh) onOrdersRefresh();
 
+      // Show browser notification for web users
+      if (Platform.OS === "web" && data && data.orderId) {
+        BrowserNotificationService.showNotification("🎉 Payment Successful!", {
+          body: "Your payment has been processed. Your order is being prepared.",
+          tag: `payment-${data.orderId}`,
+          data: { orderId: data.orderId, type: "payment_success" },
+        }).catch((err) =>
+          console.warn(
+            "[BrowserNotification] Failed to show payment notification:",
+            err,
+          ),
+        );
+      }
+
       // Store successful order data for modal on app reopen
       if (data && data.orderId) {
         await storeSuccessfulOrder({
@@ -170,7 +267,7 @@ export function useRegisterPushToken(userId: string) {
         } catch (error) {
           console.error(
             "[Notification] Failed to send payment success notification:",
-            error
+            error,
           );
         }
       }
@@ -195,6 +292,21 @@ export function useRegisterPushToken(userId: string) {
     };
     const orderCreatedHandler = (data: any) => {
       console.log("[Socket] orderCreated", data);
+
+      // Show browser notification for web users
+      if (Platform.OS === "web" && data && data.orderId) {
+        BrowserNotificationService.showNotification("🔔 Order Created!", {
+          body: `Your order #${data.orderId.slice(-8).toUpperCase()} has been created and is being processed.`,
+          tag: `order-created-${data.orderId}`,
+          data: { orderId: data.orderId, type: "order_created" },
+        }).catch((err) =>
+          console.warn(
+            "[BrowserNotification] Failed to show order created notification:",
+            err,
+          ),
+        );
+      }
+
       // Only navigate if the event is for this user (if payload contains userId)
       if (
         data &&
@@ -210,6 +322,20 @@ export function useRegisterPushToken(userId: string) {
     const orderStatusUpdateHandler = (data: any) => {
       console.log("[Socket] orderStatusUpdate", data);
       if (onOrdersRefresh) onOrdersRefresh();
+
+      // Show browser notification for web users
+      if (Platform.OS === "web" && data && data.orderId && data.status) {
+        BrowserNotificationService.showOrderStatusNotification(
+          data.orderId,
+          data.status,
+          data.message || `Your order status changed to ${data.status}`,
+        ).catch((err) =>
+          console.warn(
+            "[BrowserNotification] Failed to show status notification:",
+            err,
+          ),
+        );
+      }
     };
 
     (async () => {
@@ -234,7 +360,7 @@ export function useRegisterPushToken(userId: string) {
         const { status } = await Notifications.requestPermissionsAsync();
         if (status !== "granted") {
           console.warn(
-            "[NotificationService] ⚠️ Notification permission not granted"
+            "[NotificationService] ⚠️ Notification permission not granted",
           );
           return;
         }
@@ -262,24 +388,24 @@ export function useRegisterPushToken(userId: string) {
                   expoPushToken,
                   deviceInfo: Platform.OS,
                 }),
-              }
+              },
             );
 
             if (!response.ok) {
               throw new Error(
-                `HTTP ${response.status}: ${response.statusText}`
+                `HTTP ${response.status}: ${response.statusText}`,
               );
             }
 
             console.log(
-              `✅ [NotificationService] Push token registered successfully (userId: ${userId})`
+              `✅ [NotificationService] Push token registered successfully (userId: ${userId})`,
             );
             return; // Success - exit early
           } catch (error) {
             lastError = error;
             console.warn(
               `[NotificationService] Attempt ${attempt}/${maxRetries} failed:`,
-              error
+              error,
             );
 
             // Wait before retrying (exponential backoff: 1s, 2s, 4s)
@@ -295,7 +421,7 @@ export function useRegisterPushToken(userId: string) {
           "[NotificationService] ❌ Failed to register push token after",
           maxRetries,
           "attempts:",
-          lastError
+          lastError,
         );
       } catch (error) {
         console.error("[NotificationService] Unexpected error:", error);
@@ -305,17 +431,36 @@ export function useRegisterPushToken(userId: string) {
     // Only register push token if user is authenticated
     if (userId) {
       console.log(
-        "[NotificationService] 🔔 User authenticated, registering push token..."
+        "[NotificationService] 🔔 User authenticated, registering push token...",
       );
       registerForPushNotificationsAsync().catch((err) => {
         console.error(
           "[NotificationService] Unhandled error in registration:",
-          err
+          err,
         );
       });
+
+      // Request browser notification permission for web users
+      if (Platform.OS === "web") {
+        console.log(
+          "[NotificationService] 🌐 Requesting browser notification permission...",
+        );
+        BrowserNotificationService.requestPermission()
+          .then((permission) => {
+            console.log(
+              `[BrowserNotification] Permission result: ${permission}`,
+            );
+          })
+          .catch((err) => {
+            console.warn(
+              "[BrowserNotification] Failed to request permission:",
+              err,
+            );
+          });
+      }
     } else {
       console.log(
-        "[NotificationService] ⏳ Waiting for user authentication before registering push token"
+        "[NotificationService] ⏳ Waiting for user authentication before registering push token",
       );
     }
 
@@ -324,19 +469,19 @@ export function useRegisterPushToken(userId: string) {
       (notification) => {
         console.log(
           "[Expo] Push notification received and listener is active:",
-          notification
+          notification,
         );
         // Trigger orders refresh if callback is set
         if (onOrdersRefresh) {
           onOrdersRefresh();
         }
-      }
+      },
     );
     const responseListener =
       Notifications.addNotificationResponseReceivedListener((response) => {
         console.log(
           "[Expo] Push notification response received and listener is active:",
-          response
+          response,
         );
 
         // Handle notification tap - navigate to order details
@@ -350,7 +495,7 @@ export function useRegisterPushToken(userId: string) {
             onNavigateToOrder(orderId);
           } else {
             console.warn(
-              "[Expo] Navigation callback not set for order notifications"
+              "[Expo] Navigation callback not set for order notifications",
             );
           }
         }
@@ -376,6 +521,7 @@ export function useRegisterPushToken(userId: string) {
 }
 
 export class NotificationService {
+  // Schedule an immediate order notification (used for payment success, order created, etc.)
   static async scheduleOrderNotification(orderData: {
     orderId: string;
     title: string;
@@ -384,7 +530,6 @@ export class NotificationService {
   }) {
     try {
       const { orderId, title, body, data } = orderData;
-
       await Notifications.scheduleNotificationAsync({
         content: {
           title,
@@ -394,8 +539,9 @@ export class NotificationService {
         },
         trigger: null, // Show immediately
       });
+      console.log(`✅ Scheduled order notification for order ${orderId}`);
     } catch (error) {
-      console.error("Failed to schedule notification:", error);
+      console.error("Failed to schedule order notification:", error);
     }
   }
 
@@ -485,4 +631,20 @@ export class NotificationService {
       throw error;
     }
   }
+}
+
+export { BrowserNotificationService };
+
+// Hook to initialize browser notifications
+export function useBrowserNotifications() {
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      // Request permission on mount
+      BrowserNotificationService.requestPermission().then((permission) => {
+        console.log(
+          `[BrowserNotification] Initialized with permission: ${permission}`,
+        );
+      });
+    }
+  }, []);
 }

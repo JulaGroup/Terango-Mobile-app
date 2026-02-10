@@ -19,6 +19,7 @@ import {
   getSuccessfulOrder,
   clearSuccessfulOrder,
   storeSuccessfulOrder,
+  useBrowserNotifications,
 } from "@/services/NotificationService";
 import { useEffect, useState } from "react";
 import { safeGetItem } from "@/actions/auth.ts/action";
@@ -358,6 +359,9 @@ export default function RootLayout() {
   }, []);
 
   useRegisterPushToken(userId ?? "");
+
+  // Initialize browser notifications for web
+  useBrowserNotifications();
 
   if (!loaded) {
     // Async font loading only occurs in development.
