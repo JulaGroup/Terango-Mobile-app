@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   ScrollView,
   Linking,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
@@ -27,6 +28,7 @@ import { useRouter } from "expo-router";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
 import { SecureStorage } from "@/utils/secureStorage";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as WebBrowser from "expo-web-browser";
 
 const statusColors = {
   PENDING: "#F39C12",
@@ -295,7 +297,7 @@ export default function Orders() {
             try {
               setLoading(true);
 
-              // Load user's preferred payment method (default to wave)
+              // Get preferred payment network
               let network = "wave";
               try {
                 const stored = await SecureStorage.getItem("paymentMethods");
@@ -304,12 +306,11 @@ export default function Orders() {
                   if (parsed?.default) network = parsed.default;
                 }
               } catch (e) {
-                console.warn(
-                  "Failed to read payment methods, defaulting to wave",
-                  e,
-                );
+                console.warn("Using default payment method: wave");
               }
 
+              // Call payment API
+              console.log("💳 Initiating payment...");
               const result: any = await orderApi.payForOrder(
                 orderId,
                 network,
@@ -317,78 +318,63 @@ export default function Orders() {
                 "teranggo://payment-cancel",
               );
 
-              // If server returned a Wave session (launch url), open it
+              // Get Wave launch URL
               const launchUrl =
                 result?.wave_launch_url || result?.session?.wave_launch_url;
-              if (launchUrl) {
-                // Attempt to open Wave URL - try directly without canOpenURL check
-                try {
-                  await Linking.openURL(launchUrl);
 
-                  Alert.alert(
-                    "Complete Payment",
-                    "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-                    [{ text: "OK", onPress: () => fetchOrders() }],
-                  );
-
-                  return;
-                } catch (linkError) {
-                  // If direct open fails, show helpful error
-                  Alert.alert(
-                    "Payment Failed",
-                    "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Install Wave",
-                        onPress: () => {
-                          Linking.openURL(
-                            "https://play.google.com/store/apps/details?id=com.wave.personal",
-                          );
-                        },
-                      },
-                    ],
-                  );
-                  return;
-                }
+              if (!launchUrl) {
+                throw new Error("No Wave launch URL received from server");
               }
 
-              // Otherwise treat the response as an updated order
-              // Refresh orders list so payment status updates
-              fetchOrders();
+              console.log("💳 Opening Wave URL:", launchUrl);
+
+              // iOS: Use in-app browser for better UX (auto-dismisses on redirect)
+              // Android: Use external browser
+              if (Platform.OS === "ios") {
+                console.log("📱 iOS: Opening in-app browser");
+                await WebBrowser.openBrowserAsync(launchUrl, {
+                  dismissButtonStyle: "close",
+                  controlsColor: "#FF6B35",
+                  enableBarCollapsing: false,
+                });
+
+                // Browser will auto-dismiss when deep link is triggered
+                console.log("📱 Browser dismissed or deep link triggered");
+              } else {
+                // Android: Open in external browser
+                console.log("📱 Android: Opening external browser");
+                await Linking.openURL(launchUrl);
+
+                // Show instructions
+                Alert.alert(
+                  "Complete Payment",
+                  "Complete your payment in the Wave app. You'll be automatically redirected back when done.",
+                  [{ text: "OK", onPress: () => fetchOrders() }],
+                );
+              }
+            } catch (error: any) {
+              console.error("❌ Payment error:", error);
+
+              // Handle user cancellation (dismissed browser)
+              if (
+                error.message?.includes("dismissed") ||
+                error.message?.includes("Cancel")
+              ) {
+                console.log("User dismissed payment browser");
+                return; // Don't show error alert
+              }
 
               Alert.alert(
-                "Payment Successful! 🎉",
-                "Your payment has been processed. The vendor will now prepare your order.",
-                [{ text: "OK", onPress: () => fetchOrders() }],
+                "Payment Failed",
+                error?.message || "Failed to start payment. Please try again.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Retry",
+                    onPress: () => handlePayFromList(orderId, amount),
+                  },
+                ],
               );
-            } catch (error: any) {
-              console.error("Payment error:", error);
-
-              // More detailed error messages
-              let errorMessage = "Failed to process payment. Please try again.";
-
-              if (error.message?.includes("Network")) {
-                errorMessage =
-                  "Network error. Please check your connection and try again.";
-              } else if (error.message?.includes("Wave")) {
-                errorMessage = error.message;
-              } else if (error.response?.status === 400) {
-                errorMessage =
-                  "Invalid payment request. Please contact support.";
-              } else if (error.response?.status === 500) {
-                errorMessage = "Server error. Please try again in a moment.";
-              } else if (error.message) {
-                errorMessage = error.message;
-              }
-
-              Alert.alert("Payment Failed", errorMessage, [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Retry",
-                  onPress: () => handlePayFromList(orderId, amount),
-                },
-              ]);
             } finally {
               setLoading(false);
             }

@@ -5,29 +5,39 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "backgroundColor": "#ffffff",
-    "icon": "./assets/App-Icon.jpg",
+    "icon": "./assets/App-Icon.png",
     "userInterfaceStyle": "light",
     "scheme": ["teranggo"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.darboedev.terango",
-      "associatedDomains": ["applinks:terango.gm", "applinks:terango.gm"],
+      "associatedDomains": [
+        "applinks:terango.gm",
+        "applinks:monkfish-app-korrv.ondigitalocean.app"
+      ],
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": ["teranggo"],
+            "CFBundleURLName": "com.darboedev.terango"
+          }
+        ],
+        "LSApplicationQueriesSchemes": ["wave", "teranggo", "https"]
       }
     },
     "splash": {
-      "image": "./assets/images/splash-icon.jpg",
+      "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/App-Icon.jpg",
+        "foregroundImage": "./assets/App-Icon.png",
         "backgroundColor": "#ffffff"
       },
       "splash": {
-        "image": "./assets/images/splash-icon.jpg",
+        "image": "./assets/images/splash-icon.png",
         "resizeMode": "contain",
         "backgroundColor": "#ffffff"
       },

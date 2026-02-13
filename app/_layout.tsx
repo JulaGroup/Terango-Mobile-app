@@ -11,8 +11,10 @@ import {
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, router, usePathname } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  GestureHandlerRootView,
+  // StatusBar,
+} from "react-native-gesture-handler";
 import {
   useRegisterPushToken,
   getSuccessfulOrder,
@@ -27,7 +29,7 @@ import { API_URL } from "@/constants/config";
 import { initSocket } from "@/services/SocketService";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
 import * as WebBrowser from "expo-web-browser";
-import { Alert, DeviceEventEmitter } from "react-native";
+import { Alert, DeviceEventEmitter, StatusBar } from "react-native";
 import WebContainer from "@/components/WebContainer";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import OfflineNotice from "@/components/common/OfflineNotice";
@@ -83,115 +85,57 @@ export default function RootLayout() {
     const handleDeepLink = async (url: string) => {
       console.log("[DeepLink] Received URL:", url);
 
-      // Debug: Check what type of URL this is
-      if (url.includes("payment-success")) {
-        console.log("[DeepLink] ✅ This is a payment-success URL");
-      } else if (
-        url.includes("payment-cancel") ||
-        url.includes("payment-failed")
-      ) {
-        console.log("[DeepLink] ❌ This is a payment-cancel/failed URL");
-      } else {
-        console.log(
-          "[DeepLink] 🔍 This is a generic deep link, ignoring for payment purposes",
-        );
-        return; // Exit early for non-payment URLs
+      // Only process payment URLs
+      if (!url.includes("payment-success") && !url.includes("payment-cancel")) {
+        console.log("[DeepLink] Not a payment URL, ignoring");
+        return;
       }
 
-      // Only process URLs that specifically contain payment-success path
-      if (url.includes("payment-success")) {
-        console.log("[DeepLink] Payment success URL detected");
+      // Extract parameters
+      const urlParams = new URLSearchParams(url.split("?")[1]);
+      const orderId = urlParams.get("orderId");
+      const paymentId = urlParams.get("paymentId");
+      const verified = urlParams.get("verified");
+      const status = urlParams.get("status");
 
-        // Check if this is a verified payment (from our payment-success page)
-        const isVerified = url.includes("verified=true");
-        console.log("[DeepLink] Payment verification status:", isVerified);
+      console.log("[DeepLink] Payment params:", {
+        orderId,
+        paymentId,
+        verified,
+        status,
+      });
 
-        if (isVerified) {
-          // Only emit event for verified payments
-          DeviceEventEmitter.emit("paymentSuccess", {
-            url,
-            timestamp: Date.now(),
-            verified: true,
-          });
-          console.log(
-            "[DeepLink] ✅ Verified payment success - emitting cart clear event",
-          );
-        } else {
-          console.log(
-            "[DeepLink] ⚠️ Unverified payment success - skipping cart clear",
-          );
+      // Dismiss any open browser/webview
+      try {
+        await WebBrowser.dismissBrowser();
+      } catch (e) {
+        console.log("[DeepLink] No browser to dismiss");
+      }
+
+      // Handle payment success
+      if (url.includes("payment-success") && verified === "true") {
+        console.log("[DeepLink] ✅ Verified payment success!");
+
+        if (!orderId || !paymentId) {
+          Alert.alert("Error", "Missing order or payment information");
+          return;
         }
 
-        // Clear cart since payment was successful
         try {
-          // We'll need to get cart context differently since this is at provider level
-          // For now, we'll dispatch a custom event that the checkout component can listen to
-          console.log(
-            "[DeepLink] Payment successful - cart should be cleared by checkout component",
-          );
-        } catch {
-          console.log(
-            "[DeepLink] Note: Cart clearing will be handled by checkout component",
-          );
-        }
+          // Confirm payment with server
+          console.log("[DeepLink] Confirming payment with server...");
+          const { orderApi } = await import("@/lib/api");
+          await orderApi.confirmPaymentSuccess(orderId, paymentId);
+          console.log("[DeepLink] ✅ Payment confirmed with server");
 
-        // Dismiss any open browser
-        WebBrowser.dismissBrowser().catch(() => {
-          console.log("[DeepLink] No browser to dismiss");
-        });
-
-        // Extract paymentId and orderId from URL if present
-        const urlParams = new URLSearchParams(url.split("?")[1]);
-        const paymentId = urlParams.get("paymentId");
-        const urlOrderId = urlParams.get("orderId");
-        console.log("[DeepLink] PaymentId from URL:", paymentId);
-        console.log("[DeepLink] OrderId from URL:", urlOrderId);
-
-        // Check for recent successful order to get orderId
-        const orderData = await getSuccessfulOrder();
-        let orderId = urlOrderId || orderData?.orderId; // Prefer URL param
-
-        // If no stored order data, try to find order by checking recent orders
-        if (!orderId && paymentId) {
-          try {
-            // Import orderApi to fetch recent orders
-            const { orderApi } = await import("@/lib/api");
-            const result = await orderApi.getCustomerOrders();
-            // Find the most recent order (likely the one just created)
-            const recentOrder = result.orders[0];
-            if (
-              recentOrder &&
-              new Date(recentOrder.createdAt).getTime() >
-                Date.now() - 5 * 60 * 1000
-            ) {
-              orderId = recentOrder.id;
-              console.log("[DeepLink] Found recent order:", orderId);
-            }
-          } catch (error) {
-            console.log("[DeepLink] Error fetching orders:", error);
-          }
-        }
-
-        if (orderId) {
-          // ✅ CONFIRM PAYMENT SUCCESS WITH SERVER
-          try {
-            console.log("[DeepLink] Confirming payment success with server...");
-            const { orderApi } = await import("@/lib/api");
-            await orderApi.confirmPaymentSuccess(orderId, paymentId);
-            console.log("[DeepLink] ✅ Payment confirmed with server");
-          } catch (error) {
-            console.warn("[DeepLink] Failed to confirm payment with server:", error);
-            // Continue anyway - the payment might still be valid
-          }
-
-          // Store successful order for any other components that might need it
+          // Store successful order
           await storeSuccessfulOrder({
             orderId,
             timestamp: Date.now(),
-            data: { orderId, status: "completed" },
+            data: { orderId, status: "completed", paymentId },
           });
 
-          // Show success alert with option to view specific order
+          // Show success alert
           Alert.alert(
             "Payment Successful! 🎉",
             "Your payment has been processed successfully.",
@@ -210,11 +154,11 @@ export default function RootLayout() {
               },
             ],
           );
-        } else {
-          // Fallback to orders page
+        } catch (error) {
+          console.error("[DeepLink] Payment confirmation failed:", error);
           Alert.alert(
-            "Payment Successful! 🎉",
-            "Your payment has been processed successfully.",
+            "Payment Confirmed",
+            "Your payment was successful! You can view your order in the Orders tab.",
             [
               {
                 text: "View Orders",
@@ -223,33 +167,11 @@ export default function RootLayout() {
             ],
           );
         }
-      } else if (
-        url.includes("payment-cancel") ||
-        url.includes("payment-failed")
-      ) {
-        console.log(
-          "[DeepLink] Payment cancelled/failed detected - dismissing browser and returning to app",
-        );
-
-        // Dismiss any open browser
-        WebBrowser.dismissBrowser().catch(() => {
-          console.log("[DeepLink] No browser to dismiss");
-        });
-
-        // Extract orderId and reason from URL
-        const urlParams = new URLSearchParams(url.split("?")[1]);
-        const orderId = urlParams.get("orderId");
-        const reason = urlParams.get("reason");
-
-        console.log(
-          "[DeepLink] Payment failed for order:",
-          orderId,
-          "Reason:",
-          reason,
-        );
-
-        // User is already back in the app - the checkout page will handle showing the error
-        // No need for additional alerts here
+      }
+      // Handle payment cancellation
+      else if (url.includes("payment-cancel") || status === "cancelled") {
+        console.log("[DeepLink] ❌ Payment cancelled");
+        // Just log it - the order page will handle the UI
       }
     };
 
@@ -580,7 +502,7 @@ export default function RootLayout() {
                         options={{ headerShown: false }}
                       />
                     </Stack>
-                    <StatusBar style="auto" />
+                    <StatusBar barStyle="default" />
                   </GestureHandlerRootView>
                 </WebContainer>
               </VendorProvider>

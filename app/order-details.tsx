@@ -28,6 +28,7 @@ import {
   storeSuccessfulOrder,
   NotificationService,
 } from "@/services/NotificationService";
+import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -318,31 +319,99 @@ export default function OrderDetailsPage() {
   const handlePayNow = async () => {
     if (!order) return;
 
-    // On web, use modal for better UX
-    if (Platform.OS === "web") {
-      setModalType("confirm");
-      setModalTitle("Confirm Payment");
-      setModalMessage(
-        `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
-      );
-      setModalAction(processPayment);
-      setModalVisible(true);
-    } else {
-      Alert.alert(
-        "Confirm Payment",
-        `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
-        [
-          {
-            text: "Cancel",
-            style: "cancel",
+    Alert.alert(
+      "Confirm Payment",
+      `Proceed with payment of ${formatAmount(order.totalAmount)}?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Pay Now",
+          onPress: async () => {
+            try {
+              setLoading(true);
+
+              // Get preferred payment network
+              let network = "wave";
+              try {
+                const stored = await SecureStorage.getItem("paymentMethods");
+                if (stored) {
+                  const parsed = JSON.parse(stored);
+                  if (parsed?.default) network = parsed.default;
+                }
+              } catch (e) {
+                console.warn("Using default payment method: wave");
+              }
+
+              // Call payment API
+              console.log("💳 Initiating payment...");
+              const result: any = await orderApi.payForOrder(
+                order.id,
+                network,
+                "teranggo://payment-success",
+                "teranggo://payment-cancel",
+              );
+
+              // Get Wave launch URL
+              const launchUrl =
+                result?.wave_launch_url || result?.session?.wave_launch_url;
+
+              if (!launchUrl) {
+                throw new Error("No Wave launch URL received from server");
+              }
+
+              console.log("💳 Opening Wave URL:", launchUrl);
+
+              // iOS: Use in-app browser for better UX (auto-dismisses on redirect)
+              // Android: Use external browser
+              if (Platform.OS === "ios") {
+                console.log("📱 iOS: Opening in-app browser");
+                await WebBrowser.openBrowserAsync(launchUrl, {
+                  dismissButtonStyle: "close",
+                  controlsColor: "#FF6B35",
+                  enableBarCollapsing: false,
+                });
+
+                // Browser will auto-dismiss when deep link is triggered
+                console.log("📱 Browser dismissed or deep link triggered");
+              } else {
+                // Android: Open in external browser
+                console.log("📱 Android: Opening external browser");
+                await Linking.openURL(launchUrl);
+
+                // Show instructions
+                Alert.alert(
+                  "Complete Payment",
+                  "Complete your payment in the Wave app. You'll be automatically redirected back when done.",
+                  [{ text: "OK" }],
+                );
+              }
+            } catch (error: any) {
+              console.error("❌ Payment error:", error);
+
+              // Handle user cancellation (dismissed browser)
+              if (
+                error.message?.includes("dismissed") ||
+                error.message?.includes("Cancel")
+              ) {
+                console.log("User dismissed payment browser");
+                return; // Don't show error alert
+              }
+
+              Alert.alert(
+                "Payment Failed",
+                error?.message || "Failed to start payment. Please try again.",
+                [
+                  { text: "Cancel", style: "cancel" },
+                  { text: "Retry", onPress: handlePayNow },
+                ],
+              );
+            } finally {
+              setLoading(false);
+            }
           },
-          {
-            text: "Pay Now",
-            onPress: processPayment,
-          },
-        ],
-      );
-    }
+        },
+      ],
+    );
   };
 
   const processPayment = async () => {
