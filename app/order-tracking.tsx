@@ -607,7 +607,6 @@ export default function OrderTrackingPage() {
       (!isPickup || vendorLocation) ? (
         <MapView
           ref={mapRef}
-          provider={PROVIDER_DEFAULT}
           style={StyleSheet.absoluteFillObject}
           initialRegion={{
             latitude: isPickup

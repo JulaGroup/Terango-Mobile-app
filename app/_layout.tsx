@@ -13,7 +13,6 @@ import { useFonts } from "expo-font";
 import { Stack, router, usePathname } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import "react-native-reanimated";
 import {
   useRegisterPushToken,
   getSuccessfulOrder,
@@ -174,6 +173,17 @@ export default function RootLayout() {
         }
 
         if (orderId) {
+          // ✅ CONFIRM PAYMENT SUCCESS WITH SERVER
+          try {
+            console.log("[DeepLink] Confirming payment success with server...");
+            const { orderApi } = await import("@/lib/api");
+            await orderApi.confirmPaymentSuccess(orderId, paymentId);
+            console.log("[DeepLink] ✅ Payment confirmed with server");
+          } catch (error) {
+            console.warn("[DeepLink] Failed to confirm payment with server:", error);
+            // Continue anyway - the payment might still be valid
+          }
+
           // Store successful order for any other components that might need it
           await storeSuccessfulOrder({
             orderId,
@@ -312,52 +322,6 @@ export default function RootLayout() {
     })();
   }, [userId]);
 
-  // Handle deep links for payment return
-  useEffect(() => {
-    const handleDeepLink = (event: { url: string }) => {
-      const { url } = event;
-      console.log("[Deep Link] Received URL:", url);
-
-      // Handle payment success return
-      if (
-        url.includes("payment-success") ||
-        url.includes("teranggo://payment/success")
-      ) {
-        console.log(
-          "[Deep Link] Payment success detected, navigating to orders",
-        );
-        // Navigate to orders page
-        router.replace("/(tabs)/orders");
-      }
-      // Handle other deep links as needed
-      else if (url.includes("teranggo://order/")) {
-        const orderId = url.split("/order/")[1];
-        if (orderId) {
-          console.log("[Deep Link] Navigating to order details:", orderId);
-          router.replace(`/order-details?orderId=${orderId}`);
-        }
-      }
-    };
-
-    // Get initial URL if app was opened from a link
-    const getInitialURL = async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        console.log("[Deep Link] Initial URL:", initialUrl);
-        handleDeepLink({ url: initialUrl });
-      }
-    };
-
-    getInitialURL();
-
-    // Listen for incoming links
-    const subscription = Linking.addEventListener("url", handleDeepLink);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
   useRegisterPushToken(userId ?? "");
 
   // Initialize browser notifications for web
@@ -381,13 +345,6 @@ export default function RootLayout() {
                     <OfflineNotice />
 
                     <Stack>
-                      <Stack.Screen
-                        name="landing"
-                        options={{
-                          headerShown: false,
-                          animation: "fade_from_bottom",
-                        }}
-                      />
                       <Stack.Screen
                         name="onboarding"
                         options={{

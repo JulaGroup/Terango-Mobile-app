@@ -310,7 +310,12 @@ export default function Orders() {
                 );
               }
 
-              const result: any = await orderApi.payForOrder(orderId, network);
+              const result: any = await orderApi.payForOrder(
+                orderId,
+                network,
+                "teranggo://payment-success",
+                "teranggo://payment-cancel",
+              );
 
               // If server returned a Wave session (launch url), open it
               const launchUrl =

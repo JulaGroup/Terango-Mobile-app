@@ -215,7 +215,7 @@ export default function AuthScreen() {
 
       <Text style={styles.or}>or</Text>
 
-      <TouchableOpacity style={styles.socialButton}>
+      {/* <TouchableOpacity style={styles.socialButton}>
         <Ionicons name="logo-google" size={20} color="white" />
         <Text style={styles.socialText}>Continue with Google</Text>
       </TouchableOpacity>
@@ -225,7 +225,7 @@ export default function AuthScreen() {
           <Ionicons name="logo-apple" size={20} color="white" />
           <Text style={styles.socialText}>Continue with Apple</Text>
         </TouchableOpacity>
-      )}
+      )} */}
 
       {/* Country Picker Modal */}
       <Modal

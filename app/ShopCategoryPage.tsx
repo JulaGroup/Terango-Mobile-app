@@ -15,6 +15,7 @@ import {
   StatusBar,
   Modal,
   Platform,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -23,13 +24,16 @@ import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, {
-  useSharedValue,
+
+import { OpeningHours } from "@/lib/api";
+
+// Reanimated imports
+import {
   useAnimatedStyle,
+  useSharedValue,
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import { OpeningHours } from "@/lib/api";
 
 interface Product {
   id: string;
@@ -117,7 +121,7 @@ const ShopCategoryPage = () => {
   const [categories, setCategories] = useState<string[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    initialCategory || ""
+    initialCategory || "",
   );
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -164,7 +168,7 @@ const ShopCategoryPage = () => {
         easing: Easing.out(Easing.exp),
       });
     },
-    [underlineX, underlineWidth]
+    [underlineX, underlineWidth],
   );
 
   const scrollToCategory = useCallback(
@@ -191,12 +195,12 @@ const ShopCategoryPage = () => {
 
       animateUnderline(category);
     },
-    [categories, animateUnderline]
+    [categories, animateUnderline],
   );
 
   const handleTabLayout = (
     category: string,
-    layout: { x: number; y: number; width: number; height: number }
+    layout: { x: number; y: number; width: number; height: number },
   ) => {
     tabLayoutsRef.current.set(category, {
       width: layout.width,
@@ -219,7 +223,7 @@ const ShopCategoryPage = () => {
         // Extract unique categories
         const uniqueCategories = [
           ...new Set(
-            parsed.map((p: Product) => p.subCategory?.name || "Other")
+            parsed.map((p: Product) => p.subCategory?.name || "Other"),
           ),
         ].filter(Boolean) as string[];
 
@@ -283,7 +287,7 @@ const ShopCategoryPage = () => {
 
         // Filter products for selected category
         const categoryProducts = parsed.filter(
-          (p: Product) => p.subCategory?.name === selectedCategory
+          (p: Product) => p.subCategory?.name === selectedCategory,
         );
 
         setAllProducts(categoryProducts);
@@ -313,7 +317,7 @@ const ShopCategoryPage = () => {
       scrollOffsetRef.current = event.nativeEvent.contentOffset.x;
       requestAnimationFrame(() => animateUnderline(selectedCategory));
     },
-    [animateUnderline, selectedCategory]
+    [animateUnderline, selectedCategory],
   );
 
   // debounced search (no network call required)
@@ -333,7 +337,7 @@ const ShopCategoryPage = () => {
       filtered = filtered.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          (p.description && p.description.toLowerCase().includes(q))
+          (p.description && p.description.toLowerCase().includes(q)),
       );
     }
     return filtered;

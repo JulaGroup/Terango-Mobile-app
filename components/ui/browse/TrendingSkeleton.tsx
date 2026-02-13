@@ -1,13 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withTiming,
-  interpolate,
-} from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
 
@@ -16,94 +9,63 @@ interface TrendingSkeletonProps {
 }
 
 const TrendingSkeleton: React.FC<TrendingSkeletonProps> = ({ count = 3 }) => {
-  const shimmerAnimation = useSharedValue(0);
-
-  useEffect(() => {
-    shimmerAnimation.value = withRepeat(
-      withTiming(1, { duration: 1500 }),
-      -1,
-      false
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    const translateX = interpolate(
-      shimmerAnimation.value,
-      [0, 1],
-      [-width, width]
-    );
-
-    return {
-      transform: [{ translateX }],
-    };
-  });
-
   return (
     <View style={styles.container}>
       {Array.from({ length: count }).map((_, index) => (
         <View key={index} style={styles.skeletonCard}>
           <View style={styles.imageContainer}>
             <View style={styles.imageSkeleton}>
-              <Animated.View style={[styles.shimmer, animatedStyle]}>
-                <LinearGradient
-                  colors={[
-                    "transparent",
-                    "rgba(255,255,255,0.3)",
-                    "transparent",
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.shimmerGradient}
-                />
-              </Animated.View>
+              <LinearGradient
+                colors={[
+                  "rgba(255,255,255,0.1)",
+                  "rgba(255,255,255,0.2)",
+                  "rgba(255,255,255,0.1)",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shimmerGradient}
+              />
             </View>
           </View>
 
           <View style={styles.infoContainer}>
             <View style={[styles.textSkeleton, styles.titleSkeleton]}>
-              <Animated.View style={[styles.shimmer, animatedStyle]}>
-                <LinearGradient
-                  colors={[
-                    "transparent",
-                    "rgba(255,255,255,0.3)",
-                    "transparent",
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.shimmerGradient}
-                />
-              </Animated.View>
+              <LinearGradient
+                colors={[
+                  "rgba(255,255,255,0.1)",
+                  "rgba(255,255,255,0.2)",
+                  "rgba(255,255,255,0.1)",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shimmerGradient}
+              />
             </View>
 
             <View style={[styles.textSkeleton, styles.subtitleSkeleton]}>
-              <Animated.View style={[styles.shimmer, animatedStyle]}>
-                <LinearGradient
-                  colors={[
-                    "transparent",
-                    "rgba(255,255,255,0.3)",
-                    "transparent",
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.shimmerGradient}
-                />
-              </Animated.View>
+              <LinearGradient
+                colors={[
+                  "rgba(255,255,255,0.1)",
+                  "rgba(255,255,255,0.2)",
+                  "rgba(255,255,255,0.1)",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shimmerGradient}
+              />
             </View>
 
             <View style={[styles.textSkeleton, styles.priceSkeleton]}>
-              <Animated.View style={[styles.shimmer, animatedStyle]}>
-                <LinearGradient
-                  colors={[
-                    "transparent",
-                    "rgba(255,255,255,0.3)",
-                    "transparent",
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.shimmerGradient}
-                />
-              </Animated.View>
+              <LinearGradient
+                colors={[
+                  "rgba(255,255,255,0.1)",
+                  "rgba(255,255,255,0.2)",
+                  "rgba(255,255,255,0.1)",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.shimmerGradient}
+              />
             </View>
           </View>
         </View>
@@ -159,10 +121,6 @@ const styles = StyleSheet.create({
   priceSkeleton: {
     height: 18,
     width: "50%",
-  },
-  shimmer: {
-    width: "100%",
-    height: "100%",
   },
   shimmerGradient: {
     flex: 1,

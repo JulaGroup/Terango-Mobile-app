@@ -848,16 +848,27 @@ export const orderApi = {
   },
 
   // 💳 Pay for an accepted order
-  payForOrder: async (orderId: string, network?: string): Promise<Order> => {
+  payForOrder: async (
+    orderId: string,
+    network?: string,
+    returnUrl?: string,
+    cancelUrl?: string,
+  ): Promise<Order> => {
     console.log(
       "💳 Processing payment for order:",
       orderId,
       "network:",
       network,
+      "returnUrl:",
+      returnUrl,
     );
     return apiCall(`/api/orders/${orderId}/pay`, {
       method: "POST",
-      body: JSON.stringify({ network }),
+      body: JSON.stringify({
+        network,
+        success_url: returnUrl,
+        error_url: cancelUrl,
+      }),
     });
   },
 

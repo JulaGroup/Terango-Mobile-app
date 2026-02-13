@@ -7,16 +7,11 @@
     "backgroundColor": "#ffffff",
     "icon": "./assets/App-Icon.jpg",
     "userInterfaceStyle": "light",
-    "scheme": [
-      "teranggo"
-    ],
+    "scheme": ["teranggo"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.darboedev.terango",
-      "associatedDomains": [
-        "applinks:terango.gm",
-        "applinks:terango.gm"
-      ],
+      "associatedDomains": ["applinks:terango.gm", "applinks:terango.gm"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -53,12 +48,12 @@
               "scheme": "https",
               "host": "terango.gm",
               "pathPrefix": "/payment-cancel"
+            },
+            {
+              "scheme": "teranggo"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "permissions": [
@@ -69,13 +64,8 @@
         "android.permission.QUERY_ALL_PACKAGES"
       ],
       "queries": {
-        "schemes": [
-          "wave",
-          "https"
-        ],
-        "packages": [
-          "com.wave.personal"
-        ]
+        "schemes": ["wave", "https"],
+        "packages": ["com.wave.personal"]
       },
       "privacyPolicy": "https://terango.gm/privacy-policy.html"
     },
@@ -97,9 +87,7 @@
         {
           "icon": "./assets/images/splash.png",
           "color": "#FF6B35",
-          "sounds": [
-            "./assets/sounds/notification.mp3"
-          ]
+          "sounds": ["./assets/sounds/notification.mp3"]
         }
       ],
       "expo-font",

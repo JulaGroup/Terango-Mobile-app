@@ -390,7 +390,12 @@ export default function OrderDetailsPage() {
       // Prevent concurrent payment runs
       if (isProcessingPayment.current) return;
       isProcessingPayment.current = true;
-      const result: any = await orderApi.payForOrder(order.id, network);
+      const result: any = await orderApi.payForOrder(
+        order.id,
+        network,
+        "teranggo://payment-success",
+        "teranggo://payment-cancel",
+      );
 
       // If server returned a Wave session (launch url), open it
       const launchUrl =
