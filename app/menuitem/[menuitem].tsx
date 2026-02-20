@@ -243,7 +243,7 @@ export default function MenuItemDetailPage() {
         "Ordering unavailable",
         (
           disabledReason || "Restaurant is not accepting orders right now."
-        ).trim()
+        ).trim(),
       );
       return;
     }
@@ -275,7 +275,7 @@ export default function MenuItemDetailPage() {
       isFavorite ? "Removed from Favorites" : "Added to Favorites",
       isFavorite
         ? "Item removed from your favorites"
-        : "Item added to your favorites"
+        : "Item added to your favorites",
     );
   };
   const getTotalCartItems = () => {
@@ -405,7 +405,7 @@ export default function MenuItemDetailPage() {
                   {Math.round(
                     ((menuItem.price - menuItem.discountedPrice) /
                       menuItem.price) *
-                      100
+                      100,
                   )}
                   %
                 </Text>
@@ -435,10 +435,10 @@ export default function MenuItemDetailPage() {
                   menuItem.mealTime === "breakfast"
                     ? "sunny-outline"
                     : menuItem.mealTime === "lunch"
-                    ? "partly-sunny-outline"
-                    : menuItem.mealTime === "dinner"
-                    ? "moon-outline"
-                    : "time-outline"
+                      ? "partly-sunny-outline"
+                      : menuItem.mealTime === "dinner"
+                        ? "moon-outline"
+                        : "time-outline"
                 }
                 size={12}
                 color="#fff"
@@ -542,7 +542,9 @@ export default function MenuItemDetailPage() {
             <View style={styles.detailItem}>
               <Ionicons name="time-outline" size={18} color="#64748B" />
               <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Preparation Time</Text>
+                <Text style={styles.detailLabel}>
+                  Estimated Preparation Time
+                </Text>
                 <Text style={styles.detailValue}>
                   {menuItem.preparationTime
                     ? `${menuItem.preparationTime} mins`
@@ -551,7 +553,7 @@ export default function MenuItemDetailPage() {
               </View>
             </View>
 
-            <View style={styles.detailItem}>
+            {/* <View style={styles.detailItem}>
               <Ionicons name="card-outline" size={18} color="#64748B" />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Minimum Order</Text>
@@ -559,7 +561,7 @@ export default function MenuItemDetailPage() {
                   D{menuItem.menu.restaurant.minimumOrderAmount.toFixed(2)}
                 </Text>
               </View>
-            </View>
+            </View> */}
 
             <View style={styles.detailItem}>
               <Ionicons name="location-outline" size={18} color="#64748B" />
@@ -622,7 +624,7 @@ export default function MenuItemDetailPage() {
                   "Ordering unavailable",
                   (
                     disabledReason || "Restaurant is not accepting orders"
-                  ).trim()
+                  ).trim(),
                 );
                 return;
               }

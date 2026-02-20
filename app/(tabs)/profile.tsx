@@ -23,6 +23,7 @@ import { Address } from "@/services/AddressService";
 import NotificationModal from "@/components/modals/NotificationModal";
 import HelpModal from "@/components/modals/HelpModal";
 import EditProfileModal from "@/components/modals/EditProfileModal";
+import { useVendor } from "@/context/VendorContext";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<{
@@ -49,6 +50,7 @@ export default function ProfilePage() {
 
   const router = useRouter();
   const addressCtx = React.useContext(AddressContext);
+  const { vendorPendingOrders, refreshVendorPendingOrders } = useVendor();
 
   // Animated skeleton loader
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -192,6 +194,12 @@ export default function ProfilePage() {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchUserData(true);
+    // refresh vendor pending badge (if applicable)
+    try {
+      await refreshVendorPendingOrders();
+    } catch {
+      /* ignore */
+    }
     setRefreshing(false);
   };
 
@@ -242,10 +250,8 @@ export default function ProfilePage() {
 
       if (response.status === 200) {
         // Clear all user data
-        await SecureStorage.removeItem("token");
-        await SecureStorage.removeItem("userId");
-        await SecureStorage.removeItem("userPhone");
-        await SecureStorage.removeItem("userData");
+        await SecureStorage.clearAuthData();
+        await SecureStorage.deleteItem("location");
 
         Alert.alert(
           "Account Deleted",
@@ -329,7 +335,8 @@ export default function ProfilePage() {
   useFocusEffect(
     useCallback(() => {
       fetchUserData();
-    }, [fetchUserData]),
+      refreshVendorPendingOrders();
+    }, [fetchUserData, refreshVendorPendingOrders]),
   );
 
   const handleLogout = async () => {
@@ -349,74 +356,6 @@ export default function ProfilePage() {
         style: "destructive",
       },
     ]);
-  };
-
-  const handleBecomeVendor = () => {
-    if (vendorApplication) {
-      switch (vendorApplication.status) {
-        case "PENDING":
-          Alert.alert(
-            "Application Submitted",
-            `Your vendor application for "${vendorApplication.businessName}" is currently being reviewed. We'll notify you once a decision has been made.`,
-            [{ text: "OK" }],
-          );
-          break;
-        case "APPROVED":
-          // Redirect approved vendors to vendor dashboard
-          router.push("/vendor/dashboard");
-          break;
-        case "REJECTED":
-          Alert.alert(
-            "Application Not Approved",
-            "Unfortunately, your vendor application was not approved. You can submit a new application if you'd like to try again.",
-            [
-              { text: "Cancel" },
-              {
-                text: "Apply Again",
-                onPress: () =>
-                  Alert.alert(
-                    "New Application",
-                    "To submit a new vendor application, please contact our support team who will guide you through the process.",
-                    [{ text: "OK" }],
-                  ),
-              },
-            ],
-          );
-          break;
-        case "WAITING_LIST":
-          Alert.alert(
-            "Application on Waiting List",
-            `Your vendor application for "${vendorApplication.businessName}" has been placed on our waiting list. We'll contact you when a spot becomes available.`,
-            [{ text: "OK" }],
-          );
-          break;
-        default:
-          // Fallback for new applications
-          showVendorApplicationInfo();
-      }
-    } else {
-      // No application exists, show the default dialog
-      showVendorApplicationInfo();
-    }
-  };
-
-  const showVendorApplicationInfo = () => {
-    Alert.alert(
-      "Become a Vendor",
-      "Ready to start selling on TeranGo? Join thousands of vendors serving customers across The Gambia!",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Apply Now",
-          onPress: () => {
-            router.push("/vendor-application");
-          },
-        },
-      ],
-    );
   };
 
   const menuItems = [
@@ -466,7 +405,8 @@ export default function ProfilePage() {
       title: "Vendor Dashboard",
       subtitle: "Manage your business and orders",
       onPress: () => router.push("/vendor/dashboard"),
-    });
+      badge: vendorPendingOrders,
+    } as any);
   }
 
   if (loading) {
@@ -867,6 +807,13 @@ export default function ProfilePage() {
                   <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                 </View>
               </View>
+              {(item as any).badge !== undefined && (item as any).badge > 0 && (
+                <View style={styles.menuBadge}>
+                  <Text style={styles.menuBadgeText}>
+                    {(item as any).badge}
+                  </Text>
+                </View>
+              )}
               <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
             </TouchableOpacity>
           ))}
@@ -1219,6 +1166,21 @@ const styles = StyleSheet.create({
   menuItemDanger: {
     borderLeftWidth: 3,
     borderLeftColor: "#EF4444",
+  },
+  menuBadge: {
+    backgroundColor: "#FF3B30",
+    minWidth: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    marginRight: 8,
+  },
+  menuBadgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
   },
 
   // Logout Button - Matching Vendor Button Style

@@ -12,6 +12,7 @@ import {
   Image,
   Linking,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
@@ -24,11 +25,6 @@ import {
   off as socketOff,
   emit as socketEmit,
 } from "@/services/SocketService";
-import {
-  storeSuccessfulOrder,
-  NotificationService,
-} from "@/services/NotificationService";
-import * as WebBrowser from "expo-web-browser";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -58,6 +54,7 @@ export default function OrderDetailsPage() {
   const params = useLocalSearchParams();
   const { orderId } = params;
   const { from } = params;
+  const { fromPayment } = params;
   const status = params.status as string;
   const paymentId = params.paymentId as string;
   const [order, setOrder] = useState<Order | null>(null);
@@ -73,11 +70,6 @@ export default function OrderDetailsPage() {
   const [modalAction, setModalAction] = useState<
     (() => void) | (() => Promise<void>) | null
   >(null);
-
-  // Popup reference used to avoid popup blockers (open in click handler)
-  const popupRef = useRef<Window | null>(null);
-  // Guard to prevent multiple concurrent payment attempts
-  const isProcessingPayment = useRef(false);
 
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -126,11 +118,55 @@ export default function OrderDetailsPage() {
     [orderId],
   );
 
+  // Fetch order details on mount
   useEffect(() => {
     if (orderId) {
       fetchOrderDetails();
     }
   }, [orderId, fetchOrderDetails]);
+
+  // If opened from payment deep-link and order is not yet updated, poll + show waiting UI.
+  useEffect(() => {
+    if (fromPayment !== "true") return;
+    let cancelled = false;
+    let attempts = 0;
+
+    const pollForUpdate = async () => {
+      if (!orderId) return;
+      try {
+        const latest = await orderApi.getOrderById(orderId as string);
+        setOrder(latest);
+        if (
+          latest.paymentStatus === "PAID" ||
+          (latest as any).paymentStatus === "SUCCEEDED" ||
+          latest.status !== "PENDING"
+        ) {
+          return; // updated
+        }
+      } catch (e) {
+        // ignore and retry
+      }
+
+      attempts += 1;
+      if (!cancelled && attempts < 10) {
+        setTimeout(pollForUpdate, 2000);
+      }
+    };
+
+    // Only start polling if order exists and is not yet paid
+    if (
+      !order ||
+      (order &&
+        order.paymentStatus !== "PAID" &&
+        (order as any).paymentStatus !== "SUCCEEDED")
+    ) {
+      pollForUpdate();
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fromPayment, orderId]);
 
   // Handle URL parameters for payment status (when redirected back from payment)
   useEffect(() => {
@@ -175,55 +211,15 @@ export default function OrderDetailsPage() {
     const onOrderStatusUpdate = (data: any) => {
       console.log("[Socket] orderStatusUpdate in order-details", data);
       if (data?.orderId === orderId) {
-        // Refresh order details when status updates
+        // Silent refresh only — UI updates in place
         fetchOrderDetails(true);
-
-        // If order is successfully placed (not pending), navigate to orders
-        if (data?.status && !["PENDING"].includes(data.status)) {
-          Alert.alert(
-            "Order Update",
-            `Your order status has been updated to ${data.status}`,
-            [
-              {
-                text: "View Orders",
-                onPress: () => router.replace("/(tabs)/orders"),
-              },
-              {
-                text: "Stay Here",
-                style: "cancel",
-              },
-            ],
-          );
-        }
       }
     };
 
-    const onPaymentSuccess = async (data: any) => {
+    const onPaymentSuccess = (data: any) => {
       console.log("[Socket] paymentSuccess in order-details", data);
       if (data?.orderId === orderId) {
         fetchOrderDetails(true);
-
-        // Store successful order data for modal on app reopen
-        const storedNew = await storeSuccessfulOrder({
-          orderId: data.orderId,
-          timestamp: Date.now(),
-          data: data,
-        });
-
-        // Only schedule notification if the store actually wrote new data
-        if (storedNew) {
-          await NotificationService.scheduleOrderNotification({
-            orderId: data.orderId,
-            title: "Order Successful! 🎉",
-            body: "Your order has been placed successfully. Tap to view details.",
-            data: { orderId: data.orderId, type: "payment_success" },
-          });
-        } else {
-          console.log(
-            "order-details: successful order already stored, skipping notification",
-          );
-        }
-
         // Navigate away from order details when payment succeeds
         setTimeout(() => {
           router.replace("/(tabs)/orders");
@@ -316,6 +312,20 @@ export default function OrderDetailsPage() {
     }
   };
 
+  /**
+   * FIXED handlePayNow — no in-app browser, no WebBrowser.
+   *
+   * Wave's wave_launch_url is a web URL but the server sets the redirect
+   * back to our backend (/api/redirect/payment-success) which immediately
+   * 302-redirects (0 ms meta-refresh + JS) to teranggo:// — so the browser
+   * window is invisible in practice.
+   *
+   * Using Linking.openURL means:
+   *   • iOS: opens Wave app directly if installed (via Universal Link on wave_launch_url)
+   *   • Android: same — Wave registers the scheme, opens natively
+   *   • Both: after payment, Wave opens our HTTPS redirect URL in Safari/Chrome,
+   *     which fires teranggo:// immediately → app comes back to foreground
+   */
   const handlePayNow = async () => {
     if (!order) return;
 
@@ -342,16 +352,14 @@ export default function OrderDetailsPage() {
                 console.warn("Using default payment method: wave");
               }
 
-              // Call payment API
               console.log("💳 Initiating payment...");
               const result: any = await orderApi.payForOrder(
                 order.id,
                 network,
-                "teranggo://payment-success",
-                "teranggo://payment-cancel",
+                `https://monkfish-app-korrv.ondigitalocean.app/api/redirect/payment-success?orderId=${order.id}`,
+                `https://monkfish-app-korrv.ondigitalocean.app/api/redirect/payment-cancel?orderId=${order.id}`,
               );
 
-              // Get Wave launch URL
               const launchUrl =
                 result?.wave_launch_url || result?.session?.wave_launch_url;
 
@@ -359,47 +367,25 @@ export default function OrderDetailsPage() {
                 throw new Error("No Wave launch URL received from server");
               }
 
-              console.log("💳 Opening Wave URL:", launchUrl);
+              console.log("💳 Opening Wave URL via Linking:", launchUrl);
 
-              // iOS: Use in-app browser for better UX (auto-dismisses on redirect)
-              // Android: Use external browser
-              if (Platform.OS === "ios") {
-                console.log("📱 iOS: Opening in-app browser");
-                await WebBrowser.openBrowserAsync(launchUrl, {
-                  dismissButtonStyle: "close",
-                  controlsColor: "#FF6B35",
-                  enableBarCollapsing: false,
-                });
-
-                // Browser will auto-dismiss when deep link is triggered
-                console.log("📱 Browser dismissed or deep link triggered");
-              } else {
-                // Android: Open in external browser
-                console.log("📱 Android: Opening external browser");
-                await Linking.openURL(launchUrl);
-
-                // Show instructions
-                Alert.alert(
-                  "Complete Payment",
-                  "Complete your payment in the Wave app. You'll be automatically redirected back when done.",
-                  [{ text: "OK" }],
+              // ✅ Direct open — no in-app browser on any platform.
+              // On iOS/Android Wave intercepts this URL and opens the native app.
+              // After payment Wave browser loads our /api/redirect/payment-success
+              // which does an instant teranggo:// redirect back here.
+              const canOpen = await Linking.canOpenURL(launchUrl);
+              if (!canOpen) {
+                throw new Error(
+                  "Cannot open Wave URL. Ensure Wave app is installed.",
                 );
               }
+              await Linking.openURL(launchUrl);
             } catch (error: any) {
               console.error("❌ Payment error:", error);
-
-              // Handle user cancellation (dismissed browser)
-              if (
-                error.message?.includes("dismissed") ||
-                error.message?.includes("Cancel")
-              ) {
-                console.log("User dismissed payment browser");
-                return; // Don't show error alert
-              }
-
               Alert.alert(
                 "Payment Failed",
-                error?.message || "Failed to start payment. Please try again.",
+                error?.message ||
+                  "Failed to open Wave payment. Please ensure Wave app is installed or try again.",
                 [
                   { text: "Cancel", style: "cancel" },
                   { text: "Retry", onPress: handlePayNow },
@@ -412,263 +398,6 @@ export default function OrderDetailsPage() {
         },
       ],
     );
-  };
-
-  const processPayment = async () => {
-    if (!order) return;
-
-    try {
-      setLoading(true);
-
-      // Load user's preferred payment method (default to wave)
-      let network = "wave";
-      try {
-        const stored = await SecureStorage.getItem("paymentMethods");
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.default) network = parsed.default;
-        }
-      } catch (e) {
-        console.warn("Failed to read payment methods, defaulting to wave", e);
-      }
-
-      // Reuse popup opened by modal click handler to avoid popup blockers
-      let popup: Window | null = popupRef.current || null;
-      if (Platform.OS === "web") {
-        if (!popup) {
-          try {
-            popupRef.current = window.open("", "_blank");
-          } catch (e) {
-            popupRef.current = null;
-          }
-          popup = popupRef.current;
-        }
-
-        if (!popup) {
-          setModalType("alert");
-          setModalTitle("Popup Blocked");
-          setModalMessage(
-            "Your browser blocked the payment popup. Please allow popups for this site and try again. You can also try on a desktop browser.",
-          );
-          setModalAction(null);
-          setModalVisible(true);
-          return;
-        }
-      }
-
-      // Prevent concurrent payment runs
-      if (isProcessingPayment.current) return;
-      isProcessingPayment.current = true;
-      const result: any = await orderApi.payForOrder(
-        order.id,
-        network,
-        "teranggo://payment-success",
-        "teranggo://payment-cancel",
-      );
-
-      // If server returned a Wave session (launch url), open it
-      const launchUrl =
-        result?.wave_launch_url || result?.session?.wave_launch_url;
-      if (launchUrl) {
-        // Attempt to open Wave URL
-        try {
-          const paymentId = result?.paymentId;
-
-          if (Platform.OS === "web") {
-            // Navigate the previously opened popup to the Wave launch URL
-            try {
-              (popupRef.current || popup)!.location.href = launchUrl;
-            } catch (e) {
-              // As a fallback, write a link into the popup for the user to click
-              try {
-                (popupRef.current || popup)!.document.body.innerHTML =
-                  `<p>Click <a href="${launchUrl}" target="_blank">here</a> to open Wave payment.</p>`;
-              } catch (err) {
-                // swallow
-              }
-            }
-
-            setModalType("alert");
-            setModalTitle("Complete Payment");
-            setModalMessage(
-              "A payment window was opened. Waiting for confirmation...",
-            );
-            setModalAction(null);
-            setModalVisible(true);
-
-            // Start polling payment status if we received a paymentId
-            if (paymentId) {
-              let stopped = false;
-              let pollInterval: any = null;
-
-              const stopPolling = () => {
-                stopped = true;
-                if (pollInterval) clearInterval(pollInterval);
-              };
-
-              const checkStatus = async () => {
-                try {
-                  const res = await fetch(`/api/payment-status/${paymentId}`);
-                  const json = await res.json();
-
-                  if (json.status === "completed") {
-                    stopPolling();
-                    try {
-                      (popupRef.current || popup)?.close();
-                      popupRef.current = null;
-                    } catch (e) {}
-
-                    // Clear processing flag
-                    isProcessingPayment.current = false;
-
-                    setModalType("alert");
-                    setModalTitle("Payment Successful! 🎉");
-                    setModalMessage(
-                      "Your payment has been processed. The vendor will now prepare your order.",
-                    );
-                    setModalAction(() => fetchOrderDetails(true));
-                    setModalVisible(true);
-                    return;
-                  }
-
-                  if (json.status && json.status !== "pending") {
-                    // Anything other than pending or completed treat as cancelled/failed
-                    stopPolling();
-                    try {
-                      (popupRef.current || popup)?.close();
-                      popupRef.current = null;
-                    } catch (e) {}
-
-                    // Clear processing flag
-                    isProcessingPayment.current = false;
-
-                    setModalType("alert");
-                    setModalTitle("Payment Not Completed");
-                    setModalMessage(
-                      "Payment was not completed. Please try again.",
-                    );
-                    setModalAction(null);
-                    setModalVisible(true);
-                    return;
-                  }
-                } catch (e) {
-                  console.warn("Payment poll error:", e);
-                }
-              };
-
-              // Poll immediately and then every 3s for up to 5 minutes
-              checkStatus();
-              pollInterval = setInterval(() => {
-                if (!stopped) checkStatus();
-              }, 3000);
-
-              // stop after timeout
-              setTimeout(() => stopPolling(), 5 * 60 * 1000);
-
-              // Ensure processing flag is cleared when polling finishes or timeout occurs
-              const cleanupProcessingFlag = () => {
-                isProcessingPayment.current = false;
-              };
-              setTimeout(cleanupProcessingFlag, 5 * 60 * 1000);
-            }
-          } else {
-            await Linking.openURL(launchUrl);
-            Alert.alert(
-              "Complete Payment",
-              "You'll be redirected to Wave to complete the payment. Once payment is completed, you'll be redirected back to the app automatically.",
-              [{ text: "OK", onPress: () => fetchOrderDetails(true) }],
-            );
-          }
-
-          // don't overwrite local order state yet; we'll refresh when webhook arrives
-          return;
-        } catch (linkError: any) {
-          // If direct open fails, show helpful error
-          if (Platform.OS === "web") {
-            setModalType("alert");
-            setModalTitle("Payment Failed");
-            setModalMessage("Cannot open Wave payment link. Please try again.");
-            setModalAction(null);
-            setModalVisible(true);
-          } else {
-            Alert.alert(
-              "Payment Failed",
-              "Cannot open Wave payment link. Please ensure Wave app is installed from Play Store or try again.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Install Wave",
-                  onPress: () => {
-                    Linking.openURL(
-                      "https://play.google.com/store/apps/details?id=com.wave.personal",
-                    );
-                  },
-                },
-              ],
-            );
-          }
-          return;
-        }
-      }
-
-      // Otherwise treat the response as an updated order
-      setOrder(result);
-
-      if (Platform.OS === "web") {
-        setModalType("alert");
-        setModalTitle("Payment Successful! 🎉");
-        setModalMessage(
-          "Your payment has been processed. The vendor will now prepare your order.",
-        );
-        setModalAction(() => fetchOrderDetails(true));
-        setModalVisible(true);
-      } else {
-        Alert.alert(
-          "Payment Successful! 🎉",
-          "Your payment has been processed. The vendor will now prepare your order.",
-          [
-            {
-              text: "OK",
-              onPress: () => fetchOrderDetails(true),
-            },
-          ],
-        );
-      }
-      fetchOrderDetails(true);
-    } catch (error: any) {
-      console.error("Payment error:", error);
-
-      // More detailed error messages
-      let errorMessage = "Failed to process payment. Please try again.";
-
-      if (error.message?.includes("Network")) {
-        errorMessage =
-          "Network error. Please check your connection and try again.";
-      } else if (error.message?.includes("Wave")) {
-        errorMessage = error.message;
-      } else if (error.response?.status === 400) {
-        errorMessage = "Invalid payment request. Please contact support.";
-      } else if (error.response?.status === 500) {
-        errorMessage = "Server error. Please try again in a moment.";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      if (Platform.OS === "web") {
-        setModalType("alert");
-        setModalTitle("Payment Failed");
-        setModalMessage(errorMessage);
-        setModalAction(handlePayNow);
-        setModalVisible(true);
-      } else {
-        Alert.alert("Payment Failed", errorMessage, [
-          { text: "Cancel", style: "cancel" },
-          { text: "Retry", onPress: () => handlePayNow() },
-        ]);
-      }
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleCancelOrder = async (orderId: string) => {
@@ -931,6 +660,25 @@ export default function OrderDetailsPage() {
               <Text style={styles.orderDate}>
                 {formatDate(order.createdAt)}
               </Text>
+
+              {/* If user arrived from payment and order is not yet confirmed, show waiting banner */}
+              {fromPayment === "true" &&
+                order &&
+                order.paymentStatus !== "PAID" &&
+                (order as any).paymentStatus !== "SUCCEEDED" && (
+                  <View style={styles.waitingBanner}>
+                    <ActivityIndicator size="small" color={PrimaryColor} />
+                    <Text style={styles.waitingText}>
+                      Waiting for payment confirmation...
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => fetchOrderDetails(true)}
+                      style={styles.waitingRefresh}
+                    >
+                      <Text style={styles.waitingRefreshText}>Refresh</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </View>
             <View
               style={{
@@ -1509,8 +1257,6 @@ export default function OrderDetailsPage() {
                 style={styles.modalCloseBtn}
                 onPress={() => {
                   setModalVisible(false);
-                  // Reset processing state when modal is manually closed
-                  isProcessingPayment.current = false;
                   setLoading(false);
                 }}
               >
@@ -1532,33 +1278,6 @@ export default function OrderDetailsPage() {
                   <TouchableOpacity
                     style={[styles.modalButton, styles.modalButtonPrimary]}
                     onPress={async () => {
-                      if (isProcessingPayment.current) return; // ignore duplicate clicks
-
-                      if (
-                        Platform.OS === "web" &&
-                        modalAction === processPayment
-                      ) {
-                        isProcessingPayment.current = true;
-                        try {
-                          popupRef.current = window.open("", "_blank");
-                        } catch (e) {
-                          popupRef.current = null;
-                        }
-
-                        if (!popupRef.current) {
-                          isProcessingPayment.current = false;
-                          setLoading(false); // Reset loading state
-                          setModalType("alert");
-                          setModalTitle("Popup Blocked");
-                          setModalMessage(
-                            "Your browser blocked the payment popup. Please allow popups for this site and try again.",
-                          );
-                          setModalAction(null);
-                          setModalVisible(true);
-                          return;
-                        }
-                      }
-
                       try {
                         if (modalAction) await modalAction();
                       } catch (e: any) {
@@ -1569,18 +1288,7 @@ export default function OrderDetailsPage() {
                           e?.message || "An error occurred. Please try again.",
                         );
                         setModalAction(null);
-
-                        // Fallback: if there is no modalAction, attempt to refresh order details
-                        try {
-                          fetchOrderDetails(true);
-                        } catch (err) {
-                          console.warn(
-                            "fetchOrderDetails fallback failed",
-                            err,
-                          );
-                        }
                       } finally {
-                        isProcessingPayment.current = false;
                         setModalVisible(false);
                       }
                     }}
@@ -1592,32 +1300,6 @@ export default function OrderDetailsPage() {
                 <TouchableOpacity
                   style={[styles.modalButton, styles.modalButtonPrimary]}
                   onPress={async () => {
-                    if (isProcessingPayment.current) return; // ignore duplicate clicks
-
-                    if (
-                      Platform.OS === "web" &&
-                      modalAction === processPayment
-                    ) {
-                      isProcessingPayment.current = true;
-                      try {
-                        popupRef.current = window.open("", "_blank");
-                      } catch (e) {
-                        popupRef.current = null;
-                      }
-
-                      if (!popupRef.current) {
-                        isProcessingPayment.current = false;
-                        setModalType("alert");
-                        setModalTitle("Popup Blocked");
-                        setModalMessage(
-                          "Your browser blocked the payment popup. Please allow popups for this site and try again.",
-                        );
-                        setModalAction(null);
-                        setModalVisible(true);
-                        return;
-                      }
-                    }
-
                     try {
                       if (modalAction) await modalAction();
                     } catch (e: any) {
@@ -1628,17 +1310,9 @@ export default function OrderDetailsPage() {
                         e?.message || "An error occurred. Please try again.",
                       );
                       setModalAction(null);
-                      // Keep modal visible to show error, but reset processing state
-                      isProcessingPayment.current = false;
-                      setLoading(false);
-                      return; // Don't close modal
                     } finally {
-                      isProcessingPayment.current = false;
-                      setLoading(false);
+                      setModalVisible(false);
                     }
-
-                    // Close modal after successful action
-                    setModalVisible(false);
                   }}
                 >
                   <Text style={styles.modalButtonText}>OK</Text>
@@ -1713,6 +1387,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6B7280",
   },
+  waitingBanner: {
+    marginTop: 12,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#FEF3C7",
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  waitingText: { color: "#92400E", fontWeight: "600" },
+  waitingRefresh: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 6 },
+  waitingRefreshText: { color: PrimaryColor, fontWeight: "700" },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",

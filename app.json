@@ -17,6 +17,8 @@
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Allow TeranGO to use your location to find nearby vendors and provide accurate delivery estimates.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow TeranGO to use your location to find nearby vendors and provide accurate delivery estimates.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": ["teranggo"],
@@ -51,6 +53,28 @@
           "data": [
             {
               "scheme": "https",
+              "host": "monkfish-app-korrv.ondigitalocean.app",
+              "pathPrefix": "/payment-success"
+            },
+
+            {
+              "scheme": "https",
+              "host": "monkfish-app-korrv.ondigitalocean.app",
+              "pathPrefix": "api/redirect/payment-success"
+            },
+            {
+              "scheme": "https",
+              "host": "monkfish-app-korrv.ondigitalocean.app",
+              "pathPrefix": "api/redirect/payment-cancel"
+            },
+
+            {
+              "scheme": "https",
+              "host": "monkfish-app-korrv.ondigitalocean.app",
+              "pathPrefix": "/payment-cancel"
+            },
+            {
+              "scheme": "https",
               "host": "terango.gm",
               "pathPrefix": "/payment-success"
             },
@@ -74,7 +98,7 @@
         "android.permission.QUERY_ALL_PACKAGES"
       ],
       "queries": {
-        "schemes": ["wave", "https"],
+        "schemes": ["wave", "https", "teranggo"],
         "packages": ["com.wave.personal"]
       },
       "privacyPolicy": "https://terango.gm/privacy-policy.html"

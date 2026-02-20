@@ -42,7 +42,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
       "Search for stores...",
       "Search anything...",
     ],
-    []
+    [],
   );
 
   useEffect(() => {
@@ -226,7 +226,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
             console.log("Filter pressed");
           }}
         >
-          <Ionicons name="options" color="#9CA3AF" size={20} />
+          {/* <Ionicons name="options" color="#9CA3AF" size={20} /> */}
         </TouchableOpacity>
       </View>
     </TouchableWithoutFeedback>

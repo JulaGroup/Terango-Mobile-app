@@ -81,7 +81,9 @@ export default function Cart() {
 
   // Calculate subtotal (delivery fee determined at checkout based on address)
   const subtotal = getTotalAmount();
-
+  const MIN_ORDER_AMOUNT = 50;
+  const meetsMinimum = subtotal >= MIN_ORDER_AMOUNT;
+  const remaining = MIN_ORDER_AMOUNT - subtotal;
   const CartItemCard = ({
     item,
     index,
@@ -425,6 +427,34 @@ export default function Cart() {
             </Text>
           </View>
 
+          {!meetsMinimum && (
+            <View
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 10,
+                backgroundColor: "#FEF3C7",
+                borderLeftWidth: 3,
+                borderLeftColor: "#F59E0B",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Ionicons name="warning-outline" size={18} color="#D97706" />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontSize: 13, fontWeight: "700", color: "#92400E" }}
+                >
+                  Minimum order is D{MIN_ORDER_AMOUNT.toFixed(2)}
+                </Text>
+                <Text style={{ fontSize: 12, color: "#B45309", marginTop: 2 }}>
+                  Add D{remaining.toFixed(2)} more to proceed
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Text style={styles.deliveryNote}>
             💡 Delivery fee will be added based on your address
           </Text>
@@ -451,15 +481,24 @@ export default function Cart() {
         ]}
       >
         <TouchableOpacity
-          style={styles.checkoutButton}
-          onPress={() => router.push("/checkout")}
-          activeOpacity={0.8}
+          style={[styles.checkoutButton, !meetsMinimum && { opacity: 0.5 }]}
+          onPress={() => {
+            if (!meetsMinimum) return;
+            router.push("/checkout");
+          }}
+          activeOpacity={meetsMinimum ? 0.8 : 1}
         >
           <LinearGradient
-            colors={["#FF6B35", "#FF8F65"]}
+            colors={
+              meetsMinimum ? ["#FF6B35", "#FF8F65"] : ["#9CA3AF", "#6B7280"]
+            }
             style={styles.checkoutButtonGradient}
           >
-            <Text style={styles.checkoutText}>Proceed to Checkout</Text>
+            <Text style={styles.checkoutText}>
+              {meetsMinimum
+                ? "Proceed to Checkout"
+                : `Add D${remaining.toFixed(2)} more`}
+            </Text>
             <View style={styles.checkoutPriceContainer}>
               <Text style={styles.checkoutPrice}>D{subtotal.toFixed(2)}</Text>
             </View>

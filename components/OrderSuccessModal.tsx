@@ -21,7 +21,7 @@ export default function OrderSuccessModal({
     "[OrderSuccessModal] Rendered with visible:",
     visible,
     "orderId:",
-    orderId
+    orderId,
   );
 
   const router = useRouter();
@@ -31,10 +31,9 @@ export default function OrderSuccessModal({
     router.push(`/order-details?orderId=${orderId}`);
   };
 
-  const handleViewOrders = () => {
+  const handleTrackOrder = () => {
     onClose();
-    // Don't navigate if already on orders page
-    // Just close the modal
+    router.push({ pathname: "/order-tracking", params: { orderId } });
   };
 
   return (
@@ -70,16 +69,16 @@ export default function OrderSuccessModal({
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.button, styles.secondaryButton]}
-              onPress={handleViewOrders}
+              onPress={handleViewOrder}
             >
-              <Text style={styles.secondaryButtonText}>See All Orders</Text>
+              <Text style={styles.secondaryButtonText}>View Order Details</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.button, styles.primaryButton]}
-              onPress={handleViewOrder}
+              onPress={handleTrackOrder}
             >
-              <Text style={styles.primaryButtonText}>View Order Details</Text>
+              <Text style={styles.primaryButtonText}>Track Order</Text>
             </TouchableOpacity>
           </View>
 

@@ -8,10 +8,9 @@ import {
   RefreshControl,
   Alert,
   StatusBar,
-  ActivityIndicator,
   ScrollView,
   Linking,
-  Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
@@ -21,14 +20,12 @@ import { orderApi, type Order } from "@/lib/api";
 import {
   setOrdersRefreshCallback,
   setNavigateToOrderCallback,
-  getSuccessfulOrder,
-  clearSuccessfulOrder,
+  addOrdersRefreshListener,
+  removeOrdersRefreshListener,
 } from "@/services/NotificationService";
 import { useRouter } from "expo-router";
-import OrderSuccessModal from "@/components/OrderSuccessModal";
 import { SecureStorage } from "@/utils/secureStorage";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as WebBrowser from "expo-web-browser";
 
 const statusColors = {
   PENDING: "#F39C12",
@@ -63,18 +60,49 @@ export default function Orders() {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
+  // Server-backed total of live orders for header (null = not loaded yet)
+  const [liveCount, setLiveCount] = useState<number | null>(null);
+
+  const refreshLiveCount = useCallback(async () => {
+    try {
+      const logged = await SecureStorage.getItem("isLoggedIn");
+      if (logged !== "true") {
+        setLiveCount(0);
+        return;
+      }
+
+      const res = await orderApi.getOrderStatusCounts();
+      const statuses = res?.byStatus || {};
+      const liveStatuses = [
+        "PENDING",
+        "ACCEPTED",
+        "PREPARING",
+        "PROCESSING",
+        "READY",
+        "DISPATCHED",
+      ];
+      const total = liveStatuses.reduce(
+        (sum, s) => sum + (statuses[s] || 0),
+        0,
+      );
+      setLiveCount(total);
+    } catch (err) {
+      console.warn("Failed to load live orders count:", err);
+    }
+  }, []);
+
+  // Keep the header count in sync with real-time events
+  useEffect(() => {
+    refreshLiveCount();
+    const l = () => refreshLiveCount();
+    addOrdersRefreshListener(l);
+    return () => removeOrdersRefreshListener(l);
+  }, [refreshLiveCount]);
+
   // Pagination state
+  const PAGE_SIZE = 5; // fetch 5 orders per page (lazy load)
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-
-  // Order success modal state
-  const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
-  const [successfulOrderData, setSuccessfulOrderData] = useState<{
-    orderId: string;
-    data?: any;
-  } | null>(null);
-  const [hasShownModal, setHasShownModal] = useState(false);
 
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -114,7 +142,7 @@ export default function Orders() {
           setLoadingMore(true);
         }
 
-        const result = await orderApi.getCustomerOrders(page);
+        const result = await orderApi.getCustomerOrders(page, PAGE_SIZE);
 
         if (append) {
           setOrders((prev) => [...prev, ...result.orders]);
@@ -123,7 +151,6 @@ export default function Orders() {
         }
 
         setHasMore(result.hasMore);
-        setTotalCount(result.totalCount);
         setCurrentPage(page);
       } catch (error: any) {
         console.error("Failed to fetch orders:", error);
@@ -147,6 +174,7 @@ export default function Orders() {
         setUserId(storedUserId);
         setIsLoggedIn(true);
         fetchOrders();
+        refreshLiveCount();
       } else {
         setIsLoggedIn(false);
         setLoading(false);
@@ -159,44 +187,6 @@ export default function Orders() {
   }, [fetchOrders]);
 
   // Check for successful order on page load
-  const checkSuccessfulOrder = useCallback(async () => {
-    console.log("[Orders] Checking for successful order");
-    if (hasShownModal) {
-      console.log("[Orders] Modal already shown, skipping");
-      return;
-    }
-    const orderData = await getSuccessfulOrder();
-    if (orderData) {
-      setSuccessfulOrderData(orderData);
-      setShowOrderSuccessModal(true);
-      setHasShownModal(true);
-    } else {
-      console.log("[Orders] No successful order found");
-    }
-  }, [hasShownModal]);
-
-  const handleCloseOrderSuccessModal = useCallback(() => {
-    console.log("[Orders] Closing order success modal");
-    const orderId = successfulOrderData?.orderId;
-    setShowOrderSuccessModal(false);
-    setSuccessfulOrderData(null);
-    setHasShownModal(false); // Reset flag so it can show again if needed
-
-    // Clear the successful order data after closing the modal
-    setTimeout(() => {
-      clearSuccessfulOrder();
-    }, 1000); // Delay clearing to prevent re-showing
-
-    // Navigate to the specific order after modal closes
-    if (orderId && orderId.trim()) {
-      setTimeout(() => {
-        router.push({
-          pathname: "/order-details",
-          params: { orderId: orderId },
-        });
-      }, 500); // Small delay to ensure modal is closed
-    }
-  }, [successfulOrderData, router]);
 
   const handleNavigateToOrder = useCallback(
     (orderId: string) => {
@@ -214,7 +204,6 @@ export default function Orders() {
 
   useEffect(() => {
     checkAuthentication();
-    checkSuccessfulOrder();
     // Register callback to refresh orders on push notification
     setOrdersRefreshCallback(fetchOrders);
     // Register callback to navigate to order on notification tap
@@ -223,19 +212,9 @@ export default function Orders() {
       setOrdersRefreshCallback(() => {});
       setNavigateToOrderCallback(() => {});
     };
-  }, [
-    checkAuthentication,
-    checkSuccessfulOrder,
-    fetchOrders,
-    handleNavigateToOrder,
-  ]);
+  }, [checkAuthentication, fetchOrders, handleNavigateToOrder]);
 
   // Check for successful order after authentication is complete
-  useEffect(() => {
-    if (userId && isLoggedIn && !hasShownModal) {
-      checkSuccessfulOrder();
-    }
-  }, [userId, isLoggedIn, hasShownModal, checkSuccessfulOrder]);
 
   // Refresh orders when page comes into focus (e.g., returning from payment)
   useFocusEffect(
@@ -243,10 +222,9 @@ export default function Orders() {
       if (userId && isLoggedIn) {
         console.log("[Orders] Page focused, refreshing orders");
         fetchOrders();
-        // Also check for successful orders when page comes into focus
-        checkSuccessfulOrder();
+        refreshLiveCount();
       }
-    }, [userId, isLoggedIn, fetchOrders, checkSuccessfulOrder]),
+    }, [userId, isLoggedIn, fetchOrders, refreshLiveCount]),
   );
 
   const onRefresh = () => {
@@ -255,6 +233,7 @@ export default function Orders() {
       setCurrentPage(1);
       setHasMore(true);
       fetchOrders(1, false);
+      refreshLiveCount();
     }
   };
 
@@ -297,7 +276,7 @@ export default function Orders() {
             try {
               setLoading(true);
 
-              // Get preferred payment network
+              // Get preferred payment method
               let network = "wave";
               try {
                 const stored = await SecureStorage.getItem("paymentMethods");
@@ -305,11 +284,10 @@ export default function Orders() {
                   const parsed = JSON.parse(stored);
                   if (parsed?.default) network = parsed.default;
                 }
-              } catch (e) {
+              } catch {
                 console.warn("Using default payment method: wave");
               }
 
-              // Call payment API
               console.log("💳 Initiating payment...");
               const result: any = await orderApi.payForOrder(
                 orderId,
@@ -323,58 +301,35 @@ export default function Orders() {
                 result?.wave_launch_url || result?.session?.wave_launch_url;
 
               if (!launchUrl) {
-                throw new Error("No Wave launch URL received from server");
+                throw new Error("No Wave launch URL received");
               }
 
               console.log("💳 Opening Wave URL:", launchUrl);
 
-              // iOS: Use in-app browser for better UX (auto-dismisses on redirect)
-              // Android: Use external browser
-              if (Platform.OS === "ios") {
-                console.log("📱 iOS: Opening in-app browser");
-                await WebBrowser.openBrowserAsync(launchUrl, {
-                  dismissButtonStyle: "close",
-                  controlsColor: "#FF6B35",
-                  enableBarCollapsing: false,
-                });
+              // ✅ SIMPLIFIED: Direct opening on all platforms
+              await Linking.openURL(launchUrl);
 
-                // Browser will auto-dismiss when deep link is triggered
-                console.log("📱 Browser dismissed or deep link triggered");
-              } else {
-                // Android: Open in external browser
-                console.log("📱 Android: Opening external browser");
-                await Linking.openURL(launchUrl);
-
-                // Show instructions
-                Alert.alert(
-                  "Complete Payment",
-                  "Complete your payment in the Wave app. You'll be automatically redirected back when done.",
-                  [{ text: "OK", onPress: () => fetchOrders() }],
-                );
-              }
+              console.log("[Orders] Wave opened — awaiting deep-link callback");
             } catch (error: any) {
               console.error("❌ Payment error:", error);
 
-              // Handle user cancellation (dismissed browser)
-              if (
-                error.message?.includes("dismissed") ||
-                error.message?.includes("Cancel")
-              ) {
-                console.log("User dismissed payment browser");
-                return; // Don't show error alert
+              let errorMessage =
+                "Failed to open Wave payment. Please ensure Wave app is installed or try again.";
+
+              if (error.message?.includes("Network")) {
+                errorMessage =
+                  "Network error. Please check your connection and try again.";
+              } else if (error.message) {
+                errorMessage = error.message;
               }
 
-              Alert.alert(
-                "Payment Failed",
-                error?.message || "Failed to start payment. Please try again.",
-                [
-                  { text: "Cancel", style: "cancel" },
-                  {
-                    text: "Retry",
-                    onPress: () => handlePayFromList(orderId, amount),
-                  },
-                ],
-              );
+              Alert.alert("Payment Failed", errorMessage, [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Retry",
+                  onPress: () => handlePayFromList(orderId, amount),
+                },
+              ]);
             } finally {
               setLoading(false);
             }
@@ -714,7 +669,10 @@ export default function Orders() {
                 borderColor: "#E0F2FE",
               }}
               onPress={() =>
-                Alert.alert("Track Order", `Tracking order ${order.id}`)
+                router.push({
+                  pathname: "/order-tracking",
+                  params: { orderId: order?.id },
+                })
               }
             >
               <Text
@@ -962,18 +920,18 @@ export default function Orders() {
               }}
             >
               Live Orders (
-              {
-                orders.filter((o) =>
-                  [
-                    "PENDING",
-                    "ACCEPTED",
-                    "PREPARING",
-                    "PROCESSING",
-                    "READY",
-                    "DISPATCHED",
-                  ].includes(o.status),
-                ).length
-              }
+              {liveCount !== null
+                ? liveCount
+                : orders.filter((o) =>
+                    [
+                      "PENDING",
+                      "ACCEPTED",
+                      "PREPARING",
+                      "PROCESSING",
+                      "READY",
+                      "DISPATCHED",
+                    ].includes(o.status),
+                  ).length}
               )
             </Text>
           </TouchableOpacity>
@@ -1008,9 +966,14 @@ export default function Orders() {
       </View>
 
       {/* Content */}
-      <ScrollView
-        style={{ flex: 1 }}
+      <FlatList
+        data={getFilteredOrders()}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => renderOrderCard(item)}
         contentContainerStyle={{ padding: 16 }}
+        onEndReached={loadMoreOrders}
+        onEndReachedThreshold={0.5}
+        initialNumToRender={5}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1019,108 +982,114 @@ export default function Orders() {
             tintColor={PrimaryColor}
           />
         }
-      >
-        {error ? (
-          <View
-            style={{
-              alignItems: "center",
-              backgroundColor: "#FFF5EE",
-              padding: 20,
-              borderRadius: 16,
-              borderWidth: 1,
-              borderColor: PrimaryColor,
-            }}
-          >
-            <Ionicons name="warning-outline" size={32} color={PrimaryColor} />
-            <Text
+        ListFooterComponent={() =>
+          loadingMore ? (
+            <View style={{ paddingVertical: 12, alignItems: "center" }}>
+              <ActivityIndicator color={PrimaryColor} />
+            </View>
+          ) : !hasMore ? (
+            <View style={{ paddingVertical: 12, alignItems: "center" }}>
+              <Text style={{ color: "#999" }}>No more orders</Text>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={() =>
+          error ? (
+            <View
               style={{
-                fontSize: 14,
-                color: PrimaryColor,
-                marginTop: 8,
-                textAlign: "center",
-                fontWeight: "500",
-              }}
-            >
-              {error}
-            </Text>
-            <TouchableOpacity
-              style={{
-                backgroundColor: PrimaryColor,
-                paddingHorizontal: 16,
-                paddingVertical: 8,
-                borderRadius: 8,
-                marginTop: 12,
-                flexDirection: "row",
                 alignItems: "center",
-                gap: 4,
+                backgroundColor: "#FFF5EE",
+                padding: 20,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: PrimaryColor,
               }}
-              onPress={() => fetchOrders()}
             >
-              <Ionicons name="refresh" size={16} color="#fff" />
-              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
-                Retry
+              <Ionicons name="warning-outline" size={32} color={PrimaryColor} />
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: PrimaryColor,
+                  marginTop: 8,
+                  textAlign: "center",
+                  fontWeight: "500",
+                }}
+              >
+                {error}
               </Text>
-            </TouchableOpacity>
-          </View>
-        ) : getFilteredOrders().length === 0 ? (
-          <View style={{ alignItems: "center", paddingVertical: 40 }}>
-            <Ionicons
-              name={
-                activeTab === "live" ? "receipt-outline" : "archive-outline"
-              }
-              size={64}
-              color="#D1D5DB"
-            />
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "600",
-                color: "#9CA3AF",
-                marginTop: 16,
-              }}
-            >
-              No {activeTab} orders
-            </Text>
-            <Text
-              style={{
-                fontSize: 14,
-                color: "#9CA3AF",
-                textAlign: "center",
-                marginTop: 8,
-              }}
-            >
-              {activeTab === "live"
-                ? "When you place an order, it will appear here"
-                : "Your completed orders will be shown here"}
-            </Text>
-            {activeTab === "live" && (
               <TouchableOpacity
                 style={{
                   backgroundColor: PrimaryColor,
-                  paddingHorizontal: 24,
-                  paddingVertical: 12,
-                  borderRadius: 12,
-                  marginTop: 16,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                  marginTop: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
                 }}
-                onPress={() => router.push("/" as any)}
+                onPress={() => fetchOrders()}
               >
+                <Ionicons name="refresh" size={16} color="#fff" />
                 <Text
-                  style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}
+                  style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}
                 >
-                  Start Shopping
+                  Retry
                 </Text>
               </TouchableOpacity>
-            )}
-          </View>
-        ) : (
-          getFilteredOrders().map(renderOrderCard)
-        )}
-      </ScrollView>
-      <OrderSuccessModal
-        visible={showOrderSuccessModal}
-        onClose={handleCloseOrderSuccessModal}
-        orderId={successfulOrderData?.orderId || ""}
-        orderData={successfulOrderData?.data}
+            </View>
+          ) : (
+            <View style={{ alignItems: "center", paddingVertical: 40 }}>
+              <Ionicons
+                name={
+                  activeTab === "live" ? "receipt-outline" : "archive-outline"
+                }
+                size={64}
+                color="#D1D5DB"
+              />
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "600",
+                  color: "#9CA3AF",
+                  marginTop: 16,
+                }}
+              >
+                No {activeTab} orders
+              </Text>
+              <Text
+                style={{
+                  fontSize: 14,
+                  color: "#9CA3AF",
+                  textAlign: "center",
+                  marginTop: 8,
+                }}
+              >
+                {activeTab === "live"
+                  ? "When you place an order, it will appear here"
+                  : "Your completed orders will be shown here"}
+              </Text>
+              {activeTab === "live" && (
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: PrimaryColor,
+                    paddingHorizontal: 24,
+                    paddingVertical: 12,
+                    borderRadius: 12,
+                    marginTop: 16,
+                  }}
+                  onPress={() => router.push("/" as any)}
+                >
+                  <Text
+                    style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}
+                  >
+                    Start Shopping
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )
+        }
       />
     </SafeAreaView>
   );

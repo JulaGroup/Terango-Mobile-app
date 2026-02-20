@@ -83,6 +83,17 @@ export default function VendorMenuEnhanced() {
     isAvailable: true,
   });
 
+  // Subcategory picker UI state
+  const [showSubcategoryPicker, setShowSubcategoryPicker] = useState(false);
+  const [subCategorySearch, setSubCategorySearch] = useState("");
+
+  // Derived filtered list for search + fast rendering
+  const filteredSubCategories = useMemo(() => {
+    if (!subCategorySearch) return subCategories;
+    const q = subCategorySearch.toLowerCase().trim();
+    return subCategories.filter((s) => s.name.toLowerCase().includes(q));
+  }, [subCategories, subCategorySearch]);
+
   // Form validation state
   const [formErrors, setFormErrors] = useState({
     name: "",
@@ -1336,70 +1347,137 @@ export default function VendorMenuEnhanced() {
                   )}
                 </View>
 
-                {/* Subcategory Selector (Optional) */}
+                {/* Subcategory Selector (Optional) — searchable dropdown */}
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>
                     Category (Subcategory - Optional)
                   </Text>
+
                   {loadingSubCategories ? (
                     <ActivityIndicator size="small" color={PrimaryColor} />
                   ) : (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                    >
-                      <View style={styles.categorySelector}>
-                        <TouchableOpacity
-                          style={[
-                            styles.categoryOption,
-                            !formData.subCategoryId &&
-                              styles.categoryOptionActive,
-                          ]}
-                          onPress={() =>
-                            setFormData({
-                              ...formData,
-                              subCategoryId: "",
-                            })
-                          }
+                    <>
+                      <TouchableOpacity
+                        style={styles.subcatSelectorButton}
+                        onPress={() => setShowSubcategoryPicker(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Select subcategory"
+                      >
+                        <Text
+                          style={styles.subcatSelectorText}
+                          numberOfLines={1}
                         >
-                          <Text
-                            style={[
-                              styles.categoryOptionText,
-                              !formData.subCategoryId &&
-                                styles.categoryOptionTextActive,
-                            ]}
-                          >
-                            None
-                          </Text>
-                        </TouchableOpacity>
-                        {subCategories.map((subCat) => (
-                          <TouchableOpacity
-                            key={subCat.id}
-                            style={[
-                              styles.categoryOption,
-                              formData.subCategoryId === subCat.id &&
-                                styles.categoryOptionActive,
-                            ]}
-                            onPress={() =>
-                              setFormData({
-                                ...formData,
-                                subCategoryId: subCat.id,
-                              })
-                            }
-                          >
-                            <Text
-                              style={[
-                                styles.categoryOptionText,
-                                formData.subCategoryId === subCat.id &&
-                                  styles.categoryOptionTextActive,
-                              ]}
-                            >
-                              {subCat.name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </ScrollView>
+                          {formData.subCategoryId
+                            ? subCategories.find(
+                                (s) => s.id === formData.subCategoryId,
+                              )?.name || "Selected"
+                            : "None"}
+                        </Text>
+                        <Ionicons name="chevron-down" size={18} color="#666" />
+                      </TouchableOpacity>
+
+                      {/* Picker modal */}
+                      <Modal
+                        visible={showSubcategoryPicker}
+                        transparent
+                        animationType="slide"
+                        onRequestClose={() => setShowSubcategoryPicker(false)}
+                      >
+                        <View style={styles.subcatModalOverlay}>
+                          <View style={styles.subcatModalContainer}>
+                            <View style={styles.subcatModalHeader}>
+                              <Text style={styles.subcatModalTitle}>
+                                Select Subcategory
+                              </Text>
+                              <TouchableOpacity
+                                onPress={() => {
+                                  setShowSubcategoryPicker(false);
+                                  setSubCategorySearch("");
+                                }}
+                                accessibilityRole="button"
+                                accessibilityLabel="Close subcategory picker"
+                              >
+                                <Ionicons name="close" size={22} color="#333" />
+                              </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.subcatSearchWrap}>
+                              <TextInput
+                                value={subCategorySearch}
+                                onChangeText={setSubCategorySearch}
+                                placeholder="Search subcategories..."
+                                style={styles.subcatSearchInput}
+                                clearButtonMode="while-editing"
+                                accessibilityLabel="Search subcategories"
+                              />
+                            </View>
+
+                            <View style={{ flex: 1 }}>
+                              <FlatList
+                                data={[
+                                  { id: "__none", name: "None" },
+                                  ...filteredSubCategories,
+                                ]}
+                                keyExtractor={(item) => item.id}
+                                renderItem={({ item }) => {
+                                  const isSelected =
+                                    item.id === "__none"
+                                      ? formData.subCategoryId === ""
+                                      : formData.subCategoryId === item.id;
+
+                                  return (
+                                    <TouchableOpacity
+                                      style={[
+                                        styles.subcatListItem,
+                                        isSelected &&
+                                          styles.subcatListItemSelected,
+                                      ]}
+                                      onPress={() => {
+                                        setFormData({
+                                          ...formData,
+                                          subCategoryId:
+                                            item.id === "__none" ? "" : item.id,
+                                        });
+                                        setShowSubcategoryPicker(false);
+                                        setSubCategorySearch("");
+                                      }}
+                                    >
+                                      <Text
+                                        style={[
+                                          styles.subcatListText,
+                                          isSelected &&
+                                            styles.subcatListTextSelected,
+                                        ]}
+                                      >
+                                        {item.name}
+                                      </Text>
+
+                                      {isSelected && (
+                                        <Ionicons
+                                          name="checkmark"
+                                          size={18}
+                                          color={PrimaryColor}
+                                        />
+                                      )}
+                                    </TouchableOpacity>
+                                  );
+                                }}
+                                ItemSeparatorComponent={() => (
+                                  <View
+                                    style={{
+                                      height: 1,
+                                      backgroundColor: "#f2f2f2",
+                                    }}
+                                  />
+                                )}
+                                keyboardShouldPersistTaps="handled"
+                                contentContainerStyle={{ paddingBottom: 12 }}
+                              />
+                            </View>
+                          </View>
+                        </View>
+                      </Modal>
+                    </>
                   )}
                 </View>
 
@@ -1725,6 +1803,67 @@ const styles = StyleSheet.create({
   categoryOptionTextActive: {
     color: "white",
   },
+
+  /* Subcategory picker styles */
+  subcatSelectorButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "white",
+  },
+  subcatSelectorText: { flex: 1, color: "#333", marginRight: 8 },
+  subcatModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+    alignItems: "stretch",
+  },
+  subcatModalContainer: {
+    // Use a fixed percentage height so inner Flex (FlatList) can expand reliably
+    height: "70%",
+    minHeight: 220,
+    backgroundColor: "white",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 12,
+    paddingBottom: 24, // ensure last list items aren't flush against the bottom
+  },
+  subcatModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+  },
+  subcatModalTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
+  subcatSearchWrap: { paddingHorizontal: 6, paddingVertical: 8 },
+  subcatSearchInput: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    backgroundColor: "#FAFAFA",
+  },
+  subcatListItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  subcatListText: { fontSize: 15, color: "#111" },
+  subcatListItemSelected: {
+    backgroundColor: "rgba(16,185,129,0.06)",
+    borderRadius: 8,
+  },
+  subcatListTextSelected: { color: PrimaryColor, fontWeight: "700" },
   switchContainer: {
     flexDirection: "row",
     justifyContent: "space-between",

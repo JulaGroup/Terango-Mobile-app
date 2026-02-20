@@ -7,9 +7,74 @@ import { IconSymbol } from "@/components/ui/IconSymbol";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors, PrimaryColor } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useVendor } from "@/context/VendorContext";
+import { orderApi } from "@/lib/api";
+import {
+  addOrdersRefreshListener,
+  removeOrdersRefreshListener,
+} from "@/services/NotificationService";
+import { on as socketOn, off as socketOff } from "@/services/SocketService";
+import { SecureStorage } from "@/utils/secureStorage";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { vendorPendingOrders } = useVendor();
+
+  // Accepted orders that still need payment (badge on Orders tab)
+  const [acceptedPaymentCount, setAcceptedPaymentCount] =
+    React.useState<number>(0);
+
+  const refreshAcceptedCount = React.useCallback(async () => {
+    try {
+      const loggedIn = await SecureStorage.getItem("isLoggedIn");
+      if (loggedIn !== "true") {
+        setAcceptedPaymentCount(0);
+        return;
+      }
+
+      // Use lightweight server endpoint that returns grouped counts
+      const res = await orderApi.getOrderStatusCounts();
+      const count = res?.acceptedUnpaid || 0;
+      setAcceptedPaymentCount(count);
+    } catch (err) {
+      console.warn("Failed to refresh accepted-orders badge:", err);
+    }
+  }, []);
+
+  // Initial load + subscribe to NotificationService and socket events
+  React.useEffect(() => {
+    refreshAcceptedCount();
+
+    const listener = () => refreshAcceptedCount();
+    addOrdersRefreshListener(listener);
+
+    const socketStatusHandler = (data: any) => {
+      // If an order becomes ACCEPTED or payment changes, refresh the badge
+      if (!data) return;
+      if (data.status === "ACCEPTED" || data.paymentStatus || data.orderId) {
+        refreshAcceptedCount();
+      }
+    };
+
+    try {
+      socketOn("orderStatusUpdate", socketStatusHandler);
+      socketOn("paymentSuccess", refreshAcceptedCount);
+      socketOn("orderCreated", refreshAcceptedCount);
+    } catch (e) {
+      // socket might not be initialised yet — NotificationService listener covers most cases
+    }
+
+    return () => {
+      removeOrdersRefreshListener(listener);
+      try {
+        socketOff("orderStatusUpdate", socketStatusHandler);
+        socketOff("paymentSuccess", refreshAcceptedCount);
+        socketOff("orderCreated", refreshAcceptedCount);
+      } catch (e) {
+        /* ignore */
+      }
+    };
+  }, [refreshAcceptedCount]);
 
   return (
     <Tabs
@@ -77,6 +142,8 @@ export default function TabLayout() {
         name="orders"
         options={{
           title: "Orders",
+          tabBarBadge:
+            acceptedPaymentCount > 0 ? acceptedPaymentCount : undefined,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="doc.plaintext" color={color} />
           ),
@@ -86,6 +153,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
+          tabBarBadge:
+            vendorPendingOrders > 0 ? vendorPendingOrders : undefined,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="person" color={color} />
           ),

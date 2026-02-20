@@ -1,10 +1,18 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import React, { useState } from "react";
-import { Dimensions, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Dimensions,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Cart from "./Cart";
 import LocationModal from "./LocationModal";
 import { AddressContext } from "@/context/AddressContext";
 import { Address } from "@/services/AddressService";
+import { useNotifications } from "@/context/NotificationContext";
 
 const { width } = Dimensions.get("window");
 
@@ -14,6 +22,31 @@ const Header = () => {
   const addressCtx = React.useContext(AddressContext);
   const selectedAddress = addressCtx?.selectedAddress || null;
   const setSelectedAddress = addressCtx?.setSelectedAddress || (() => {});
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
+    useNotifications();
+
+  // subtle "pop" animation when a new notification arrives
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const prevUnreadRef = useRef(unreadCount);
+
+  useEffect(() => {
+    if (unreadCount > prevUnreadRef.current) {
+      Animated.sequence([
+        Animated.timing(scaleAnim, {
+          toValue: 1.18,
+          duration: 110,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, scaleAnim]);
+
   const handleLocationPress = () => {
     console.log("Location arrow pressed, showing modal");
     setShowLocationModal(true);
@@ -122,16 +155,42 @@ const Header = () => {
 
         <View style={{ flexDirection: "row" }}>
           <Cart />
-          <TouchableOpacity
-            style={{
-              backgroundColor: "#F4F4F4CE",
-              padding: 8,
-              borderRadius: 8,
-            }}
-            onPress={() => setShowNotificationModal(true)}
-          >
-            <Ionicons name="notifications-outline" size={22} color="black" />
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#F4F4F4CE",
+                padding: 8,
+                borderRadius: 8,
+                position: "relative",
+              }}
+              onPress={() => setShowNotificationModal(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="notifications-outline" size={22} color="black" />
+              {unreadCount > 0 && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 4,
+                    right: 4,
+                    backgroundColor: "#ff6b00",
+                    borderRadius: 10,
+                    minWidth: 18,
+                    height: 18,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    paddingHorizontal: 4,
+                  }}
+                >
+                  <Text
+                    style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </View>
       </View>
       {/* Location Modal */}
@@ -151,53 +210,159 @@ const Header = () => {
             position: "absolute",
             top: 80,
             right: 30,
-            width: 240,
+            width: 320,
+            maxHeight: 400,
             backgroundColor: "#fff",
             borderRadius: 16,
-            padding: 24,
+            padding: 0,
             shadowColor: "#000",
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.15,
             shadowRadius: 12,
             elevation: 8,
-            alignItems: "center",
             zIndex: 999,
           }}
         >
-          {/* Arrow pointer to bell icon */}
+          {/* Header */}
           <View
             style={{
-              position: "absolute",
-              top: -12,
-              right: 24,
-              width: 0,
-              height: 0,
-              borderLeftWidth: 10,
-              borderRightWidth: 10,
-              borderBottomWidth: 12,
-              borderLeftColor: "transparent",
-              borderRightColor: "transparent",
-              borderBottomColor: "#fff",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: 20,
+              borderBottomWidth: 1,
+              borderBottomColor: "#f0f0f0",
             }}
-          />
-          <Text style={{ fontSize: 16, fontWeight: "600", marginBottom: 12 }}>
-            Notifications
-          </Text>
-          <Text style={{ fontSize: 14, color: "#888" }}>
-            No notifications yet
-          </Text>
-          <TouchableOpacity
-            style={{
-              marginTop: 18,
-              backgroundColor: "#ff6b00",
-              paddingHorizontal: 24,
-              paddingVertical: 10,
-              borderRadius: 8,
-            }}
-            onPress={() => setShowNotificationModal(false)}
           >
-            <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
-          </TouchableOpacity>
+            <Text style={{ fontSize: 18, fontWeight: "600" }}>
+              Notifications
+            </Text>
+            {unreadCount > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  markAllAsRead();
+                }}
+                style={{
+                  backgroundColor: "#ff6b00",
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}
+                >
+                  Mark All Read
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Notifications List */}
+          <ScrollView style={{ maxHeight: 280 }}>
+            {notifications.length === 0 ? (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <Text style={{ fontSize: 14, color: "#888" }}>
+                  No notifications yet
+                </Text>
+              </View>
+            ) : (
+              notifications.map((notification) => (
+                <TouchableOpacity
+                  key={notification.id}
+                  onPress={() => {
+                    if (!notification.opened) {
+                      markAsRead(notification.id);
+                    }
+                  }}
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: "#f5f5f5",
+                    backgroundColor: notification.opened ? "#fff" : "#f9f9f9",
+                  }}
+                >
+                  <View
+                    style={{ flexDirection: "row", alignItems: "flex-start" }}
+                  >
+                    <View
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: notification.opened
+                          ? "transparent"
+                          : "#ff6b00",
+                        marginTop: 6,
+                        marginRight: 12,
+                      }}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "600",
+                          color: "#333",
+                          marginBottom: 4,
+                        }}
+                      >
+                        {notification.title}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: "#666",
+                          lineHeight: 18,
+                        }}
+                      >
+                        {notification.body}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: "#999",
+                          marginTop: 6,
+                        }}
+                      >
+                        {notification.sentAt
+                          ? new Date(notification.sentAt).toLocaleDateString()
+                          : ""}{" "}
+                        at{" "}
+                        {notification.sentAt
+                          ? new Date(notification.sentAt).toLocaleTimeString(
+                              [],
+                              { hour: "2-digit", minute: "2-digit" },
+                            )
+                          : ""}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </ScrollView>
+
+          {/* Footer */}
+          <View
+            style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: "#f0f0f0",
+              alignItems: "center",
+            }}
+          >
+            <TouchableOpacity
+              style={{
+                backgroundColor: "#ff6b00",
+                paddingHorizontal: 24,
+                paddingVertical: 10,
+                borderRadius: 8,
+              }}
+              onPress={() => setShowNotificationModal(false)}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600" }}>Close</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
     </>

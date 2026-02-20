@@ -3,7 +3,6 @@ import * as Notifications from "expo-notifications";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as WebBrowser from "expo-web-browser";
 import {
   initSocket,
   on as socketOn,
@@ -104,10 +103,38 @@ class BrowserNotificationService {
   }
 }
 
-// Global callback for refreshing orders
+// Global callback for refreshing orders (backwards-compatible single callback)
 let onOrdersRefresh: (() => void) | null = null;
 export function setOrdersRefreshCallback(cb: () => void) {
   onOrdersRefresh = cb;
+}
+
+// Support multiple listeners so various parts of the app can react when orders refresh
+const ordersRefreshListeners: Array<() => void> = [];
+export function addOrdersRefreshListener(cb: () => void) {
+  if (!ordersRefreshListeners.includes(cb)) ordersRefreshListeners.push(cb);
+}
+export function removeOrdersRefreshListener(cb: () => void) {
+  const idx = ordersRefreshListeners.indexOf(cb);
+  if (idx !== -1) ordersRefreshListeners.splice(idx, 1);
+}
+
+// Allow external callers to trigger the same refresh behavior (calls single callback + listeners)
+export function triggerOrdersRefresh() {
+  if (onOrdersRefresh) {
+    try {
+      onOrdersRefresh();
+    } catch (err) {
+      console.warn("onOrdersRefresh threw:", err);
+    }
+  }
+  ordersRefreshListeners.forEach((l) => {
+    try {
+      l();
+    } catch (err) {
+      console.warn("ordersRefresh listener error:", err);
+    }
+  });
 }
 
 // Global callback for navigation
@@ -228,6 +255,14 @@ export function useRegisterPushToken(userId: string) {
     const paymentSuccessHandler = async (data: any) => {
       console.log("[Socket] paymentSuccess", data);
       if (onOrdersRefresh) onOrdersRefresh();
+      // Also notify any additional registered listeners
+      ordersRefreshListeners.forEach((l) => {
+        try {
+          l();
+        } catch (err) {
+          console.warn("ordersRefresh listener error:", err);
+        }
+      });
 
       // Show browser notification for web users
       if (Platform.OS === "web" && data && data.orderId) {
@@ -278,17 +313,18 @@ export function useRegisterPushToken(userId: string) {
         // and let the user view the order from there
         onNavigateToOrder(""); // Empty string to indicate navigate to orders
       }
-
-      try {
-        WebBrowser.dismissBrowser();
-        console.log("[Browser] Dismissed browser after payment success");
-      } catch (error) {
-        console.log("[Browser] Failed to dismiss browser:", error);
-      }
     };
     const paymentFailedHandler = (data: any) => {
       console.log("[Socket] paymentFailed", data);
       if (onOrdersRefresh) onOrdersRefresh();
+      // Also notify any additional registered listeners
+      ordersRefreshListeners.forEach((l) => {
+        try {
+          l();
+        } catch (err) {
+          console.warn("ordersRefresh listener error:", err);
+        }
+      });
     };
     const orderCreatedHandler = (data: any) => {
       console.log("[Socket] orderCreated", data);
@@ -318,10 +354,26 @@ export function useRegisterPushToken(userId: string) {
           onNavigateToOrder(String(data.orderId));
       }
       if (onOrdersRefresh) onOrdersRefresh();
+      // Also notify any additional registered listeners
+      ordersRefreshListeners.forEach((l) => {
+        try {
+          l();
+        } catch (err) {
+          console.warn("ordersRefresh listener error:", err);
+        }
+      });
     };
     const orderStatusUpdateHandler = (data: any) => {
       console.log("[Socket] orderStatusUpdate", data);
       if (onOrdersRefresh) onOrdersRefresh();
+      // Also notify any additional registered listeners
+      ordersRefreshListeners.forEach((l) => {
+        try {
+          l();
+        } catch (err) {
+          console.warn("ordersRefresh listener error:", err);
+        }
+      });
 
       // Show browser notification for web users
       if (Platform.OS === "web" && data && data.orderId && data.status) {
@@ -614,21 +666,6 @@ export class NotificationService {
       await Notifications.cancelAllScheduledNotificationsAsync();
     } catch (error) {
       console.error("Failed to cancel all notifications:", error);
-    }
-  }
-
-  static async testInAppBrowser(url: string = "https://www.google.com") {
-    try {
-      console.log("[Test] Opening in-app browser with URL:", url);
-      const result = await WebBrowser.openBrowserAsync(url, {
-        dismissButtonStyle: "cancel",
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.FORM_SHEET,
-      });
-      console.log("[Test] Browser result:", result);
-      return result;
-    } catch (error) {
-      console.error("[Test] Failed to open in-app browser:", error);
-      throw error;
     }
   }
 }

@@ -31,6 +31,7 @@ import {
   getGridColumns,
   getProductCardWidth,
 } from "@/utils/responsive";
+import AdvertCard from "@/components/ui/home/AdvertCard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const RESPONSIVE_PADDING = getResponsivePadding();
@@ -741,6 +742,10 @@ const BrowseScreen: React.FC = () => {
             </View>
           </LinearGradient>
         </TouchableOpacity>
+        {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
+        <View style={{ marginBottom: 14 }}>
+          <AdvertCard />
+        </View>
 
         {/* ─────────── Dynamic Sections ─────────── */}
 
@@ -795,7 +800,7 @@ const BrowseScreen: React.FC = () => {
         </View>
 
         {/* Popular Meals (MealItemCard) */}
-        <View style={styles.sectionBlock}>
+        {/* <View style={styles.sectionBlock}>
           <SectionHeader
             title="Popular Meals"
             subtitle="Local dishes loved by many"
@@ -812,6 +817,10 @@ const BrowseScreen: React.FC = () => {
               {popularMeals.slice(0, 4).map(renderMealCard)}
             </View>
           ) : null}
+        </View> */}
+        {/* Advertisement after restaurants */}
+        <View style={{ marginBottom: 14 }}>
+          <AdvertCard position="HOME_AFTER_RESTAURANTS" />
         </View>
 
         {/* Fresh Produce */}
@@ -925,7 +934,6 @@ const styles = StyleSheet.create({
   // Custom Delivery
   customDeliveryCard: {
     marginHorizontal: RESPONSIVE_PADDING,
-    marginBottom: 24,
     borderRadius: 16,
     overflow: "hidden",
     elevation: 4,
@@ -992,7 +1000,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: RESPONSIVE_PADDING,
-    marginBottom: 12,
+    marginBottom: 6,
     gap: 12,
   },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },

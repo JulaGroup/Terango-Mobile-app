@@ -1,4 +1,5 @@
 ﻿import { SecureStorage } from "@/utils/secureStorage";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/config";
 
 // Types for vendor-related data
@@ -260,7 +261,30 @@ const getAuthToken = async (): Promise<string | null> => {
 
 // Helper function to make authenticated API calls
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-  const token = await getAuthToken();
+  // Prefer vendor token for vendor-scoped endpoints if available, otherwise fall back to main auth token
+  const vendorEndpointRegex =
+    /\/api\/(vendor(-stats)?|vendors|orders\/vendor|analytics|vendor-stats|restaurants|shops|pharmacies|menuItem)/i;
+  let token: string | null = null;
+
+  try {
+    if (vendorEndpointRegex.test(endpoint)) {
+      token = await AsyncStorage.getItem("@vendor_token");
+      console.log(
+        "🔑 Vendor endpoint detected. Vendor token present:",
+        !!token,
+      );
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed reading @vendor_token from AsyncStorage:", err);
+    token = null;
+  }
+
+  if (!token) {
+    token = await getAuthToken();
+    console.log("🔁 Using standard auth token (fallback):", !!token);
+  } else {
+    console.log("🔐 Using vendor token for request");
+  }
 
   const config: RequestInit = {
     ...options,
@@ -805,6 +829,14 @@ export const orderApi = {
     return apiCall(`/api/orders/customer?page=${page}&limit=${limit}`);
   },
 
+  // Lightweight: get order counts grouped by status (and accepted unpaid count)
+  getOrderStatusCounts: async (): Promise<{
+    byStatus: Record<string, number>;
+    acceptedUnpaid: number;
+  }> => {
+    return apiCall(`/api/orders/status-counts`);
+  },
+
   // Get orders for a vendor/restaurant
   getVendorOrders: async (restaurantId: string): Promise<Order[]> => {
     return apiCall(`/api/orders/vendor/${restaurantId}`);
@@ -1246,4 +1278,17 @@ export const adminApi = {
     }
     return apiCall(`/api/admin/pharmacies?${params.toString()}`);
   },
+};
+
+export const notificationApi = {
+  markOpened: async (notificationId: string) =>
+    apiCall(`/api/notifications/${notificationId}/opened`, { method: "POST" }),
+
+  markActionClicked: async (notificationId: string, action?: string) =>
+    apiCall(`/api/notifications/${notificationId}/action-clicked`, {
+      method: "POST",
+      body: JSON.stringify({ action }),
+    }),
+
+  getUserHistory: async () => apiCall("/api/notifications/history"),
 };

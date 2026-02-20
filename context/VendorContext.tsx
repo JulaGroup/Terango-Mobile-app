@@ -31,6 +31,9 @@ interface VendorContextType {
   refreshVendorData: () => Promise<void>;
   currentBusiness: Business | null;
   setCurrentBusiness: (business: Business) => void;
+  // Real-time pending orders badge for vendor UI
+  vendorPendingOrders: number;
+  refreshVendorPendingOrders: () => Promise<void>;
 }
 
 const VendorContext = createContext<VendorContextType | undefined>(undefined);
@@ -43,6 +46,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [isVendorLoading, setIsVendorLoading] = useState(true);
   const [currentBusiness, setCurrentBusiness] = useState<Business | null>(null);
+  const [vendorPendingOrders, setVendorPendingOrders] = useState<number>(0);
 
   const isVendor = !!vendor;
 
@@ -162,6 +166,14 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
         );
         setCurrentBusiness(null); // No current business
       }
+
+      // refresh initial pending orders badge after vendor data is set
+      try {
+        const stats = await vendorApi.getVendorStats();
+        setVendorPendingOrders(stats?.pendingOrders || 0);
+      } catch (err) {
+        console.warn("Failed to load vendor stats for pending badge:", err);
+      }
     } catch (error) {
       console.error("🚨 Error refreshing vendor data:", error);
     }
@@ -241,6 +253,58 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
   useEffect(() => {
     checkVendorSession();
   }, [checkVendorSession]);
+
+  // Real-time updates: refresh pending orders when socket notifies
+  useEffect(() => {
+    let mounted = true;
+    const handleNewOrder = async (orderData: any) => {
+      if (!mounted) return;
+      // refresh pending orders badge from API (authoritative)
+      try {
+        const stats = await vendorApi.getVendorStats();
+        if (mounted) setVendorPendingOrders(stats?.pendingOrders || 0);
+      } catch (err) {
+        console.warn(
+          "Failed to refresh pending orders after new_order socket:",
+          err,
+        );
+      }
+    };
+
+    const handleOrderStatusChange = async (data: any) => {
+      if (!mounted) return;
+      try {
+        const stats = await vendorApi.getVendorStats();
+        if (mounted) setVendorPendingOrders(stats?.pendingOrders || 0);
+      } catch (err) {
+        console.warn(
+          "Failed to refresh pending orders after order_status_changed socket:",
+          err,
+        );
+      }
+    };
+
+    try {
+      // subscribe to websocket service if available
+      const WebSocketService = require("@/services/websocket.service").default;
+      WebSocketService.on("new_order", handleNewOrder);
+      WebSocketService.on("order_status_changed", handleOrderStatusChange);
+
+      return () => {
+        mounted = false;
+        WebSocketService.off("new_order", handleNewOrder);
+        WebSocketService.off("order_status_changed", handleOrderStatusChange);
+      };
+    } catch (err) {
+      console.warn(
+        "WebSocketService not available to subscribe real-time badge:",
+        err,
+      );
+      return () => {
+        mounted = false;
+      };
+    }
+  }, []);
 
   const loginAsVendor = async (
     email: string,
@@ -327,6 +391,15 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
     refreshVendorData,
     currentBusiness,
     setCurrentBusiness,
+    vendorPendingOrders,
+    refreshVendorPendingOrders: async () => {
+      try {
+        const stats = await vendorApi.getVendorStats();
+        setVendorPendingOrders(stats?.pendingOrders || 0);
+      } catch (err) {
+        console.warn("refreshVendorPendingOrders failed:", err);
+      }
+    },
   };
 
   return (

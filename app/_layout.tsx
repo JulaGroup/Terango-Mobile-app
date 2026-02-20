@@ -3,6 +3,7 @@ import { CartProvider } from "@/context/CartContext";
 import { PermissionProvider } from "@/context/PermissionContext";
 import { AddressProvider } from "@/context/AddressContext";
 import { VendorProvider } from "@/context/VendorContext";
+import { NotificationProvider } from "@/context/NotificationContext";
 import { useColorScheme } from "@/hooks/useColorScheme";
 import {
   DarkTheme,
@@ -11,25 +12,23 @@ import {
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
 import { Stack, router, usePathname } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
-  GestureHandlerRootView,
-  // StatusBar,
-} from "react-native-gesture-handler";
-import {
+  NotificationService,
+  BrowserNotificationService,
   useRegisterPushToken,
   getSuccessfulOrder,
   clearSuccessfulOrder,
-  storeSuccessfulOrder,
   useBrowserNotifications,
 } from "@/services/NotificationService";
-import { useEffect, useState } from "react";
+import OrderSuccessModal from "@/components/OrderSuccessModal";
+import { useEffect, useRef, useState } from "react";
 import { safeGetItem } from "@/actions/auth.ts/action";
 import * as Linking from "expo-linking";
 import { API_URL } from "@/constants/config";
+import { orderApi } from "@/lib/api";
 import { initSocket } from "@/services/SocketService";
-import OrderSuccessModal from "@/components/OrderSuccessModal";
-import * as WebBrowser from "expo-web-browser";
-import { Alert, DeviceEventEmitter, StatusBar } from "react-native";
+import { View, Text, StatusBar, Platform } from "react-native";
 import WebContainer from "@/components/WebContainer";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import OfflineNotice from "@/components/common/OfflineNotice";
@@ -41,156 +40,55 @@ export default function RootLayout() {
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
 
-  // Get userId from AsyncStorage and register push token
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Order success modal state
+  // OrderSuccessModal — shown when checkout creates a new order successfully
   const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
   const [successfulOrderData, setSuccessfulOrderData] = useState<{
     orderId: string;
     data?: any;
   } | null>(null);
+  const orderModalShown = useRef(false);
+
+  // Transient payment toast — shows for 3.2s after Wave payment confirmed
+  const [paymentToast, setPaymentToast] = useState<{
+    message: string;
+    variant: "success" | "error";
+  } | null>(null);
+
+  const showPaymentToast = (
+    message: string,
+    variant: "success" | "error" = "success",
+  ) => {
+    setPaymentToast({ message, variant });
+    setTimeout(() => setPaymentToast(null), 3200);
+  };
+
   const pathname = usePathname();
 
   useEffect(() => {
-    const fetchUserId = async () => {
-      const id = await safeGetItem("userId");
-      setUserId(id);
-    };
-    fetchUserId();
+    safeGetItem("userId").then((id) => setUserId(id));
   }, [pathname]);
 
-  // Check for successful order on app launch
+  // Reset modal guard when user leaves Home so it can show again after next order
+  useEffect(() => {
+    if (pathname !== "/") orderModalShown.current = false;
+  }, [pathname]);
+
+  // Show OrderSuccessModal when user lands on Home after a successful order creation
+  // (written by checkout flow via storeSuccessfulOrder)
   useEffect(() => {
     const checkSuccessfulOrder = async () => {
+      if (pathname !== "/") return;
+      if (orderModalShown.current) return;
       const orderData = await getSuccessfulOrder();
-      // Only show the root-level order success modal when the user
-      // is on the app home route ("/") — avoid popping it on other pages
-      // such as the Orders page.
-      console.log("[RootLayout] current pathname:", pathname);
-      if (orderData && pathname === "/") {
-        setSuccessfulOrderData(orderData);
-        setShowOrderSuccessModal(true);
-      } else if (orderData) {
-        console.log(
-          "[RootLayout] Found successful order but not on home path, skipping modal",
-        );
-      }
+      if (!orderData) return;
+      orderModalShown.current = true;
+      setSuccessfulOrderData(orderData);
+      setShowOrderSuccessModal(true);
     };
     checkSuccessfulOrder();
   }, [pathname]);
-
-  // Handle deep links for payment results
-  useEffect(() => {
-    const handleDeepLink = async (url: string) => {
-      console.log("[DeepLink] Received URL:", url);
-
-      // Only process payment URLs
-      if (!url.includes("payment-success") && !url.includes("payment-cancel")) {
-        console.log("[DeepLink] Not a payment URL, ignoring");
-        return;
-      }
-
-      // Extract parameters
-      const urlParams = new URLSearchParams(url.split("?")[1]);
-      const orderId = urlParams.get("orderId");
-      const paymentId = urlParams.get("paymentId");
-      const verified = urlParams.get("verified");
-      const status = urlParams.get("status");
-
-      console.log("[DeepLink] Payment params:", {
-        orderId,
-        paymentId,
-        verified,
-        status,
-      });
-
-      // Dismiss any open browser/webview
-      try {
-        await WebBrowser.dismissBrowser();
-      } catch (e) {
-        console.log("[DeepLink] No browser to dismiss");
-      }
-
-      // Handle payment success
-      if (url.includes("payment-success") && verified === "true") {
-        console.log("[DeepLink] ✅ Verified payment success!");
-
-        if (!orderId || !paymentId) {
-          Alert.alert("Error", "Missing order or payment information");
-          return;
-        }
-
-        try {
-          // Confirm payment with server
-          console.log("[DeepLink] Confirming payment with server...");
-          const { orderApi } = await import("@/lib/api");
-          await orderApi.confirmPaymentSuccess(orderId, paymentId);
-          console.log("[DeepLink] ✅ Payment confirmed with server");
-
-          // Store successful order
-          await storeSuccessfulOrder({
-            orderId,
-            timestamp: Date.now(),
-            data: { orderId, status: "completed", paymentId },
-          });
-
-          // Show success alert
-          Alert.alert(
-            "Payment Successful! 🎉",
-            "Your payment has been processed successfully.",
-            [
-              {
-                text: "View Order",
-                onPress: () =>
-                  router.push({
-                    pathname: "/order-details",
-                    params: { orderId },
-                  }),
-              },
-              {
-                text: "View All Orders",
-                onPress: () => router.replace("/(tabs)/orders"),
-              },
-            ],
-          );
-        } catch (error) {
-          console.error("[DeepLink] Payment confirmation failed:", error);
-          Alert.alert(
-            "Payment Confirmed",
-            "Your payment was successful! You can view your order in the Orders tab.",
-            [
-              {
-                text: "View Orders",
-                onPress: () => router.replace("/(tabs)/orders"),
-              },
-            ],
-          );
-        }
-      }
-      // Handle payment cancellation
-      else if (url.includes("payment-cancel") || status === "cancelled") {
-        console.log("[DeepLink] ❌ Payment cancelled");
-        // Just log it - the order page will handle the UI
-      }
-    };
-
-    // Handle initial URL when app is launched from deep link
-    Linking.getInitialURL().then((url) => {
-      if (url) {
-        console.log("[DeepLink] Initial URL:", url);
-        handleDeepLink(url);
-      }
-    });
-
-    // Handle deep links when app is already running
-    const subscription = Linking.addEventListener("url", (event) => {
-      console.log("[DeepLink] URL event:", event.url);
-      handleDeepLink(event.url);
-    });
-
-    return () => subscription?.remove();
-  }, []);
 
   const handleCloseOrderSuccessModal = () => {
     setShowOrderSuccessModal(false);
@@ -198,7 +96,157 @@ export default function RootLayout() {
     clearSuccessfulOrder();
   };
 
-  // Initialize socket and register device for real-time events when userId is available
+  // ─────────────────────────────────────────────────────────────────────────
+  // Deep-link handler for Wave payment callbacks.
+  //
+  // Flow (new - no in-app browser):
+  //   Wave app completes payment
+  //     → Wave opens HTTPS success_url in system browser (Safari/Chrome)
+  //     → /api/redirect/payment-success runs (DB update + socket emit)
+  //     → Invisible HTML page fires teranggo://payment-success?orderId=X instantly
+  //     → iOS/Android opens our app via the teranggo:// scheme
+  //     → This handler fires
+  //     → router.replace("/")   user sees Home
+  //     → showPaymentToast()    green snack for 3.2s
+  //
+  // NOTE: No WebBrowser.dismissBrowser() needed — there is no in-app browser.
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleDeepLink = async (url: string) => {
+      try {
+        console.log("[DeepLink] Received:", url);
+
+        const isPaymentUrl =
+          url.includes("payment-success") ||
+          url.includes("payment/success") ||
+          url.includes("payment-cancel") ||
+          url.includes("payment/cancel") ||
+          url.includes("payment-failed") ||
+          url.includes("payment/failed");
+
+        if (!isPaymentUrl) return;
+
+        const qs = url.includes("?") ? url.split("?")[1] : "";
+        const urlParams = new URLSearchParams(qs);
+        const orderId = urlParams.get("orderId") ?? undefined;
+        const paymentId = urlParams.get("paymentId") ?? undefined;
+        const status = urlParams.get("status") ?? undefined;
+        const reason = urlParams.get("reason") ?? undefined;
+
+        console.log("[DeepLink] Params:", { orderId, paymentId, status });
+
+        // ── SUCCESS ────────────────────────────────────────────────────────
+        if (
+          url.includes("payment-success") ||
+          url.includes("payment/success")
+        ) {
+          router.replace({ pathname: "/" });
+
+          showPaymentToast(
+            orderId
+              ? `Payment received — Order #${String(orderId).slice(-6).toUpperCase()}`
+              : "Payment successful",
+            "success",
+          );
+
+          // Local + browser notification
+          try {
+            const notifTitle = "Your payment has been made successfully";
+            const notifBody = orderId
+              ? `Order #${String(orderId).slice(-6).toUpperCase()} — Tap to view your order.`
+              : "Payment successful — Tap to view your order.";
+
+            NotificationService.scheduleOrderNotification({
+              orderId: orderId ?? "",
+              title: notifTitle,
+              body: "Tap to view your order.",
+              data: { orderId, type: "payment_success", paymentId },
+            }).catch((e) =>
+              console.warn(
+                "[DeepLink] Failed to schedule local notification:",
+                e,
+              ),
+            );
+
+            if (Platform.OS === "web") {
+              BrowserNotificationService.showNotification(notifTitle, {
+                body: notifBody,
+                tag: `payment-${orderId ?? "unknown"}`,
+                data: { orderId, type: "payment_success" },
+              }).catch((e) =>
+                console.warn(
+                  "[DeepLink] Failed to show browser notification:",
+                  e,
+                ),
+              );
+            }
+          } catch (e) {
+            console.warn("[DeepLink] Notification error:", e);
+          }
+
+          // Background confirm (idempotent — backend already updated via redirect route)
+          if (orderId) {
+            orderApi
+              .confirmPaymentSuccess(orderId, paymentId)
+              .then(() => console.log("[DeepLink] BG confirm OK"))
+              .catch((e) =>
+                console.warn("[DeepLink] BG confirm failed (non-fatal):", e),
+              );
+          }
+
+          return;
+        }
+
+        // ── CANCEL / FAILURE ───────────────────────────────────────────────
+        const target =
+          url.includes("payment-failed") ||
+          url.includes("payment/failed") ||
+          status === "failed"
+            ? "/payment-failed"
+            : "/payment-cancel";
+
+        showPaymentToast(
+          status === "failed" || url.includes("payment-failed")
+            ? reason
+              ? `Payment failed: ${reason}`
+              : "Payment failed"
+            : "Payment cancelled",
+          "error",
+        );
+
+        router.replace({
+          pathname: target,
+          params: {
+            orderId: orderId ?? "",
+            paymentId: paymentId ?? "",
+            reason: reason ?? "",
+            status: status ?? "",
+          },
+        });
+      } catch (err: any) {
+        console.error("[DeepLink] Unhandled error:", err);
+        router.replace({ pathname: "/" });
+      }
+    };
+
+    // Cold launch
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        console.log("[DeepLink] Cold-launch URL:", url);
+        handleDeepLink(url);
+      }
+    });
+
+    // Warm / foreground
+    const subscription = Linking.addEventListener("url", (event) => {
+      console.log("[DeepLink] Foreground URL:", event.url);
+      handleDeepLink(event.url);
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // Socket: init + register device + listen for payment events
   useEffect(() => {
     if (!userId) return;
     (async () => {
@@ -206,53 +254,67 @@ export default function RootLayout() {
         const socketBase = API_URL
           ? String(API_URL).replace(/\/api\/?(.*)?$/, "")
           : null;
-        console.log("[Socket] Initializing socket with base:", socketBase);
         if (!socketBase) return;
         const s = await initSocket(socketBase);
-        if (!s) {
-          console.log("[Socket] Failed to initialize socket");
-          return;
-        }
-        console.log("[Socket] Socket initialized successfully");
+        if (!s) return;
 
-        // Add debugging for socket events
         s.on("connect", () => {
-          console.log("[Socket] Connected to server successfully");
           try {
             s.emit("registerDevice", { userId });
-            console.log("[Socket] registerDevice emitted for user", userId);
-          } catch (error) {
-            console.log("[Socket] Failed to emit registerDevice:", error);
+            console.log("[Socket] registerDevice for", userId);
+          } catch {
+            /* ignore */
           }
         });
 
-        s.on("disconnect", () => {
-          console.log("[Socket] Disconnected from server");
+        s.on("disconnect", () =>
+          console.log("[Socket] Disconnected from server"),
+        );
+
+        s.on("connect_error", (error: any) =>
+          console.log("[Socket] Connection error:", error),
+        );
+
+        s.onAny((eventName: string, ...args: any[]) =>
+          console.log(`[Socket] ${eventName}`, args),
+        );
+
+        // Real-time snack when paymentSuccess socket fires (foreground)
+        s.on("paymentSuccess", (data: any) => {
+          try {
+            showPaymentToast(
+              data?.orderId
+                ? `Payment received — Order #${String(data.orderId).slice(-6).toUpperCase()}`
+                : "Payment successful",
+              "success",
+            );
+          } catch {
+            /* ignore */
+          }
         });
 
-        s.on("connect_error", (error: any) => {
-          console.log("[Socket] Connection error:", error);
-        });
-
-        // Test socket by listening for any events
-        s.onAny((eventName: string, ...args: any[]) => {
-          console.log(`[Socket] Received event: ${eventName}`, args);
+        s.on("paymentFailed", (data: any) => {
+          try {
+            showPaymentToast(
+              data?.orderId
+                ? `Payment failed — Order #${String(data.orderId).slice(-6).toUpperCase()}`
+                : "Payment failed",
+              "error",
+            );
+          } catch {
+            /* ignore */
+          }
         });
       } catch (err) {
-        console.warn("[Socket] failed to init socket", err);
+        console.warn("[Socket] init failed:", err);
       }
     })();
   }, [userId]);
 
   useRegisterPushToken(userId ?? "");
-
-  // Initialize browser notifications for web
   useBrowserNotifications();
 
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
+  if (!loaded) return null;
 
   return (
     <ErrorBoundary>
@@ -261,254 +323,316 @@ export default function RootLayout() {
           <AddressProvider>
             <CartProvider>
               <VendorProvider>
-                <WebContainer>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    {/* Offline Notice Banner */}
-                    <OfflineNotice />
+                <NotificationProvider>
+                  <WebContainer>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <OfflineNotice />
 
-                    <Stack>
-                      <Stack.Screen
-                        name="onboarding"
-                        options={{
-                          headerShown: false,
-                          animation: "fade_from_bottom",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="index"
-                        options={{
-                          headerShown: false,
-                          animation: "fade_from_bottom",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="auth/index"
-                        options={{
-                          headerShown: false,
-                          animation: "fade_from_bottom",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="auth/otp"
-                        options={{
-                          headerShown: false,
-                          animation: "slide_from_right",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="auth/complete-profile"
-                        options={{
-                          headerShown: false,
-                          animation: "slide_from_right",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="auth/add-home-address"
-                        options={{
-                          headerShown: false,
-                          animation: "slide_from_right",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen
-                        name="CategoryDetailsPage"
-                        options={{
-                          headerShown: false,
-                          animation: "slide_from_right",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="AllCategoriesPage"
-                        options={{
-                          headerShown: false,
-                          animation: "slide_from_right",
-                        }}
-                      />
-                      <Stack.Screen
-                        name="SubCategoryView"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="cart"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="restaurant-details"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="shop-details"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="ShopCategoryPage"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
+                      {/* Payment result snack — appears above everything, auto-dismisses */}
+                      {paymentToast && (
+                        <View
+                          style={{
+                            position: "absolute",
+                            left: 20,
+                            right: 20,
+                            bottom: 90,
+                            backgroundColor:
+                              paymentToast.variant === "error"
+                                ? "rgba(239,68,68,0.95)"
+                                : "rgba(16,185,129,0.95)",
+                            paddingHorizontal: 14,
+                            paddingVertical: 12,
+                            borderRadius: 12,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            zIndex: 2000,
+                            shadowColor: "#000",
+                            shadowOpacity: 0.15,
+                            shadowRadius: 10,
+                            elevation: 10,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              color: "#fff",
+                              fontWeight: "700",
+                              fontSize: 14,
+                              textAlign: "center",
+                            }}
+                          >
+                            {paymentToast.message}
+                          </Text>
+                        </View>
+                      )}
 
-                      <Stack.Screen
-                        name="checkout"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="product/[productId]"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="menuitem/[menuitem]"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="ViewAllRestaurants"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="order-details"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="order-tracking"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="ViewAllStores"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="storeCategoryProducts"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="payment-methods"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor-application"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor/dashboard"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor/products"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor/orders"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor/profile"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="vendor/menu"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
+                      <Stack>
+                        <Stack.Screen
+                          name="onboarding"
+                          options={{
+                            headerShown: false,
+                            animation: "fade_from_bottom",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="index"
+                          options={{
+                            headerShown: false,
+                            animation: "fade_from_bottom",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="auth/index"
+                          options={{
+                            headerShown: false,
+                            animation: "fade_from_bottom",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="auth/otp"
+                          options={{
+                            headerShown: false,
+                            animation: "slide_from_right",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="auth/complete-profile"
+                          options={{
+                            headerShown: false,
+                            animation: "slide_from_right",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="auth/add-home-address"
+                          options={{
+                            headerShown: false,
+                            animation: "slide_from_right",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen
+                          name="CategoryDetailsPage"
+                          options={{
+                            headerShown: false,
+                            animation: "slide_from_right",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="AllCategoriesPage"
+                          options={{
+                            headerShown: false,
+                            animation: "slide_from_right",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="SubCategoryView"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="cart"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="restaurant-details"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="shop-details"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="ShopCategoryPage"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="checkout"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="product/[productId]"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="menuitem/[menuitem]"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="ViewAllRestaurants"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="order-details"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="order-tracking"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="ViewAllStores"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="storeCategoryProducts"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="payment-methods"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="payment-success"
+                          options={{
+                            animation: "fade",
+                            headerShown: false,
+                            presentation: "card",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="payment-cancel"
+                          options={{
+                            animation: "fade",
+                            headerShown: false,
+                            presentation: "card",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="payment-failed"
+                          options={{
+                            animation: "fade",
+                            headerShown: false,
+                            presentation: "card",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor-application"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor/dashboard"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor/products"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor/orders"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor/profile"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="vendor/menu"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="custom-delivery/index"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="custom-delivery/[deliveryId]"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="browse/[section]"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="terango-picks"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="+not-found"
+                          options={{ headerShown: false }}
+                        />
+                      </Stack>
 
-                      <Stack.Screen
-                        name="custom-delivery/index"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="custom-delivery/[deliveryId]"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="browse/[section]"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="terango-picks"
-                        options={{
-                          animation: "slide_from_right",
-                          headerShown: false,
-                        }}
-                      />
-                      <Stack.Screen
-                        name="+not-found"
-                        options={{ headerShown: false }}
-                      />
-                    </Stack>
-                    <StatusBar barStyle="default" />
-                  </GestureHandlerRootView>
-                </WebContainer>
+                      <StatusBar barStyle="default" />
+                    </GestureHandlerRootView>
+                  </WebContainer>
+                </NotificationProvider>
               </VendorProvider>
             </CartProvider>
           </AddressProvider>
         </PermissionProvider>
+
         <OrderSuccessModal
           visible={showOrderSuccessModal}
           onClose={handleCloseOrderSuccessModal}

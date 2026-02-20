@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -6,8 +6,8 @@
     <title>TeranGo - Payment Success</title>
     <style>
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          sans-serif;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         background: linear-gradient(135deg, #ff6b35, #ff8f65);
         color: white;
         margin: 0;
@@ -121,11 +121,11 @@
       // App schemes for different platforms
       const appSchemes = {
         ios:
-          "teranggo://payment/success" + (orderId ? `?orderId=${orderId}` : ""),
+          "teranggo://payment-success" + (orderId ? `?orderId=${orderId}` : ""),
         android:
-          "teranggo://payment/success" + (orderId ? `?orderId=${orderId}` : ""),
+          "teranggo://payment-success" + (orderId ? `?orderId=${orderId}` : ""),
         expo:
-          "exp://192.168.0.237:8081/--/payment/success" +
+          "exp://192.168.0.237:8081/--/payment-success" +
           (orderId ? `?orderId=${orderId}` : ""),
       };
 

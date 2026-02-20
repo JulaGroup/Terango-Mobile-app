@@ -1,239 +1,95 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-} from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SecureStorage from "expo-secure-store";
 import { orderApi } from "@/lib/api";
 
-export default function PaymentSuccess() {
+/**
+ * Minimal fallback screen — only reached on cold-launch or if the deep-link
+ * bypasses _layout.tsx (rare). Just confirms payment with the server (idempotent)
+ * then routes to Home. The toast in _layout.tsx fires via the deep-link handler;
+ * the OrderSuccessModal is for order *creation* (checkout), not payment.
+ */
+export default function PaymentSuccessScreen() {
   const router = useRouter();
-  const { orderId, paymentId } = useLocalSearchParams();
-  const [countdown, setCountdown] = useState(3);
-  const [isConfirming, setIsConfirming] = useState(true);
-  const [confirmationError, setConfirmationError] = useState<string | null>(
-    null,
-  );
+  const { orderId, paymentId, error } = useLocalSearchParams<{
+    orderId?: string;
+    paymentId?: string;
+    error?: string;
+  }>();
 
-  // Debug logging
-  useEffect(() => {
-    console.log("🔥 PAYMENT SUCCESS PAGE ACCESSED");
-    console.log("Order ID:", orderId);
-    console.log("Payment ID:", paymentId);
-    // Check if we're in web environment
-    if (typeof window !== "undefined") {
-      console.log("Current URL:", window.location.href);
-    }
-  }, [orderId, paymentId]);
+  const ranRef = useRef(false);
 
   useEffect(() => {
-    // Confirm payment success with backend
-    const confirmPayment = async () => {
-      if (!orderId) {
-        console.warn("No orderId provided to payment success page");
-        setConfirmationError("Order ID is missing");
-        setIsConfirming(false);
+    if (ranRef.current) return;
+    ranRef.current = true;
+
+    (async () => {
+      if (error) {
+        router.replace({
+          pathname: "/payment-cancel",
+          params: { orderId: orderId || "", reason: "payment_error" },
+        });
         return;
       }
 
-      try {
-        console.log("🔄 Confirming payment with API...");
-        const data = await orderApi.confirmPaymentSuccess(
-          orderId as string,
-          paymentId as string,
-        );
-        console.log("✅ Payment confirmed successfully:", data);
-        setIsConfirming(false);
-      } catch (error: any) {
-        console.error("❌ Payment confirmation failed:", error);
-        setConfirmationError(error.message || "Failed to confirm payment");
-        setIsConfirming(false);
-        // Don't throw - we still want to show the success page
-      }
-    };
-
-    confirmPayment();
-  }, [orderId, paymentId]);
-
-  useEffect(() => {
-    // Countdown and redirect to order details (only after confirmation attempt)
-    if (isConfirming) return;
-
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          // Don't auto-redirect for now - let user manually navigate
-          // if (orderId) {
-          //   router.replace(`/order-details?orderId=${orderId}`);
-          // } else {
-          //   router.replace("/(tabs)/orders");
-          // }
-          return 0;
+      // Idempotent confirm — backend already updated DB via redirect route
+      if (orderId) {
+        try {
+          await orderApi.confirmPaymentSuccess(
+            orderId,
+            (paymentId as string) || undefined,
+          );
+          console.log("[PaymentSuccess] confirmed (fallback)");
+        } catch {
+          console.warn("[PaymentSuccess] confirm failed (non-fatal)");
         }
-        return prev - 1;
-      });
-    }, 1000);
+      }
 
-    return () => clearInterval(timer);
-  }, [orderId, router, isConfirming]);
+      // Go home — _layout deep-link handler already fired the toast
+      router.replace({ pathname: "/" });
+    })();
+  }, [error, orderId, paymentId, router]);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="checkmark-circle" size={100} color="#10B981" />
-        </View>
-
-        <Text style={styles.title}>Payment Successful! 🎉</Text>
-        <Text style={styles.message}>
-          Your payment has been processed successfully.
-        </Text>
-
-        {orderId && (
-          <Text style={styles.orderId}>Order #{String(orderId).slice(-6)}</Text>
-        )}
-
-        {isConfirming && (
-          <View style={styles.confirmationContainer}>
-            <ActivityIndicator size="small" color={PrimaryColor} />
-            <Text style={styles.confirmationText}>Confirming payment...</Text>
-          </View>
-        )}
-
-        {confirmationError && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>
-              ⚠️ Payment confirmation delayed: {confirmationError}
-            </Text>
-            <Text style={styles.errorSubtext}>
-              Your order will still be processed. Check your orders page for
-              updates.
-            </Text>
-          </View>
-        )}
-
-        {!isConfirming && !confirmationError && (
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => {
-                if (orderId) {
-                  router.replace(`/order-details?orderId=${orderId}`);
-                } else {
-                  router.replace("/(tabs)/orders");
-                }
-              }}
-            >
-              <Text style={styles.buttonText}>View Order Details</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {!isConfirming && (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.redirectText}>
-              Auto-redirect disabled for debugging
-            </Text>
-          </View>
-        )}
+        <Ionicons name="checkmark-circle" size={80} color="#10B981" />
+        <Text style={styles.title}>Payment Confirmed</Text>
+        <ActivityIndicator
+          size="small"
+          color={PrimaryColor}
+          style={styles.spinner}
+        />
+        <Text style={styles.subtitle}>Returning to TeranGO…</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
   content: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
-  },
-  iconContainer: {
-    marginBottom: 30,
+    padding: 24,
   },
   title: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 12,
+    color: "#111827",
+    marginTop: 20,
+    marginBottom: 8,
     textAlign: "center",
   },
-  message: {
-    fontSize: 16,
-    color: "#6B7280",
+  subtitle: {
+    fontSize: 15,
+    color: "#6b7280",
     textAlign: "center",
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    marginTop: 8,
   },
-  orderId: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: PrimaryColor,
-    marginBottom: 30,
-  },
-  confirmationContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 20,
-  },
-  confirmationText: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
-  errorContainer: {
-    backgroundColor: "#FEF3C7",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: "#F59E0B",
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#92400E",
-    fontWeight: "500",
-    marginBottom: 4,
-  },
-  errorSubtext: {
-    fontSize: 12,
-    color: "#78350F",
-  },
-  buttonContainer: {
-    marginTop: 20,
-  },
-  button: {
-    backgroundColor: PrimaryColor,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 20,
-  },
-  redirectText: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
+  spinner: { marginTop: 24 },
 });
