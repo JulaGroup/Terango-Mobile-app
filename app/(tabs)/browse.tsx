@@ -599,7 +599,7 @@ const BrowseScreen: React.FC = () => {
         onPress={() => handleSubcategoryPress(sub)}
       >
         <View style={styles.subcategoryIconWrap}>
-          <Ionicons name={icon} size={22} color={PrimaryColor} />
+          <Ionicons name={icon} size={18} color={PrimaryColor} />
         </View>
         <Text style={styles.subcategoryName} numberOfLines={2}>
           {sub.name}

@@ -20,6 +20,8 @@ export default function OTP() {
   const otpInput = useRef<OTPTextInput>(null);
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [retryAfter, setRetryAfter] = useState<string | null>(null);
   const router = useRouter();
 
   // Loader animations
@@ -84,17 +86,21 @@ export default function OTP() {
   });
 
   const handleVerify = async () => {
+    // clear previous error before attempting
+    setErrorMsg(null);
+    setRetryAfter(null);
+
     if (loading) return;
     setLoading(true);
     if (code.length !== 4) {
-      alert("Please enter full OTP");
+      setErrorMsg("Please enter all 4 digits");
       setLoading(false);
       return;
     }
 
     const phone = await safeGetItem("userPhone");
     if (!phone) {
-      alert(
+      setErrorMsg(
         "Missing phone number. Please go back and enter your phone number again.",
       );
       setLoading(false);
@@ -109,11 +115,23 @@ export default function OTP() {
         router.replace("/(tabs)");
       }
     } catch (err: any) {
-      alert(err.message);
+      // show nicer UI messages for rate limit and others
+      const data = err.response?.data;
+      if (data?.retryAfter) {
+        setRetryAfter(data.retryAfter);
+      }
+      setErrorMsg(data?.error || err.message || "OTP verification failed");
     } finally {
       setLoading(false);
     }
   };
+
+  // when OTP code reaches 4 digits, auto-submit
+  useEffect(() => {
+    if (code.length === 4 && !loading) {
+      handleVerify();
+    }
+  }, [code, loading]);
 
   return (
     <View style={styles.container}>
@@ -123,6 +141,11 @@ export default function OTP() {
         <Text style={styles.title}>Enter Verification Code</Text>
         <Text style={styles.subtitle}>We sent a 4-digit code via WhatsApp</Text>
         <Text style={styles.timerText}>Code expires in 15 minutes</Text>
+
+        {errorMsg && <Text style={styles.errorText}>{errorMsg}</Text>}
+        {retryAfter && (
+          <Text style={styles.retryText}>Try again after {retryAfter}</Text>
+        )}
 
         <OTPTextInput
           ref={otpInput}
@@ -135,8 +158,11 @@ export default function OTP() {
         />
 
         <TouchableOpacity
-          disabled={loading}
-          style={[styles.button, loading && styles.buttonDisabled]}
+          disabled={loading || code.length !== 4}
+          style={[
+            styles.button,
+            (loading || code.length !== 4) && styles.buttonDisabled,
+          ]}
           onPress={handleVerify}
         >
           {loading ? (
@@ -189,6 +215,18 @@ const styles = StyleSheet.create({
     color: "#9CA3AF",
     textAlign: "center",
     marginBottom: 32,
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 14,
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  retryText: {
+    color: "#F59E0B",
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: 16,
   },
   otpInput: {
     width: 50,

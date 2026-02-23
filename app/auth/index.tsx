@@ -16,6 +16,8 @@ import {
   View,
   Modal,
   FlatList,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 
 interface Country {
@@ -112,110 +114,118 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar translucent backgroundColor="transparent" />
-      <View
-        style={{
-          marginBottom: 40,
-          marginTop: 20,
-          borderRadius: 12,
-          overflow: "hidden",
-          ...(Platform.OS === "ios"
-            ? {
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.08,
-                shadowRadius: 24,
-                elevation: 8,
-              }
-            : {}),
-        }}
-      >
-        <Image
-          source={require("../../assets/logo-no-background.png")}
+    <TouchableWithoutFeedback
+      onPress={() => Keyboard.dismiss()}
+      accessible={false}
+    >
+      <View style={styles.container}>
+        <StatusBar translucent backgroundColor="transparent" />
+        <View
           style={{
-            width: 300,
-            height: 100,
-            resizeMode: "contain",
-            alignSelf: "center",
+            marginBottom: 40,
+            marginTop: 20,
+            borderRadius: 12,
+            overflow: "hidden",
+            ...(Platform.OS === "ios"
+              ? {
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 24,
+                  elevation: 8,
+                }
+              : {}),
           }}
-        />
-      </View>
-      <Text style={styles.header}>Welcome</Text>
-      <Text style={styles.subHeader}>Enter your phone number to continue</Text>
-      <View style={styles.whatsappNotice}>
-        <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-        <Text style={styles.whatsappText}>
-          {"We'll send a verification code via WhatsApp"}
-        </Text>
-      </View>
-
-      <View style={styles.inputContainer}>
-        {/* Phone Input with Country Picker */}
-        <View style={styles.phoneInputWrapper}>
-          <TouchableOpacity
-            style={styles.countryPickerButton}
-            onPress={() => setShowCountryPicker(true)}
-          >
-            <Text style={styles.flagText}>{selectedCountry.flag}</Text>
-            <Text style={styles.dialCodeText}>{selectedCountry.dialCode}</Text>
-            <Ionicons name="chevron-down" size={16} color="#6B7280" />
-          </TouchableOpacity>
-
-          <TextInput
-            placeholder={`Phone number (${selectedCountry.maxLength} digits)`}
-            placeholderTextColor="#9CA3AF"
-            value={phone}
-            onChangeText={handlePhoneChange}
-            style={styles.phoneInput}
-            keyboardType="phone-pad"
-            maxLength={selectedCountry.maxLength}
+        >
+          <Image
+            source={require("../../assets/logo-no-background.png")}
+            style={{
+              width: 300,
+              height: 100,
+              resizeMode: "contain",
+              alignSelf: "center",
+            }}
           />
         </View>
-
-        {/* Phone Length Indicator */}
-        <View style={styles.lengthIndicator}>
-          <Text
-            style={[
-              styles.lengthText,
-              phone.length === selectedCountry.maxLength &&
-                styles.lengthTextValid,
-            ]}
-          >
-            {phone.length}/{selectedCountry.maxLength} digits
+        <Text style={styles.header}>Welcome</Text>
+        <Text style={styles.subHeader}>
+          Enter your phone number to continue
+        </Text>
+        <View style={styles.whatsappNotice}>
+          <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+          <Text style={styles.whatsappText}>
+            {"We'll send a verification code via WhatsApp"}
           </Text>
         </View>
-      </View>
 
-      <TouchableOpacity
-        style={[
-          styles.button,
-          (loading || !isValidPhone) && styles.buttonDisabled,
-        ]}
-        onPress={handleSubmit}
-        disabled={loading || !isValidPhone}
-      >
-        <Text style={styles.buttonText}>
-          {loading ? "Loading..." : "Continue"}
-        </Text>
-      </TouchableOpacity>
+        <View style={styles.inputContainer}>
+          {/* Phone Input with Country Picker */}
+          <View style={styles.phoneInputWrapper}>
+            <TouchableOpacity
+              style={styles.countryPickerButton}
+              onPress={() => setShowCountryPicker(true)}
+            >
+              <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+              <Text style={styles.dialCodeText}>
+                {selectedCountry.dialCode}
+              </Text>
+              <Ionicons name="chevron-down" size={16} color="#6B7280" />
+            </TouchableOpacity>
 
-      {/* Browse as Guest Button */}
-      <TouchableOpacity
-        style={styles.guestButton}
-        onPress={() => {
-          // Mark onboarding as seen to prevent showing it again
-          SecureStorage.setItem("hasSeenOnboarding", "true");
-          router.replace("/(tabs)");
-        }}
-      >
-        <Ionicons name="eye-outline" size={20} color={PrimaryColor} />
-        <Text style={styles.guestButtonText}>Browse as Guest</Text>
-      </TouchableOpacity>
+            <TextInput
+              placeholder={`Phone number (${selectedCountry.maxLength} digits)`}
+              placeholderTextColor="#9CA3AF"
+              value={phone}
+              onChangeText={handlePhoneChange}
+              style={styles.phoneInput}
+              keyboardType="phone-pad"
+              maxLength={selectedCountry.maxLength}
+            />
+          </View>
 
-      <Text style={styles.or}>or</Text>
+          {/* Phone Length Indicator */}
+          <View style={styles.lengthIndicator}>
+            <Text
+              style={[
+                styles.lengthText,
+                phone.length === selectedCountry.maxLength &&
+                  styles.lengthTextValid,
+              ]}
+            >
+              {phone.length}/{selectedCountry.maxLength} digits
+            </Text>
+          </View>
+        </View>
 
-      {/* <TouchableOpacity style={styles.socialButton}>
+        <TouchableOpacity
+          style={[
+            styles.button,
+            (loading || !isValidPhone) && styles.buttonDisabled,
+          ]}
+          onPress={handleSubmit}
+          disabled={loading || !isValidPhone}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Loading..." : "Continue"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Browse as Guest Button */}
+        <TouchableOpacity
+          style={styles.guestButton}
+          onPress={() => {
+            // Mark onboarding as seen to prevent showing it again
+            SecureStorage.setItem("hasSeenOnboarding", "true");
+            router.replace("/(tabs)");
+          }}
+        >
+          <Ionicons name="eye-outline" size={20} color={PrimaryColor} />
+          <Text style={styles.guestButtonText}>Browse as Guest</Text>
+        </TouchableOpacity>
+
+        <Text style={styles.or}>or</Text>
+
+        {/* <TouchableOpacity style={styles.socialButton}>
         <Ionicons name="logo-google" size={20} color="white" />
         <Text style={styles.socialText}>Continue with Google</Text>
       </TouchableOpacity>
@@ -227,57 +237,64 @@ export default function AuthScreen() {
         </TouchableOpacity>
       )} */}
 
-      {/* Country Picker Modal */}
-      <Modal
-        visible={showCountryPicker}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCountryPicker(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
-                <Ionicons name="close" size={24} color="#1F2937" />
-              </TouchableOpacity>
-            </View>
-
-            <FlatList
-              data={COUNTRIES}
-              keyExtractor={(item) => item.code}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.countryItem,
-                    selectedCountry.code === item.code &&
-                      styles.countryItemSelected,
-                  ]}
-                  onPress={() => handleCountrySelect(item)}
-                >
-                  <Text style={styles.countryFlag}>{item.flag}</Text>
-                  <View style={styles.countryInfo}>
-                    <Text style={styles.countryName}>{item.name}</Text>
-                    <Text style={styles.countryDialCode}>{item.dialCode}</Text>
-                  </View>
-                  {selectedCountry.code === item.code && (
-                    <Ionicons name="checkmark" size={24} color={PrimaryColor} />
-                  )}
+        {/* Country Picker Modal */}
+        <Modal
+          visible={showCountryPicker}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowCountryPicker(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Country</Text>
+                <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                  <Ionicons name="close" size={24} color="#1F2937" />
                 </TouchableOpacity>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+              </View>
 
-      {/* Rate Limit Modal */}
-      <RateLimitModal
-        visible={showRateLimitModal}
-        onClose={() => setShowRateLimitModal(false)}
-        retryAfter={rateLimitInfo.retryAfter}
-        message={rateLimitInfo.message}
-      />
-    </View>
+              <FlatList
+                data={COUNTRIES}
+                keyExtractor={(item) => item.code}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.countryItem,
+                      selectedCountry.code === item.code &&
+                        styles.countryItemSelected,
+                    ]}
+                    onPress={() => handleCountrySelect(item)}
+                  >
+                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                    <View style={styles.countryInfo}>
+                      <Text style={styles.countryName}>{item.name}</Text>
+                      <Text style={styles.countryDialCode}>
+                        {item.dialCode}
+                      </Text>
+                    </View>
+                    {selectedCountry.code === item.code && (
+                      <Ionicons
+                        name="checkmark"
+                        size={24}
+                        color={PrimaryColor}
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
+
+        {/* Rate Limit Modal */}
+        <RateLimitModal
+          visible={showRateLimitModal}
+          onClose={() => setShowRateLimitModal(false)}
+          retryAfter={rateLimitInfo.retryAfter}
+          message={rateLimitInfo.message}
+        />
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 

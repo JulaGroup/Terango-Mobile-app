@@ -40,7 +40,7 @@ const ProductCard = ({
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
   const lastPressTime = useRef(0);
   const isOrderingDisabled = orderingDisabled === true;
@@ -89,7 +89,7 @@ const ProductCard = ({
   const discountPercentage =
     product.discountedPrice && product.discountedPrice < product.price
       ? Math.round(
-          ((product.price - product.discountedPrice) / product.price) * 100
+          ((product.price - product.discountedPrice) / product.price) * 100,
         )
       : 0;
 
@@ -142,12 +142,10 @@ const ProductCard = ({
         {product.image && !imageLoadError ? (
           <Image
             source={
-              typeof product.image === "string"
-                ? product.image
-                : product.image
+              typeof product.image === "string" ? product.image : product.image
             }
             style={styles.image}
-            contentFit="cover"
+            contentFit="contain"
             transition={200}
             cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}
@@ -300,7 +298,7 @@ const styles = StyleSheet.create({
   image: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#ffff",
   },
   imagePlaceholder: {
     flex: 1,

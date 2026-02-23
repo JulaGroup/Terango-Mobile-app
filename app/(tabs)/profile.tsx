@@ -239,14 +239,18 @@ export default function ProfilePage() {
         cancelable: false,
       });
 
-      const response = await axios.delete(
-        `${API_URL}/api/auth/delete-account`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
+      const url = `${API_URL}/auth/delete-account`;
+      console.log("[Profile] Deleting account - URL:", url);
+      console.log(
+        "[Profile] Using token (first 8 chars):",
+        token ? `${token.substring(0, 8)}...` : "<no-token>",
       );
+
+      const response = await axios.delete(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (response.status === 200) {
         // Clear all user data
@@ -269,9 +273,13 @@ export default function ProfilePage() {
       }
     } catch (error: any) {
       console.error("Error deleting account:", error);
+      console.error("Error response data:", error.response?.data);
 
       const errorMessage =
-        error.response?.data?.error ||
+        (error.response &&
+          (error.response.data?.error ||
+            error.response.data?.message ||
+            `Server responded ${error.response.status}`)) ||
         "Failed to delete account. Please try again or contact support.";
 
       Alert.alert("Error", errorMessage);

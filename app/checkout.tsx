@@ -40,6 +40,8 @@ import {
   getTownById,
 } from "@/constants/gambianTowns";
 import { useDeliverySettings } from "@/hooks/useDeliverySettings";
+import { useDeliveryZone } from "@/hooks/useDeliveryZone";
+import DeliveryZoneBadge from "@/components/checkout/DeliveryZoneBadge";
 /*
  Try to use expo-linear-gradient if it's available in the project; otherwise
  fall back to a lightweight stub that uses a plain View so TypeScript and the
@@ -65,6 +67,8 @@ export default function Checkout() {
 
   // Fetch dynamic delivery settings from admin panel
   const { getZoneFee } = useDeliverySettings();
+
+  // 🗺️ Client-side delivery zone check — instant feedback before API call (hook moved below state declarations)
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -220,6 +224,13 @@ export default function Checkout() {
     longitude: number;
   } | null>(null);
 
+  // 🗺️ Client-side delivery zone check — instant feedback before API call
+  const deliveryZone = useDeliveryZone(
+    form.orderType === "DELIVERY" && !form.isGiftOrder
+      ? customerCoordinates
+      : null,
+  );
+
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
@@ -269,7 +280,11 @@ export default function Checkout() {
       (!form.recipientName.trim() ||
         !form.recipientPhone.trim() ||
         !form.recipientAddress.trim())) ||
-    (form.orderType === "DELIVERY" && loadingDeliveryFee);
+    (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
+    // 🗺️ Block order if address is outside serviceable zone
+    (form.orderType === "DELIVERY" &&
+      !form.isGiftOrder &&
+      deliveryZone.isServiceable === false);
 
   // Auto-open location modal when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
@@ -1934,6 +1949,12 @@ export default function Checkout() {
                     Refresh addresses
                   </Text>
                 </TouchableOpacity>
+
+                {/* 🗺️ Delivery zone validation badge */}
+                <DeliveryZoneBadge
+                  zone={deliveryZone}
+                  onChangeAddress={() => setShowLocationModal(true)}
+                />
               </View>
             )}
 
@@ -2689,7 +2710,9 @@ export default function Checkout() {
                     ? "Placing Order..."
                     : loadingDeliveryFee
                       ? "Calculating Delivery Fee..."
-                      : "Place Order"}
+                      : deliveryZone.isServiceable === false
+                        ? "Address Outside Zone"
+                        : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>

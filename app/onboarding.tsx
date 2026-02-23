@@ -21,7 +21,7 @@ const slides = [
     key: "1",
     title: "Welcome to TeranGo!",
     description:
-      "Your go-to delivery app in The Gambia. Start with food, groceries, and pharmacy — fast, fresh, and reliable to your door.",
+      "Your go-to super app in The Gambia. Start with delivery of food, groceries, and pharmacy — fast, fresh, and reliable to your door.",
     image: require("../assets/images/onboarding/motor0.jpg"),
   },
   {

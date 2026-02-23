@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect, useContext } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   StatusBar,
   Animated,
+  AppState,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -16,11 +17,14 @@ import { useAddress } from "@/context/AddressContext";
 import { AddressService } from "@/services/AddressService";
 import { SecureStorage } from "@/utils/secureStorage";
 import { LinearGradient } from "expo-linear-gradient";
+import { PermissionContext } from "@/context/PermissionContext";
+import * as Location from "expo-location";
 
 export default function AddHomeAddress() {
   const router = useRouter();
   const { getCurrentLocation } = useLocation();
   const { addAddress } = useAddress();
+  const permissionContext = useContext(PermissionContext);
 
   const [loading, setLoading] = useState(false);
   const [locationFetched, setLocationFetched] = useState(false);
@@ -31,12 +35,15 @@ export default function AddHomeAddress() {
     longitude: number;
   } | null>(null);
 
+  // Track app state so we can re-attempt location after user returns from Settings
+  const appState = React.useRef(AppState.currentState);
+  const waitingForSettingsReturn = React.useRef(false);
+
   // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
   useEffect(() => {
-    // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -52,26 +59,45 @@ export default function AddHomeAddress() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleUseCurrentLocation = async () => {
+  // When user returns from Settings, automatically retry fetching location
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const comingToForeground =
+        appState.current.match(/inactive|background/) && nextState === "active";
+
+      appState.current = nextState;
+
+      if (comingToForeground && waitingForSettingsReturn.current) {
+        waitingForSettingsReturn.current = false;
+        // Small delay to let iOS fully restore permission state
+        setTimeout(() => {
+          attemptFetchLocation();
+        }, 500);
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  /**
+   * Core location fetch — called after permission is confirmed granted.
+   */
+  const attemptFetchLocation = async () => {
     setLoading(true);
     try {
-      // Get current location (permission check is handled by useLocation hook)
       const currentLoc = await getCurrentLocation();
       if (!currentLoc) {
         alert(
-          "Unable to get your location. Please enable location permissions in settings and try again."
+          "Unable to get your location. Please enable location permissions in Settings and try again.",
         );
-        setLoading(false);
         return;
       }
 
-      // Reverse geocode to get readable address
       const displayAddress = await AddressService.getAddressFromCoordinates(
         currentLoc.latitude,
-        currentLoc.longitude
+        currentLoc.longitude,
       );
 
-      // Set preview for user confirmation
       setAddressPreview({
         street: displayAddress,
         city: currentLoc.address || "Banjul",
@@ -88,6 +114,68 @@ export default function AddHomeAddress() {
     }
   };
 
+  /**
+   * Main handler for "Use Current Location" button.
+   *
+   * Strategy:
+   * 1. Check current permission status directly via expo-location.
+   * 2a. If granted → fetch immediately.
+   * 2b. If undetermined → ask via PermissionContext modal (which triggers native prompt),
+   *     then re-check and fetch.
+   * 2c. If denied → tell user to open Settings; set flag so we auto-retry on return.
+   */
+  const handleUseCurrentLocation = async () => {
+    setLoading(true);
+    try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+
+      if (status === "granted") {
+        await attemptFetchLocation();
+        return;
+      }
+
+      if (status === "undetermined") {
+        // Use PermissionContext to show the native permission prompt
+        if (permissionContext) {
+          setLoading(false); // release loading while modal is shown
+          await permissionContext.requestLocationPermission();
+
+          // Re-check after user responds to the prompt
+          const { status: newStatus } =
+            await Location.getForegroundPermissionsAsync();
+
+          if (newStatus === "granted") {
+            await attemptFetchLocation();
+          } else {
+            // User denied — nudge them toward Settings
+            alert(
+              "Location permission denied. You can enable it in Settings → Privacy & Security → Location Services → TeranGO.",
+            );
+          }
+        } else {
+          // Fallback: ask directly if context is unavailable
+          const { status: newStatus } =
+            await Location.requestForegroundPermissionsAsync();
+          if (newStatus === "granted") {
+            await attemptFetchLocation();
+          }
+        }
+        return;
+      }
+
+      // Status is "denied" — user must go to Settings
+      setLoading(false);
+      waitingForSettingsReturn.current = true;
+      alert(
+        "Location permission is disabled. Please go to Settings → Privacy & Security → Location Services → TeranGO and enable 'While Using the App', then come back.",
+      );
+    } catch (error) {
+      console.error("Permission check error:", error);
+      setLoading(false);
+      alert("Failed to check location permissions. Please try again.");
+    }
+  };
+
   const handleSaveAddress = async () => {
     if (!addressPreview) return;
 
@@ -96,7 +184,6 @@ export default function AddHomeAddress() {
       const userId = await SecureStorage.getItem("userId");
       if (!userId) throw new Error("User ID not found");
 
-      // Save as default home address
       await addAddress({
         label: "Home",
         street: addressPreview.street,
@@ -106,10 +193,7 @@ export default function AddHomeAddress() {
         longitude: addressPreview.longitude,
       });
 
-      // Mark onboarding as complete
       await SecureStorage.setItem("addressOnboardingComplete", "true");
-
-      // Navigate to main app
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Error saving address:", error);
@@ -121,7 +205,6 @@ export default function AddHomeAddress() {
 
   const handleSkip = async () => {
     try {
-      // Mark that user skipped this step
       await SecureStorage.setItem("addressOnboardingComplete", "skipped");
       router.replace("/(tabs)");
     } catch (error) {
@@ -189,7 +272,6 @@ export default function AddHomeAddress() {
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
           {!locationFetched ? (
-            // Show "Use Current Location" button
             <TouchableOpacity
               style={[
                 styles.primaryButton,
@@ -215,7 +297,6 @@ export default function AddHomeAddress() {
               )}
             </TouchableOpacity>
           ) : (
-            // Show "Continue" button after location is fetched
             <TouchableOpacity
               style={[
                 styles.primaryButton,
@@ -270,7 +351,6 @@ export default function AddHomeAddress() {
   );
 }
 
-// Benefit Item Component
 const BenefitItem = ({ icon, text }: { icon: string; text: string }) => (
   <View style={styles.benefitItem}>
     <View style={styles.benefitIconContainer}>
@@ -289,20 +369,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 20,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    marginBottom: 20,
-  },
-  skipButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  skipText: {
-    fontSize: 16,
-    color: "#6B7280",
-    fontWeight: "600",
   },
   illustrationContainer: {
     alignItems: "center",
