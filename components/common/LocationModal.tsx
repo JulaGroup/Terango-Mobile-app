@@ -466,11 +466,11 @@ const LocationModal = ({
         </View>
 
         <View style={styles.formContent}>
-          <Text style={styles.inputLabel}>
+          {/* <Text style={styles.inputLabel}>
             {isGooglePlacesAvailable
               ? "Search for a location"
               : "Current options for adding addresses"}
-          </Text>
+          </Text> */}
           {isGooglePlacesAvailable ? (
             // Google Places Autocomplete (for future use)
             <View style={styles.googlePlacesContainer}>
@@ -511,6 +511,14 @@ const LocationModal = ({
             </View>
           ) : (
             <View style={styles.manualAddressContainer}>
+              {/* Instructional text to make the button more discoverable */}
+              <View style={styles.instructionContainer}>
+                <Text style={styles.instructionText}>
+                  Tap the big orange button below to automatically detect your
+                  current location. No typing or searching required.
+                </Text>
+              </View>
+
               {/* BIG FETCH LOCATION BUTTON - PRIMARY ACTION */}
               <TouchableOpacity
                 style={styles.bigFetchLocationButton}
@@ -1320,6 +1328,22 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 8,
     lineHeight: 20,
+  },
+  instructionContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#FFF5EE",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ff6b00",
+    marginBottom: 16,
+  },
+  instructionText: {
+    fontSize: 15,
+    color: "#262626",
+    textAlign: "center",
+    lineHeight: 20,
+    fontWeight: "600",
   },
   buttonRow: {
     paddingTop: 20,
