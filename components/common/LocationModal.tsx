@@ -67,6 +67,22 @@ const LocationModal = ({
   onSelectAddress,
   currentAddress,
 }: LocationModalProps) => {
+  // bounding box roughly covering The Gambia
+  const GAMBIA_BOUNDS = {
+    minLat: 13.0,
+    maxLat: 14.0,
+    minLng: -17.0,
+    maxLng: -13.5,
+  };
+
+  const isWithinGambia = (lat: number, lng: number) => {
+    return (
+      lat >= GAMBIA_BOUNDS.minLat &&
+      lat <= GAMBIA_BOUNDS.maxLat &&
+      lng >= GAMBIA_BOUNDS.minLng &&
+      lng <= GAMBIA_BOUNDS.maxLng
+    );
+  };
   const [selectedTab, setSelectedTab] = useState<"Home" | "Office" | "Other">(
     "Home",
   );
@@ -200,6 +216,14 @@ const LocationModal = ({
         );
         return;
       }
+      // ensure within Gambia bounds
+      if (!isWithinGambia(currentLoc.latitude, currentLoc.longitude)) {
+        Alert.alert(
+          "Out of bounds",
+          "Your device location appears outside The Gambia. Please move to a Gambian location.",
+        );
+        return;
+      }
       // Reverse geocode to a human readable address (uses frontend service which calls Nominatim)
       const displayAddress = await AddressService.getAddressFromCoordinates(
         currentLoc.latitude,
@@ -237,6 +261,15 @@ const LocationModal = ({
         return;
       }
 
+      // enforce country bounds
+      if (!isWithinGambia(coords.latitude, coords.longitude)) {
+        Alert.alert(
+          "Out of bounds",
+          "Only addresses within The Gambia are allowed",
+        );
+        return;
+      }
+
       const display = await AddressService.getAddressFromCoordinates(
         coords.latitude,
         coords.longitude,
@@ -258,6 +291,11 @@ const LocationModal = ({
 
   const saveCurrentPreview = async () => {
     if (!currentPreview) return;
+    // block non-Gambian previews
+    if (!isWithinGambia(currentPreview.latitude, currentPreview.longitude)) {
+      Alert.alert("Invalid location", "Address must be within The Gambia.");
+      return;
+    }
     try {
       const payload = {
         label: selectedTab || "Home",

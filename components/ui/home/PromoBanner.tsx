@@ -6,7 +6,7 @@ export default function PromoSection() {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await Clipboard.setStringAsync("LAUNCH2025");
+    await Clipboard.setStringAsync("LAUNCH2026");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -46,7 +46,7 @@ export default function PromoSection() {
           <View>
             <Text style={styles.smallHeading}>Launch Offer!</Text>
             <Text style={styles.smallText}>
-              Use code <Text style={styles.promoCode}>LAUNCH2025</Text> for free
+              Use code <Text style={styles.promoCode}>LAUNCH2026</Text> for free
               delivery
             </Text>
           </View>

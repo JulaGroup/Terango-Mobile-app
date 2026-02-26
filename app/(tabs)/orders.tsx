@@ -25,6 +25,7 @@ import {
 } from "@/services/NotificationService";
 import { useRouter } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
+import { API_URL } from "@/constants/config";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -264,6 +265,10 @@ export default function Orders() {
   };
 
   // Pay from orders list (confirmation + native handling similar to order-details)
+  // NOTE: previously this passed teranggo:// URLs directly to Wave, bypassing
+  // the backend.  Wave will *never* hit those, so orders stayed in PENDING
+  // and Slack notifications never fired.  We now build HTTPS redirect URLs
+  // pointing at our server and let the backend deep-link to the app.
   const handlePayFromList = async (orderId: string, amount: number) => {
     Alert.alert(
       "Confirm Payment",
@@ -288,12 +293,21 @@ export default function Orders() {
                 console.warn("Using default payment method: wave");
               }
 
-              console.log("💳 Initiating payment...");
+              console.log("💳 Initiating payment for order:", orderId);
+
+              // derive backend base url from API_URL constant
+              const BACKEND_BASE = API_URL
+                ? String(API_URL).replace(/\/api\/?(.*)?$/, "")
+                : "https://monkfish-app-korrv.ondigitalocean.app";
+
+              const backendSuccessUrl = `${BACKEND_BASE}/api/redirect/payment-success?orderId=${orderId}`;
+              const backendCancelUrl = `${BACKEND_BASE}/api/redirect/payment-cancel?orderId=${orderId}`;
+
               const result: any = await orderApi.payForOrder(
                 orderId,
                 network,
-                "teranggo://payment-success",
-                "teranggo://payment-cancel",
+                backendSuccessUrl,
+                backendCancelUrl,
               );
 
               // Get Wave launch URL
@@ -306,10 +320,18 @@ export default function Orders() {
 
               console.log("💳 Opening Wave URL:", launchUrl);
 
-              // ✅ SIMPLIFIED: Direct opening on all platforms
+              const canOpen = await Linking.canOpenURL(launchUrl);
+              if (!canOpen) {
+                throw new Error(
+                  "Cannot open Wave URL. Ensure the Wave app is installed.",
+                );
+              }
+
               await Linking.openURL(launchUrl);
 
-              console.log("[Orders] Wave opened — awaiting deep-link callback");
+              console.log(
+                "[Orders] Wave opened — awaiting deep-link callback via backend redirect",
+              );
             } catch (error: any) {
               console.error("❌ Payment error:", error);
 

@@ -29,19 +29,19 @@
       }
     },
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/App-Icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FF6B00"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/App-Icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FF6B00"
       },
       "splash": {
-        "image": "./assets/images/splash-icon.png",
+        "image": "./assets/App-Icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FF6B00"
       },
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
@@ -119,8 +119,8 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/splash.png",
-          "color": "#FF6B35",
+          "icon": "./assets/App-Icon.png",
+          "color": "#FF6B00",
           "sounds": ["./assets/sounds/notification.mp3"]
         }
       ],

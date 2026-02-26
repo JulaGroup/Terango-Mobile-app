@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { SecureStorage } from "@/utils/secureStorage";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, Link } from "expo-router";
 import axios from "axios";
 import { API_URL } from "@/constants/config";
 import { Ionicons } from "@expo/vector-icons";
@@ -366,7 +366,16 @@ export default function ProfilePage() {
     ]);
   };
 
-  const menuItems = [
+  type MenuItem = {
+    icon: string;
+    title: string;
+    subtitle: string;
+    onPress: () => void;
+    danger?: boolean;
+    badge?: number;
+  };
+
+  const menuItems: MenuItem[] = [
     {
       icon: "person-outline",
       title: "Edit Profile",
@@ -397,13 +406,7 @@ export default function ProfilePage() {
       subtitle: "Get help or contact support",
       onPress: () => setShowHelpModal(true),
     },
-    {
-      icon: "trash-outline",
-      title: "Delete Account",
-      subtitle: "Permanently delete your account",
-      onPress: handleDeleteAccount,
-      danger: true,
-    },
+    // delete account is rendered in the footer instead of the menu
   ];
 
   // Add vendor access menu item if user is a vendor or has approved application
@@ -414,7 +417,7 @@ export default function ProfilePage() {
       subtitle: "Manage your business and orders",
       onPress: () => router.push("/vendor/dashboard"),
       badge: vendorPendingOrders,
-    } as any);
+    });
   }
 
   if (loading) {
@@ -873,7 +876,27 @@ export default function ProfilePage() {
         <View style={styles.footer}>
           <Text style={styles.footerText}>TeranGo v1.0.0</Text>
           <Text style={styles.footerSubtext}>
-            Making deliveries easier in The Gambia
+            Making life easier in The Gambia
+          </Text>
+          <Text style={styles.footerSubtext}>
+            Bringing everything at your fingertips
+          </Text>
+          <Text style={styles.footerSubtext}>©2026 TeranGo, Ltd.</Text>
+          <Link
+            href="https://terango.gm/privacy-policy.html"
+            style={{
+              marginTop: 2,
+              color: "#F8C27C",
+              fontSize: 14,
+              textDecorationLine: "underline",
+              alignSelf: "center",
+            }}
+          >
+            Terms and Conditions
+          </Link>
+          {/* delete account link underneath */}
+          <Text style={styles.deleteAccountLink} onPress={handleDeleteAccount}>
+            Delete Account
           </Text>
         </View>
       </ScrollView>
@@ -1229,6 +1252,13 @@ const styles = StyleSheet.create({
   footerSubtext: {
     fontSize: 12,
     color: "#D1D5DB",
+    textAlign: "center",
+  },
+  deleteAccountLink: {
+    marginTop: 5,
+    color: "#EF4444",
+    fontSize: 14,
+    textDecorationLine: "underline",
     textAlign: "center",
   },
 

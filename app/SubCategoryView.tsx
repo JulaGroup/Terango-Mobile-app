@@ -240,9 +240,18 @@ export default function SubCategoryView() {
     return cartItems.reduce((total, item) => total + item.quantity, 0);
   };
 
+  // Apply search filtering to products and menu items
+  const filteredProducts = data.products.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredMenuItems = data.menuItems.filter((m) =>
+    m.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const getCounts = () => {
-    const products = data.products.length;
-    const menuItems = data.menuItems.length;
+    const products = filteredProducts.length;
+    const menuItems = filteredMenuItems.length;
     const all = products + menuItems;
 
     return { all, restaurants: 0, shops: 0, products, menuItems };
@@ -258,7 +267,7 @@ export default function SubCategoryView() {
           }
         >
           {/* Products Section - 3 Column Grid */}
-          {data.products.length > 0 && (
+          {filteredProducts.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
@@ -285,7 +294,7 @@ export default function SubCategoryView() {
 
               {/* 3-Column Grid for Products */}
               <View style={styles.productGridContainer}>
-                {data.products.map((item) => {
+                {filteredProducts.map((item) => {
                   const cartQuantity =
                     cartItems.find((ci) => String(ci.id) === String(item.id))
                       ?.quantity || 0;
@@ -343,7 +352,7 @@ export default function SubCategoryView() {
           )}
 
           {/* Menu Items Section - Single Column */}
-          {data.menuItems.length > 0 && (
+          {filteredMenuItems.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionTitleRow}>
@@ -374,7 +383,7 @@ export default function SubCategoryView() {
 
               {/* Single Column for ALL Meals using MealItemCard */}
               <FlatList
-                data={data.menuItems}
+                data={filteredMenuItems}
                 keyExtractor={(item) => `menu-all-${item.id}`}
                 renderItem={({ item }) => {
                   const cartQuantity =
@@ -437,13 +446,15 @@ export default function SubCategoryView() {
 
     // Filtered view for specific tabs
     if (activeTab === "products") {
-      if (data.products.length === 0) {
+      if (filteredProducts.length === 0) {
         return (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={64} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No Products Found</Text>
             <Text style={styles.emptySubtitle}>
-              There are no products in this category yet.
+              {searchQuery
+                ? "Try a different search term."
+                : "There are no products in this category yet."}
             </Text>
           </View>
         );
@@ -455,7 +466,7 @@ export default function SubCategoryView() {
 
       return (
         <FlatList
-          data={data.products}
+          data={filteredProducts}
           numColumns={3}
           key={`products-3col`}
           keyExtractor={(item) => `product-${item.id}`}
@@ -524,20 +535,22 @@ export default function SubCategoryView() {
         />
       );
     } else if (activeTab === "menuItems") {
-      if (data.menuItems.length === 0) {
+      if (filteredMenuItems.length === 0) {
         return (
           <View style={styles.emptyState}>
             <Ionicons name="search-outline" size={64} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No Meals Found</Text>
             <Text style={styles.emptySubtitle}>
-              There are no meals in this category yet.
+              {searchQuery
+                ? "Try a different search term."
+                : "There are no meals in this category yet."}
             </Text>
           </View>
         );
       }
       return (
         <FlatList
-          data={data.menuItems}
+          data={filteredMenuItems}
           key={`menuItems-1col`}
           keyExtractor={(item) => `menu-${item.id}`}
           renderItem={({ item }) => {
@@ -725,6 +738,15 @@ export default function SubCategoryView() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchQuery("")}
+              style={styles.clearButton}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="close-circle" size={20} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -742,8 +764,9 @@ export default function SubCategoryView() {
             <Ionicons name="search-outline" size={64} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No Items Found</Text>
             <Text style={styles.emptySubtitle}>
-              No restaurants, stores, products, or meals are available in this
-              category yet.
+              {searchQuery
+                ? `No results for "${searchQuery}". Try another search.`
+                : `No restaurants, stores, products, or meals are available in this category yet.`}
             </Text>
           </View>
         ) : (
@@ -769,12 +792,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderWidth: 2,
     borderColor: "transparent",
+    position: "relative",
   },
   searchBarInput: {
     flex: 1,
     fontSize: 16,
     color: "#1E293B",
     paddingVertical: 0,
+  },
+  clearButton: {
+    marginLeft: 8,
   },
   container: {
     flex: 1,

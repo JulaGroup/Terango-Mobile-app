@@ -48,18 +48,18 @@ const { width } = Dimensions.get("window");
 
 // Card dimensions based on orientation
 const getCardDimensions = (
-  orientation: "PORTRAIT" | "LANDSCAPE" = "LANDSCAPE"
+  orientation: "PORTRAIT" | "LANDSCAPE" = "LANDSCAPE",
 ) => {
   if (orientation === "PORTRAIT") {
     return {
       width: width * 0.6, // 50% of screen width
-      height: 300, // Taller for portrait
+      height: 320, // Taller for portrait
     };
   }
   // LANDSCAPE (default)
   return {
     width: width - 40, // Full width minus padding
-    height: 150, // Standard height for landscape
+    height: 180, // Standard height for landscape
   };
 };
 
@@ -89,7 +89,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
       setError(false);
 
       const response = await fetch(
-        `${API_URL}/api/advertisements?position=${position}`
+        `${API_URL}/api/advertisements?position=${position}`,
       );
 
       if (!response.ok) {
@@ -244,7 +244,12 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
               onPress={() => item.link && handleAdPress(item)}
               style={{ marginRight: 0 }}
             >
-              <View style={[styles.card, { width: dimensions.width, height: dimensions.height }]}>
+              <View
+                style={[
+                  styles.card,
+                  { width: dimensions.width, height: dimensions.height },
+                ]}
+              >
                 <Image
                   source={item.isLocal ? item.image : { uri: item.imageUrl }}
                   style={styles.image}
@@ -264,7 +269,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
                       onPress={() => handleAdPress(item)}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.ctaText}>See More</Text>
+                      <Text style={styles.ctaText}>See more</Text>
                       <Ionicons name="arrow-forward" size={16} color="#fff" />
                     </TouchableOpacity>
                   </View>
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "40%",
+    height: "0%",
     backgroundColor: "rgba(0, 0, 0, 0.3)",
   },
   ctaContainer: {

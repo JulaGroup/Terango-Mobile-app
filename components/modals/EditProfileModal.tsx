@@ -18,7 +18,7 @@ import { API_URL } from "@/constants/config";
 
 interface User {
   fullName?: string;
-  email?: string;
+  // email?: string;
   phone?: string;
   role?: string;
   avatarUrl?: string;
@@ -39,14 +39,14 @@ export default function EditProfileModal({
   onProfileUpdated,
 }: EditProfileModalProps) {
   const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  // const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (visible && user) {
       setFullName(user.fullName || "");
-      setEmail(user.email || "");
+      // setEmail(user.email || "");
       setErrors({});
     }
   }, [visible, user]);
@@ -60,12 +60,12 @@ export default function EditProfileModal({
       newErrors.fullName = "Full name must be at least 2 characters";
     }
 
-    if (email && email.trim()) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        newErrors.email = "Please enter a valid email address";
-      }
-    }
+    // if (email && email.trim()) {
+    //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    //   if (!emailRegex.test(email.trim())) {
+    //     newErrors.email = "Please enter a valid email address";
+    //   }
+    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -88,7 +88,7 @@ export default function EditProfileModal({
 
       const updateData = {
         fullName: fullName.trim(),
-        email: email.trim() || undefined,
+        // email: email.trim() || undefined,
       };
 
       const response = await axios.put(
@@ -98,20 +98,29 @@ export default function EditProfileModal({
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
       if (response.status === 200) {
-        const updatedUser = {
-          ...user,
-          fullName: updateData.fullName,
-          email: updateData.email,
-        };
+        // server now returns { user?, profile }
+        let updatedUser: User | null = null;
+        if (response.data?.user) {
+          // respect server values rather than assuming what we sent
+          updatedUser = response.data.user;
+        } else {
+          updatedUser = {
+            ...user,
+            fullName: updateData.fullName,
+            // email: updateData.email,
+          };
+        }
 
-        // Update stored user data
-        await SecureStorage.setItem("userData", JSON.stringify(updatedUser));
+        if (updatedUser) {
+          // Update stored user data
+          await SecureStorage.setItem("userData", JSON.stringify(updatedUser));
+          onProfileUpdated(updatedUser);
+        }
 
-        onProfileUpdated(updatedUser);
         Alert.alert("Success", "Profile updated successfully!");
         onClose();
       }
@@ -218,14 +227,14 @@ export default function EditProfileModal({
               error={errors.fullName}
             />
 
-            <InputField
+            {/* <InputField
               label="Email Address"
               value={email}
               onChangeText={setEmail}
               placeholder="Enter your email (optional)"
               error={errors.email}
               keyboardType="email-address"
-            />
+            /> */}
 
             <InputField
               label="Phone Number"

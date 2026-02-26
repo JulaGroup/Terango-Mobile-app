@@ -140,6 +140,7 @@ export default function RootLayout() {
           url.includes("payment-success") ||
           url.includes("payment/success")
         ) {
+          // immediately route home so something renders while background work happens
           router.replace({ pathname: "/" });
 
           showPaymentToast(
@@ -149,7 +150,7 @@ export default function RootLayout() {
             "success",
           );
 
-          // Local + browser notification
+          // schedule notifications
           try {
             const notifTitle = "Your payment has been made successfully";
             const notifBody = orderId
@@ -184,14 +185,32 @@ export default function RootLayout() {
             console.warn("[DeepLink] Notification error:", e);
           }
 
-          // Background confirm (idempotent — backend already updated via redirect route)
+          // Background confirm — strictly a fallback; redirect handler should already
+          // have updated the DB. Log outcome for debugging and warn if orderId missing.
           if (orderId) {
+            console.log(
+              "[DeepLink] Sending background confirm for order:",
+              orderId,
+            );
             orderApi
               .confirmPaymentSuccess(orderId, paymentId)
-              .then(() => console.log("[DeepLink] BG confirm OK"))
+              .then((res) => {
+                console.log(
+                  "[DeepLink] BG confirm OK — order status:",
+                  (res as any)?.order?.status,
+                );
+              })
               .catch((e) =>
-                console.warn("[DeepLink] BG confirm failed (non-fatal):", e),
+                console.warn(
+                  "[DeepLink] BG confirm failed (non-fatal, backend redirect should have already updated DB):",
+                  e,
+                ),
               );
+          } else {
+            console.warn(
+              "[DeepLink] payment-success deep-link received WITHOUT orderId — " +
+                "DB update may not have happened. Check that Wave success_url includes ?orderId=...",
+            );
           }
 
           return;
