@@ -14,6 +14,8 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
+  Modal,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
@@ -63,6 +65,13 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ⭐ Driver Rating Modal State
+  const [ratingModalVisible, setRatingModalVisible] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingReview, setRatingReview] = useState("");
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
 
   // Web Modal State (for confirmations and alerts on web platform)
   const [modalVisible, setModalVisible] = useState(false);
@@ -434,6 +443,48 @@ export default function OrderDetailsPage() {
         },
       ],
     );
+  };
+
+  // ⭐ Submit driver rating
+  const handleRateDriver = async () => {
+    if (!order || selectedRating === 0) {
+      Alert.alert("Select a Star", "Please select at least 1 star to rate.");
+      return;
+    }
+    setRatingSubmitting(true);
+    try {
+      await orderApi.rateDriver(
+        order.id,
+        selectedRating,
+        ratingReview.trim() || undefined,
+      );
+      setRatingSubmitted(true);
+      setOrder((prev) =>
+        prev
+          ? {
+              ...prev,
+              driverRating: {
+                id: "submitted",
+                rating: selectedRating,
+                review: ratingReview.trim() || undefined,
+              },
+            }
+          : prev,
+      );
+      setTimeout(() => {
+        setRatingModalVisible(false);
+        setRatingSubmitted(false);
+        setSelectedRating(0);
+        setRatingReview("");
+      }, 1500);
+    } catch (err: any) {
+      Alert.alert(
+        "Error",
+        err.message || "Could not submit rating. Please try again.",
+      );
+    } finally {
+      setRatingSubmitting(false);
+    }
   };
 
   const handleCancelOrder = async (orderId: string) => {
@@ -960,6 +1011,35 @@ export default function OrderDetailsPage() {
                   </TouchableOpacity>
                 </View>
               </View>
+
+              {/* ⭐ Rate Your Driver — shown after delivery, once per order */}
+              {order.status === "DELIVERED" && !order.driverRating && (
+                <TouchableOpacity
+                  style={styles.rateDriverButton}
+                  onPress={() => {
+                    setSelectedRating(0);
+                    setRatingReview("");
+                    setRatingSubmitted(false);
+                    setRatingModalVisible(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="star" size={16} color="#F59E0B" />
+                  <Text style={styles.rateDriverButtonText}>
+                    Rate Your Driver
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {order.status === "DELIVERED" && order.driverRating && (
+                <View style={styles.ratedBadge}>
+                  <Ionicons name="star" size={14} color="#F59E0B" />
+                  <Text style={styles.ratedBadgeText}>
+                    Rated {order.driverRating.rating}/5{" "}
+                    {"★".repeat(order.driverRating.rating)}
+                    {"☆".repeat(5 - order.driverRating.rating)}
+                  </Text>
+                </View>
+              )}
             </View>
           )}
 
@@ -1358,6 +1438,100 @@ export default function OrderDetailsPage() {
           </View>
         </View>
       )}
+
+      {/* ⭐ Driver Rating Modal */}
+      <Modal
+        visible={ratingModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRatingModalVisible(false)}
+      >
+        <View style={styles.ratingOverlay}>
+          <View style={styles.ratingSheet}>
+            {/* Header */}
+            <View style={styles.ratingHeader}>
+              <Text style={styles.ratingTitle}>Rate Your Driver</Text>
+              <TouchableOpacity
+                onPress={() => setRatingModalVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {ratingSubmitted ? (
+              <View style={styles.ratingThankYou}>
+                <Text style={styles.ratingThankYouEmoji}>🎉</Text>
+                <Text style={styles.ratingThankYouText}>
+                  Thank you for your rating!
+                </Text>
+              </View>
+            ) : (
+              <>
+                {/* Stars */}
+                <View style={styles.starsRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setSelectedRating(star)}
+                      activeOpacity={0.7}
+                      style={styles.starButton}
+                    >
+                      <Ionicons
+                        name={star <= selectedRating ? "star" : "star-outline"}
+                        size={40}
+                        color={star <= selectedRating ? "#F59E0B" : "#D1D5DB"}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text style={styles.ratingLabelText}>
+                  {selectedRating === 0
+                    ? "Tap a star to rate"
+                    : selectedRating === 1
+                      ? "Poor"
+                      : selectedRating === 2
+                        ? "Fair"
+                        : selectedRating === 3
+                          ? "Good"
+                          : selectedRating === 4
+                            ? "Very Good"
+                            : "Excellent!"}
+                </Text>
+
+                {/* Review Input */}
+                <TextInput
+                  style={styles.ratingReviewInput}
+                  placeholder="Leave a review (optional)..."
+                  placeholderTextColor="#9CA3AF"
+                  value={ratingReview}
+                  onChangeText={setRatingReview}
+                  multiline
+                  numberOfLines={3}
+                  maxLength={300}
+                />
+
+                {/* Submit */}
+                <TouchableOpacity
+                  style={[
+                    styles.ratingSubmitButton,
+                    selectedRating === 0 && styles.ratingSubmitDisabled,
+                  ]}
+                  onPress={handleRateDriver}
+                  disabled={selectedRating === 0 || ratingSubmitting}
+                  activeOpacity={0.8}
+                >
+                  {ratingSubmitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.ratingSubmitText}>Submit Rating</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -2228,5 +2402,119 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     color: "#374151",
+  },
+
+  // ⭐ Driver Rating styles
+  rateDriverButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#F59E0B",
+    backgroundColor: "#FFFBEB",
+  },
+  rateDriverButtonText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#D97706",
+  },
+  ratedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: "#FFFBEB",
+    alignSelf: "center",
+  },
+  ratedBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#B45309",
+  },
+  ratingOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  ratingSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  ratingHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  ratingTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  starsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+  starButton: {
+    padding: 4,
+  },
+  ratingLabelText: {
+    textAlign: "center",
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 16,
+    fontWeight: "500",
+  },
+  ratingReviewInput: {
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 14,
+    color: "#111827",
+    minHeight: 80,
+    textAlignVertical: "top",
+    marginBottom: 20,
+  },
+  ratingSubmitButton: {
+    backgroundColor: PrimaryColor,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  ratingSubmitDisabled: {
+    backgroundColor: "#9CA3AF",
+  },
+  ratingSubmitText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  ratingThankYou: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  ratingThankYouEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  ratingThankYouText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#059669",
   },
 });

@@ -190,6 +190,7 @@ export interface Order {
   notes?: string;
   qrCode?: string; // QR code data for delivery verification
   qrCodeUrl?: string; // QR code image URL (base64)
+  driverRating?: { id: string; rating: number; review?: string } | null; // ⭐ Rating given by user
 }
 
 export interface CreateOrderData {
@@ -878,6 +879,18 @@ export const orderApi = {
     return apiCall(`/api/orders/${orderId}/cancel`, {
       method: "PATCH",
       body: JSON.stringify({ reason }),
+    });
+  },
+
+  // ⭐ Rate a driver after delivery
+  rateDriver: async (
+    orderId: string,
+    rating: number,
+    review?: string,
+  ): Promise<{ message: string }> => {
+    return apiCall(`/api/orders/${orderId}/rate-driver`, {
+      method: "POST",
+      body: JSON.stringify({ rating, review }),
     });
   },
 
