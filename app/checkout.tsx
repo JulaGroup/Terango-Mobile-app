@@ -282,8 +282,8 @@ export default function Checkout() {
   }
 
   const discountAmount = appliedPromo?.discountAmount || 0;
-  // 💰 SERVICE FEE: 5% of subtotal (before discount, excluding delivery fee)
-  const serviceFee = Math.round(subtotal * 0.05 * 100) / 100; // 5% of subtotal, rounded to 2 decimals
+  // 💰 SERVICE FEE: 5% of subtotal, rounded to nearest whole number, minimum GMD 1 (Wave only accepts whole numbers)
+  const serviceFee = Math.max(1, Math.round(subtotal * 0.05));
   const total = subtotal - discountAmount + deliveryFee + serviceFee;
 
   // Disable placing order if:
@@ -2122,7 +2122,7 @@ export default function Checkout() {
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Service Fee</Text>
-                <Text style={styles.totalValue}>D{serviceFee.toFixed(2)}</Text>
+                <Text style={styles.totalValue}>D{serviceFee}</Text>
               </View>
               {form.orderType === "DELIVERY" && (
                 <>

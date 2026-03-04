@@ -405,7 +405,7 @@ export default function Cart() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
             <Text style={styles.summaryValue}>
-              D{(subtotal * 0.05).toFixed(2)}
+              D{Math.max(1, Math.round(subtotal * 0.05))}
             </Text>
           </View>
 
