@@ -13,6 +13,7 @@ import {
   Linking,
   Platform,
   ActivityIndicator,
+  AppState,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
@@ -24,6 +25,7 @@ import {
   on as socketOn,
   off as socketOff,
   emit as socketEmit,
+  isSocketConnected,
 } from "@/services/SocketService";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -208,43 +210,77 @@ export default function OrderDetailsPage() {
 
   // Socket listeners for order status updates
   useEffect(() => {
+    // Immediately patch the order status in state (no API round-trip)
+    const applyStatusPatch = (data: any) => {
+      if (!data?.orderId || data.orderId !== orderId) return;
+      const newStatus = data.status || data.newStatus;
+      if (newStatus) {
+        setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
+      }
+      // Also do a background refetch to get the full updated order
+      fetchOrderDetails(true);
+    };
+
     const onOrderStatusUpdate = (data: any) => {
       console.log("[Socket] orderStatusUpdate in order-details", data);
-      if (data?.orderId === orderId) {
-        // Silent refresh only — UI updates in place
-        fetchOrderDetails(true);
-      }
+      applyStatusPatch(data);
+    };
+
+    // Some status updates use this alternate event name (room-based)
+    const onOrderStatusUpdated = (data: any) => {
+      console.log("[Socket] order:statusUpdated in order-details", data);
+      applyStatusPatch(data);
     };
 
     const onPaymentSuccess = (data: any) => {
       console.log("[Socket] paymentSuccess in order-details", data);
       if (data?.orderId === orderId) {
         fetchOrderDetails(true);
-        // Navigate away from order details when payment succeeds
         setTimeout(() => {
           router.replace("/(tabs)/orders");
-        }, 2000); // Give user time to see the success
+        }, 2000);
+      }
+    };
+
+    // Re-join order room (important after reconnects)
+    const joinOrderRoom = () => {
+      if (orderId) {
+        socketEmit("customer:trackOrder", orderId);
       }
     };
 
     socketOn("orderStatusUpdate", onOrderStatusUpdate);
+    socketOn("order:statusUpdated", onOrderStatusUpdated);
     socketOn("paymentSuccess", onPaymentSuccess);
+    socketOn("connect", joinOrderRoom); // re-join room on reconnect
 
-    // Start tracking this order for real-time updates
-    if (orderId) {
-      socketEmit("customer:trackOrder", orderId);
-    }
+    joinOrderRoom();
 
     return () => {
       socketOff("orderStatusUpdate", onOrderStatusUpdate);
+      socketOff("order:statusUpdated", onOrderStatusUpdated);
       socketOff("paymentSuccess", onPaymentSuccess);
-
-      // Stop tracking when component unmounts
+      socketOff("connect", joinOrderRoom);
       if (orderId) {
         socketEmit("customer:stopTracking", orderId);
       }
     };
   }, [orderId, fetchOrderDetails, router]);
+
+  // Refresh when app comes back to foreground (e.g. user tapped a push notification)
+  useEffect(() => {
+    const appState = { current: AppState.currentState };
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextState === "active"
+      ) {
+        fetchOrderDetails(true);
+      }
+      appState.current = nextState;
+    });
+    return () => subscription.remove();
+  }, [fetchOrderDetails]);
 
   // Listen for postMessage events from payment popup windows
   useEffect(() => {
@@ -655,7 +691,7 @@ export default function OrderDetailsPage() {
           <View style={styles.statusHeader}>
             <View>
               <Text style={styles.orderNumber}>
-                Order #{order.id.slice(-8).toUpperCase()}
+                Order TG{order.id.slice(-4).toUpperCase()}
               </Text>
               <Text style={styles.orderDate}>
                 {formatDate(order.createdAt)}
@@ -743,7 +779,6 @@ export default function OrderDetailsPage() {
           "PROCESSING",
           "READY",
           "DISPATCHED",
-          "DELIVERED",
         ].includes(order.status) &&
           (order.qrCodeUrl || order.qrCode) && (
             <View style={[styles.qrCodeCard, styles.qrCardElevated]}>
@@ -824,7 +859,7 @@ export default function OrderDetailsPage() {
                 </View>
                 {/* <View style={styles.qrCodeInfoProminent}>
                   <Text style={styles.qrCodeOrderId}>
-                    Order #{order.id.slice(-8).toUpperCase()}
+                    Order TG{order.id.slice(-4).toUpperCase()}
                   </Text>
                   <Text style={styles.qrCodeAmount}>
                     {formatAmount(order.totalAmount)}
@@ -1216,20 +1251,21 @@ export default function OrderDetailsPage() {
           </TouchableOpacity>
         )}
 
-        {/* Track Button - Full width when payment is done */}
-        {(order.status !== "ACCEPTED" || order.paymentStatus === "PAID") && (
-          <TouchableOpacity
-            style={[
-              styles.trackButton,
-              Platform.OS === "web" && { cursor: "pointer" },
-            ]}
-            onPress={handleTrackOrder}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="locate-outline" size={20} color="#fff" />
-            <Text style={styles.trackButtonText}>Track Order</Text>
-          </TouchableOpacity>
-        )}
+        {/* Track Button - Full width when payment is done, hidden once delivered */}
+        {order.status !== "DELIVERED" &&
+          (order.status !== "ACCEPTED" || order.paymentStatus === "PAID") && (
+            <TouchableOpacity
+              style={[
+                styles.trackButton,
+                Platform.OS === "web" && { cursor: "pointer" },
+              ]}
+              onPress={handleTrackOrder}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="locate-outline" size={20} color="#fff" />
+              <Text style={styles.trackButtonText}>Track Order</Text>
+            </TouchableOpacity>
+          )}
 
         {/* Cancel Button - Full width below pay/track button */}
         {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (

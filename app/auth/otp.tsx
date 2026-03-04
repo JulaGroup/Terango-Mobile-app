@@ -157,30 +157,19 @@ export default function OTP() {
           autoFocus
         />
 
-        <TouchableOpacity
-          disabled={loading || code.length !== 4}
-          style={[
-            styles.button,
-            (loading || code.length !== 4) && styles.buttonDisabled,
-          ]}
-          onPress={handleVerify}
-        >
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <Animated.View
-                style={[
-                  styles.spinner,
-                  { transform: [{ rotate: spin }, { scale: pulseValue }] },
-                ]}
-              >
-                <Ionicons name="sync" size={20} color="white" />
-              </Animated.View>
-              <Text style={styles.buttonText}>Verifying...</Text>
-            </View>
-          ) : (
-            <Text style={styles.buttonText}>Verify</Text>
-          )}
-        </TouchableOpacity>
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <Animated.View
+              style={[
+                styles.spinner,
+                { transform: [{ rotate: spin }, { scale: pulseValue }] },
+              ]}
+            >
+              <Ionicons name="sync" size={22} color="#F97316" />
+            </Animated.View>
+            <Text style={styles.verifyingText}>Verifying...</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -238,26 +227,16 @@ const styles = StyleSheet.create({
     color: "#111827",
     backgroundColor: "#F9FAFB",
   },
-  button: {
-    backgroundColor: "#F97316",
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 20,
-    width: 200,
-  },
-  buttonDisabled: {
-    opacity: 0.8,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "700",
+  verifyingText: {
+    color: "#F97316",
+    fontSize: 16,
+    fontWeight: "600",
   },
   loadingContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    marginTop: 24,
   },
   spinner: {
     width: 20,

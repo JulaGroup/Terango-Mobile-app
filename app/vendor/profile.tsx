@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -33,6 +33,7 @@ interface BusinessHours {
 
 export default function VendorProfile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { vendor, currentBusiness, logoutVendor, refreshVendorData } =
     useVendor();
   const { getCurrentLocation } = useLocation();
@@ -470,11 +471,11 @@ export default function VendorProfile() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Modern Header */}
+    <SafeAreaView style={styles.container} edges={["bottom"]}>
+      {/* Header */}
       <LinearGradient
-        colors={[PrimaryColor, "#1976D2"]}
-        style={styles.headerGradient}
+        colors={["#1A1A1A", "#2D2D2D"]}
+        style={[styles.headerGradient, { paddingTop: insets.top + 10 }]}
       >
         <View style={styles.headerContent}>
           <TouchableOpacity
@@ -517,7 +518,7 @@ export default function VendorProfile() {
                 />
               ) : (
                 <View style={styles.placeholderImage}>
-                  <Ionicons name="business" size={40} color="#666" />
+                  <Ionicons name="business" size={36} color={PrimaryColor} />
                   <Text style={styles.placeholderText}>No Image</Text>
                 </View>
               )}
@@ -767,7 +768,7 @@ export default function VendorProfile() {
             >
               <LinearGradient
                 colors={
-                  isLoading ? ["#ccc", "#999"] : [PrimaryColor, "#1976D2"]
+                  isLoading ? ["#ccc", "#999"] : [PrimaryColor, "#e05a00"]
                 }
                 style={styles.saveButtonGradient}
               >
@@ -801,7 +802,7 @@ export default function VendorProfile() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#F8F8F8",
   },
   headerGradient: {
     paddingHorizontal: 20,
@@ -811,57 +812,75 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 10,
   },
   backButton: {
-    padding: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
     color: "white",
+    flex: 1,
+    textAlign: "center",
+    marginHorizontal: 12,
   },
   editButton: {
-    padding: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   scrollContainer: {
     flex: 1,
   },
   section: {
     backgroundColor: "white",
-    margin: 16,
-    borderRadius: 12,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
     padding: 20,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 1,
   },
   sectionHeader: {
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#999",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 14,
   },
   sectionSubtitle: {
-    fontSize: 13,
-    color: "#6B7280",
+    fontSize: 12,
+    color: "#bbb",
     fontWeight: "500",
+    marginTop: 2,
   },
   imageSection: {
     alignItems: "center",
+    paddingVertical: 8,
   },
   imageContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
+    width: 100,
+    height: 100,
+    borderRadius: 16,
     overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: 14,
     position: "relative",
+    backgroundColor: "#F5F5F5",
   },
   profileImage: {
     width: "100%",
@@ -870,16 +889,13 @@ const styles = StyleSheet.create({
   placeholderImage: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#FFF4EC",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
   },
   placeholderText: {
-    fontSize: 12,
-    color: "#ccc",
+    fontSize: 11,
+    color: "#bbb",
     marginTop: 4,
   },
   imageOverlay: {
@@ -888,64 +904,69 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
     alignItems: "center",
   },
   editImageOverlay: {
     position: "absolute",
-    bottom: 5,
-    right: 5,
+    bottom: 6,
+    right: 6,
     backgroundColor: PrimaryColor,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     justifyContent: "center",
     alignItems: "center",
   },
   businessName: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 3,
     textAlign: "center",
   },
   vendorEmail: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 8,
+    fontSize: 13,
+    color: "#999",
+    marginBottom: 10,
     textAlign: "center",
   },
   statusBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingVertical: 5,
+    borderRadius: 20,
   },
   statusText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 0.5,
   },
   field: {
     marginBottom: 16,
   },
   fieldLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#999",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: "#f8f9fa",
+    borderColor: "#EBEBEB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: "#1A1A1A",
+    backgroundColor: "#FAFAFA",
   },
   disabledInput: {
-    backgroundColor: "#f8f9fa",
-    color: "#666",
+    backgroundColor: "#F8F8F8",
+    color: "#888",
   },
   textArea: {
     height: 80,
@@ -958,51 +979,50 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   dayRowContainer: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FAFAFA",
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#EBEBEB",
   },
   dayInfoRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 0,
   },
   dayNameContainer: {
     flex: 1,
   },
   dayName: {
-    fontSize: 16,
-    color: "#1F2937",
+    fontSize: 15,
+    color: "#1A1A1A",
     fontWeight: "600",
-    marginBottom: 2,
   },
   closedLabel: {
-    fontSize: 13,
-    color: "#9CA3AF",
+    fontSize: 12,
+    color: "#bbb",
     fontWeight: "500",
+    marginTop: 2,
   },
   timeInputsRow: {
     flexDirection: "column",
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: "#E5E7EB",
+    borderTopColor: "#EBEBEB",
     gap: 12,
   },
   timePickerGroup: {
     width: "100%",
   },
   timeLabel: {
-    fontSize: 11,
-    color: "#6B7280",
-    fontWeight: "600",
+    fontSize: 10,
+    color: "#999",
+    fontWeight: "700",
     marginBottom: 6,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   arrowIcon: {
     marginHorizontal: 4,
@@ -1010,59 +1030,60 @@ const styles = StyleSheet.create({
   },
   timeInput: {
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 6,
+    borderColor: "#EBEBEB",
+    borderRadius: 8,
     padding: 8,
     fontSize: 14,
     width: 60,
     textAlign: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#FAFAFA",
   },
   actionButtons: {
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 4,
   },
   saveButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: "hidden",
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   saveButtonGradient: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
+    paddingVertical: 16,
   },
   saveButtonText: {
     color: "white",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
     marginLeft: 8,
   },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 16,
+    padding: 14,
     backgroundColor: "#FFF5F5",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#FED7D7",
+    borderColor: "#FFD6D6",
   },
   logoutButtonText: {
-    color: "#F44336",
-    fontSize: 16,
-    fontWeight: "600",
+    color: "#E53935",
+    fontSize: 15,
+    fontWeight: "700",
     marginLeft: 8,
   },
   locationRow: {
-    marginTop: 12,
+    marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 12,
+    gap: 10,
   },
   locationButton: {
     flexDirection: "row",
@@ -1074,17 +1095,17 @@ const styles = StyleSheet.create({
     backgroundColor: PrimaryColor,
   },
   locationButtonDisabled: {
-    backgroundColor: "#9aa4ae",
+    backgroundColor: "#C4C4C4",
   },
   locationButtonText: {
     color: "white",
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 13,
+    fontWeight: "700",
   },
   coordinatePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#E3F2FD",
+    backgroundColor: "#FFF4EC",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1093,10 +1114,11 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: PrimaryColor,
     fontWeight: "600",
+    fontSize: 12,
   },
   locationHint: {
     marginTop: 8,
     fontSize: 12,
-    color: "#666",
+    color: "#aaa",
   },
 });

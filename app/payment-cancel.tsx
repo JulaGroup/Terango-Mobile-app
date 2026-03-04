@@ -52,7 +52,9 @@ export default function PaymentCancelledScreen() {
         </Text>
 
         {orderId && (
-          <Text style={styles.orderId}>Order #{String(orderId).slice(-6)}</Text>
+          <Text style={styles.orderId}>
+            Order TG{String(orderId).slice(-4).toUpperCase()}
+          </Text>
         )}
 
         <View style={styles.buttonContainer}>

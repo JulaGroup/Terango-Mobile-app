@@ -7,7 +7,6 @@ import {
   ScrollView,
   Dimensions,
   RefreshControl,
-  ActivityIndicator,
   FlatList,
   Alert,
 } from "react-native";
@@ -21,8 +20,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import SearchBar from "@/components/common/SearchBar";
 import Cart from "@/components/common/Cart";
 import SearchModal from "@/components/common/SearchModal";
-import ProductCard, { UniversalProduct } from "@/components/common/ProductCard";
-import MealItemCard from "@/components/common/MealItemCard";
+import { UniversalProduct } from "@/components/common/ProductCard";
+import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import SkeletonLoader from "@/components/ui/browse/SkeletonLoader";
+import { VendorOrderingMeta } from "@/utils/vendorOrdering";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
@@ -32,12 +33,15 @@ import {
   getProductCardWidth,
 } from "@/utils/responsive";
 import AdvertCard from "@/components/ui/home/AdvertCard";
+import { Image } from "expo-image";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const RESPONSIVE_PADDING = getResponsivePadding();
 const GRID_COLUMNS = getGridColumns();
 const PRODUCT_CARD_WIDTH = getProductCardWidth(GRID_COLUMNS);
 const HORIZONTAL_CARD_WIDTH = 160;
+const CARD_WIDTH = (SCREEN_WIDTH - RESPONSIVE_PADDING * 2 - 10 * 2) / 3;
+const CARD_IMAGE_HEIGHT = 95;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type definitions
@@ -68,16 +72,6 @@ type PublicProduct = {
   imageUrl?: string | null;
   shop?: { id: string; name: string; city?: string | null } | null;
   subCategory?: { name?: string | null; imageUrl?: string | null } | null;
-};
-
-type MenuItem = {
-  id: string;
-  name: string;
-  price: number;
-  discountedPrice?: number | null;
-  description?: string | null;
-  imageUrl?: string | null;
-  restaurant?: { id: string; name: string } | null;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,14 +168,12 @@ const BrowseScreen: React.FC = () => {
   // Dynamic section states
   const [ndugaStaples, setNdugaStaples] = useState<PublicProduct[]>([]);
   const [trendingNow, setTrendingNow] = useState<PublicProduct[]>([]);
-  const [popularMeals, setPopularMeals] = useState<MenuItem[]>([]);
   const [freshProduce, setFreshProduce] = useState<PublicProduct[]>([]);
   const [snacksSection, setSnacksSection] = useState<PublicProduct[]>([]);
 
   const [sectionsLoading, setSectionsLoading] = useState({
     staples: false,
     trending: false,
-    meals: false,
     fresh: false,
     snacks: false,
   });
@@ -371,62 +363,48 @@ const BrowseScreen: React.FC = () => {
     return (json?.products || json?.data || []) as PublicProduct[];
   };
 
-  const fetchMenuItemsBySubcategory = async (
-    subCategoryId: string,
-    limit = 12,
-  ): Promise<MenuItem[]> => {
-    const res = await fetch(
-      `${API_URL}/api/subcategories/${subCategoryId}/entities?limit=${limit}`,
-    );
-    if (!res.ok) return [];
-    const json = await res.json();
-    return (json?.menuItems || json?.data || []) as MenuItem[];
-  };
-
   const fetchDynamicSections = useCallback(async () => {
-    setSectionsLoading({
-      staples: true,
-      trending: true,
-      meals: true,
-      fresh: true,
-      snacks: true,
-    });
+    // ── Phase 1: above-the-fold sections (load immediately) ──────────────
+    setSectionsLoading((prev) => ({ ...prev, staples: true, trending: true }));
     try {
-      const [staplesArr, trendingArr, mealsArr, freshArr, snacksArr] =
-        await Promise.all([
-          // Nduga Staples (Rice + Oils + Sugar combined)
-          Promise.all([
-            fetchProductsBySubcategory(SUBCATEGORY_IDS.riceGrains, 6),
-            fetchProductsBySubcategory(SUBCATEGORY_IDS.oilsSpices, 4),
-            fetchProductsBySubcategory(SUBCATEGORY_IDS.sugarsSweeteners, 4),
-          ]).then((r) => r.flat()),
-          // Trending – using API endpoint
-          fetch(`${API_URL}/api/public/products/trending?page=1&limit=12`)
-            .then((r) => (r.ok ? r.json() : { data: [] }))
-            .then((j) => (j?.data || []) as PublicProduct[]),
-          // Popular Meals – from Local Dishes subcategory
-          fetchMenuItemsBySubcategory(SUBCATEGORY_IDS.localDishes, 12),
-          // Fresh Produce
-          fetchProductsBySubcategory(SUBCATEGORY_IDS.freshProduce, 12),
-          // Snacks
-          fetchProductsBySubcategory(SUBCATEGORY_IDS.snacks, 12),
-        ]);
-
+      const [staplesArr, trendingArr] = await Promise.all([
+        // Nduga Staples (Rice + Oils + Sugar combined)
+        Promise.all([
+          fetchProductsBySubcategory(SUBCATEGORY_IDS.riceGrains, 6),
+          fetchProductsBySubcategory(SUBCATEGORY_IDS.oilsSpices, 4),
+          fetchProductsBySubcategory(SUBCATEGORY_IDS.sugarsSweeteners, 4),
+        ]).then((r) => r.flat()),
+        // Trending – using API endpoint
+        fetch(`${API_URL}/api/public/products/trending?page=1&limit=12`)
+          .then((r) => (r.ok ? r.json() : { data: [] }))
+          .then((j) => (j?.data || []) as PublicProduct[]),
+      ]);
       setNdugaStaples(staplesArr.slice(0, 12));
       setTrendingNow(trendingArr.slice(0, 12));
-      setPopularMeals(mealsArr.slice(0, 12));
+    } catch (err) {
+      console.error("Error fetching phase-1 browse sections:", err);
+    } finally {
+      setSectionsLoading((prev) => ({
+        ...prev,
+        staples: false,
+        trending: false,
+      }));
+    }
+
+    // ── Phase 2: below-the-fold sections (lazy – deferred 500 ms) ────────
+    await new Promise<void>((resolve) => setTimeout(resolve, 500));
+    setSectionsLoading((prev) => ({ ...prev, fresh: true, snacks: true }));
+    try {
+      const [freshArr, snacksArr] = await Promise.all([
+        fetchProductsBySubcategory(SUBCATEGORY_IDS.freshProduce, 12),
+        fetchProductsBySubcategory(SUBCATEGORY_IDS.snacks, 12),
+      ]);
       setFreshProduce(freshArr.slice(0, 12));
       setSnacksSection(snacksArr.slice(0, 12));
     } catch (err) {
-      console.error("Error fetching browse sections:", err);
+      console.error("Error fetching phase-2 browse sections:", err);
     } finally {
-      setSectionsLoading({
-        staples: false,
-        trending: false,
-        meals: false,
-        fresh: false,
-        snacks: false,
-      });
+      setSectionsLoading((prev) => ({ ...prev, fresh: false, snacks: false }));
     }
   }, []);
 
@@ -492,8 +470,6 @@ const BrowseScreen: React.FC = () => {
       pathname: "/product/[productId]",
       params: { productId: id },
     });
-  const handleMenuItemPress = (id: string) =>
-    router.push({ pathname: "/menuitem/[menuitem]", params: { menuitem: id } });
   const handleOpenSearch = () => setSearchModalVisible(true);
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -537,74 +513,63 @@ const BrowseScreen: React.FC = () => {
       description: item.description ?? undefined,
       inStock: true,
     };
+    const vendor: VendorOrderingMeta = {
+      vendorId: item.shop?.id,
+      vendorType: "shop",
+      vendorName: item.shop?.name,
+    };
     return (
       <View
         key={item.id}
         style={horizontal ? styles.horizontalCardWrap : styles.gridCardWrap}
       >
-        <ProductCard
+        <VendorAwareProductCard
           product={product}
           cartQuantity={qty}
           onAddToCart={() => handleAddProduct(product)}
           onRemoveFromCart={() => handleRemoveProduct(item.id)}
           onPress={() => handleProductPress(item.id)}
           cardWidth={horizontal ? HORIZONTAL_CARD_WIDTH : PRODUCT_CARD_WIDTH}
+          vendor={vendor}
         />
       </View>
     );
   };
 
-  const renderMealCard = (item: MenuItem) => {
-    const qty = getQuantity(item.id);
-    // MealItemCard expects id as number
-    const numericId =
-      typeof item.id === "string"
-        ? parseInt(item.id, 10) || 0
-        : Number(item.id) || 0;
-    const mealProduct = {
-      id: numericId,
-      name: item.name,
-      price: item.price,
-      discountedPrice: item.discountedPrice ?? undefined,
-      image: item.imageUrl ?? undefined,
-      description: item.description ?? undefined,
-      inStock: true,
-    };
-    return (
-      <View key={item.id} style={styles.mealCardWrap}>
-        <MealItemCard
-          product={mealProduct}
-          cartQuantity={qty}
-          onAddToCart={() =>
-            handleAddProduct({
-              ...mealProduct,
-              id: item.id,
-              entityType: "menuItem",
-            })
-          }
-          onRemoveFromCart={() => handleRemoveProduct(item.id)}
-          onPress={() => handleMenuItemPress(item.id)}
-        />
-      </View>
-    );
-  };
-
-  const renderSubcategoryCard = (sub: SubCategory) => {
+  const renderSubcategoryCard = (
+    sub: SubCategory,
+    placeholderGradient: [string, string] = ["#FF6B00", "#CC5500"],
+  ) => {
     const icon = CATEGORY_ICONS[sub.name] || "grid";
     return (
       <TouchableOpacity
         key={sub.id}
         style={styles.subcategoryCard}
-        activeOpacity={0.7}
+        activeOpacity={0.82}
         onPress={() => handleSubcategoryPress(sub)}
       >
-        <View style={styles.subcategoryIconWrap}>
-          <Ionicons name={icon} size={18} color={PrimaryColor} />
+        {sub.imageUrl ? (
+          <Image
+            source={{ uri: sub.imageUrl }}
+            style={styles.subcategoryImage}
+            contentFit="cover"
+            transition={200}
+          />
+        ) : (
+          <LinearGradient
+            colors={placeholderGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.subcategoryImagePlaceholder}
+          >
+            <Ionicons name={icon} size={36} color="rgba(255,255,255,0.95)" />
+          </LinearGradient>
+        )}
+        <View style={styles.subcategoryNameWrap}>
+          <Text style={styles.subcategoryName} numberOfLines={2}>
+            {sub.name}
+          </Text>
         </View>
-        <Text style={styles.subcategoryName} numberOfLines={2}>
-          {sub.name}
-        </Text>
-        <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
       </TouchableOpacity>
     );
   };
@@ -612,21 +577,21 @@ const BrowseScreen: React.FC = () => {
   const renderCategoryGroup = (group: CategoryGroup) => (
     <View key={group.key} style={styles.groupSection}>
       <View style={styles.groupHeader}>
-        <LinearGradient
-          colors={group.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.groupIconGradient}
-        >
-          <Ionicons name={group.icon} size={20} color="#FFF" />
-        </LinearGradient>
+        <View
+          style={[
+            styles.groupAccentBar,
+            { backgroundColor: group.gradient[0] },
+          ]}
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.groupTitle}>{group.title}</Text>
           <Text style={styles.groupSubtitle}>{group.subtitle}</Text>
         </View>
       </View>
       <View style={styles.subcategoryGrid}>
-        {group.subcategories.map(renderSubcategoryCard)}
+        {group.subcategories
+          .slice(0, 6)
+          .map((sub) => renderSubcategoryCard(sub, group.gradient))}
       </View>
     </View>
   );
@@ -742,6 +707,47 @@ const BrowseScreen: React.FC = () => {
             </View>
           </LinearGradient>
         </TouchableOpacity>
+        {/* ─────────── Top Categories ─────────── */}
+        {loading ? (
+          <View style={styles.topCategoriesSection}>
+            <SectionHeader
+              title="Top Categories"
+              subtitle="Browse everything we offer"
+            />
+            <SkeletonLoader type="category" count={9} />
+          </View>
+        ) : categoryGroups.length > 0 ? (
+          <View style={styles.topCategoriesSection}>
+            <SectionHeader
+              title="Top Categories"
+              subtitle="Browse everything we offer"
+            />
+            {categoryGroups.map((group, index) => (
+              <React.Fragment key={group.key}>
+                {renderCategoryGroup(group)}
+                {index < categoryGroups.length - 1 && (
+                  <View style={{ marginBottom: 8 }}>
+                    <AdvertCard
+                      position={
+                        index % 2 === 0 ? undefined : "HOME_AFTER_RESTAURANTS"
+                      }
+                    />
+                  </View>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="grid-outline" size={48} color="#D1D5DB" />
+            <Text style={styles.emptyText}>No categories available</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh" size={16} color="#FFF" />
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
         <View style={{ marginBottom: 14 }}>
           <AdvertCard />
@@ -757,11 +763,7 @@ const BrowseScreen: React.FC = () => {
             onSeeAll={() => handleSeeAll("essentials", "Nduga Staples")}
           />
           {sectionsLoading.staples ? (
-            <ActivityIndicator
-              style={styles.loader}
-              size="small"
-              color={PrimaryColor}
-            />
+            <SkeletonLoader type="horizontal" count={3} />
           ) : ndugaStaples.length > 0 ? (
             <FlatList
               data={ndugaStaples}
@@ -782,11 +784,7 @@ const BrowseScreen: React.FC = () => {
             onSeeAll={() => handleSeeAll("trending", "Trending Now")}
           />
           {sectionsLoading.trending ? (
-            <ActivityIndicator
-              style={styles.loader}
-              size="small"
-              color={PrimaryColor}
-            />
+            <SkeletonLoader type="horizontal" count={3} />
           ) : trendingNow.length > 0 ? (
             <FlatList
               data={trendingNow}
@@ -831,11 +829,7 @@ const BrowseScreen: React.FC = () => {
             onSeeAll={() => handleSeeAll("fresh", "Fresh Produce")}
           />
           {sectionsLoading.fresh ? (
-            <ActivityIndicator
-              style={styles.loader}
-              size="small"
-              color={PrimaryColor}
-            />
+            <SkeletonLoader type="horizontal" count={3} />
           ) : freshProduce.length > 0 ? (
             <FlatList
               data={freshProduce}
@@ -856,11 +850,7 @@ const BrowseScreen: React.FC = () => {
             onSeeAll={() => handleSeeAll("snacks", "Snacks & Treats")}
           />
           {sectionsLoading.snacks ? (
-            <ActivityIndicator
-              style={styles.loader}
-              size="small"
-              color={PrimaryColor}
-            />
+            <SkeletonLoader type="horizontal" count={3} />
           ) : snacksSection.length > 0 ? (
             <FlatList
               data={snacksSection}
@@ -872,25 +862,6 @@ const BrowseScreen: React.FC = () => {
             />
           ) : null}
         </View>
-
-        {/* ─────────── Category Groups ─────────── */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={PrimaryColor} />
-            <Text style={styles.loadingText}>Loading categories...</Text>
-          </View>
-        ) : categoryGroups.length > 0 ? (
-          categoryGroups.map(renderCategoryGroup)
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="grid-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No categories available</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-              <Ionicons name="refresh" size={16} color="#FFF" />
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </ScrollView>
 
       {/* Search Modal */}
@@ -906,7 +877,7 @@ const BrowseScreen: React.FC = () => {
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -1028,59 +999,66 @@ const styles = StyleSheet.create({
   mealCardWrap: {},
 
   // Category groups
-  groupSection: { marginBottom: 28 },
+  topCategoriesSection: { paddingTop: 20, marginBottom: 4 },
+  groupSection: { marginBottom: 32 },
   groupHeader: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: RESPONSIVE_PADDING,
-    marginBottom: 16,
-    gap: 12,
+    marginBottom: 14,
+    gap: 10,
   },
-  groupIconGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
+  groupAccentBar: {
+    width: 4,
+    height: 38,
+    borderRadius: 2,
   },
-  groupTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  groupTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
   groupSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
   subcategoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     paddingHorizontal: RESPONSIVE_PADDING,
-    gap: 12,
+    columnGap: 10,
+    rowGap: 12,
   },
   subcategoryCard: {
-    width: PRODUCT_CARD_WIDTH,
+    width: CARD_WIDTH,
     backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-    elevation: 1,
+    borderRadius: 14,
+    overflow: "hidden",
+    elevation: 3,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
   },
-  subcategoryIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#FEF3E2",
+  subcategoryImage: {
+    width: "100%",
+    height: CARD_IMAGE_HEIGHT,
+  },
+  subcategoryImagePlaceholder: {
+    width: "100%",
+    height: CARD_IMAGE_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
+  subcategoryNameWrap: {
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF",
+  },
   subcategoryName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#374151",
-    lineHeight: 16,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+    lineHeight: 17,
   },
 
   // Loading & Empty

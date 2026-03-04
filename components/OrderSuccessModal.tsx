@@ -56,7 +56,9 @@ export default function OrderSuccessModal({
           <View style={styles.content}>
             {orderData && (
               <View style={styles.orderInfo}>
-                <Text style={styles.orderId}>Order #{orderId.slice(-8)}</Text>
+                <Text style={styles.orderId}>
+                  Order TG{orderId.slice(-4).toUpperCase()}
+                </Text>
                 {orderData.totalAmount && (
                   <Text style={styles.amount}>
                     Total: ₦{orderData.totalAmount.toLocaleString()}

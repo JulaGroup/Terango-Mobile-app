@@ -55,8 +55,11 @@ const SkeletonCard = () => (
 
 export default function TeranGOPicksPage() {
   const router = useRouter();
-  const { addToCart, getQuantity, removeFromCart } = useCart();
+  const { addToCart, getQuantity, removeFromCart, cartItems } = useCart();
   const [products, setProducts] = useState<TeranGOProduct[]>([]);
+
+  const getTotalCartItems = () =>
+    cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -229,7 +232,18 @@ export default function TeranGOPicksPage() {
           <Text style={[styles.headerTitle, styles.headerTitleGO]}>GO</Text>
           <Text style={styles.headerTitle}> Picks</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={styles.cartButton}
+          onPress={() => router.push("/cart")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="cart" size={24} color="#1a1a1a" />
+          {getTotalCartItems() > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Subtitle */}
@@ -327,6 +341,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
     justifyContent: "center",
     alignItems: "center",
+  },
+  cartButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 7,
+    backgroundColor: "#f5f5f5",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#EF4444",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "bold",
   },
   headerTitleContainer: {
     flexDirection: "row",

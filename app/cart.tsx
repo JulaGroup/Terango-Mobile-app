@@ -10,6 +10,7 @@ import {
   Animated,
   Alert,
 } from "react-native";
+import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
@@ -484,6 +485,7 @@ export default function Cart() {
           style={[styles.checkoutButton, !meetsMinimum && { opacity: 0.5 }]}
           onPress={() => {
             if (!meetsMinimum) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push("/checkout");
           }}
           activeOpacity={meetsMinimum ? 0.8 : 1}

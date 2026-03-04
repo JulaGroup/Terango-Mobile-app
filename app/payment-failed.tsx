@@ -51,7 +51,9 @@ export default function PaymentFailedScreen() {
         </Text>
 
         {orderId && (
-          <Text style={styles.orderId}>Order #{String(orderId).slice(-6)}</Text>
+          <Text style={styles.orderId}>
+            Order TG{String(orderId).slice(-4).toUpperCase()}
+          </Text>
         )}
 
         <TouchableOpacity

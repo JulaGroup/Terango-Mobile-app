@@ -474,28 +474,27 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <View
             style={{
+              width: 4,
+              height: 38,
+              borderRadius: 2,
               backgroundColor: PrimaryColor,
-              borderRadius: 8,
-              padding: 8,
-              marginRight: 12,
+              marginRight: 10,
             }}
-          >
-            <Ionicons name="restaurant" size={20} color="#fff" />
-          </View>
+          />
           <View>
             <Text
               style={{
                 fontSize: 20,
-                fontWeight: "bold",
-                color: "#333",
+                fontWeight: "800",
+                color: "#111827",
               }}
             >
               Popular Restaurants
             </Text>
             <Text
               style={{
-                fontSize: 14,
-                color: "#666",
+                fontSize: 13,
+                color: "#6B7280",
                 marginTop: 2,
               }}
             >

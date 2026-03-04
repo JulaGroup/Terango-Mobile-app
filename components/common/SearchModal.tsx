@@ -22,6 +22,7 @@ import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import MealItemCard from "@/components/common/MealItemCard";
+import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 
 const { height } = Dimensions.get("window");
 
@@ -128,7 +129,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
   const performSearch = async (
     searchQuery: string,
     tabType: string = activeTab,
-    pageNum: number = 1
+    pageNum: number = 1,
   ) => {
     if (searchQuery.trim().length < 2) {
       setResults({
@@ -149,8 +150,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
     try {
       const response = await fetch(
         `${API_URL}/api/search?q=${encodeURIComponent(
-          searchQuery
-        )}&type=${apiType}&page=${pageNum}&limit=20`
+          searchQuery,
+        )}&type=${apiType}&page=${pageNum}&limit=20`,
       );
       const data = await response.json();
 
@@ -466,7 +467,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   marginBottom: 12,
                 }}
               >
-                <MealItemCard
+                <VendorAwareMealItemCard
                   product={universalProduct}
                   cartQuantity={cartQuantity}
                   onAddToCart={() => {
@@ -487,6 +488,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   onPress={() => {
                     onClose();
                     router.push(`/menuitem/${menuItem.id}`);
+                  }}
+                  vendor={{
+                    vendorId: menuItem.menu?.restaurantId,
+                    vendorType: "restaurant",
                   }}
                 />
               </View>
@@ -703,7 +708,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                             <TouchableOpacity
                               onPress={() =>
                                 setRecentSearches((prev) =>
-                                  prev.filter((s) => s.id !== search.id)
+                                  prev.filter((s) => s.id !== search.id),
                                 )
                               }
                             >
@@ -763,17 +768,17 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       {renderTabButton(
                         "products",
                         "Products",
-                        results.products.length
+                        results.products.length,
                       )}
                       {renderTabButton(
                         "meals",
                         "Meals",
-                        results.menuItems.length
+                        results.menuItems.length,
                       )}
                       {renderTabButton(
                         "restaurants",
                         "Restaurants",
-                        results.restaurants.length
+                        results.restaurants.length,
                       )}
                       {renderTabButton("shops", "Stores", results.shops.length)}
                     </ScrollView>

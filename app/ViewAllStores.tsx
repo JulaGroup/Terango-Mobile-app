@@ -73,13 +73,13 @@ export default function ViewAllStores() {
   };
 
   const filteredShops = shops.filter((shop) =>
-    shop.name.toLowerCase().includes(search.toLowerCase())
+    shop.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   // Generate random rating and review count if not available
-  const getRandomRating = () => (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1);
-  const getRandomReviewCount = () =>
-    Math.floor(Math.random() * (500 - 50) + 50);
+  const getRandomRating = () => "4.5";
+  const getRandomReviewCount = () => 100;
+  Math.floor(Math.random() * (500 - 50) + 50);
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
@@ -142,8 +142,7 @@ export default function ViewAllStores() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         >
           {filteredShops.map((shop) => {
-            const rating = shop.rating || parseFloat(getRandomRating());
-            const reviewCount = shop.totalReviews || getRandomReviewCount();
+            const isOpen = shop.isActive && shop.acceptsOrders;
 
             return (
               <TouchableOpacity
@@ -170,21 +169,15 @@ export default function ViewAllStores() {
                     style={[
                       styles.statusBadge,
                       {
-                        backgroundColor: shop.isActive
+                        backgroundColor: isOpen
                           ? "rgba(0,200,81,0.9)"
                           : "rgba(239,68,68,0.9)",
                       },
                     ]}
                   >
                     <Text style={styles.statusBadgeText}>
-                      {shop.isActive ? "Open" : "Closed"}
+                      {isOpen ? "OPEN" : "CLOSED"}
                     </Text>
-                  </View>
-
-                  {/* Rating Badge */}
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
                   </View>
                 </View>
 
@@ -368,18 +361,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   statusBadgeText: { color: "#fff", fontSize: 10, fontWeight: "600" },
-  ratingBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  ratingText: { color: "#fff", fontSize: 10, fontWeight: "600", marginLeft: 2 },
   infoContainer: { padding: 16 },
   name: { fontSize: 16, fontWeight: "700", color: "#1F2937", marginBottom: 4 },
   desc: { fontSize: 12, color: "#6B7280", marginBottom: 8, lineHeight: 16 },

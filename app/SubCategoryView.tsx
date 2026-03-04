@@ -19,6 +19,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
+import SearchBar from "@/components/common/SearchBar";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
@@ -203,7 +204,7 @@ export default function SubCategoryView() {
     try {
       setError(null);
       const response = await fetch(
-        `${API_URL}/api/subcategories/${subCategoryId}/entities`
+        `${API_URL}/api/subcategories/${subCategoryId}/entities`,
       );
       if (!response.ok) {
         throw new Error(`Failed to fetch data: ${response.statusText}`);
@@ -242,11 +243,11 @@ export default function SubCategoryView() {
 
   // Apply search filtering to products and menu items
   const filteredProducts = data.products.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const filteredMenuItems = data.menuItems.filter((m) =>
-    m.name.toLowerCase().includes(searchQuery.toLowerCase())
+    m.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const getCounts = () => {
@@ -330,7 +331,7 @@ export default function SubCategoryView() {
                         onRemoveFromCart={() => {
                           const id = String(item.id);
                           const cartItem = cartItems.find(
-                            (ci) => String(ci.id) === id
+                            (ci) => String(ci.id) === id,
                           );
                           if (cartItem && cartItem.quantity > 1) {
                             updateQuantity(id, cartItem.quantity - 1);
@@ -351,7 +352,7 @@ export default function SubCategoryView() {
             </View>
           )}
 
-          {/* Menu Items Section - Single Column */}
+          {/* Menu Items Section - List Layout */}
           {filteredMenuItems.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -381,7 +382,7 @@ export default function SubCategoryView() {
                 </TouchableOpacity>
               </View>
 
-              {/* Single Column for ALL Meals using MealItemCard */}
+              {/* Single column list for meals */}
               <FlatList
                 data={filteredMenuItems}
                 keyExtractor={(item) => `menu-all-${item.id}`}
@@ -418,7 +419,7 @@ export default function SubCategoryView() {
                         onRemoveFromCart={() => {
                           const id = String(item.id);
                           const cartItem = cartItems.find(
-                            (ci) => String(ci.id) === id
+                            (ci) => String(ci.id) === id,
                           );
                           if (cartItem && cartItem.quantity > 1) {
                             updateQuantity(id, cartItem.quantity - 1);
@@ -509,7 +510,7 @@ export default function SubCategoryView() {
                   onRemoveFromCart={() => {
                     const id = String(item.id);
                     const cartItem = cartItems.find(
-                      (ci) => String(ci.id) === id
+                      (ci) => String(ci.id) === id,
                     );
                     if (cartItem && cartItem.quantity > 1) {
                       updateQuantity(id, cartItem.quantity - 1);
@@ -554,6 +555,9 @@ export default function SubCategoryView() {
           key={`menuItems-1col`}
           keyExtractor={(item) => `menu-${item.id}`}
           renderItem={({ item }) => {
+            const cartQuantity =
+              cartItems.find((ci) => String(ci.id) === String(item.id))
+                ?.quantity || 0;
             return (
               <View
                 style={{
@@ -571,10 +575,7 @@ export default function SubCategoryView() {
                     description: item.description || "",
                     inStock: item.isAvailable,
                   }}
-                  cartQuantity={
-                    cartItems.find((ci) => String(ci.id) === String(item.id))
-                      ?.quantity || 0
-                  }
+                  cartQuantity={cartQuantity}
                   onAddToCart={() =>
                     addToCart({
                       id: item.id.toString(),
@@ -724,30 +725,13 @@ export default function SubCategoryView() {
 
       {/* Search Bar above Tabs */}
       <View style={styles.searchBarWrapper}>
-        <View style={styles.searchBarContainer}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#94A3B8"
-            style={{ marginRight: 8 }}
-          />
-          <TextInput
-            style={styles.searchBarInput}
-            placeholder="Search..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery("")}
-              style={styles.clearButton}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="close-circle" size={20} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search..."
+          fullWidth
+          editable={true}
+        />
       </View>
 
       {/* Filter Tabs */}
@@ -782,26 +766,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     backgroundColor: "#fff",
-  },
-  searchBarContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 25,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderWidth: 2,
-    borderColor: "transparent",
-    position: "relative",
-  },
-  searchBarInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#1E293B",
-    paddingVertical: 0,
-  },
-  clearButton: {
-    marginLeft: 8,
   },
   container: {
     flex: 1,

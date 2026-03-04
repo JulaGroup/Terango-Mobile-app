@@ -1,0 +1,787 @@
+[
+  {
+    "product_name": "Dove Body Cream 283ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Grandessa Peanut Butter 340g",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "Dija's shea & cocoa body Butter 300g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "eos Shave Cream 207ml",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "ADAMS Peanut Butter 1.02kg",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "American Dream Cocoa Butter Cream 453g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Cantu Shea Butter Moisturizing Lock Gel 370g",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Jegg Washing Machine Omo 10kg",
+    "correct_subcategory_id": "226c2675-6312-4a68-b431-1e05cd40098f",
+    "correct_subcategory_name": "Laundry Care"
+  },
+  {
+    "product_name": "JEGG Mosquito repellent *10",
+    "correct_subcategory_id": "b8f9cf07-7875-492d-8269-8ea393515ebe",
+    "correct_subcategory_name": "Cleaning Supplies"
+  },
+  {
+    "product_name": "Vanicream 113g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Astonish Cream Cleaner 500ml",
+    "correct_subcategory_id": "b8f9cf07-7875-492d-8269-8ea393515ebe",
+    "correct_subcategory_name": "Cleaning Supplies"
+  },
+  {
+    "product_name": "Deggeh Gofio Multigrain 400g",
+    "correct_subcategory_id": "3db3d86e-3f5a-4a38-b15f-02f5702a30e4",
+    "correct_subcategory_name": "Cereals & Breakfast"
+  },
+  {
+    "product_name": "Jack's Malted Milk Biscuits 200g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Baker's cream Biscuits 200g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Baker's Cream Cracker Biscuits 200g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "McVities Bourbon Cream 300g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "London Cream Cracker 300g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Cadbury Diary milk 45g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Cadbury Diary milk 95g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Cadbury Diary milk 27.2g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Malterser Milk Chocolate 350g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Walkers Milk Chocolate 150g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Marabou Chocolate 185g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Doritos Chips 145g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Goldfish 850g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Nutter Butter 297",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Roller Coaster Cheese Chips 60g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Cheddar Cheese Cracker 21g",
+    "correct_subcategory_id": "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
+    "correct_subcategory_name": "Snacks"
+  },
+  {
+    "product_name": "Reeses Puffs 822g",
+    "correct_subcategory_id": "3db3d86e-3f5a-4a38-b15f-02f5702a30e4",
+    "correct_subcategory_name": "Cereals & Breakfast"
+  },
+  {
+    "product_name": "Smooth Peanut Butter 1kg",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "All Natural Peanut Butter 454g",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "SUN-PA crunchy peanut butter 300g",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "NUT'N BETTER Peanut Butter 454g",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "Jallow Jerry Peanut Butter",
+    "correct_subcategory_id": "cfe75114-1b40-4717-a568-ec592db89ca1",
+    "correct_subcategory_name": "Nuts & Dried Fruits"
+  },
+  {
+    "product_name": "Dairy Fine Hot Chocolate 400g",
+    "correct_subcategory_id": "e5c6f708-f820-4c13-8691-e989ca8720e4",
+    "correct_subcategory_name": "Beverages"
+  },
+  {
+    "product_name": "Palmer's Softens Cocoa Butter 200g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Shaya Shea & cocoa body butter 300ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "American Dream Cocoa Butter 113g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Eos oil butter 283g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Palmer's Foot Magic Cocoa Butter 60g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Moringa & Neem Butter",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Cow Milk Bar Soap 113g",
+    "correct_subcategory_id": "35a58046-e8cd-4003-b41a-e5a8a0741122",
+    "correct_subcategory_name": "Hygiene"
+  },
+  {
+    "product_name": "Palmers Fade Milk 250ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Kid's Body Butter",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Palmer's cocoa butter skin therapy 30ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Palmer's Cocoa butter formular body oil 250ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Palmer's Cocoa butter formula 270g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Palmer's Cocoa butter formula 100g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Vaseline Cocoa Radiant 200ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Nabou's Hair Butter 250ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Cantu Avocado & curl Shea Butter 355ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Dija's lemon body butter",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Kraft Mac & Cheese 58g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Krasdale Macaroni & Cheese 206g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Batchelor's Pasta n Sauce MAC N Cheese 99g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Grace Macaroni & Cheese 206g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Velveeta Shells & Cheese *4 272g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Cheese Club Shells & Cheese 340g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Annie's Microvable Cheddar 305g",
+    "correct_subcategory_id": "0a0b2adf-af3d-4412-8c44-d915deefb9c8",
+    "correct_subcategory_name": "Pasta & Noodles"
+  },
+  {
+    "product_name": "Dove Baby eczema care 144g",
+    "correct_subcategory_id": "f74be19c-acc9-4020-993e-0120d61993e0",
+    "correct_subcategory_name": "Baby Hygiene"
+  },
+  {
+    "product_name": "Beech-Nut Veggies 99g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Plum Organics 90g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Mamia Infant milk from birth 800g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Enfamil Milk 354g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Enfamil milk 366g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Barr Cream Soda 355ml",
+    "correct_subcategory_id": "e5c6f708-f820-4c13-8691-e989ca8720e4",
+    "correct_subcategory_name": "Beverages"
+  },
+  {
+    "product_name": "yoohoo chocolate drink 355ml",
+    "correct_subcategory_id": "e5c6f708-f820-4c13-8691-e989ca8720e4",
+    "correct_subcategory_name": "Beverages"
+  },
+  {
+    "product_name": "Nira Faluda Milkshake 290ml",
+    "correct_subcategory_id": "e5c6f708-f820-4c13-8691-e989ca8720e4",
+    "correct_subcategory_name": "Beverages"
+  },
+  {
+    "product_name": "ORS Olive Oil 207ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Sheen Spray 481ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Replenishing Conditioner 250ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Creme Relaxer 531g",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Nourishing Spray 472ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Replenishing Conditioner 470.6ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "ORS Olive Oil Shampoo 480ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Palmer's Olive Oil Replenishing Conditioner 250ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Palmer's Olive oil 60g",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Palmer's Coconut oil 178ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Palmer's coconut hydrate 250ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Tumeric Face Scrub",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Turmeric Body Cream 250ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's turmeric body butter",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Tumeric Body Scrub",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dija's Turmeric Body Wash 500ml",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Shaya Turmeric Face Scrub 150g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Shaya turmeric brightening scrub 300g",
+    "correct_subcategory_id": "897abec1-decd-4684-bbe6-b4f03d31554b",
+    "correct_subcategory_name": "Skin & Body Care"
+  },
+  {
+    "product_name": "Dax Coconut Oil 397g",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "Dija's Coconut Oil 100ml",
+    "correct_subcategory_id": "24fbeea8-acb4-4306-980d-38587c03a2e7",
+    "correct_subcategory_name": "Hair Care"
+  },
+  {
+    "product_name": "VIP Toilet tissue 4 rolls",
+    "correct_subcategory_id": "0ec08318-5582-43e6-9ead-5cfb0835f86b",
+    "correct_subcategory_name": "Paper Products"
+  },
+  {
+    "product_name": "VIP Toilet tissue 12 rolls",
+    "correct_subcategory_id": "0ec08318-5582-43e6-9ead-5cfb0835f86b",
+    "correct_subcategory_name": "Paper Products"
+  },
+  {
+    "product_name": "Scott toilet paper",
+    "correct_subcategory_id": "0ec08318-5582-43e6-9ead-5cfb0835f86b",
+    "correct_subcategory_name": "Paper Products"
+  },
+  {
+    "product_name": "Old Spice body Wash 400ml",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "Aromatherary Beautiful Bath Salts 500g",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "CVS Health Baby oil 80ml",
+    "correct_subcategory_id": "f74be19c-acc9-4020-993e-0120d61993e0",
+    "correct_subcategory_name": "Baby Hygiene"
+  },
+  {
+    "product_name": "Johnson's Baby Oil 100ml",
+    "correct_subcategory_id": "f74be19c-acc9-4020-993e-0120d61993e0",
+    "correct_subcategory_name": "Baby Hygiene"
+  },
+  {
+    "product_name": "eos shave oil 177ml",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "Tikis Cafe Touba",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Deggeh Cafe Touba",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Gron Chai Tea 40g",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Sempera Lemongrass garlic & cloves Tea",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "lemon grass / garlic & cloves tea",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Sempera lemongrass garlic&cloves tea",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Sempera's Lemon Ginger Powder",
+    "correct_subcategory_id": "ce7ba854-5c99-44de-8657-504b91792875",
+    "correct_subcategory_name": "Tea & Coffee"
+  },
+  {
+    "product_name": "Yatin Manicure Set",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "Axe Body Spray 144g",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "Rexona Spray 150ml",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  },
+  {
+    "product_name": "Shower Gloves *3",
+    "correct_subcategory_id": "35a58046-e8cd-4003-b41a-e5a8a0741122",
+    "correct_subcategory_name": "Hygiene"
+  },
+  {
+    "product_name": "FitRight Adult Underwear x20",
+    "correct_subcategory_id": "35a58046-e8cd-4003-b41a-e5a8a0741122",
+    "correct_subcategory_name": "Hygiene"
+  },
+  {
+    "product_name": "Arena Slip Adult Diapers x20",
+    "correct_subcategory_id": "35a58046-e8cd-4003-b41a-e5a8a0741122",
+    "correct_subcategory_name": "Hygiene"
+  },
+  {
+    "product_name": "Zheng Sheng Pencil x12",
+    "correct_subcategory_id": "a652c569-c9a7-46d8-81ca-42f25a7f448b",
+    "correct_subcategory_name": "Stationery & Office Supplies"
+  },
+  {
+    "product_name": "Feida Pencil Set x48",
+    "correct_subcategory_id": "a652c569-c9a7-46d8-81ca-42f25a7f448b",
+    "correct_subcategory_name": "Stationery & Office Supplies"
+  },
+  {
+    "product_name": "A5 Notebook",
+    "correct_subcategory_id": "a652c569-c9a7-46d8-81ca-42f25a7f448b",
+    "correct_subcategory_name": "Stationery & Office Supplies"
+  },
+  {
+    "product_name": "Today's Pen",
+    "correct_subcategory_id": "a652c569-c9a7-46d8-81ca-42f25a7f448b",
+    "correct_subcategory_name": "Stationery & Office Supplies"
+  },
+  {
+    "product_name": "Big Franks Tasty Chicken Coating 250g",
+    "correct_subcategory_id": "c43b88b9-eb6e-4f1d-bb27-8eb051646cab",
+    "correct_subcategory_name": "Condiments & Sauces"
+  },
+  {
+    "product_name": "Big Franks Tasty Chicken Coating 500g",
+    "correct_subcategory_id": "c43b88b9-eb6e-4f1d-bb27-8eb051646cab",
+    "correct_subcategory_name": "Condiments & Sauces"
+  },
+  {
+    "product_name": "Big Franks Hot & Spicy Chicken Coating 500g",
+    "correct_subcategory_id": "c43b88b9-eb6e-4f1d-bb27-8eb051646cab",
+    "correct_subcategory_name": "Condiments & Sauces"
+  },
+  {
+    "product_name": "Big Franks Chicken Coating 250g",
+    "correct_subcategory_id": "c43b88b9-eb6e-4f1d-bb27-8eb051646cab",
+    "correct_subcategory_name": "Condiments & Sauces"
+  },
+  {
+    "product_name": "Sazon Goya Seasoning 180g",
+    "correct_subcategory_id": "c43b88b9-eb6e-4f1d-bb27-8eb051646cab",
+    "correct_subcategory_name": "Condiments & Sauces"
+  },
+  {
+    "product_name": "Bertini Extra virgin olive oil 250ml",
+    "correct_subcategory_id": "6ac60d93-a199-4cc0-a85d-3636dc0c4508",
+    "correct_subcategory_name": "Oils & Spices"
+  },
+  {
+    "product_name": "Bertini Extra virgin olive oil 500ML",
+    "correct_subcategory_id": "6ac60d93-a199-4cc0-a85d-3636dc0c4508",
+    "correct_subcategory_name": "Oils & Spices"
+  },
+  {
+    "product_name": "Bertini Extra virgin olive oil 1L",
+    "correct_subcategory_id": "6ac60d93-a199-4cc0-a85d-3636dc0c4508",
+    "correct_subcategory_name": "Oils & Spices"
+  },
+  {
+    "product_name": "Khan Jallow's Beans Flour 300g",
+    "correct_subcategory_id": "cca76ff8-bc4e-4544-acc1-872c119943a5",
+    "correct_subcategory_name": "Rice & Grains"
+  },
+  {
+    "product_name": "Sempera Beans Flour 200g",
+    "correct_subcategory_id": "cca76ff8-bc4e-4544-acc1-872c119943a5",
+    "correct_subcategory_name": "Rice & Grains"
+  },
+  {
+    "product_name": "Aptamil Milk 800g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Finish powerball 875g",
+    "correct_subcategory_id": "b8f9cf07-7875-492d-8269-8ea393515ebe",
+    "correct_subcategory_name": "Cleaning Supplies"
+  },
+  {
+    "product_name": "Surf 3in1 Tropical Lily 382g",
+    "correct_subcategory_id": "226c2675-6312-4a68-b431-1e05cd40098f",
+    "correct_subcategory_name": "Laundry Care"
+  },
+  {
+    "product_name": "Enfamil gentlease 862g",
+    "correct_subcategory_id": "f7f6a7aa-d232-4f73-840b-546e2e68db58",
+    "correct_subcategory_name": "Baby Products"
+  },
+  {
+    "product_name": "Gift Bag",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Pizza box",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Cake box",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Hotpack Ziplock Bag 21cm *48",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Plastic container 1000cc",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Plastic container 1000cc *50",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Plastic Container 750cc",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Sandwich Box",
+    "correct_subcategory_id": "42f99196-52e6-41f7-a54c-d43dbc1e1ce9",
+    "correct_subcategory_name": "Storage & Packaging"
+  },
+  {
+    "product_name": "Paper Cups 40oz x50",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Paper Cups 70oz x50",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Ecosense Spoons Cuilleres x50",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Raha Spoon 50pcs",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Hotpack 7'' Plastic Plates 25pcs",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Hotpack 9'' Plastic Plates 25pcs",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Plastic Plates",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Ebbeh Bowls x50",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Raha plates 9inch",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Raha plates 7inch",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Raha disposable cup's *20cts",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Berkley Jensen Cutlery Assortment 360pieces",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Berkley Jensen Clear Cold Cups 120cnts",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Chinet Crystal Cups 100cups 266ml",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Solo Plastic Cups 81cnts",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Plastic Straws *100",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Vancasso 24 pieces flatware set",
+    "correct_subcategory_id": "e6ab29d5-c71b-41fa-b712-9fdd35c7b069",
+    "correct_subcategory_name": "Tableware & Cutlery"
+  },
+  {
+    "product_name": "Power plus bulb 65W",
+    "correct_subcategory_id": "c952e9ed-fa3c-49a4-9bab-0b886a98093e",
+    "correct_subcategory_name": "Lighting & Matches"
+  },
+  {
+    "product_name": "Maxim LED bulb 60W",
+    "correct_subcategory_id": "c952e9ed-fa3c-49a4-9bab-0b886a98093e",
+    "correct_subcategory_name": "Lighting & Matches"
+  },
+  {
+    "product_name": "Heater",
+    "correct_subcategory_id": "99635212-f5cc-494d-8684-b6c40309bb00",
+    "correct_subcategory_name": "Small Appliances"
+  },
+  {
+    "product_name": "Vaccum Metal Flash",
+    "correct_subcategory_id": "4a72494c-3929-461b-ae0a-1f5f6e4be0fb",
+    "correct_subcategory_name": "Home Utilities"
+  },
+  {
+    "product_name": "Rie Mann Rechargeable Shaver",
+    "correct_subcategory_id": "91769bbc-c354-4b97-ae8f-3b8b27727d57",
+    "correct_subcategory_name": "Personal Care"
+  }
+]

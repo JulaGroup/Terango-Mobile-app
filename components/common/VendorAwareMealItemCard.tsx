@@ -1,8 +1,8 @@
 import React, { useCallback } from "react";
 import { Alert } from "react-native";
-import ProductCard, {
+import MealItemCard, {
   UniversalProduct as ProductUniversal,
-} from "@/components/common/ProductCard";
+} from "@/components/common/MealItemCard";
 import { VendorOrderingMeta } from "@/utils/vendorOrdering";
 import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 
@@ -38,12 +38,13 @@ const VendorAwareMealItemCard: React.FC<VendorAwareMealItemCardProps> = ({
       vendor.vendorType === "restaurant" ? "restaurant" : "shop";
     Alert.alert(
       "Ordering unavailable",
-      disabledReason || `This ${vendorLabel} is not accepting orders right now.`
+      disabledReason ||
+        `This ${vendorLabel} is not accepting orders right now.`,
     );
   }, [orderingDisabled, disabledReason, vendor.vendorType]);
 
   return (
-    <ProductCard
+    <MealItemCard
       product={product}
       cartQuantity={cartQuantity}
       onAddToCart={onAddToCart}

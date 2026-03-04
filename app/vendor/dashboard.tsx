@@ -151,7 +151,6 @@ export default function VendorDashboard() {
     title,
     value,
     icon,
-    color = PrimaryColor,
     onPress,
   }: {
     title: string;
@@ -161,15 +160,15 @@ export default function VendorDashboard() {
     onPress?: () => void;
   }) => (
     <TouchableOpacity
-      style={[styles.metricCard, { borderLeftColor: color }]}
+      style={styles.metricCard}
       onPress={onPress}
       disabled={!onPress}
     >
-      <View style={styles.metricHeader}>
-        <Ionicons name={icon} size={24} color={color} />
-        <Text style={styles.metricTitle}>{title}</Text>
+      <View style={styles.metricIconWrap}>
+        <Ionicons name={icon} size={20} color={PrimaryColor} />
       </View>
-      <Text style={[styles.metricValue, { color }]}>{value}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+      <Text style={styles.metricTitle}>{title}</Text>
     </TouchableOpacity>
   );
 
@@ -178,7 +177,6 @@ export default function VendorDashboard() {
     title,
     subtitle,
     icon,
-    color,
     onPress,
     badge,
   }: {
@@ -190,30 +188,21 @@ export default function VendorDashboard() {
     badge?: number;
   }) => (
     <TouchableOpacity style={styles.navCard} onPress={onPress}>
-      <LinearGradient
-        colors={[color, `${color}CC`]}
-        style={styles.navCardGradient}
-      >
-        <View style={styles.navCardContent}>
-          <View style={styles.navCardIcon}>
-            <Ionicons name={icon} size={28} color="white" />
-            {badge !== undefined && badge > 0 && (
-              <View style={styles.navCardBadge}>
-                <Text style={styles.navCardBadgeText}>{badge}</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.navCardText}>
-            <Text style={styles.navCardTitle}>{title}</Text>
-            <Text style={styles.navCardSubtitle}>{subtitle}</Text>
-          </View>
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color="rgba(255,255,255,0.8)"
-          />
+      <View style={styles.navCardContent}>
+        <View style={styles.navCardIcon}>
+          <Ionicons name={icon} size={22} color={PrimaryColor} />
+          {badge !== undefined && badge > 0 && (
+            <View style={styles.navCardBadge}>
+              <Text style={styles.navCardBadgeText}>{badge}</Text>
+            </View>
+          )}
         </View>
-      </LinearGradient>
+        <View style={styles.navCardText}>
+          <Text style={styles.navCardTitle}>{title}</Text>
+          <Text style={styles.navCardSubtitle}>{subtitle}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+      </View>
     </TouchableOpacity>
   );
 
@@ -223,10 +212,10 @@ export default function VendorDashboard() {
       <SafeAreaView style={styles.loadingContainer}>
         <View style={styles.loadingContent}>
           <LinearGradient
-            colors={[PrimaryColor, "#1976D2"]}
+            colors={["#1A1A1A", "#2D2D2D"]}
             style={styles.loadingSpinner}
           >
-            <Ionicons name="storefront" size={40} color="white" />
+            <Ionicons name="storefront" size={40} color={PrimaryColor} />
           </LinearGradient>
           <ActivityIndicator
             size="large"
@@ -240,8 +229,8 @@ export default function VendorDashboard() {
     );
   }
 
-  // Only show error if vendor data failed to load AND we've attempted to load
-  if (!vendor && !isVendorLoading && hasAttemptedLoad) {
+  // Only show error if vendor data failed to load AND we've attempted to load AND not actively refreshing
+  if (!vendor && !isVendorLoading && !refreshing && hasAttemptedLoad) {
     return (
       <SafeAreaView style={styles.loadingContainer}>
         <View style={styles.loadingContent}>
@@ -268,7 +257,7 @@ export default function VendorDashboard() {
       <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
       {/* Modern Header with Business Name */}
-      <LinearGradient colors={[PrimaryColor, "#1976D2"]} style={styles.header}>
+      <LinearGradient colors={["#1A1A1A", "#2D2D2D"]} style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
@@ -328,8 +317,8 @@ export default function VendorDashboard() {
           <NavigationCard
             title="Orders"
             subtitle="Manage incoming orders"
-            icon="receipt"
-            color="#FF6B35"
+            icon="receipt-outline"
+            color={PrimaryColor}
             onPress={() => router.push("/vendor/orders")}
             badge={metrics.pendingOrders}
           />
@@ -339,8 +328,8 @@ export default function VendorDashboard() {
             <NavigationCard
               title="Menu"
               subtitle="Manage your menu items"
-              icon="restaurant"
-              color="#28A745"
+              icon="restaurant-outline"
+              color={PrimaryColor}
               onPress={() => router.push("/vendor/menu")}
             />
           )}
@@ -350,8 +339,8 @@ export default function VendorDashboard() {
             <NavigationCard
               title="Products"
               subtitle="Manage your products"
-              icon="storefront"
-              color="#6F42C1"
+              icon="storefront-outline"
+              color={PrimaryColor}
               onPress={() => router.push("/vendor/products")}
             />
           )}
@@ -359,16 +348,16 @@ export default function VendorDashboard() {
           <NavigationCard
             title="Analytics"
             subtitle="View detailed reports"
-            icon="analytics"
-            color="#20C997"
+            icon="bar-chart-outline"
+            color={PrimaryColor}
             onPress={() => {}} // TODO: Add analytics screen
           />
 
           <NavigationCard
             title="Settings"
             subtitle="Business settings"
-            icon="settings"
-            color="#6C757D"
+            icon="settings-outline"
+            color={PrimaryColor}
             onPress={() => router.push("/vendor/profile")}
           />
         </View>
@@ -381,37 +370,31 @@ export default function VendorDashboard() {
               title="Total Orders"
               value={metrics.totalOrders}
               icon="receipt-outline"
-              color="#007BFF"
             />
             <MetricCard
-              title="Completed Orders"
+              title="Completed"
               value={metrics.completedOrders}
               icon="checkmark-circle-outline"
-              color="#28A745"
             />
             <MetricCard
               title="Total Revenue"
               value={formatCurrency(metrics.totalRevenue)}
               icon="cash-outline"
-              color="#FFC107"
             />
             <MetricCard
-              title="Average Order"
+              title="Avg. Order"
               value={formatCurrency(metrics.averageOrderValue)}
               icon="trending-up-outline"
-              color="#6F42C1"
             />
             <MetricCard
-              title="Active Businesses"
+              title="Businesses"
               value={metrics.activeBusinesses}
               icon="business-outline"
-              color="#20C997"
             />
             <MetricCard
               title="Menu Items"
               value={metrics.totalMenuItems}
               icon="list-outline"
-              color="#FD7E14"
             />
           </View>
         </View>
@@ -442,9 +425,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
-    shadowColor: PrimaryColor,
+    backgroundColor: "#1A1A1A",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
   },
@@ -460,7 +444,7 @@ const styles = StyleSheet.create({
   },
   loadingSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#888",
     textAlign: "center",
   },
   errorIcon: {
@@ -475,7 +459,7 @@ const styles = StyleSheet.create({
   },
   errorSubtitle: {
     fontSize: 14,
-    color: "#666",
+    color: "#888",
     textAlign: "center",
     marginBottom: 24,
   },
@@ -484,11 +468,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 12,
     borderRadius: 8,
-    shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   retryButtonText: {
     color: "white",
@@ -497,7 +477,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 24,
   },
   headerContent: {
     marginTop: 10,
@@ -515,13 +495,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backToAppButton: {
-    flexDirection: "row",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
   },
   backToAppText: {
     color: "white",
@@ -532,15 +511,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "700",
     color: "white",
-    marginBottom: 4,
+    marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.55)",
     textTransform: "capitalize",
+    letterSpacing: 0.3,
   },
   profileButton: {
     padding: 4,
@@ -548,37 +528,48 @@ const styles = StyleSheet.create({
   quickStats: {
     flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.07)",
+    borderRadius: 14,
     padding: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   statItem: {
     alignItems: "center",
     flex: 1,
   },
+  statDivider: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    marginVertical: 4,
+  },
   statValue: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "white",
+    fontSize: 18,
+    fontWeight: "700",
+    color: PrimaryColor,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.5)",
     textAlign: "center",
+    letterSpacing: 0.2,
   },
   scrollContainer: {
     flex: 1,
   },
   navigationSection: {
-    padding: 16,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 4,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#999",
     marginBottom: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   subscriptionSection: {
     paddingTop: 12,
@@ -587,88 +578,100 @@ const styles = StyleSheet.create({
   navCard: {
     marginBottom: 8,
     borderRadius: 12,
-    overflow: "hidden",
+    backgroundColor: "white",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 2,
-  },
-  navCardGradient: {
-    padding: 12,
+    elevation: 1,
   },
   navCardContent: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   navCardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#FFF4EC",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
     position: "relative",
-    marginRight: 16,
   },
   navCardBadge: {
     position: "absolute",
-    top: -8,
-    right: -8,
-    backgroundColor: "#FF3B30",
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    top: -4,
+    right: -4,
+    backgroundColor: PrimaryColor,
+    borderRadius: 8,
+    minWidth: 18,
+    height: 18,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 4,
   },
   navCardBadgeText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 11,
+    fontWeight: "700",
   },
   navCardText: {
     flex: 1,
   },
   navCardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1A1A1A",
     marginBottom: 2,
   },
   navCardSubtitle: {
     fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "#999",
   },
   metricsSection: {
-    padding: 16,
-    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 24,
   },
   metricsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    marginHorizontal: -6,
+    marginHorizontal: -5,
   },
   metricCard: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    margin: 6,
+    margin: 5,
     width: (width - 52) / 2,
-    borderLeftWidth: 4,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 1,
+    alignItems: "flex-start",
   },
-  metricHeader: {
-    flexDirection: "row",
+  metricIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    backgroundColor: "#FFF4EC",
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   metricTitle: {
-    fontSize: 14,
-    color: "#666",
-    marginLeft: 8,
-    flex: 1,
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    fontWeight: "500",
   },
   metricValue: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
   },
 });

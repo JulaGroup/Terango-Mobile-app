@@ -13,14 +13,16 @@ import {
   Animated,
   FlatList,
   ActivityIndicator,
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
@@ -28,9 +30,7 @@ import { useVendor } from "@/context/VendorContext";
 import { menuApi, subCategoryApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { useRealTime } from "@/hooks/useRealTime";
-import { MEAL_TIMES, getSelectableMealTimes } from "@/constants/MealTimes";
-
-const { width } = Dimensions.get("window");
+import { getSelectableMealTimes } from "@/constants/MealTimes";
 
 interface SubCategory {
   id: string;
@@ -54,6 +54,7 @@ interface MenuItem {
 
 export default function VendorMenuEnhanced() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { currentBusiness } = useVendor();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -518,9 +519,7 @@ export default function VendorMenuEnhanced() {
       .toLowerCase()
       .includes(searchQuery.toLowerCase());
     const matchesCategory =
-      filterCategory === "" ||
-      filterCategory === "All" ||
-      item.mealTime === filterCategory; // Use mealTime from schema
+      filterCategory === "" || item.subCategoryId === filterCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -719,11 +718,11 @@ export default function VendorMenuEnhanced() {
 
         {/* Item Info */}
         <View style={styles.itemInfo}>
-          <Text style={styles.itemName} numberOfLines={2}>
+          <Text style={styles.itemName} numberOfLines={1}>
             {item.name}
           </Text>
           {item.description && (
-            <Text style={styles.itemDescription} numberOfLines={3}>
+            <Text style={styles.itemDescription} numberOfLines={1}>
               {item.description}
             </Text>
           )}
@@ -751,48 +750,46 @@ export default function VendorMenuEnhanced() {
           {/* Action Buttons */}
           <View style={styles.itemActions}>
             <TouchableOpacity
-              style={[styles.actionButton, styles.toggleButton]}
-              onPress={() => toggleAvailability(item.id, !item.isAvailable)}
-              accessibilityRole="button"
-              accessibilityLabel={
-                item.isAvailable ? "Disable item" : "Enable item"
-              }
-              accessibilityHint={`${
+              style={[
+                styles.itemActionBtn,
                 item.isAvailable
-                  ? "Makes this item unavailable"
-                  : "Makes this item available"
-              } for customers to order`}
+                  ? styles.itemActionBtnWarning
+                  : styles.itemActionBtnSuccess,
+              ]}
+              onPress={() => toggleAvailability(item.id, !item.isAvailable)}
             >
               <Ionicons
                 name={item.isAvailable ? "eye-off-outline" : "eye-outline"}
-                size={18}
-                color={item.isAvailable ? "#F44336" : "#4CAF50"}
+                size={15}
+                color={item.isAvailable ? "#999" : PrimaryColor}
               />
-              {/* <Text style={styles.actionButtonText}>
-                {item.isAvailable ? "Disable" : "Enable"}
-              </Text> */}
+              <Text
+                style={[
+                  styles.itemActionBtnText,
+                  item.isAvailable
+                    ? styles.itemActionBtnTextMuted
+                    : styles.itemActionBtnTextPrimary,
+                ]}
+              >
+                {item.isAvailable ? "Hide" : "Show"}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.editButton]}
+              style={[styles.itemActionBtn, styles.itemActionBtnDark]}
               onPress={() => handleEdit(item)}
-              accessibilityRole="button"
-              accessibilityLabel="Edit item"
-              accessibilityHint="Opens form to edit this menu item"
             >
-              <Ionicons name="create-outline" size={18} color="#2196F3" />
-              {/* <Text style={styles.actionButtonText}>Edit</Text> */}
+              <Ionicons name="create-outline" size={15} color="white" />
+              <Text style={[styles.itemActionBtnText, { color: "white" }]}>
+                Edit
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.deleteButton]}
+              style={[styles.itemActionBtn, styles.itemActionBtnDelete]}
               onPress={() => handleDelete(item.id)}
-              accessibilityRole="button"
-              accessibilityLabel="Delete item"
-              accessibilityHint="Permanently removes this menu item"
             >
-              <Ionicons name="trash-outline" size={18} color="#F44336" />
-              {/* <Text style={styles.actionButtonText}>Delete</Text> */}
+              <Ionicons name="trash-outline" size={15} color="#CC3333" />
             </TouchableOpacity>
           </View>
         </View>
@@ -811,7 +808,7 @@ export default function VendorMenuEnhanced() {
     return (
       <SafeAreaView style={styles.container}>
         <LinearGradient
-          colors={[PrimaryColor, "#1976D2"]}
+          colors={["#1A1A1A", "#2D2D2D"]}
           style={styles.headerGradient}
         >
           <View style={styles.headerContent}>
@@ -848,9 +845,9 @@ export default function VendorMenuEnhanced() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
-      {/* Modern Header with Gradient */}
+      {/* Header */}
       <LinearGradient
-        colors={[PrimaryColor, "#1976D2"]}
+        colors={["#1A1A1A", "#2D2D2D"]}
         style={styles.headerGradient}
       >
         <Animated.View
@@ -883,30 +880,50 @@ export default function VendorMenuEnhanced() {
               accessibilityLabel="Add new menu item"
               accessibilityHint="Opens form to create a new menu item"
             >
-              <Ionicons name="add" size={24} color="white" />
+              <Ionicons name="add" size={22} color="white" />
             </TouchableOpacity>
           </View>
 
-          {/* Stats Cards */}
-          <View
-            style={styles.statsContainer}
-            accessibilityLabel={`Menu statistics: ${totalItems} total items, ${availableItems} available, ${unavailableItems} unavailable`}
-          >
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>{totalItems}</Text>
-              <Text style={styles.statLabel}>Total Items</Text>
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <View style={styles.statPill}>
+              <View style={styles.statPillIcon}>
+                <Ionicons
+                  name="restaurant-outline"
+                  size={16}
+                  color={PrimaryColor}
+                />
+              </View>
+              <View>
+                <Text style={styles.statPillValue}>{totalItems}</Text>
+                <Text style={styles.statPillLabel}>Total</Text>
+              </View>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statNumber, { color: "#4CAF50" }]}>
-                {availableItems}
-              </Text>
-              <Text style={styles.statLabel}>Available</Text>
+            <View style={styles.statPill}>
+              <View style={styles.statPillIcon}>
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={16}
+                  color={PrimaryColor}
+                />
+              </View>
+              <View>
+                <Text style={styles.statPillValue}>{availableItems}</Text>
+                <Text style={styles.statPillLabel}>Available</Text>
+              </View>
             </View>
-            <View style={styles.statCard}>
-              <Text style={[styles.statNumber, { color: "#F44336" }]}>
-                {unavailableItems}
-              </Text>
-              <Text style={styles.statLabel}>Unavailable</Text>
+            <View style={styles.statPill}>
+              <View style={styles.statPillIcon}>
+                <Ionicons
+                  name="eye-off-outline"
+                  size={16}
+                  color={PrimaryColor}
+                />
+              </View>
+              <View>
+                <Text style={styles.statPillValue}>{unavailableItems}</Text>
+                <Text style={styles.statPillLabel}>Hidden</Text>
+              </View>
             </View>
           </View>
         </Animated.View>
@@ -960,22 +977,22 @@ export default function VendorMenuEnhanced() {
               key={subCat.id}
               style={[
                 styles.filterChip,
-                filterCategory === subCat.name && styles.filterChipActive,
+                filterCategory === subCat.id && styles.filterChipActive,
               ]}
-              onPress={() => setFilterCategory(subCat.name)}
+              onPress={() => setFilterCategory(subCat.id)}
               accessibilityRole="button"
               accessibilityLabel={`Filter by ${subCat.name}`}
               accessibilityHint={`${
-                filterCategory === subCat.name
+                filterCategory === subCat.id
                   ? "Currently selected"
                   : "Tap to filter by this category"
               }`}
-              accessibilityState={{ selected: filterCategory === subCat.name }}
+              accessibilityState={{ selected: filterCategory === subCat.id }}
             >
               <Text
                 style={[
                   styles.filterChipText,
-                  filterCategory === subCat.name && styles.filterChipTextActive,
+                  filterCategory === subCat.id && styles.filterChipTextActive,
                 ]}
               >
                 {subCat.name}
@@ -1030,495 +1047,480 @@ export default function VendorMenuEnhanced() {
       {/* Enhanced Modal */}
       <Modal
         visible={modalVisible}
-        transparent
+        transparent={false}
         animationType="slide"
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalOverlay}>
+        <SafeAreaView style={styles.modalScreen} edges={["bottom"]}>
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={styles.keyboardAvoidingView}
+            style={{ flex: 1 }}
           >
-            <View style={styles.modalContent}>
-              <LinearGradient
-                colors={[PrimaryColor, "#1976D2"]}
-                style={styles.modalHeader}
+            <LinearGradient
+              colors={["#1A1A1A", "#2D2D2D"]}
+              style={[styles.modalHeader, { paddingTop: insets.top + 10 }]}
+            >
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setModalVisible(false)}
               >
+                <Ionicons name="arrow-back" size={22} color="white" />
+              </TouchableOpacity>
+              <View style={styles.modalHeaderTitle}>
                 <Text style={styles.modalTitle}>
                   {editMode ? "Edit Menu Item" : "Add Menu Item"}
                 </Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="white" />
-                </TouchableOpacity>
-              </LinearGradient>
+                <Text style={styles.modalSubtitle}>{getBusinessName()}</Text>
+              </View>
+              <View style={{ width: 36 }} />
+            </LinearGradient>
 
-              <ScrollView
-                style={styles.form}
-                keyboardShouldPersistTaps="handled"
-              >
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Item Name *</Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      focusedFields.name && styles.inputFocused,
-                      formErrors.name &&
-                        touchedFields.name &&
-                        styles.inputError,
-                    ]}
-                    placeholder="Enter item name"
-                    value={formData.name}
-                    onChangeText={(text) => handleFieldChange("name", text)}
-                    onBlur={() => handleFieldBlur("name")}
-                    onFocus={() => handleFieldFocus("name")}
-                    maxLength={100}
-                  />
-                  {formErrors.name && touchedFields.name && (
-                    <Text style={styles.errorText}>{formErrors.name}</Text>
-                  )}
-                </View>
+            <ScrollView style={styles.form} keyboardShouldPersistTaps="handled">
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Item Name *</Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedFields.name && styles.inputFocused,
+                    formErrors.name && touchedFields.name && styles.inputError,
+                  ]}
+                  placeholder="Enter item name"
+                  value={formData.name}
+                  onChangeText={(text) => handleFieldChange("name", text)}
+                  onBlur={() => handleFieldBlur("name")}
+                  onFocus={() => handleFieldFocus("name")}
+                  maxLength={100}
+                />
+                {formErrors.name && touchedFields.name && (
+                  <Text style={styles.errorText}>{formErrors.name}</Text>
+                )}
+              </View>
 
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Description</Text>
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    placeholder="Describe your dish"
-                    value={formData.description}
-                    onChangeText={(text) =>
-                      setFormData({ ...formData, description: text })
-                    }
-                    multiline
-                    numberOfLines={3}
-                  />
-                </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Describe your dish"
+                  value={formData.description}
+                  onChangeText={(text) =>
+                    setFormData({ ...formData, description: text })
+                  }
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
 
-                {/* Image Upload Section */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Item Image</Text>
-                  <TouchableOpacity
-                    style={[
-                      styles.imagePickerContainer,
-                      imageLoading && styles.imagePickerContainerUploading,
-                    ]}
-                    onPress={handleImagePicker}
-                    disabled={imageLoading}
-                  >
-                    {formData.imageUrl ? (
-                      <View style={styles.selectedImageContainer}>
-                        <Image
-                          source={{ uri: formData.imageUrl }}
-                          style={styles.selectedImage}
-                          contentFit="cover"
-                          transition={200}
-                          cachePolicy="memory-disk"
-                        />
-                        {imageLoading && (
-                          <View style={styles.imageOverlay}>
-                            <ActivityIndicator
-                              size="large"
-                              color={PrimaryColor}
-                            />
-                            <Text style={styles.uploadingText}>
-                              Uploading...
-                            </Text>
-                          </View>
-                        )}
-                        {!imageLoading && (
-                          <View style={styles.imageActions}>
-                            <TouchableOpacity
-                              style={styles.changeImageButton}
-                              onPress={handleImagePicker}
-                            >
-                              <Ionicons name="camera" size={16} color="white" />
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                              style={styles.removeImageButton}
-                              onPress={() =>
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  imageUrl: "",
-                                }))
-                              }
-                            >
-                              <Ionicons name="trash" size={16} color="white" />
-                            </TouchableOpacity>
-                          </View>
-                        )}
-                      </View>
-                    ) : (
-                      <View style={styles.imagePlaceholder}>
-                        <Ionicons
-                          name={imageLoading ? "cloud-upload" : "camera"}
-                          size={40}
-                          color={imageLoading ? PrimaryColor : "#ccc"}
-                        />
-                        <Text
-                          style={[
-                            styles.imagePlaceholderText,
-                            imageLoading &&
-                              styles.imagePlaceholderTextUploading,
-                          ]}
-                        >
-                          {imageLoading ? "Uploading..." : "Tap to add image"}
-                        </Text>
-                        {!imageLoading && (
-                          <Text style={styles.imageHintText}>
-                            JPG, PNG up to 5MB
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.row}>
-                  <View
-                    style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}
-                  >
-                    <Text style={styles.inputLabel}>Price (GMD) *</Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        focusedFields.price && styles.inputFocused,
-                        formErrors.price &&
-                          touchedFields.price &&
-                          styles.inputError,
-                      ]}
-                      placeholder="0"
-                      value={formData.price}
-                      onChangeText={(text) => handleFieldChange("price", text)}
-                      onBlur={() => handleFieldBlur("price")}
-                      onFocus={() => handleFieldFocus("price")}
-                      keyboardType="numeric"
-                      maxLength={10}
-                    />
-                    {formErrors.price && touchedFields.price && (
-                      <Text style={styles.errorText}>{formErrors.price}</Text>
-                    )}
-                  </View>
-
-                  <View
-                    style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}
-                  >
-                    <Text style={styles.inputLabel}>Prep Time (min) *</Text>
-                    <TextInput
-                      style={[
-                        styles.input,
-                        focusedFields.preparationTime && styles.inputFocused,
-                        formErrors.preparationTime &&
-                          touchedFields.preparationTime &&
-                          styles.inputError,
-                      ]}
-                      placeholder="15"
-                      value={formData.preparationTime}
-                      onChangeText={(text) =>
-                        handleFieldChange("preparationTime", text)
-                      }
-                      onBlur={() => handleFieldBlur("preparationTime")}
-                      onFocus={() => handleFieldFocus("preparationTime")}
-                      keyboardType="numeric"
-                      maxLength={3}
-                    />
-                    {formErrors.preparationTime &&
-                      touchedFields.preparationTime && (
-                        <Text style={styles.errorText}>
-                          {formErrors.preparationTime}
+              {/* Image Upload Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Item Image</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.imagePickerContainer,
+                    imageLoading && styles.imagePickerContainerUploading,
+                  ]}
+                  onPress={handleImagePicker}
+                  disabled={imageLoading}
+                >
+                  {formData.imageUrl ? (
+                    <View style={styles.selectedImageContainer}>
+                      <Image
+                        source={{ uri: formData.imageUrl }}
+                        style={styles.selectedImage}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                      />
+                      {imageLoading && (
+                        <View style={styles.imageOverlay}>
+                          <ActivityIndicator
+                            size="large"
+                            color={PrimaryColor}
+                          />
+                          <Text style={styles.uploadingText}>Uploading...</Text>
+                        </View>
+                      )}
+                      {!imageLoading && (
+                        <View style={styles.imageActions}>
+                          <TouchableOpacity
+                            style={styles.changeImageButton}
+                            onPress={handleImagePicker}
+                          >
+                            <Ionicons name="camera" size={16} color="white" />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.removeImageButton}
+                            onPress={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                imageUrl: "",
+                              }))
+                            }
+                          >
+                            <Ionicons name="trash" size={16} color="white" />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <Ionicons
+                        name={imageLoading ? "cloud-upload" : "camera"}
+                        size={40}
+                        color={imageLoading ? PrimaryColor : "#ccc"}
+                      />
+                      <Text
+                        style={[
+                          styles.imagePlaceholderText,
+                          imageLoading && styles.imagePlaceholderTextUploading,
+                        ]}
+                      >
+                        {imageLoading ? "Uploading..." : "Tap to add image"}
+                      </Text>
+                      {!imageLoading && (
+                        <Text style={styles.imageHintText}>
+                          JPG, PNG up to 5MB
                         </Text>
                       )}
-                  </View>
-                </View>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
 
-                {/* Discounted Price Section */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>
-                    Discounted Price (GMD){" "}
-                    <Text style={styles.optionalText}>(Optional)</Text>
-                  </Text>
+              <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1, marginRight: 10 }]}>
+                  <Text style={styles.inputLabel}>Price (GMD) *</Text>
                   <TextInput
                     style={[
                       styles.input,
-                      focusedFields.discountedPrice && styles.inputFocused,
-                      formErrors.discountedPrice &&
-                        touchedFields.discountedPrice &&
+                      focusedFields.price && styles.inputFocused,
+                      formErrors.price &&
+                        touchedFields.price &&
                         styles.inputError,
                     ]}
-                    placeholder="Enter discounted price"
-                    value={formData.discountedPrice}
-                    onChangeText={(text) =>
-                      handleFieldChange("discountedPrice", text)
-                    }
-                    onBlur={() => handleFieldBlur("discountedPrice")}
-                    onFocus={() => handleFieldFocus("discountedPrice")}
+                    placeholder="0"
+                    value={formData.price}
+                    onChangeText={(text) => handleFieldChange("price", text)}
+                    onBlur={() => handleFieldBlur("price")}
+                    onFocus={() => handleFieldFocus("price")}
                     keyboardType="numeric"
                     maxLength={10}
                   />
-                  {formErrors.discountedPrice &&
-                    touchedFields.discountedPrice && (
-                      <Text style={styles.errorText}>
-                        {formErrors.discountedPrice}
-                      </Text>
-                    )}
-                  {formData.discountedPrice &&
-                    parseFloat(formData.discountedPrice) > 0 &&
-                    formData.price &&
-                    parseFloat(formData.price) > 0 &&
-                    parseFloat(formData.discountedPrice) <
-                      parseFloat(formData.price) && (
-                      <View style={styles.discountPreview}>
-                        <Ionicons name="pricetag" size={16} color="#10b981" />
-                        <Text style={styles.discountPreviewText}>
-                          {Math.round(
-                            ((parseFloat(formData.price) -
-                              parseFloat(formData.discountedPrice)) /
-                              parseFloat(formData.price)) *
-                              100,
-                          )}
-                          % OFF - Customers will see this discount badge
-                        </Text>
-                      </View>
-                    )}
-                  {formData.discountedPrice &&
-                    parseFloat(formData.discountedPrice) > 0 &&
-                    formData.price &&
-                    parseFloat(formData.price) > 0 &&
-                    parseFloat(formData.discountedPrice) >=
-                      parseFloat(formData.price) && (
-                      <Text style={styles.errorText}>
-                        ⚠️ Discounted price must be less than original price
-                      </Text>
-                    )}
-                </View>
-
-                {/* Meal Time Selector */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Meal Time *</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={styles.categorySelector}>
-                      {getSelectableMealTimes().map((mealTime) => (
-                        <TouchableOpacity
-                          key={mealTime.id}
-                          style={[
-                            styles.categoryOption,
-                            formData.mealTime === mealTime.name &&
-                              styles.categoryOptionActive,
-                            formErrors.mealTime &&
-                              touchedFields.mealTime &&
-                              styles.categoryOptionError,
-                          ]}
-                          onPress={() => {
-                            setFormData({
-                              ...formData,
-                              mealTime: mealTime.name,
-                            });
-                            // Clear error when user selects a meal time
-                            if (touchedFields.mealTime) {
-                              setFormErrors((prev) => ({
-                                ...prev,
-                                mealTime: "",
-                              }));
-                            }
-                          }}
-                        >
-                          <Ionicons
-                            name={mealTime.icon as any}
-                            size={16}
-                            color={
-                              formData.mealTime === mealTime.name
-                                ? "white"
-                                : "#666"
-                            }
-                            style={styles.categoryIcon}
-                          />
-                          <Text
-                            style={[
-                              styles.categoryOptionText,
-                              formData.mealTime === mealTime.name &&
-                                styles.categoryOptionTextActive,
-                            ]}
-                          >
-                            {mealTime.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </ScrollView>
-                  {formErrors.mealTime && touchedFields.mealTime && (
-                    <Text style={styles.errorText}>{formErrors.mealTime}</Text>
+                  {formErrors.price && touchedFields.price && (
+                    <Text style={styles.errorText}>{formErrors.price}</Text>
                   )}
                 </View>
 
-                {/* Subcategory Selector (Optional) — searchable dropdown */}
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>
-                    Category (Subcategory - Optional)
-                  </Text>
+                <View style={[styles.inputGroup, { flex: 1, marginLeft: 10 }]}>
+                  <Text style={styles.inputLabel}>Prep Time (min) *</Text>
+                  <TextInput
+                    style={[
+                      styles.input,
+                      focusedFields.preparationTime && styles.inputFocused,
+                      formErrors.preparationTime &&
+                        touchedFields.preparationTime &&
+                        styles.inputError,
+                    ]}
+                    placeholder="15"
+                    value={formData.preparationTime}
+                    onChangeText={(text) =>
+                      handleFieldChange("preparationTime", text)
+                    }
+                    onBlur={() => handleFieldBlur("preparationTime")}
+                    onFocus={() => handleFieldFocus("preparationTime")}
+                    keyboardType="numeric"
+                    maxLength={3}
+                  />
+                  {formErrors.preparationTime &&
+                    touchedFields.preparationTime && (
+                      <Text style={styles.errorText}>
+                        {formErrors.preparationTime}
+                      </Text>
+                    )}
+                </View>
+              </View>
 
-                  {loadingSubCategories ? (
-                    <ActivityIndicator size="small" color={PrimaryColor} />
-                  ) : (
-                    <>
+              {/* Discounted Price Section */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Discounted Price (GMD){" "}
+                  <Text style={styles.optionalText}>(Optional)</Text>
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    focusedFields.discountedPrice && styles.inputFocused,
+                    formErrors.discountedPrice &&
+                      touchedFields.discountedPrice &&
+                      styles.inputError,
+                  ]}
+                  placeholder="Enter discounted price"
+                  value={formData.discountedPrice}
+                  onChangeText={(text) =>
+                    handleFieldChange("discountedPrice", text)
+                  }
+                  onBlur={() => handleFieldBlur("discountedPrice")}
+                  onFocus={() => handleFieldFocus("discountedPrice")}
+                  keyboardType="numeric"
+                  maxLength={10}
+                />
+                {formErrors.discountedPrice &&
+                  touchedFields.discountedPrice && (
+                    <Text style={styles.errorText}>
+                      {formErrors.discountedPrice}
+                    </Text>
+                  )}
+                {formData.discountedPrice &&
+                  parseFloat(formData.discountedPrice) > 0 &&
+                  formData.price &&
+                  parseFloat(formData.price) > 0 &&
+                  parseFloat(formData.discountedPrice) <
+                    parseFloat(formData.price) && (
+                    <View style={styles.discountPreview}>
+                      <Ionicons name="pricetag" size={16} color="#10b981" />
+                      <Text style={styles.discountPreviewText}>
+                        {Math.round(
+                          ((parseFloat(formData.price) -
+                            parseFloat(formData.discountedPrice)) /
+                            parseFloat(formData.price)) *
+                            100,
+                        )}
+                        % OFF - Customers will see this discount badge
+                      </Text>
+                    </View>
+                  )}
+                {formData.discountedPrice &&
+                  parseFloat(formData.discountedPrice) > 0 &&
+                  formData.price &&
+                  parseFloat(formData.price) > 0 &&
+                  parseFloat(formData.discountedPrice) >=
+                    parseFloat(formData.price) && (
+                    <Text style={styles.errorText}>
+                      ⚠️ Discounted price must be less than original price
+                    </Text>
+                  )}
+              </View>
+
+              {/* Meal Time Selector */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Meal Time *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={styles.categorySelector}>
+                    {getSelectableMealTimes().map((mealTime) => (
                       <TouchableOpacity
-                        style={styles.subcatSelectorButton}
-                        onPress={() => setShowSubcategoryPicker(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Select subcategory"
+                        key={mealTime.id}
+                        style={[
+                          styles.categoryOption,
+                          formData.mealTime === mealTime.name &&
+                            styles.categoryOptionActive,
+                          formErrors.mealTime &&
+                            touchedFields.mealTime &&
+                            styles.categoryOptionError,
+                        ]}
+                        onPress={() => {
+                          setFormData({
+                            ...formData,
+                            mealTime: mealTime.name,
+                          });
+                          // Clear error when user selects a meal time
+                          if (touchedFields.mealTime) {
+                            setFormErrors((prev) => ({
+                              ...prev,
+                              mealTime: "",
+                            }));
+                          }
+                        }}
                       >
+                        <Ionicons
+                          name={mealTime.icon as any}
+                          size={16}
+                          color={
+                            formData.mealTime === mealTime.name
+                              ? "white"
+                              : "#666"
+                          }
+                          style={styles.categoryIcon}
+                        />
                         <Text
-                          style={styles.subcatSelectorText}
-                          numberOfLines={1}
+                          style={[
+                            styles.categoryOptionText,
+                            formData.mealTime === mealTime.name &&
+                              styles.categoryOptionTextActive,
+                          ]}
                         >
-                          {formData.subCategoryId
-                            ? subCategories.find(
-                                (s) => s.id === formData.subCategoryId,
-                              )?.name || "Selected"
-                            : "None"}
+                          {mealTime.name}
                         </Text>
-                        <Ionicons name="chevron-down" size={18} color="#666" />
                       </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
+                {formErrors.mealTime && touchedFields.mealTime && (
+                  <Text style={styles.errorText}>{formErrors.mealTime}</Text>
+                )}
+              </View>
 
-                      {/* Picker modal */}
-                      <Modal
-                        visible={showSubcategoryPicker}
-                        transparent
-                        animationType="slide"
-                        onRequestClose={() => setShowSubcategoryPicker(false)}
-                      >
-                        <View style={styles.subcatModalOverlay}>
-                          <View style={styles.subcatModalContainer}>
-                            <View style={styles.subcatModalHeader}>
-                              <Text style={styles.subcatModalTitle}>
-                                Select Subcategory
-                              </Text>
-                              <TouchableOpacity
-                                onPress={() => {
-                                  setShowSubcategoryPicker(false);
-                                  setSubCategorySearch("");
-                                }}
-                                accessibilityRole="button"
-                                accessibilityLabel="Close subcategory picker"
-                              >
-                                <Ionicons name="close" size={22} color="#333" />
-                              </TouchableOpacity>
-                            </View>
+              {/* Subcategory Selector (Optional) — searchable dropdown */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>
+                  Category (Subcategory - Optional)
+                </Text>
 
-                            <View style={styles.subcatSearchWrap}>
-                              <TextInput
-                                value={subCategorySearch}
-                                onChangeText={setSubCategorySearch}
-                                placeholder="Search subcategories..."
-                                style={styles.subcatSearchInput}
-                                clearButtonMode="while-editing"
-                                accessibilityLabel="Search subcategories"
-                              />
-                            </View>
+                {loadingSubCategories ? (
+                  <ActivityIndicator size="small" color={PrimaryColor} />
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.subcatSelectorButton}
+                      onPress={() => setShowSubcategoryPicker(true)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Select subcategory"
+                    >
+                      <Text style={styles.subcatSelectorText} numberOfLines={1}>
+                        {formData.subCategoryId
+                          ? subCategories.find(
+                              (s) => s.id === formData.subCategoryId,
+                            )?.name || "Selected"
+                          : "None"}
+                      </Text>
+                      <Ionicons name="chevron-down" size={18} color="#666" />
+                    </TouchableOpacity>
 
-                            <View style={{ flex: 1 }}>
-                              <FlatList
-                                data={[
-                                  { id: "__none", name: "None" },
-                                  ...filteredSubCategories,
-                                ]}
-                                keyExtractor={(item) => item.id}
-                                renderItem={({ item }) => {
-                                  const isSelected =
-                                    item.id === "__none"
-                                      ? formData.subCategoryId === ""
-                                      : formData.subCategoryId === item.id;
+                    {/* Picker modal */}
+                    <Modal
+                      visible={showSubcategoryPicker}
+                      transparent
+                      animationType="slide"
+                      onRequestClose={() => setShowSubcategoryPicker(false)}
+                    >
+                      <View style={styles.subcatModalOverlay}>
+                        <View style={styles.subcatModalContainer}>
+                          <View style={styles.subcatModalHeader}>
+                            <Text style={styles.subcatModalTitle}>
+                              Select Subcategory
+                            </Text>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setShowSubcategoryPicker(false);
+                                setSubCategorySearch("");
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel="Close subcategory picker"
+                            >
+                              <Ionicons name="close" size={22} color="#333" />
+                            </TouchableOpacity>
+                          </View>
 
-                                  return (
-                                    <TouchableOpacity
-                                      style={[
-                                        styles.subcatListItem,
-                                        isSelected &&
-                                          styles.subcatListItemSelected,
-                                      ]}
-                                      onPress={() => {
-                                        setFormData({
-                                          ...formData,
-                                          subCategoryId:
-                                            item.id === "__none" ? "" : item.id,
-                                        });
-                                        setShowSubcategoryPicker(false);
-                                        setSubCategorySearch("");
-                                      }}
-                                    >
-                                      <Text
-                                        style={[
-                                          styles.subcatListText,
-                                          isSelected &&
-                                            styles.subcatListTextSelected,
-                                        ]}
-                                      >
-                                        {item.name}
-                                      </Text>
+                          <View style={styles.subcatSearchWrap}>
+                            <TextInput
+                              value={subCategorySearch}
+                              onChangeText={setSubCategorySearch}
+                              placeholder="Search subcategories..."
+                              style={styles.subcatSearchInput}
+                              clearButtonMode="while-editing"
+                              accessibilityLabel="Search subcategories"
+                            />
+                          </View>
 
-                                      {isSelected && (
-                                        <Ionicons
-                                          name="checkmark"
-                                          size={18}
-                                          color={PrimaryColor}
-                                        />
-                                      )}
-                                    </TouchableOpacity>
-                                  );
-                                }}
-                                ItemSeparatorComponent={() => (
-                                  <View
-                                    style={{
-                                      height: 1,
-                                      backgroundColor: "#f2f2f2",
+                          <View style={{ flex: 1 }}>
+                            <FlatList
+                              data={[
+                                { id: "__none", name: "None" },
+                                ...filteredSubCategories,
+                              ]}
+                              keyExtractor={(item) => item.id}
+                              renderItem={({ item }) => {
+                                const isSelected =
+                                  item.id === "__none"
+                                    ? formData.subCategoryId === ""
+                                    : formData.subCategoryId === item.id;
+
+                                return (
+                                  <TouchableOpacity
+                                    style={[
+                                      styles.subcatListItem,
+                                      isSelected &&
+                                        styles.subcatListItemSelected,
+                                    ]}
+                                    onPress={() => {
+                                      setFormData({
+                                        ...formData,
+                                        subCategoryId:
+                                          item.id === "__none" ? "" : item.id,
+                                      });
+                                      setShowSubcategoryPicker(false);
+                                      setSubCategorySearch("");
                                     }}
-                                  />
-                                )}
-                                keyboardShouldPersistTaps="handled"
-                                contentContainerStyle={{ paddingBottom: 12 }}
-                              />
-                            </View>
+                                  >
+                                    <Text
+                                      style={[
+                                        styles.subcatListText,
+                                        isSelected &&
+                                          styles.subcatListTextSelected,
+                                      ]}
+                                    >
+                                      {item.name}
+                                    </Text>
+
+                                    {isSelected && (
+                                      <Ionicons
+                                        name="checkmark"
+                                        size={18}
+                                        color={PrimaryColor}
+                                      />
+                                    )}
+                                  </TouchableOpacity>
+                                );
+                              }}
+                              ItemSeparatorComponent={() => (
+                                <View
+                                  style={{
+                                    height: 1,
+                                    backgroundColor: "#f2f2f2",
+                                  }}
+                                />
+                              )}
+                              keyboardShouldPersistTaps="handled"
+                              contentContainerStyle={{ paddingBottom: 12 }}
+                            />
                           </View>
                         </View>
-                      </Modal>
-                    </>
-                  )}
-                </View>
+                      </View>
+                    </Modal>
+                  </>
+                )}
+              </View>
 
-                <View style={styles.switchContainer}>
-                  <Text style={styles.switchLabel}>Available for Order</Text>
-                  <Switch
-                    value={formData.isAvailable}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, isAvailable: value })
-                    }
-                    trackColor={{ false: "#767577", true: PrimaryColor }}
-                  />
-                </View>
+              <View style={styles.switchContainer}>
+                <Text style={styles.switchLabel}>Available for Order</Text>
+                <Switch
+                  value={formData.isAvailable}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, isAvailable: value })
+                  }
+                  trackColor={{ false: "#767577", true: PrimaryColor }}
+                />
+              </View>
 
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleSave}
-                >
-                  <LinearGradient
-                    colors={[PrimaryColor, "#1976D2"]}
-                    style={styles.saveButtonGradient}
-                  >
-                    <Text style={styles.saveButtonText}>
-                      {editMode ? "Update Item" : "Add Item"}
-                    </Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
+              <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+                <Text style={styles.saveButtonText}>
+                  {editMode ? "Update Item" : "Add Item"}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
           </KeyboardAvoidingView>
-        </View>
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // ── Page ────────────────────────────────────────────────
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#F8F8F8",
   },
+
+  // ── Header ──────────────────────────────────────────────
   headerGradient: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -1530,106 +1532,146 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 18,
   },
   backButton: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
   headerTitleContainer: {
     flex: 1,
     alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
     color: "white",
     marginBottom: 2,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: "rgba(255, 255, 255, 0.8)",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    letterSpacing: 0.2,
   },
   headerRight: {
-    width: 40,
+    width: 36,
   },
   addButton: {
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(255,255,255,0.12)",
   },
-  statsContainer: {
+
+  // Stats row in header
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 10,
   },
-  statCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    padding: 15,
-    borderRadius: 12,
-    alignItems: "center",
+  statPill: {
     flex: 1,
-    marginHorizontal: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 10,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderColor: "rgba(255,255,255,0.1)",
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: "bold",
+  statPillIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#FFF4EC",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  statPillValue: {
+    fontSize: 16,
+    fontWeight: "700",
     color: "white",
-    marginBottom: 5,
   },
-  statLabel: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.8)",
+  statPillLabel: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.5)",
   },
+
+  // ── Search / Filter ─────────────────────────────────────
   searchContainer: {
     backgroundColor: "white",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
+    borderBottomColor: "#F0F0F0",
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginBottom: 15,
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: "#333",
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#1A1A1A",
   },
   filterContainer: {},
   filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
+    backgroundColor: "#F5F5F5",
+    marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: PrimaryColor,
+    backgroundColor: "#FFF4EC",
+    borderWidth: 1,
+    borderColor: PrimaryColor,
   },
   filterChipText: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 13,
+    color: "#888",
     fontWeight: "500",
   },
   filterChipTextActive: {
-    color: "white",
+    color: PrimaryColor,
+    fontWeight: "700",
   },
+
+  // ── List ────────────────────────────────────────────────
   listContainer: {
     flex: 1,
-    padding: 15,
+  },
+  flatListContent: {
+    padding: 14,
+    paddingBottom: 32,
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: 60,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: "#888",
   },
   emptyState: {
     flex: 1,
@@ -1639,184 +1681,352 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-    marginTop: 20,
-    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginTop: 16,
+    marginBottom: 6,
   },
   emptyDescription: {
-    fontSize: 16,
-    color: "#666",
+    fontSize: 13,
+    color: "#999",
     textAlign: "center",
-    lineHeight: 24,
-    marginBottom: 30,
+    lineHeight: 20,
+    marginBottom: 24,
   },
   emptyAction: {
     backgroundColor: PrimaryColor,
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
+    paddingHorizontal: 28,
+    paddingVertical: 13,
+    borderRadius: 10,
   },
   emptyActionText: {
     color: "white",
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 14,
+    fontWeight: "700",
   },
+
+  // ── Menu Item Card ───────────────────────────────────────
+  menuItemCard: {
+    backgroundColor: "white",
+    borderRadius: 14,
+    marginBottom: 10,
+    height: 120,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+    overflow: "hidden",
+    flexDirection: "row",
+  },
+  itemImageContainer: {
+    width: 120,
+    height: 120,
+    position: "relative",
+  },
+  itemImage: {
+    width: "100%",
+    height: "100%",
+  },
+  itemImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  availabilityBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  availableBadge: {
+    backgroundColor: "rgba(34,197,94,0.9)",
+  },
+  unavailableBadge: {
+    backgroundColor: "rgba(239,68,68,0.9)",
+  },
+  availabilityBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+  itemInfo: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flex: 1,
+    justifyContent: "space-between",
+    overflow: "hidden",
+  },
+  itemName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 3,
+    flexWrap: "wrap",
+  },
+  itemDescription: {
+    fontSize: 12,
+    color: "#888",
+    lineHeight: 16,
+    marginBottom: 6,
+    flexWrap: "wrap",
+  },
+  itemDetails: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  itemPrice: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: PrimaryColor,
+  },
+  prepTimeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  prepTimeText: {
+    fontSize: 11,
+    color: "#888",
+    fontWeight: "500",
+  },
+  itemActions: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  itemActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 9,
+    borderRadius: 7,
+    gap: 3,
+  },
+  itemActionBtnWarning: {
+    backgroundColor: "#F5F5F5",
+  },
+  itemActionBtnSuccess: {
+    backgroundColor: "#FFF4EC",
+  },
+  itemActionBtnDark: {
+    backgroundColor: "#1A1A1A",
+  },
+  itemActionBtnDelete: {
+    backgroundColor: "#FFF0F0",
+    paddingHorizontal: 10,
+  },
+  itemActionBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  itemActionBtnTextMuted: {
+    color: "#999",
+  },
+  itemActionBtnTextPrimary: {
+    color: PrimaryColor,
+  },
+
+  // ── Full-screen Modal ────────────────────────────────────
+  modalScreen: {
+    flex: 1,
+    backgroundColor: "#F8F8F8",
+  },
+  // (kept for compatibility)
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
   keyboardAvoidingView: {
     flex: 1,
-    justifyContent: "flex-end",
   },
   modalContent: {
-    backgroundColor: "white",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    maxHeight: "90%",
+    flex: 1,
+    backgroundColor: "#F8F8F8",
   },
   modalHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 20,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
+    paddingBottom: 18,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
+  modalHeaderTitle: {
+    flex: 1,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
     color: "white",
   },
+  modalSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.5)",
+    marginTop: 2,
+  },
+
+  // ── Form ────────────────────────────────────────────────
   form: {
-    padding: 20,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 20,
   },
   inputGroup: {
-    marginBottom: 20,
+    marginBottom: 18,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#999",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
     marginBottom: 8,
   },
   optionalText: {
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "400",
-    color: "#6B7280",
-  },
-  discountPreview: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#ecfdf5",
-    borderWidth: 1,
-    borderColor: "#10b981",
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 8,
-    gap: 8,
-  },
-  discountPreviewText: {
-    fontSize: 13,
-    color: "#059669",
-    fontWeight: "600",
-    flex: 1,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#EF4444",
-    marginTop: 6,
-    fontWeight: "500",
+    color: "#BBB",
+    textTransform: "none",
+    letterSpacing: 0,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: "#e0e0e0",
+    borderColor: "#EBEBEB",
     borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
+    padding: 14,
+    fontSize: 15,
     backgroundColor: "white",
+    color: "#1A1A1A",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
     elevation: 1,
-    color: "#1F2937",
   },
   inputFocused: {
     borderColor: PrimaryColor,
-    borderWidth: 2,
+    borderWidth: 1.5,
     shadowColor: PrimaryColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
     elevation: 2,
   },
   inputError: {
     borderColor: "#EF4444",
     borderWidth: 1.5,
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   textArea: {
-    height: 90,
+    height: 88,
     textAlignVertical: "top",
-    paddingTop: 16,
+    paddingTop: 14,
   },
   row: {
     flexDirection: "row",
     gap: 12,
   },
+  errorText: {
+    fontSize: 12,
+    color: "#EF4444",
+    marginTop: 5,
+    fontWeight: "500",
+  },
+
+  // Discount preview
+  discountPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+    gap: 8,
+  },
+  discountPreviewText: {
+    fontSize: 12,
+    color: "#16A34A",
+    fontWeight: "600",
+    flex: 1,
+  },
+
+  // Meal time selector
   categorySelector: {
     flexDirection: "row",
   },
   categoryOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 20,
-    backgroundColor: "#f0f0f0",
-    marginRight: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#F5F5F5",
+    marginRight: 8,
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 44,
+    minHeight: 40,
   },
   categoryOptionActive: {
-    backgroundColor: PrimaryColor,
+    backgroundColor: "#FFF4EC",
+    borderWidth: 1,
+    borderColor: PrimaryColor,
   },
   categoryOptionError: {
     borderWidth: 1.5,
     borderColor: "#EF4444",
   },
   categoryIcon: {
-    marginRight: 6,
+    marginRight: 5,
   },
   categoryOptionText: {
-    fontSize: 14,
-    color: "#666",
+    fontSize: 13,
+    color: "#888",
     fontWeight: "500",
   },
   categoryOptionTextActive: {
-    color: "white",
+    color: PrimaryColor,
+    fontWeight: "700",
   },
 
-  /* Subcategory picker styles */
+  // Subcategory picker
   subcatSelectorButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderWidth: 1.5,
+    borderColor: "#EBEBEB",
     backgroundColor: "white",
   },
-  subcatSelectorText: { flex: 1, color: "#333", marginRight: 8 },
+  subcatSelectorText: {
+    flex: 1,
+    color: "#1A1A1A",
+    marginRight: 8,
+    fontSize: 15,
+  },
   subcatModalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -1824,14 +2034,13 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
   },
   subcatModalContainer: {
-    // Use a fixed percentage height so inner Flex (FlatList) can expand reliably
     height: "70%",
     minHeight: 220,
     backgroundColor: "white",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 12,
-    paddingBottom: 24, // ensure last list items aren't flush against the bottom
+    paddingBottom: 24,
   },
   subcatModalHeader: {
     flexDirection: "row",
@@ -1840,16 +2049,17 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 6,
   },
-  subcatModalTitle: { fontSize: 16, fontWeight: "700", color: "#111" },
+  subcatModalTitle: { fontSize: 15, fontWeight: "700", color: "#1A1A1A" },
   subcatSearchWrap: { paddingHorizontal: 6, paddingVertical: 8 },
   subcatSearchInput: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderWidth: 1.5,
+    borderColor: "#EBEBEB",
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 9,
     fontSize: 14,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#F8F8F8",
+    color: "#1A1A1A",
   },
   subcatListItem: {
     paddingVertical: 12,
@@ -1858,30 +2068,42 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  subcatListText: { fontSize: 15, color: "#111" },
+  subcatListText: { fontSize: 14, color: "#1A1A1A" },
   subcatListItemSelected: {
-    backgroundColor: "rgba(16,185,129,0.06)",
+    backgroundColor: "#FFF4EC",
     borderRadius: 8,
   },
   subcatListTextSelected: { color: PrimaryColor, fontWeight: "700" },
+
+  // Switch row
   switchContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-    marginBottom: 30,
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   switchLabel: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    color: "#333",
+    color: "#1A1A1A",
   },
+
+  // Save button
   saveButton: {
+    backgroundColor: PrimaryColor,
     borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 10,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginBottom: 32,
   },
   saveButtonGradient: {
     padding: 18,
@@ -1889,23 +2111,24 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "700",
   },
-  // Image upload styles
+
+  // Image upload
   imagePickerContainer: {
     borderWidth: 2,
-    borderColor: "#e0e0e0",
+    borderColor: "#EBEBEB",
     borderStyle: "dashed",
     borderRadius: 12,
     height: 120,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f8f9fa",
+    backgroundColor: "#F8F8F8",
   },
   imagePickerContainerUploading: {
     borderColor: PrimaryColor,
-    backgroundColor: "#f0f8ff",
+    backgroundColor: "#FFF4EC",
   },
   selectedImageContainer: {
     width: "100%",
@@ -1930,7 +2153,7 @@ const styles = StyleSheet.create({
   },
   uploadingText: {
     color: "white",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     marginTop: 8,
   },
@@ -1942,7 +2165,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   changeImageButton: {
-    backgroundColor: "rgba(33, 150, 243, 0.9)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -1950,7 +2173,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   removeImageButton: {
-    backgroundColor: "rgba(244, 67, 54, 0.9)",
+    backgroundColor: "rgba(239,68,68,0.85)",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -1962,8 +2185,8 @@ const styles = StyleSheet.create({
   },
   imagePlaceholderText: {
     marginTop: 8,
-    fontSize: 14,
-    color: "#666",
+    fontSize: 13,
+    color: "#888",
     fontWeight: "500",
   },
   imagePlaceholderTextUploading: {
@@ -1971,147 +2194,18 @@ const styles = StyleSheet.create({
   },
   imageHintText: {
     marginTop: 4,
-    fontSize: 12,
-    color: "#888",
-    fontWeight: "400",
+    fontSize: 11,
+    color: "#BBB",
   },
-  // Menu item card styles
-  flatListContent: {
-    paddingBottom: 20,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 60,
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: "#666",
-  },
-  menuItemCard: {
-    backgroundColor: "white",
-    borderRadius: 15,
-    marginBottom: 15,
-    marginHorizontal: 15,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-    overflow: "hidden",
-    flexDirection: "row",
-  },
-  itemImageContainer: {
-    width: 140,
-    height: 140,
-    position: "relative",
-  },
-  itemImage: {
-    width: "100%",
-    height: "100%",
-  },
-  itemImagePlaceholder: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#f5f5f5",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  availabilityBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  availableBadge: {
-    backgroundColor: "rgba(76, 175, 80, 0.9)",
-  },
-  unavailableBadge: {
-    backgroundColor: "rgba(244, 67, 54, 0.9)",
-  },
-  availabilityBadgeText: {
-    color: "white",
-    fontSize: 10,
-    fontWeight: "600",
-    marginLeft: 4,
-  },
-  itemInfo: {
-    padding: 12,
-    flex: 1,
-  },
-  itemName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#333",
-    marginBottom: 4,
-    flexWrap: "wrap",
-  },
-  itemDescription: {
-    fontSize: 12,
-    color: "#666",
-    lineHeight: 16,
-    marginBottom: 8,
-    flexWrap: "wrap",
-  },
-  itemDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  itemPrice: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: PrimaryColor,
-  },
-  prepTimeContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  prepTimeText: {
-    fontSize: 12,
-    color: "#666",
-    marginLeft: 4,
-  },
-  itemActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 4,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  toggleButton: {
-    borderColor: "#E0E0E0",
-    backgroundColor: "#F5F5F5",
-  },
-  editButton: {
-    borderColor: "#2196F3",
-    backgroundColor: "rgba(33, 150, 243, 0.05)",
-  },
-  deleteButton: {
-    borderColor: "#F44336",
-    backgroundColor: "rgba(244, 67, 54, 0.05)",
-  },
-  actionButtonText: {
-    fontSize: 10,
-    fontWeight: "600",
-    marginLeft: 4,
-    color: "#666",
-  },
+
+  // Leftover compat styles
+  statsContainer: { flexDirection: "row", justifyContent: "space-between" },
+  statCard: { flex: 1 },
+  statNumber: { color: "white" },
+  statLabel: { color: "rgba(255,255,255,0.7)" },
+  actionButton: { flexDirection: "row", alignItems: "center" },
+  toggleButton: {},
+  editButton: {},
+  deleteButton: {},
+  actionButtonText: { fontSize: 11, marginLeft: 4 },
 });

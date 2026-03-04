@@ -1,13 +1,26 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import * as Clipboard from "expo-clipboard";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function PromoSection() {
   const [copied, setCopied] = useState(false);
+  const [promoUsed, setPromoUsed] = useState(false);
+  const PROMO_KEY = "promo_used_launch2026";
+
+  useEffect(() => {
+    // check storage for previous use
+    AsyncStorage.getItem(PROMO_KEY).then((value) => {
+      if (value === "true") setPromoUsed(true);
+    });
+  }, []);
 
   const handleCopy = async () => {
+    if (promoUsed) return;
     await Clipboard.setStringAsync("LAUNCH2026");
     setCopied(true);
+    setPromoUsed(true);
+    await AsyncStorage.setItem(PROMO_KEY, "true");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -38,22 +51,37 @@ export default function PromoSection() {
       {/* --- LAUNCH OFFER BANNER --- */}
       <TouchableOpacity
         activeOpacity={0.85}
-        style={[styles.bannerSmall, copied && styles.bannerSmallActive]}
+        style={[
+          styles.bannerSmall,
+          (copied || promoUsed) && styles.bannerSmallActive,
+        ]}
         onPress={handleCopy}
       >
         <View style={styles.smallLeft}>
-          <Text style={styles.tagIcon}>🔥</Text>
+          <Text style={styles.tagIcon}>🎉</Text>
           <View>
-            <Text style={styles.smallHeading}>Launch Offer!</Text>
-            <Text style={styles.smallText}>
-              Use code <Text style={styles.promoCode}>LAUNCH2026</Text> for free
-              delivery
+            <Text style={styles.smallHeading}>
+              Free delivery for app launch! (code: LAUNCH2026)
             </Text>
+            {/* <Text style={styles.smallText}>
+              Code: <Text style={styles.promoCode}>LAUNCH2026</Text>
+            </Text> */}
+            {promoUsed ? (
+              <Text style={styles.smallText}>
+                Code already used. Thank you!
+              </Text>
+            ) : (
+              <Text style={styles.smallText}>
+                Celebrate with us - first delivery only!
+              </Text>
+            )}
           </View>
         </View>
 
         <View style={styles.copyButtonSmall}>
-          <Text style={styles.copyIcon}>{copied ? "✓" : "📋"}</Text>
+          <Text style={styles.copyIcon}>
+            {promoUsed ? "✓" : copied ? "✓" : "📋"}
+          </Text>
         </View>
       </TouchableOpacity>
     </View>

@@ -23,6 +23,7 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -100,7 +101,7 @@ const STATUS_CONFIG: {
   },
   DISPATCHED: {
     color: "#06B6D4",
-    icon: "bicycle",
+    icon: "navigate",
     label: "On the Way",
     progress: 0.85,
   },
@@ -142,12 +143,34 @@ const buildCurvedRoute = (
   return points;
 };
 
+// Vehicle type → display info
+const getVehicleInfo = (vehicleType?: string) => {
+  switch ((vehicleType || "").toUpperCase()) {
+    case "BIKE":
+      return { emoji: "🏍️", label: "Motorbike" };
+    case "KEKE_CARGO":
+      return { emoji: "🛺", label: "Keke Cargo" };
+    case "CAR":
+      return { emoji: "🚗", label: "Car" };
+    case "VAN":
+      return { emoji: "🚐", label: "Van" };
+    case "LORRY":
+      return { emoji: "🚛", label: "Mini Lorry" };
+    default:
+      return { emoji: "🚗", label: vehicleType ?? "Vehicle" };
+  }
+};
+
 export default function OrderTrackingPage() {
   const router = useRouter();
   const { orderId } = useLocalSearchParams();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Map and location state
+  const [showDriverProfile, setShowDriverProfile] = useState(false);
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false);
 
   // Map and location state
   const [driverLocation, setDriverLocation] = useState<{
@@ -167,7 +190,7 @@ export default function OrderTrackingPage() {
     { latitude: number; longitude: number }[]
   >([]);
 
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<typeof MapView>(null);
   const lastRouteRequestRef = useRef<any>(null);
   const isFetchingRouteRef = useRef(false);
 
@@ -603,18 +626,21 @@ export default function OrderTrackingPage() {
 
       {/* Full Screen Map */}
       {Platform.OS !== "web" &&
-      vendorLocation &&
-      (!isPickup || vendorLocation) ? (
+      (vendorLocation || driverLocation || deliveryLocation) ? (
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
           initialRegion={{
-            latitude: isPickup
-              ? vendorLocation.latitude
-              : deliveryLocation?.latitude || vendorLocation.latitude,
-            longitude: isPickup
-              ? vendorLocation.longitude
-              : deliveryLocation?.longitude || vendorLocation.longitude,
+            latitude:
+              vendorLocation?.latitude ||
+              driverLocation?.latitude ||
+              deliveryLocation?.latitude ||
+              13.4549,
+            longitude:
+              vendorLocation?.longitude ||
+              driverLocation?.longitude ||
+              deliveryLocation?.longitude ||
+              -16.579,
             latitudeDelta: 0.025,
             longitudeDelta: 0.025,
           }}
@@ -622,26 +648,45 @@ export default function OrderTrackingPage() {
           showsMyLocationButton={false}
         >
           {/* Vendor/Restaurant Location */}
-          <Marker
-            coordinate={vendorLocation}
-            title={isPickup ? "Pickup Location" : "Restaurant"}
-          >
-            <View style={styles.vendorMarker}>
-              <Ionicons name="storefront" size={16} color="#FFF" />
-            </View>
-          </Marker>
+          {vendorLocation && (
+            <Marker
+              coordinate={vendorLocation}
+              title={isPickup ? "Pickup Location" : "Restaurant"}
+            >
+              <View style={styles.vendorMarker}>
+                <Ionicons name="storefront" size={16} color="#FFF" />
+              </View>
+            </Marker>
+          )}
 
-          {/* Driver Marker (only for delivery orders) */}
-          {driverLocation && isDispatched && !isPickup && (
-            <Marker coordinate={driverLocation} title="Driver">
+          {/* Driver Marker — live while dispatched, frozen/green after delivered */}
+          {driverLocation && !isPickup && (isDispatched || isDelivered) && (
+            <Marker
+              coordinate={driverLocation}
+              title={isDelivered ? "Delivered Here" : "Driver"}
+            >
               <View style={styles.driverMarkerContainer}>
                 <LinearGradient
-                  colors={[PrimaryColor, "#FF8C00"]}
+                  colors={
+                    isDelivered
+                      ? ["#22C55E", "#16A34A"]
+                      : [PrimaryColor, "#FF8C00"]
+                  }
                   style={styles.driverMarker}
                 >
-                  <Ionicons name="bicycle" size={20} color="#FFF" />
+                  <Ionicons
+                    name={
+                      isDelivered
+                        ? "checkmark"
+                        : order?.driverVehicleType === "BIKE"
+                          ? "bicycle"
+                          : "car"
+                    }
+                    size={20}
+                    color="#FFF"
+                  />
                 </LinearGradient>
-                <View style={styles.driverMarkerPulse} />
+                {!isDelivered && <View style={styles.driverMarkerPulse} />}
               </View>
             </Marker>
           )}
@@ -658,7 +703,7 @@ export default function OrderTrackingPage() {
             </Marker>
           )}
 
-          {/* Route Line (only for delivery orders) */}
+          {/* Route Line (only while dispatched, not after delivered) */}
           {routeCoordinates.length > 0 && isDispatched && !isPickup && (
             <Polyline
               coordinates={routeCoordinates}
@@ -698,7 +743,7 @@ export default function OrderTrackingPage() {
       </TouchableOpacity>
 
       {/* Recenter Button */}
-      {vendorLocation && (
+      {(vendorLocation || driverLocation || deliveryLocation) && (
         <TouchableOpacity
           style={styles.recenterButton}
           onPress={recenterMap}
@@ -751,12 +796,12 @@ export default function OrderTrackingPage() {
                 )}
                 {!isDispatched && !isDelivered && !isPickup && (
                   <Text style={styles.orderIdText}>
-                    Order #{order.id.slice(-6).toUpperCase()}
+                    Order TG{order.id.slice(-4).toUpperCase()}
                   </Text>
                 )}
                 {isPickup && order?.status !== "READY" && (
                   <Text style={styles.orderIdText}>
-                    Order #{order.id.slice(-6).toUpperCase()}
+                    Order TG{order.id.slice(-4).toUpperCase()}
                   </Text>
                 )}
               </View>
@@ -795,7 +840,11 @@ export default function OrderTrackingPage() {
 
           {/* Driver Card */}
           {hasDriver && (isDispatched || isDelivered) && (
-            <View style={styles.driverCard}>
+            <TouchableOpacity
+              style={styles.driverCard}
+              onPress={() => setShowDriverProfile(true)}
+              activeOpacity={0.85}
+            >
               <View style={styles.driverInfo}>
                 {order.driverImage ? (
                   <Image
@@ -809,18 +858,28 @@ export default function OrderTrackingPage() {
                 )}
                 <View style={styles.driverDetails}>
                   <Text style={styles.driverName}>{order.driverName}</Text>
-                  <Text style={styles.driverRole}>Your Driver</Text>
+                  <Text style={styles.driverRole}>
+                    Your Driver · Tap to view
+                  </Text>
                 </View>
               </View>
               <View style={styles.driverActions}>
                 <TouchableOpacity
                   style={styles.actionButton}
-                  onPress={handleCallDriver}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    handleCallDriver();
+                  }}
                 >
                   <Ionicons name="call" size={20} color={PrimaryColor} />
                 </TouchableOpacity>
+                <View
+                  style={[styles.actionButton, { backgroundColor: "#F3F4F6" }]}
+                >
+                  <Ionicons name="chevron-forward" size={18} color="#6B7280" />
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           )}
 
           {/* Gift Order Recipient */}
@@ -969,6 +1028,144 @@ export default function OrderTrackingPage() {
           <View style={{ height: 40 }} />
         </ScrollView>
       </Animated.View>
+
+      {/* Driver Profile Modal — rendered at root level for instant response */}
+      <Modal
+        visible={showDriverProfile}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDriverProfile(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            onPress={() => setShowDriverProfile(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.modalSheet}>
+            {/* Handle */}
+            <View style={styles.modalHandle} />
+
+            {/* Close */}
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowDriverProfile(false)}
+            >
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
+
+            {/* Avatar */}
+            <View style={styles.modalAvatarContainer}>
+              {order?.driverImage ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowDriverProfile(false);
+                    setShowFullscreenImage(true);
+                  }}
+                >
+                  <Image
+                    source={{ uri: order.driverImage }}
+                    style={styles.modalAvatar}
+                  />
+                  <View style={styles.modalAvatarZoomHint}>
+                    <Ionicons name="expand" size={14} color="#FFF" />
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={[styles.modalAvatar, styles.modalAvatarPlaceholder]}
+                >
+                  <Ionicons name="person" size={44} color="#9CA3AF" />
+                </View>
+              )}
+              <View style={styles.modalOnlineDot} />
+            </View>
+
+            <Text style={styles.modalDriverName}>{order?.driverName}</Text>
+            <Text style={styles.modalDriverSubtitle}>Delivery Driver</Text>
+
+            {/* Info rows */}
+            <View style={styles.modalInfoList}>
+              {order?.driverPhone && (
+                <View style={styles.modalInfoRow}>
+                  <View style={styles.modalInfoIcon}>
+                    <Ionicons name="call" size={18} color={PrimaryColor} />
+                  </View>
+                  <View>
+                    <Text style={styles.modalInfoLabel}>Phone</Text>
+                    <Text style={styles.modalInfoValue}>
+                      {order.driverPhone}
+                    </Text>
+                  </View>
+                </View>
+              )}
+              {order?.driverVehicleType &&
+                (() => {
+                  const vInfo = getVehicleInfo(order.driverVehicleType);
+                  return (
+                    <View style={styles.modalInfoRow}>
+                      <View style={styles.modalInfoIcon}>
+                        <Text style={{ fontSize: 18 }}>{vInfo.emoji}</Text>
+                      </View>
+                      <View>
+                        <Text style={styles.modalInfoLabel}>Vehicle Type</Text>
+                        <Text style={styles.modalInfoValue}>{vInfo.label}</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+              {order?.driverVehicleNumber && (
+                <View style={styles.modalInfoRow}>
+                  <View style={styles.modalInfoIcon}>
+                    <Ionicons name="card" size={18} color={PrimaryColor} />
+                  </View>
+                  <View>
+                    <Text style={styles.modalInfoLabel}>Plate Number</Text>
+                    <Text style={styles.modalInfoValue}>
+                      {order.driverVehicleNumber}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Call button */}
+            <TouchableOpacity
+              style={styles.modalCallButton}
+              onPress={handleCallDriver}
+            >
+              <Ionicons name="call" size={20} color="#FFF" />
+              <Text style={styles.modalCallText}>Call Driver</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Fullscreen Driver Photo — rendered at root level for instant response */}
+      <Modal
+        visible={showFullscreenImage}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setShowFullscreenImage(false)}
+      >
+        <View style={styles.fullscreenOverlay}>
+          <TouchableOpacity
+            style={styles.fullscreenClose}
+            onPress={() => setShowFullscreenImage(false)}
+          >
+            <Ionicons name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
+          {order?.driverImage && (
+            <Image
+              source={{ uri: order.driverImage }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1510,5 +1707,153 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 18,
     fontStyle: "italic",
+  },
+
+  // Driver Profile Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  modalSheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    alignItems: "center",
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 16,
+  },
+  modalClose: {
+    position: "absolute",
+    top: 16,
+    right: 20,
+    padding: 6,
+  },
+  modalAvatarContainer: {
+    position: "relative",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  modalAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: PrimaryColor + "30",
+  },
+  modalAvatarPlaceholder: {
+    backgroundColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalOnlineDot: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#22C55E",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  modalDriverName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+  },
+  modalDriverSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  modalInfoList: {
+    width: "100%",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    marginBottom: 24,
+    overflow: "hidden",
+  },
+  modalInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    gap: 14,
+  },
+  modalInfoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: PrimaryColor + "15",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalInfoLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginBottom: 2,
+  },
+  modalInfoValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  modalCallButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: PrimaryColor,
+    borderRadius: 16,
+    paddingVertical: 16,
+    width: "100%",
+  },
+  modalCallText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFF",
+  },
+  modalAvatarZoomHint: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 10,
+    padding: 4,
+  },
+  fullscreenOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 20,
+    padding: 6,
+  },
+  fullscreenImage: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.75,
   },
 });

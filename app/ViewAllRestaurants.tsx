@@ -12,8 +12,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
-import RestaurantList from "@/components/common/RestaurantList";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { API_URL } from "@/constants/config";
 
 interface Restaurant {
@@ -21,13 +19,23 @@ interface Restaurant {
   name: string;
   description?: string;
   imageUrl?: string;
+  address?: string;
+  city?: string;
   isActive: boolean;
+  acceptsOrders: boolean;
   service?: {
-    imageUrl?: string;
+    id?: string;
+    name?: string;
     location?: string;
-    category?: { name: string };
-    subCategory?: { name: string };
+    imageUrl?: string;
+    category?: { id?: string; name: string };
+    subCategory?: { id?: string; name: string };
   };
+  menus?: {
+    id: string;
+    name: string;
+    items?: { id: string; name: string; price: number; isAvailable: boolean }[];
+  }[];
 }
 
 export default function ViewAllRestaurants() {
@@ -62,12 +70,8 @@ export default function ViewAllRestaurants() {
   };
 
   const filteredRestaurants = restaurants.filter((r) =>
-    r.name.toLowerCase().includes(search.toLowerCase())
+    r.name.toLowerCase().includes(search.toLowerCase()),
   );
-
-  const getRandomRating = () => (Math.random() * (5.0 - 3.5) + 3.5).toFixed(1);
-  const getRandomReviewCount = () =>
-    Math.floor(Math.random() * (500 - 50) + 50);
 
   const getCuisineTypes = (restaurant: Restaurant): string[] => {
     const types: string[] = [];
@@ -75,6 +79,9 @@ export default function ViewAllRestaurants() {
       types.push(restaurant.service.category.name);
     if (restaurant.service?.subCategory?.name)
       types.push(restaurant.service.subCategory.name);
+    restaurant.menus?.forEach((menu) => {
+      if (menu.name && !types.includes(menu.name)) types.push(menu.name);
+    });
     return types.slice(0, 3);
   };
 
@@ -142,9 +149,10 @@ export default function ViewAllRestaurants() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         >
           {filteredRestaurants.map((restaurant) => {
-            const rating = getRandomRating();
-            const reviewCount = getRandomReviewCount();
             const cuisineTypes = getCuisineTypes(restaurant);
+            const displayAddress =
+              restaurant.address || restaurant.service?.location || "Location";
+            const isOpen = restaurant.isActive && restaurant.acceptsOrders;
 
             return (
               <TouchableOpacity
@@ -178,15 +186,15 @@ export default function ViewAllRestaurants() {
                     </View>
                   )}
 
-                  {restaurant.isActive && (
-                    <View style={styles.activeBadge}>
-                      <Text style={styles.activeBadgeText}>OPEN</Text>
-                    </View>
-                  )}
-
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#FFD700" />
-                    <Text style={styles.ratingText}>{rating}</Text>
+                  <View
+                    style={[
+                      styles.activeBadge,
+                      { backgroundColor: isOpen ? "#27AE60" : "#EF4444" },
+                    ]}
+                  >
+                    <Text style={styles.activeBadgeText}>
+                      {isOpen ? "OPEN" : "CLOSED"}
+                    </Text>
                   </View>
                 </View>
 
@@ -196,7 +204,9 @@ export default function ViewAllRestaurants() {
                     {restaurant.name}
                   </Text>
                   <Text style={styles.desc} numberOfLines={2}>
-                    {restaurant.description || "Delicious food served fresh"}
+                    {restaurant.description ||
+                      restaurant.service?.name ||
+                      "Delicious food served fresh"}
                   </Text>
 
                   {/* Categories */}
@@ -223,10 +233,9 @@ export default function ViewAllRestaurants() {
                         color="#666"
                       />
                       <Text style={styles.locationText} numberOfLines={1}>
-                        {restaurant.service?.location || "Location"}
+                        {displayAddress}
                       </Text>
                     </View>
-                    <Text style={styles.reviewText}>{reviewCount} reviews</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -316,14 +325,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 18,
-    elevation: 8,
+    elevation: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 15,
     overflow: "hidden",
     borderWidth: 0.5,
-    borderColor: "#F3F4F6",
+    borderColor: "rgba(0,0,0,0.08)",
   },
   imageContainer: {
     height: 140,
@@ -342,24 +351,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 12,
     left: 12,
-    backgroundColor: "#27AE60",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
   activeBadgeText: { color: "#fff", fontSize: 10, fontWeight: "600" },
-  ratingBadge: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  ratingText: { color: "#fff", fontSize: 10, fontWeight: "600", marginLeft: 2 },
   infoContainer: { padding: 16 },
   name: { fontSize: 16, fontWeight: "bold", color: "#333", marginBottom: 4 },
   desc: { fontSize: 12, color: "#666", marginBottom: 8, lineHeight: 16 },
@@ -377,5 +373,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   locationText: { fontSize: 12, color: "#666", marginLeft: 4 },
-  reviewText: { fontSize: 12, color: "#666" },
 });

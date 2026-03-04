@@ -493,7 +493,7 @@ export default function Orders() {
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
-            Order #{order.id.slice(-8).toUpperCase()}
+            Order TG{order.id.slice(-4).toUpperCase()}
           </Text>
           {/* 🎁 Gift Order Badge */}
           {order.isGiftOrder && (
@@ -677,7 +677,7 @@ export default function Orders() {
               </Text>
               <Ionicons name="card-outline" size={12} color="#fff" />
             </TouchableOpacity>
-          ) : (
+          ) : !["DELIVERED", "CANCELLED"].includes(order.status) ? (
             <TouchableOpacity
               style={{
                 flexDirection: "row",
@@ -704,7 +704,7 @@ export default function Orders() {
               </Text>
               <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>
@@ -1061,54 +1061,36 @@ export default function Orders() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={{ alignItems: "center", paddingVertical: 40 }}>
+            <View style={{ alignItems: "center", paddingVertical: 48 }}>
               <Ionicons
                 name={
                   activeTab === "live" ? "receipt-outline" : "archive-outline"
                 }
-                size={64}
+                size={48}
                 color="#D1D5DB"
               />
               <Text
                 style={{
-                  fontSize: 18,
-                  fontWeight: "600",
-                  color: "#9CA3AF",
                   marginTop: 16,
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: "#6B7280",
                 }}
               >
-                No {activeTab} orders
+                {activeTab === "live" ? "No active orders" : "No past orders"}
               </Text>
               <Text
                 style={{
+                  marginTop: 8,
                   fontSize: 14,
                   color: "#9CA3AF",
                   textAlign: "center",
-                  marginTop: 8,
                 }}
               >
                 {activeTab === "live"
                   ? "When you place an order, it will appear here"
-                  : "Your completed orders will be shown here"}
+                  : "Your completed orders will appear here"}
               </Text>
-              {activeTab === "live" && (
-                <TouchableOpacity
-                  style={{
-                    backgroundColor: PrimaryColor,
-                    paddingHorizontal: 24,
-                    paddingVertical: 12,
-                    borderRadius: 12,
-                    marginTop: 16,
-                  }}
-                  onPress={() => router.push("/" as any)}
-                >
-                  <Text
-                    style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}
-                  >
-                    Start Shopping
-                  </Text>
-                </TouchableOpacity>
-              )}
             </View>
           )
         }

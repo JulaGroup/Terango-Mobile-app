@@ -28,6 +28,7 @@ import * as Linking from "expo-linking";
 import { API_URL } from "@/constants/config";
 import { orderApi } from "@/lib/api";
 import { initSocket } from "@/services/SocketService";
+import * as Notifications from "expo-notifications";
 import { View, Text, StatusBar, Platform } from "react-native";
 import WebContainer from "@/components/WebContainer";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
@@ -145,7 +146,7 @@ export default function RootLayout() {
 
           showPaymentToast(
             orderId
-              ? `Payment received — Order #${String(orderId).slice(-6).toUpperCase()}`
+              ? `Payment received — Order TG${String(orderId).slice(-4).toUpperCase()}`
               : "Payment successful",
             "success",
           );
@@ -154,7 +155,7 @@ export default function RootLayout() {
           try {
             const notifTitle = "Your payment has been made successfully";
             const notifBody = orderId
-              ? `Order #${String(orderId).slice(-6).toUpperCase()} — Tap to view your order.`
+              ? `Order TG${String(orderId).slice(-4).toUpperCase()} — Tap to view your order.`
               : "Payment successful — Tap to view your order.";
 
             NotificationService.scheduleOrderNotification({
@@ -303,7 +304,7 @@ export default function RootLayout() {
           try {
             showPaymentToast(
               data?.orderId
-                ? `Payment received — Order #${String(data.orderId).slice(-6).toUpperCase()}`
+                ? `Payment received — Order TG${String(data.orderId).slice(-4).toUpperCase()}`
                 : "Payment successful",
               "success",
             );
@@ -316,7 +317,7 @@ export default function RootLayout() {
           try {
             showPaymentToast(
               data?.orderId
-                ? `Payment failed — Order #${String(data.orderId).slice(-6).toUpperCase()}`
+                ? `Payment failed — Order TG${String(data.orderId).slice(-4).toUpperCase()}`
                 : "Payment failed",
               "error",
             );
@@ -332,6 +333,37 @@ export default function RootLayout() {
 
   useRegisterPushToken(userId ?? "");
   useBrowserNotifications();
+
+  // Handle notification taps → navigate to order-details
+  useEffect(() => {
+    // App was already open (foreground/background)
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = response.notification.request.content.data as any;
+        if (data?.orderId) {
+          router.push({
+            pathname: "/order-details",
+            params: { orderId: String(data.orderId) },
+          });
+        }
+      },
+    );
+
+    // App was killed — check if launched via notification tap
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        const data = response.notification.request.content.data as any;
+        if (data?.orderId) {
+          router.push({
+            pathname: "/order-details",
+            params: { orderId: String(data.orderId) },
+          });
+        }
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   if (!loaded) return null;
 

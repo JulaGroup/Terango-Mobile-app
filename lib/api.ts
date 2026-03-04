@@ -135,6 +135,8 @@ export interface Order {
   driverLatitude?: number;
   driverLongitude?: number;
   driverLastLocationUpdate?: string;
+  driverVehicleType?: string;
+  driverVehicleNumber?: string;
   address?: string;
   // 🎁 Recipient fields for gift orders
   isGiftOrder?: boolean;

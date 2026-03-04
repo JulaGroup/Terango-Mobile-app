@@ -241,7 +241,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
       setError(null);
       // Small random jitter to avoid thundering herd when many components refetch at once
       await new Promise((resolve) =>
-        setTimeout(resolve, Math.floor(Math.random() * 200))
+        setTimeout(resolve, Math.floor(Math.random() * 200)),
       );
 
       // Retry logic with exponential backoff for transient failures (DB pool blips, network)
@@ -265,7 +265,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
 
           if (!response.ok) {
             throw new Error(
-              `Failed to fetch shops: ${response.status} ${response.statusText}`
+              `Failed to fetch shops: ${response.status} ${response.statusText}`,
             );
           }
 
@@ -281,7 +281,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
           try {
             await AsyncStorage.setItem(
               "cached_shops",
-              JSON.stringify(shopsArray)
+              JSON.stringify(shopsArray),
             );
           } catch (cacheErr) {
             console.warn("Failed to cache shops:", cacheErr);
@@ -292,7 +292,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
           lastErr = err;
           console.warn(
             `fetchShops attempt ${attempt} failed:`,
-            err?.message || err
+            err?.message || err,
           );
 
           // If aborted by timeout, set a specific message
@@ -331,7 +331,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
     } catch (err: any) {
       console.error("Error fetching shops:", err);
       setError(
-        typeof err?.message === "string" ? err.message : "Failed to load shops"
+        typeof err?.message === "string" ? err.message : "Failed to load shops",
       );
     } finally {
       setLoading(false);
@@ -497,20 +497,19 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <View
             style={{
+              width: 4,
+              height: 38,
+              borderRadius: 2,
               backgroundColor: "#6366F1",
-              borderRadius: 8,
-              padding: 8,
-              marginRight: 12,
+              marginRight: 10,
             }}
-          >
-            <Ionicons name="storefront" size={20} color="#fff" />
-          </View>
+          />
           <View>
             <Text
               style={{
                 fontSize: 18,
-                fontWeight: "bold",
-                color: "#333",
+                fontWeight: "800",
+                color: "#111827",
               }}
             >
               Stores
@@ -518,7 +517,7 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
             <Text
               style={{
                 fontSize: 12,
-                color: "#666",
+                color: "#6B7280",
                 marginTop: 2,
               }}
             >

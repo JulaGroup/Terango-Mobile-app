@@ -588,6 +588,7 @@ export class NotificationService {
           body,
           data: { orderId, ...data },
           categoryIdentifier: "order-update",
+          sound: "default",
         },
         trigger: null, // Show immediately
       });
@@ -612,6 +613,7 @@ export class NotificationService {
           body,
           data: { orderId, type: "delivery" },
           categoryIdentifier: "delivery-update",
+          sound: "default",
         },
         trigger: estimatedTime
           ? {
@@ -640,6 +642,7 @@ export class NotificationService {
           body,
           data: { type: "promotion", ...data },
           categoryIdentifier: "promotion",
+          sound: "default",
         },
         trigger: scheduleTime
           ? {

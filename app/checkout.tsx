@@ -55,6 +55,29 @@ let LinearGradient: any = ({ children, colors, style }: any) => (
   </View>
 );
 
+// Helper functions for vehicle display
+const getVehicleEmoji = (vehicleType: string): string => {
+  const emojis = {
+    BIKE: "🏍️",
+    KEKE_CARGO: "🛺",
+    CAR: "🚗",
+    VAN: "🚐",
+    LORRY: "🚚",
+  };
+  return emojis[vehicleType as keyof typeof emojis] || "🚛";
+};
+
+const getVehicleName = (vehicleType: string): string => {
+  const names = {
+    BIKE: "Motorbike",
+    KEKE_CARGO: "Keke Cargo",
+    CAR: "Car",
+    VAN: "Van",
+    LORRY: "Mini Truck",
+  };
+  return names[vehicleType as keyof typeof names] || "Vehicle";
+};
+
 export default function Checkout() {
   const router = useRouter();
   const {
@@ -725,9 +748,23 @@ export default function Checkout() {
         const vendorId = firstItem.vendorId || restaurantIds[0];
         const vendorType = firstItem.entityType || "restaurant";
 
-        // Step 3: Call delivery fee estimation API
+        // Step 3: Call delivery fee estimation API with items for weight calculation
         console.log("💰 Estimating delivery fee for vendor:", vendorId);
         console.log("📦 Vendor type:", vendorType);
+        console.log(
+          "🛒 Cart items for weight calculation:",
+          items.length,
+          "items",
+        );
+
+        // Transform cart items for weight calculation
+        const orderItems = items.map((item) => ({
+          menuItemId: item.entityType === "restaurant" ? item.id : undefined,
+          productId: item.entityType === "shop" ? item.id : undefined,
+          medicineId: item.entityType === "pharmacy" ? item.id : undefined,
+          quantity: item.quantity,
+        }));
+
         const response = await fetch(`${API_URL}/api/delivery-fee/estimate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -738,6 +775,7 @@ export default function Checkout() {
             customerLongitude: coords.longitude,
             orderAmount: subtotal,
             hasFreeDeliveryPromo: appliedPromo?.freeDelivery || false,
+            items: orderItems, // Add items for weight-based pricing
           }),
         });
 
@@ -1063,6 +1101,13 @@ export default function Checkout() {
             // 🚀 ADD CALCULATED DELIVERY FEE
             deliveryFee: deliveryFee, // Send the calculated delivery fee
             serviceFee: serviceFee, // Send service fee (currently 0)
+            // 🚛 ADD VEHICLE ANALYSIS DATA FROM DELIVERY ESTIMATE
+            vehicleType: deliveryEstimate?.weightAnalysis?.vehicleTypeUsed,
+            totalWeightKg: deliveryEstimate?.weightAnalysis?.totalWeightKg,
+            baseVehicleFee: deliveryEstimate?.weightAnalysis?.baseVehicleFee,
+            distanceFee: deliveryEstimate?.weightAnalysis?.distanceFee,
+            perKmFee: deliveryEstimate?.weightAnalysis?.perKmFee,
+            pricingMethod: deliveryEstimate?.weightAnalysis?.pricingMethod,
           };
 
           // 🔍 DEBUG: Log coordinates being sent
@@ -2118,17 +2163,118 @@ export default function Checkout() {
                         </View>
                       )}
                       {deliveryEstimate && !loadingDeliveryFee && (
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: "#6B7280",
-                            marginTop: 2,
-                          }}
-                        >
-                          📍Range {deliveryEstimate.distanceKm.toFixed(1)} km •
-                          🏍️ ~{deliveryEstimate.estimatedDeliveryTimeMinutes}{" "}
-                          mins
-                        </Text>
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: "#6B7280",
+                              marginTop: 2,
+                            }}
+                          >
+                            📍 {deliveryEstimate.distanceKm.toFixed(1)} km • ⏱️
+                            ~{deliveryEstimate.estimatedDeliveryTimeMinutes}{" "}
+                            mins
+                          </Text>
+
+                          {/* Weight-Based Vehicle Information */}
+                          {deliveryEstimate.weightAnalysis && (
+                            <View>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: "#059669",
+                                  marginTop: 2,
+                                  fontWeight: "500",
+                                }}
+                              >
+                                🚛{" "}
+                                {deliveryEstimate.weightAnalysis.totalWeightKg}
+                                kg →{" "}
+                                {getVehicleEmoji(
+                                  deliveryEstimate.weightAnalysis
+                                    .vehicleTypeUsed,
+                                )}{" "}
+                                {getVehicleName(
+                                  deliveryEstimate.weightAnalysis
+                                    .vehicleTypeUsed,
+                                )}
+                              </Text>
+
+                              {/* Distance-Based Pricing Breakdown */}
+                              {deliveryEstimate.weightAnalysis
+                                .baseVehicleFee !== undefined &&
+                                deliveryEstimate.weightAnalysis.distanceFee !==
+                                  undefined && (
+                                  <View style={{ marginTop: 4 }}>
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#6B7280",
+                                        fontWeight: "500",
+                                      }}
+                                    >
+                                      💰 Pricing Breakdown:
+                                    </Text>
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        color: "#374151",
+                                        marginTop: 1,
+                                      }}
+                                    >
+                                      Base: D
+                                      {
+                                        deliveryEstimate.weightAnalysis
+                                          .baseVehicleFee
+                                      }{" "}
+                                      + Distance: D
+                                      {
+                                        deliveryEstimate.weightAnalysis
+                                          .distanceFee
+                                      }{" "}
+                                      = D{deliveryEstimate.deliveryFee}
+                                    </Text>
+                                    {deliveryEstimate.weightAnalysis.perKmFee &&
+                                      deliveryEstimate.distanceKm && (
+                                        <Text
+                                          style={{
+                                            fontSize: 9,
+                                            color: "#8B5CF6",
+                                            marginTop: 1,
+                                          }}
+                                        >
+                                          (
+                                          {deliveryEstimate.distanceKm.toFixed(
+                                            1,
+                                          )}
+                                          km × D
+                                          {
+                                            deliveryEstimate.weightAnalysis
+                                              .perKmFee
+                                          }
+                                          /km)
+                                        </Text>
+                                      )}
+                                  </View>
+                                )}
+                            </View>
+                          )}
+
+                          {/* Pricing Method Indicator */}
+                          {deliveryEstimate.pricingMethod && (
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                color: "#8B5CF6",
+                                marginTop: 1,
+                              }}
+                            >
+                              {deliveryEstimate.pricingMethod === "weight-based"
+                                ? "🎯 Smart vehicle pricing"
+                                : "📏 Distance-based pricing"}
+                            </Text>
+                          )}
+                        </View>
                       )}
                     </View>
                     <Text
@@ -2252,6 +2398,9 @@ export default function Checkout() {
                       {appliedPromo.message ||
                         appliedPromo.description ||
                         "Promo applied successfully!"}
+                      {appliedPromo.freeDelivery && (
+                        <Text> Free delivery applied.</Text>
+                      )}
                     </Text>
                   </View>
                   <TouchableOpacity

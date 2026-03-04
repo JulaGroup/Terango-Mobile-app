@@ -4,7 +4,7 @@ import { View, Animated, Dimensions } from "react-native";
 const { width } = Dimensions.get("window");
 
 interface SkeletonLoaderProps {
-  type?: "card" | "banner" | "category" | "list";
+  type?: "card" | "banner" | "category" | "list" | "horizontal";
   count?: number;
 }
 
@@ -27,7 +27,7 @@ export default function SkeletonLoader({
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [animatedValue]);
 
@@ -92,6 +92,60 @@ export default function SkeletonLoader({
               opacity,
             }}
           />
+        ))}
+      </View>
+    );
+  }
+
+  if (type === "horizontal") {
+    return (
+      <View style={{ flexDirection: "row", paddingHorizontal: 16, gap: 12 }}>
+        {Array.from({ length: count }).map((_, index) => (
+          <Animated.View
+            key={index}
+            style={{
+              width: 160,
+              backgroundColor: "#fff",
+              borderRadius: 12,
+              overflow: "hidden",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+              elevation: 2,
+              opacity,
+            }}
+          >
+            <View style={{ height: 120, backgroundColor: "#E5E7EB" }} />
+            <View style={{ padding: 10 }}>
+              <View
+                style={{
+                  height: 11,
+                  backgroundColor: "#E5E7EB",
+                  borderRadius: 5,
+                  marginBottom: 6,
+                  width: "80%",
+                }}
+              />
+              <View
+                style={{
+                  height: 10,
+                  backgroundColor: "#E5E7EB",
+                  borderRadius: 5,
+                  marginBottom: 6,
+                  width: "55%",
+                }}
+              />
+              <View
+                style={{
+                  height: 13,
+                  backgroundColor: "#E5E7EB",
+                  borderRadius: 6,
+                  width: "45%",
+                }}
+              />
+            </View>
+          </Animated.View>
         ))}
       </View>
     );

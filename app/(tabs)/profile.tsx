@@ -10,6 +10,7 @@ import {
   Animated,
   RefreshControl,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SecureStorage } from "@/utils/secureStorage";
 import { useRouter, useFocusEffect, Link } from "expo-router";
 import axios from "axios";
@@ -679,9 +680,14 @@ export default function ProfilePage() {
           />
         }
       >
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        {/* Profile Card - Enhanced */}
-        <View style={styles.profileCard}>
+        <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
+        {/* ── Gradient Hero Header ── */}
+        <LinearGradient
+          colors={["#ff6b00", "#ff9240"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileGradientHeader}
+        >
           <View style={styles.avatarContainer}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
@@ -689,17 +695,17 @@ export default function ProfilePage() {
               </Text>
             </View>
           </View>
-
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userNameLarge}>{user?.fullName || "User"}</Text>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>
-                {user?.role === "VENDOR" ? "🏪 Vendor Account" : "👤 Customer"}
-              </Text>
-            </View>
+          <Text style={styles.userNameLarge}>{user?.fullName || "User"}</Text>
+          <Text style={styles.gradientPhone}>{user?.phone || ""}</Text>
+          <View style={styles.gradientRoleBadge}>
+            <Text style={styles.gradientRoleBadgeText}>
+              {user?.role === "VENDOR" ? "🏪 Vendor Account" : "👤 Customer"}
+            </Text>
           </View>
+        </LinearGradient>
 
+        {/* ── Info Card (pulls up under gradient) ── */}
+        {/* <View style={styles.profileCard}>
           <View style={styles.profileInfo}>
             <View style={styles.infoRow}>
               <Ionicons name="person-outline" size={20} color="#FF6B35" />
@@ -721,7 +727,7 @@ export default function ProfilePage() {
               </View>
             </View>
           </View>
-        </View>
+        </View> */}
         {/* Vendor CTA - Dynamic based on application status */}
         {/* {user?.role !== "VENDOR" && (
           <TouchableOpacity
@@ -960,17 +966,45 @@ const styles = StyleSheet.create({
   },
 
   // Profile Card Styles - Enhanced
+  profileGradientHeader: {
+    paddingTop: 40,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+    alignItems: "center",
+  },
   profileCard: {
     backgroundColor: "#fff",
     marginHorizontal: 20,
-    marginTop: 10,
+    marginTop: -20,
     borderRadius: 24,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 8,
+    zIndex: 10,
+  },
+  gradientPhone: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  gradientRoleBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  gradientRoleBadgeText: {
+    fontSize: 13,
+    color: "#fff",
+    fontWeight: "600",
   },
   avatarContainer: {
     alignItems: "center",
@@ -1033,8 +1067,8 @@ const styles = StyleSheet.create({
   userNameLarge: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#111827",
-    marginBottom: 8,
+    color: "#fff",
+    marginBottom: 2,
     textAlign: "center",
   },
   roleBadge: {

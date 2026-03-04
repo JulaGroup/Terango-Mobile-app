@@ -10,6 +10,7 @@ import {
   Platform,
   Linking,
   Alert,
+  Image,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,6 +31,8 @@ interface TrackOrderModalProps {
       name: string;
       phone: string;
       vehicleNumber?: string;
+      vehicleType?: string;
+      profileImageUrl?: string;
       currentLocation?: {
         latitude: number;
         longitude: number;
@@ -66,7 +69,7 @@ export default function TrackOrderModal({
     order.driver?.currentLocation || {
       latitude: 13.4549,
       longitude: -16.579,
-    }
+    },
   );
 
   // WebSocket connection for real-time tracking
@@ -105,7 +108,7 @@ export default function TrackOrderModal({
               driverLocation.latitude,
               driverLocation.longitude,
               data.latitude,
-              data.longitude
+              data.longitude,
             );
 
             // If driver moved more than 100m, recenter map
@@ -113,7 +116,7 @@ export default function TrackOrderModal({
               setTimeout(() => centerMap(), 300);
             }
           }
-        }
+        },
       );
 
       // Listen for order status updates
@@ -122,7 +125,7 @@ export default function TrackOrderModal({
         (data: { orderId: string; status: string; timestamp: number }) => {
           console.log("🔔 Order status updated:", data.status);
           // You can trigger a refresh or show notification here
-        }
+        },
       );
 
       // Connection events
@@ -154,7 +157,7 @@ export default function TrackOrderModal({
     lat1: number,
     lon1: number,
     lat2: number,
-    lon2: number
+    lon2: number,
   ): number => {
     const toRad = (value: number) => (value * Math.PI) / 180;
     const R = 6371; // Earth radius in km
@@ -211,7 +214,7 @@ export default function TrackOrderModal({
           duration: 1000,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   };
 
@@ -221,10 +224,10 @@ export default function TrackOrderModal({
 
     const R = 6371; // Earth's radius in km
     const dLat = toRad(
-      order.deliveryAddress.latitude - driverLocation.latitude
+      order.deliveryAddress.latitude - driverLocation.latitude,
     );
     const dLon = toRad(
-      order.deliveryAddress.longitude - driverLocation.longitude
+      order.deliveryAddress.longitude - driverLocation.longitude,
     );
     const lat1 = toRad(driverLocation.latitude);
     const lat2 = toRad(order.deliveryAddress.latitude);
@@ -290,7 +293,7 @@ export default function TrackOrderModal({
         {
           edgePadding: { top: 100, right: 50, bottom: 350, left: 50 },
           animated: true,
-        }
+        },
       );
     }
   };
@@ -373,7 +376,9 @@ export default function TrackOrderModal({
 
             <View style={styles.headerContent}>
               <Text style={styles.headerTitle}>Track Order</Text>
-              <Text style={styles.headerSubtitle}>Order #{order.id}</Text>
+              <Text style={styles.headerSubtitle}>
+                Order TG{order.id.slice(-4).toUpperCase()}
+              </Text>
             </View>
 
             <TouchableOpacity style={styles.centerButton} onPress={centerMap}>
@@ -482,18 +487,54 @@ export default function TrackOrderModal({
               <Text style={styles.statusText}>{getStatusText()}</Text>
             </View>
 
-            {/* Driver Info */}
+            {/* Enhanced Driver Profile Display */}
             {order.driver && (
               <View style={styles.driverInfo}>
+                {/* Driver Photo */}
                 <View style={styles.driverAvatar}>
-                  <Ionicons name="person" size={28} color={PrimaryColor} />
+                  {order.driver.profileImageUrl ? (
+                    <Image
+                      source={{ uri: order.driver.profileImageUrl }}
+                      style={styles.driverPhoto}
+                    />
+                  ) : (
+                    <View style={styles.driverInitials}>
+                      <Text style={styles.initialsText}>
+                        {order.driver.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+
+                  {/* Vehicle Type Badge */}
+                  {order.driver.vehicleType && (
+                    <View style={styles.vehicleBadge}>
+                      <Text style={styles.vehicleBadgeText}>
+                        {order.driver.vehicleType === "BIKE" && "🏍️"}
+                        {order.driver.vehicleType === "KEKE_CARGO" && "🛺"}
+                        {order.driver.vehicleType === "CAR" && "🚗"}
+                        {order.driver.vehicleType === "VAN" && "🚐"}
+                        {order.driver.vehicleType === "LORRY" && "🚛"}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.driverDetails}>
                   <Text style={styles.driverName}>{order.driver.name}</Text>
                   {order.driver.vehicleNumber && (
                     <Text style={styles.driverVehicle}>
-                      🚗 {order.driver.vehicleNumber}
+                      {order.driver.vehicleType === "BIKE" && "🏍️"}
+                      {order.driver.vehicleType === "KEKE_CARGO" && "🛺"}
+                      {order.driver.vehicleType === "CAR" && "🚗"}
+                      {order.driver.vehicleType === "VAN" && "🚐"}
+                      {order.driver.vehicleType === "LORRY" && "🚛"}
+                      {!order.driver.vehicleType && "🚗"}{" "}
+                      {order.driver.vehicleNumber}
+                    </Text>
+                  )}
+                  {order.driver.vehicleType && (
+                    <Text style={styles.vehicleTypeText}>
+                      {order.driver.vehicleType.replace("_", " ").toLowerCase()}
                     </Text>
                   )}
                 </View>
@@ -714,6 +755,41 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: PrimaryColor,
+    position: "relative",
+  },
+  driverPhoto: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+  },
+  driverInitials: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: PrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  initialsText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+  },
+  vehicleBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#4CAF50",
+  },
+  vehicleBadgeText: {
+    fontSize: 10,
   },
   driverDetails: {
     flex: 1,
@@ -728,6 +804,12 @@ const styles = StyleSheet.create({
   driverVehicle: {
     fontSize: 14,
     color: "#666",
+    marginBottom: 2,
+  },
+  vehicleTypeText: {
+    fontSize: 12,
+    color: "#999",
+    textTransform: "capitalize",
   },
   callButton: {
     borderRadius: 12,
