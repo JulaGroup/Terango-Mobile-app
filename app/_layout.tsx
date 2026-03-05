@@ -141,8 +141,17 @@ export default function RootLayout() {
           url.includes("payment-success") ||
           url.includes("payment/success")
         ) {
-          // immediately route home so something renders while background work happens
-          router.replace({ pathname: "/" });
+          // Route to order-details with fromPayment=true so the polling loop
+          // kicks in and re-fetches until status === PAID/PROCESSING.
+          // Fall back to home only when there's no orderId.
+          if (orderId) {
+            router.replace({
+              pathname: "/order-details" as any,
+              params: { orderId, fromPayment: "true", paymentId: paymentId ?? "" },
+            });
+          } else {
+            router.replace({ pathname: "/" });
+          }
 
           showPaymentToast(
             orderId
