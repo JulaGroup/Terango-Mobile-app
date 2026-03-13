@@ -258,6 +258,14 @@ export default function Checkout() {
   const restaurantIds = Object.keys(restaurantCarts);
   const subtotal = getTotalAmount();
 
+  // Minimum order amount from vendor (only available for delivery orders with an estimate)
+  const minimumOrderAmount: number | null =
+    form.orderType === "DELIVERY"
+      ? (deliveryEstimate?.vendor?.minimumOrderAmount ?? null)
+      : null;
+  const isBelowMinimumOrder =
+    minimumOrderAmount !== null && subtotal < minimumOrderAmount;
+
   // Cash payments removed – digital payment is always required
 
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
@@ -307,7 +315,9 @@ export default function Checkout() {
     // 🗺️ Block order if address is outside serviceable zone
     (form.orderType === "DELIVERY" &&
       !form.isGiftOrder &&
-      deliveryZone.isServiceable === false);
+      deliveryZone.isServiceable === false) ||
+    // ❌ Block order if below vendor's minimum order amount
+    isBelowMinimumOrder;
 
   // Auto-open location modal when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
@@ -798,6 +808,65 @@ export default function Checkout() {
     [form.orderType, items, restaurantIds, subtotal, appliedPromo],
   );
 
+  // ── Gift order: estimate fee using the selected town's known coordinates ──
+  // This gives the same vehicle-based price as regular orders (no geocoding needed).
+  const estimateGiftDeliveryFee = useCallback(
+    async (town: GambianTown) => {
+      const fallbackFee = getZoneFee(town.deliveryZone);
+
+      const firstItem = items[0];
+      if (!firstItem) {
+        // No cart items — just use zone flat fee
+        setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
+        return;
+      }
+
+      setLoadingDeliveryFee(true);
+      try {
+        const vendorId = firstItem.vendorId || restaurantIds[0];
+        const vendorType = firstItem.entityType || "restaurant";
+        const orderItems = items.map((item) => ({
+          menuItemId: item.entityType === "restaurant" ? item.id : undefined,
+          productId: item.entityType === "shop" ? item.id : undefined,
+          medicineId: item.entityType === "pharmacy" ? item.id : undefined,
+          quantity: item.quantity,
+        }));
+
+        const response = await fetch(`${API_URL}/api/delivery-fee/estimate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vendorId,
+            vendorType,
+            customerLatitude: town.latitude,
+            customerLongitude: town.longitude,
+            orderAmount: subtotal,
+            hasFreeDeliveryPromo: appliedPromo?.freeDelivery || false,
+            items: orderItems,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          setDeliveryEstimate(data);
+          setForm((prev) => ({
+            ...prev,
+            recipientDeliveryFee: data.deliveryFee ?? fallbackFee,
+          }));
+        } else {
+          setDeliveryEstimate(null);
+          setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
+        }
+      } catch {
+        setDeliveryEstimate(null);
+        setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
+      } finally {
+        setLoadingDeliveryFee(false);
+      }
+    },
+    [getZoneFee, items, restaurantIds, subtotal, appliedPromo],
+  );
+
   // Call estimation when address changes
   useEffect(() => {
     // Debounce address changes to avoid infinite loop
@@ -811,7 +880,7 @@ export default function Checkout() {
     }, 400); // 400ms debounce
     return () => clearTimeout(debounceTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.address, form.orderType]);
+  }, [form.address, form.orderType, form.isGiftOrder]);
 
   useEffect(() => {
     Animated.parallel([
@@ -904,6 +973,15 @@ export default function Checkout() {
       Alert.alert(
         "Missing Information",
         "Please fill in your name and phone number.",
+      );
+      return;
+    }
+
+    // Check minimum order amount
+    if (isBelowMinimumOrder && minimumOrderAmount !== null) {
+      Alert.alert(
+        "Minimum Order Not Met",
+        `This vendor requires a minimum order of D${minimumOrderAmount.toFixed(2)}. Your current subtotal is D${subtotal.toFixed(2)}.`,
       );
       return;
     }
@@ -1071,8 +1149,11 @@ export default function Checkout() {
             deliveryAddress:
               form.orderType === "DELIVERY"
                 ? form.isGiftOrder
-                  ? form.recipientAddress // For gift orders, use recipient address
-                  : form.address // For regular orders, use user's address
+                  ? // Prefix with town name so the driver always sees the area
+                    form.recipientTownName
+                    ? `${form.recipientTownName} - ${form.recipientAddress}`
+                    : form.recipientAddress
+                  : form.address
                 : null,
             orderType: form.orderType,
             pickupInstructions:
@@ -1323,7 +1404,7 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
         <View style={styles.emptyState}>
           <Ionicons name="cart-outline" size={64} color="#D1D5DB" />
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
@@ -1350,7 +1431,7 @@ export default function Checkout() {
   if (paymentStatus === "completed") {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
         <View style={styles.successContainer}>
           <View style={styles.successContent}>
             <Ionicons name="checkmark-circle" size={80} color="#10B981" />
@@ -1374,7 +1455,7 @@ export default function Checkout() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
       {/* Header */}
       <Animated.View
@@ -1391,7 +1472,7 @@ export default function Checkout() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -1764,9 +1845,23 @@ export default function Checkout() {
                     styles.giftOrderToggle,
                     form.isGiftOrder && styles.giftOrderToggleActive,
                   ]}
-                  onPress={() =>
-                    setForm({ ...form, isGiftOrder: !form.isGiftOrder })
-                  }
+                  onPress={() => {
+                    const turningOff = form.isGiftOrder;
+                    setForm({
+                      ...form,
+                      isGiftOrder: !form.isGiftOrder,
+                      // Reset gift fields when toggling off
+                      ...(turningOff
+                        ? {
+                            recipientTown: "",
+                            recipientTownName: "",
+                            recipientDeliveryFee: 0,
+                          }
+                        : {}),
+                    });
+                    // Clear estimate when leaving gift mode so it doesn't bleed into regular flow
+                    if (turningOff) setDeliveryEstimate(null);
+                  }}
                   activeOpacity={0.7}
                 >
                   <View style={styles.giftOrderToggleLeft}>
@@ -1890,7 +1985,7 @@ export default function Checkout() {
                       {form.recipientTown && (
                         <View style={styles.deliveryFeeBadge}>
                           <Text style={styles.deliveryFeeBadgeText}>
-                            D{form.recipientDeliveryFee}
+                            D{form.recipientDeliveryFee.toFixed(2)}
                           </Text>
                         </View>
                       )}
@@ -1903,7 +1998,7 @@ export default function Checkout() {
                   </TouchableOpacity>
                   {form.recipientTown && (
                     <Text style={styles.inputNoteSuccess}>
-                      ✓ Delivery fee: D{form.recipientDeliveryFee} (
+                      ✓ Delivery fee: D{form.recipientDeliveryFee.toFixed(2)} (
                       {getZoneInfoForTown(form.recipientTown)?.name} zone)
                     </Text>
                   )}
@@ -2223,16 +2318,15 @@ export default function Checkout() {
                                       }}
                                     >
                                       Base: D
-                                      {
-                                        deliveryEstimate.weightAnalysis
-                                          .baseVehicleFee
-                                      }{" "}
+                                      {deliveryEstimate.weightAnalysis.baseVehicleFee.toFixed(
+                                        2,
+                                      )}{" "}
                                       + Distance: D
-                                      {
-                                        deliveryEstimate.weightAnalysis
-                                          .distanceFee
-                                      }{" "}
-                                      = D{deliveryEstimate.deliveryFee}
+                                      {deliveryEstimate.weightAnalysis.distanceFee.toFixed(
+                                        2,
+                                      )}{" "}
+                                      = D
+                                      {deliveryEstimate.deliveryFee.toFixed(2)}
                                     </Text>
                                     {deliveryEstimate.weightAnalysis.perKmFee &&
                                       deliveryEstimate.distanceKm && (
@@ -2248,10 +2342,9 @@ export default function Checkout() {
                                             1,
                                           )}
                                           km × D
-                                          {
-                                            deliveryEstimate.weightAnalysis
-                                              .perKmFee
-                                          }
+                                          {deliveryEstimate.weightAnalysis.perKmFee.toFixed(
+                                            2,
+                                          )}
                                           /km)
                                         </Text>
                                       )}
@@ -2486,16 +2579,22 @@ export default function Checkout() {
           visible={townPickerVisible}
           onClose={() => setTownPickerVisible(false)}
           onSelectTown={(town: GambianTown) => {
-            // Get dynamic delivery fee from admin panel settings
-            const deliveryFee = getZoneFee(town.deliveryZone);
+            // Set town info immediately with zone fallback, then replace fee
+            // with vehicle-based calculation using town coordinates.
             setForm((prev) => ({
               ...prev,
               recipientTown: town.id,
               recipientTownName: town.name,
-              recipientDeliveryFee: deliveryFee,
+              recipientDeliveryFee: getZoneFee(town.deliveryZone),
             }));
+            estimateGiftDeliveryFee(town);
           }}
           selectedTownId={form.recipientTown}
+          vehicleType={deliveryEstimate?.weightAnalysis?.vehicleTypeUsed}
+          vehicleBaseFee={deliveryEstimate?.weightAnalysis?.baseVehicleFee}
+          vehiclePerKmFee={deliveryEstimate?.weightAnalysis?.perKmFee}
+          vendorLatitude={deliveryEstimate?.vendor?.coordinates?.latitude}
+          vendorLongitude={deliveryEstimate?.vendor?.coordinates?.longitude}
         />
 
         {/* Address Picker Modal (dropdown-like) */}
@@ -2808,6 +2907,32 @@ export default function Checkout() {
           </SafeAreaView>
         </Modal>
 
+        {/* Minimum Order Warning */}
+        {isBelowMinimumOrder && minimumOrderAmount !== null && (
+          <View
+            style={{
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FCA5A5",
+              borderRadius: 10,
+              padding: 12,
+              marginHorizontal: 16,
+              marginBottom: 8,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="alert-circle" size={18} color="#EF4444" />
+            <Text
+              style={{ color: "#B91C1C", fontSize: 13, marginLeft: 8, flex: 1 }}
+            >
+              Minimum order is D{minimumOrderAmount.toFixed(2)}. Add D
+              {(minimumOrderAmount - subtotal).toFixed(2)} more to place this
+              order.
+            </Text>
+          </View>
+        )}
+
         {/* Place Order Button */}
         <Animated.View
           style={[
@@ -2859,9 +2984,11 @@ export default function Checkout() {
                     ? "Placing Order..."
                     : loadingDeliveryFee
                       ? "Calculating Delivery Fee..."
-                      : deliveryZone.isServiceable === false
-                        ? "Address Outside Zone"
-                        : "Place Order"}
+                      : isBelowMinimumOrder
+                        ? "Minimum Order Not Met"
+                        : deliveryZone.isServiceable === false
+                          ? "Address Outside Zone"
+                          : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>
@@ -2937,20 +3064,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    backgroundColor: PrimaryColor,
+    borderBottomWidth: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
   },
   headerBackButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -2961,12 +3087,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#fff",
     textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "rgba(255,255,255,0.9)",
     marginTop: 2,
     textAlign: "center",
   },

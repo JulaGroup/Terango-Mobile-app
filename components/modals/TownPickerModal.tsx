@@ -1,7 +1,7 @@
-/**
+﻿/**
  * Town Picker Modal
  * For selecting Gambian towns/areas when ordering for someone else
- * Delivery fees are fetched dynamically from admin panel
+ * Shows actual vehicle-based delivery fee per town when pricing info is available.
  */
 
 import React, { useState, useMemo } from "react";
@@ -15,7 +15,6 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
-  Platform,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,38 +31,87 @@ interface TownPickerModalProps {
   onClose: () => void;
   onSelectTown: (town: GambianTown) => void;
   selectedTownId?: string;
+  // Vehicle-based pricing info (from delivery estimate)
+  vehicleType?: string; // e.g. "KEKE_CARGO"
+  vehicleBaseFee?: number; // e.g. 100
+  vehiclePerKmFee?: number; // e.g. 15
+  vendorLatitude?: number;
+  vendorLongitude?: number;
 }
+
+// Haversine formula â€“ returns km between two lat/lng points
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+const VEHICLE_EMOJI: Record<string, string> = {
+  BIKE: "\u{1F3CD}",
+  KEKE_CARGO: "\u{1F6FA}",
+  CAR: "\u{1F697}",
+  VAN: "\u{1F690}",
+  LORRY: "\u{1F69A}",
+};
 
 export default function TownPickerModal({
   visible,
   onClose,
   onSelectTown,
   selectedTownId,
+  vehicleType,
+  vehicleBaseFee,
+  vehiclePerKmFee,
+  vendorLatitude,
+  vendorLongitude,
 }: TownPickerModalProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(
-    new Set(["Kanifing", "Banjul"])
+    new Set(["Kanifing", "Banjul"]),
   );
 
-  // Fetch dynamic delivery settings from admin panel
   const { loading: settingsLoading, getZoneFee } = useDeliverySettings();
 
-  // Filter towns based on search
+  // Whether we can show precise vehicle-based fees per town
+  const hasVehiclePricing =
+    vehicleBaseFee !== undefined &&
+    vehiclePerKmFee !== undefined &&
+    vendorLatitude !== undefined &&
+    vendorLongitude !== undefined;
+
+  /** Compute actual fee for a town: base + distance * perKm */
+  const getActualFee = (town: GambianTown): number => {
+    if (!hasVehiclePricing) return getZoneFee(town.deliveryZone);
+    const km = haversineKm(
+      vendorLatitude!,
+      vendorLongitude!,
+      town.latitude,
+      town.longitude,
+    );
+    return Math.round(vehicleBaseFee! + km * vehiclePerKmFee!);
+  };
+
   const filteredTowns = useMemo(() => {
-    if (searchQuery.trim()) {
-      return searchTowns(searchQuery);
-    }
-    return null; // Return null to show grouped view
+    if (searchQuery.trim()) return searchTowns(searchQuery);
+    return null;
   }, [searchQuery]);
 
   const toggleArea = (area: string) => {
-    const newExpanded = new Set(expandedAreas);
-    if (newExpanded.has(area)) {
-      newExpanded.delete(area);
-    } else {
-      newExpanded.add(area);
-    }
-    setExpandedAreas(newExpanded);
+    const next = new Set(expandedAreas);
+    if (next.has(area)) next.delete(area);
+    else next.add(area);
+    setExpandedAreas(next);
   };
 
   const handleSelectTown = (town: GambianTown) => {
@@ -75,26 +123,22 @@ export default function TownPickerModal({
   const getZoneColor = (zone: string) => {
     switch (zone) {
       case "zone1":
-        return "#22C55E"; // Green
+        return "#22C55E";
       case "zone2":
-        return "#3B82F6"; // Blue
+        return "#3B82F6";
       case "zone3":
-        return "#F59E0B"; // Yellow/Orange
-      case "zone4":
-        return "#EF4444"; // Red
+        return "#F59E0B";
       default:
         return "#6B7280";
     }
   };
 
-  // Get the delivery fee for a zone - uses dynamic settings or fallback
-  const getDeliveryFeeForZone = (zone: "zone1" | "zone2" | "zone3"): number => {
-    return getZoneFee(zone);
-  };
-
   const renderTownItem = (town: GambianTown) => {
     const isSelected = town.id === selectedTownId;
-    const deliveryFee = getDeliveryFeeForZone(town.deliveryZone);
+    const fee = getActualFee(town);
+    const emoji = vehicleType
+      ? (VEHICLE_EMOJI[vehicleType] ?? "\u{1F69B}")
+      : null;
 
     return (
       <TouchableOpacity
@@ -114,16 +158,21 @@ export default function TownPickerModal({
             <View
               style={[
                 styles.zoneBadge,
-                { backgroundColor: getZoneColor(town.deliveryZone) + "20" },
+                hasVehiclePricing
+                  ? styles.zoneBadgeVehicle
+                  : { backgroundColor: getZoneColor(town.deliveryZone) + "20" },
               ]}
             >
+              {emoji && <Text style={styles.zoneBadgeEmoji}>{emoji}</Text>}
               <Text
                 style={[
                   styles.zoneBadgeText,
-                  { color: getZoneColor(town.deliveryZone) },
+                  hasVehiclePricing
+                    ? styles.zoneBadgeTextVehicle
+                    : { color: getZoneColor(town.deliveryZone) },
                 ]}
               >
-                D{deliveryFee}
+                D{fee}
               </Text>
             </View>
           </View>
@@ -137,7 +186,6 @@ export default function TownPickerModal({
 
   const renderAreaSection = (area: string, towns: GambianTown[]) => {
     const isExpanded = expandedAreas.has(area);
-
     return (
       <View key={area} style={styles.areaSection}>
         <TouchableOpacity
@@ -155,22 +203,12 @@ export default function TownPickerModal({
           </View>
           <Text style={styles.areaCount}>{towns.length} locations</Text>
         </TouchableOpacity>
-
         {isExpanded && (
           <View style={styles.townsList}>{towns.map(renderTownItem)}</View>
         )}
       </View>
     );
   };
-
-  // Dynamic zone legend using API prices
-  const zoneLegendData = useMemo(() => {
-    return [
-      { key: "zone1", fee: getZoneFee("zone1") },
-      { key: "zone2", fee: getZoneFee("zone2") },
-      { key: "zone3", fee: getZoneFee("zone3") },
-    ];
-  }, [getZoneFee]);
 
   return (
     <Modal
@@ -189,6 +227,47 @@ export default function TownPickerModal({
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Select Town/Area</Text>
           <View style={styles.headerRight} />
+        </View>
+
+        {/* Pricing context banner */}
+        <View
+          style={[
+            styles.pricingBanner,
+            hasVehiclePricing
+              ? styles.pricingBannerVehicle
+              : styles.pricingBannerFallback,
+          ]}
+        >
+          {settingsLoading && !hasVehiclePricing ? (
+            <ActivityIndicator size="small" color={PrimaryColor} />
+          ) : hasVehiclePricing ? (
+            <>
+              <Text style={styles.pricingBannerEmoji}>
+                {VEHICLE_EMOJI[vehicleType!] ?? "\u{1F69B}"}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pricingBannerTitle}>
+                  {vehicleType?.replace("_", " ")} pricing
+                </Text>
+                <Text style={styles.pricingBannerSub}>
+                  D{vehicleBaseFee} base + D{vehiclePerKmFee}/km Â· prices
+                  update per town
+                </Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <Ionicons name="pricetag-outline" size={16} color="#92400E" />
+              <Text
+                style={[
+                  styles.pricingBannerSub,
+                  { color: "#92400E", marginLeft: 6 },
+                ]}
+              >
+                Add items to cart for vehicle-based pricing
+              </Text>
+            </>
+          )}
         </View>
 
         {/* Search Bar */}
@@ -210,35 +289,8 @@ export default function TownPickerModal({
           )}
         </View>
 
-        {/* Delivery Zone Legend */}
-        <View style={styles.legendContainer}>
-          <Text style={styles.legendTitle}>Delivery Zones:</Text>
-          {settingsLoading ? (
-            <ActivityIndicator
-              size="small"
-              color={PrimaryColor}
-              style={{ marginLeft: 8 }}
-            />
-          ) : (
-            <View style={styles.legendItems}>
-              {zoneLegendData.map(({ key, fee }) => (
-                <View key={key} style={styles.legendItem}>
-                  <View
-                    style={[
-                      styles.legendDot,
-                      { backgroundColor: getZoneColor(key) },
-                    ]}
-                  />
-                  <Text style={styles.legendText}>D{fee}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* Towns List */}
         {filteredTowns ? (
-          // Search results
           <FlatList
             data={filteredTowns}
             keyExtractor={(item) => item.id}
@@ -255,7 +307,6 @@ export default function TownPickerModal({
             }
           />
         ) : (
-          // Grouped view
           <FlatList
             data={Object.entries(TOWNS_BY_AREA)}
             keyExtractor={([area]) => area}
@@ -271,10 +322,7 @@ export default function TownPickerModal({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-  },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -285,75 +333,59 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
-  closeButton: {
-    padding: 4,
+  closeButton: { padding: 4 },
+  headerTitle: { fontSize: 18, fontWeight: "600", color: "#111827" },
+  headerRight: { width: 32 },
+
+  /* Pricing banner */
+  pricingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 8,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#111827",
+  pricingBannerVehicle: {
+    backgroundColor: "#EFF6FF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#BFDBFE",
   },
-  headerRight: {
-    width: 32,
+  pricingBannerFallback: {
+    backgroundColor: "#FFFBEB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#FDE68A",
   },
+  pricingBannerEmoji: { fontSize: 22 },
+  pricingBannerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E40AF",
+    textTransform: "capitalize",
+  },
+  pricingBannerSub: {
+    fontSize: 11,
+    color: "#3B82F6",
+    marginTop: 1,
+  },
+
+  /* Search */
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginVertical: 12,
+    margin: 12,
     paddingHorizontal: 12,
-    paddingVertical: Platform.OS === "ios" ? 12 : 8,
+    paddingVertical: 10,
+    backgroundColor: "#fff",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    gap: 8,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#111827",
-  },
-  legendContainer: {
-    backgroundColor: "#fff",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-  },
-  legendTitle: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#6B7280",
-    marginBottom: 8,
-  },
-  legendItems: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  legendDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendText: {
-    fontSize: 12,
-    color: "#374151",
-    fontWeight: "500",
-  },
-  listContent: {
-    paddingBottom: 24,
-  },
-  areaSection: {
-    backgroundColor: "#fff",
-    marginTop: 8,
-  },
+  searchInput: { flex: 1, fontSize: 15, color: "#111827" },
+
+  /* List */
+  listContent: { paddingBottom: 24 },
+  areaSection: { backgroundColor: "#fff", marginTop: 8 },
   areaHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -363,23 +395,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
-  areaHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  areaTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#111827",
-  },
-  areaCount: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
-  townsList: {
-    paddingHorizontal: 16,
-  },
+  areaHeaderLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
+  areaTitle: { fontSize: 16, fontWeight: "600", color: "#111827" },
+  areaCount: { fontSize: 12, color: "#9CA3AF" },
+  townsList: { paddingHorizontal: 16 },
   townItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -389,53 +408,41 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
   },
-  townItemSelected: {
-    backgroundColor: `${PrimaryColor}08`,
-  },
-  townInfo: {
-    flex: 1,
-  },
-  townName: {
-    fontSize: 15,
-    color: "#374151",
-    marginBottom: 2,
-  },
-  townNameSelected: {
-    color: PrimaryColor,
-    fontWeight: "600",
-  },
+  townItemSelected: { backgroundColor: `${PrimaryColor}08` },
+  townInfo: { flex: 1 },
+  townName: { fontSize: 15, color: "#374151", marginBottom: 2 },
+  townNameSelected: { color: PrimaryColor, fontWeight: "600" },
   townMeta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 2,
   },
-  townArea: {
-    fontSize: 12,
-    color: "#9CA3AF",
-  },
+  townArea: { fontSize: 12, color: "#9CA3AF" },
   zoneBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  zoneBadgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  emptyState: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 48,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 3,
   },
+  zoneBadgeVehicle: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  zoneBadgeEmoji: { fontSize: 12 },
+  zoneBadgeText: { fontSize: 11, fontWeight: "700" },
+  zoneBadgeTextVehicle: { color: "#1E40AF" },
+
+  /* Empty */
+  emptyState: { alignItems: "center", paddingVertical: 48 },
   emptyText: {
     fontSize: 16,
     fontWeight: "500",
     color: "#6B7280",
     marginTop: 12,
   },
-  emptySubtext: {
-    fontSize: 14,
-    color: "#9CA3AF",
-    marginTop: 4,
-  },
+  emptySubtext: { fontSize: 14, color: "#9CA3AF", marginTop: 4 },
 });

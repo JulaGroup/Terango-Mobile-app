@@ -874,6 +874,17 @@ export const orderApi = {
     return apiCall(`/api/qrcode/order/${orderId}`);
   },
 
+  // Vendor: scan pickup QR (mark pickup as delivered)
+  vendorScanPickup: async (orderId?: string, scannedId?: string) => {
+    const url = orderId
+      ? `/api/orders/${orderId}/scan-pickup`
+      : `/api/orders/scan-pickup`;
+    return apiCall(url, {
+      method: "PATCH",
+      body: JSON.stringify(scannedId ? { scannedId } : {}),
+    });
+  },
+
   // Cancel an order
   cancelOrder: async (orderId: string, reason?: string): Promise<Order> => {
     return apiCall(`/api/orders/${orderId}/cancel`, {

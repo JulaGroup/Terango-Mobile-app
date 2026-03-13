@@ -229,7 +229,13 @@ const ShopCard = ({
   );
 };
 
-export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
+export default function LocalShops({
+  refreshKey,
+  hideHeader,
+}: {
+  refreshKey?: number;
+  hideHeader?: boolean;
+}) {
   const router = useRouter();
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
@@ -387,48 +393,50 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
   if (error) {
     return (
       <View style={{ paddingVertical: 20 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            marginBottom: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                backgroundColor: "#EF4444",
-                borderRadius: 8,
-                padding: 8,
-                marginRight: 12,
-              }}
-            >
-              <Ionicons name="storefront" size={20} color="#fff" />
-            </View>
-            <View>
-              <Text
+        {!hideHeader && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
                 style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  color: "#333",
+                  backgroundColor: "#EF4444",
+                  borderRadius: 8,
+                  padding: 8,
+                  marginRight: 12,
                 }}
               >
-                Local Shops
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "#666",
-                  marginTop: 2,
-                }}
-              >
-                Failed to load shops
-              </Text>
+                <Ionicons name="storefront" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Local Shops
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "#666",
+                    marginTop: 2,
+                  }}
+                >
+                  Failed to load shops
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         <View
           style={{
@@ -484,107 +492,109 @@ export default function LocalShops({ refreshKey }: { refreshKey?: number }) {
 
   return (
     <View style={{ marginVertical: 5 }}>
-      {/* Section Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          marginBottom: 16,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View
-            style={{
-              width: 4,
-              height: 38,
-              borderRadius: 2,
-              backgroundColor: "#6366F1",
-              marginRight: 10,
-            }}
-          />
-          <View>
-            <Text
-              style={{
-                fontSize: 18,
-                fontWeight: "800",
-                color: "#111827",
-              }}
-            >
-              Stores
-            </Text>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#6B7280",
-                marginTop: 2,
-              }}
-            >
-              Quality products near you
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          onPress={handleViewAll}
+      {!hideHeader && (
+        <View
           style={{
             flexDirection: "row",
+            justifyContent: "space-between",
             alignItems: "center",
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
+            paddingHorizontal: 16,
+            marginBottom: 16,
           }}
         >
-          <Text
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 4,
+                height: 38,
+                borderRadius: 2,
+                backgroundColor: "#6366F1",
+                marginRight: 10,
+              }}
+            />
+            <View>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: "800",
+                  color: "#111827",
+                }}
+              >
+                Stores
+              </Text>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#6B7280",
+                  marginTop: 2,
+                }}
+              >
+                Quality products near you
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={handleViewAll}
             style={{
-              fontSize: 14,
-              color: "#979797FF",
-              fontWeight: "500",
-              marginRight: 4,
+              flexDirection: "row",
+              alignItems: "center",
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
             }}
           >
-            See All
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color="#979797FF" />
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#979797FF",
+                fontWeight: "500",
+                marginRight: 4,
+              }}
+            >
+              See All
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#979797FF" />
+          </TouchableOpacity>
+        </View>
+      )}
 
-      {/* Featured Badge */}
-      <View
-        style={{
-          marginHorizontal: 16,
-          backgroundColor: "#EFF6FF",
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 20,
-          borderLeftWidth: 4,
-          borderLeftColor: "#6366F1",
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Ionicons name="shield-checkmark" size={20} color="#6366F1" />
+      {!hideHeader && (
+        <View
+          style={{
+            marginHorizontal: 16,
+            backgroundColor: "#EFF6FF",
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 20,
+            borderLeftWidth: 4,
+            borderLeftColor: "#6366F1",
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Ionicons name="shield-checkmark" size={20} color="#6366F1" />
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: "#6366F1",
+                marginLeft: 8,
+              }}
+            >
+              Verified Local Businesses
+            </Text>
+          </View>
           <Text
             style={{
-              fontSize: 14,
-              fontWeight: "600",
-              color: "#6366F1",
-              marginLeft: 8,
+              fontSize: 12,
+              color: "#3730A3",
+              marginTop: 4,
+              lineHeight: 16,
             }}
           >
-            Verified Local Businesses
+            Trusted local shops/stores • Quality products • Fast delivery
           </Text>
         </View>
-        <Text
-          style={{
-            fontSize: 12,
-            color: "#3730A3",
-            marginTop: 4,
-            lineHeight: 16,
-          }}
-        >
-          Trusted local shops/stores • Quality products • Fast delivery
-        </Text>
-      </View>
+      )}
 
       {/* Shops Horizontal Slider */}
       {loading ? (

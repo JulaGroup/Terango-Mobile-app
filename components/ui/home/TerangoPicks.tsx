@@ -38,6 +38,7 @@ interface TeranGOProduct {
 
 interface TeranGOPicksProps {
   refreshKey?: number;
+  hideHeader?: boolean;
 }
 
 // Skeleton card for loading state
@@ -88,7 +89,10 @@ const SkeletonCard = () => (
   </View>
 );
 
-export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
+export default function TeranGOPicks({
+  refreshKey,
+  hideHeader,
+}: TeranGOPicksProps) {
   const [products, setProducts] = useState<TeranGOProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -188,77 +192,78 @@ export default function TeranGOPicks({ refreshKey }: TeranGOPicksProps) {
 
   return (
     <View style={{ paddingVertical: 20 }}>
-      {/* Section Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          marginBottom: 16,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View
-            style={{
-              backgroundColor: "#1a1a1a",
-              borderRadius: 10,
-              padding: 10,
-              marginRight: 12,
-            }}
-          >
-            <Ionicons name="diamond" size={20} color="#FF6B00" />
-          </View>
-          <View>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text
-                style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
-              >
-                Teran
-              </Text>
-              <Text
-                style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}
-              >
-                GO
-              </Text>
-              <Text
-                style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
-              >
-                {" "}
-                Picks
-              </Text>
-            </View>
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#666",
-                marginTop: 2,
-              }}
-            >
-              Quality products, best prices
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          onPress={() => router.push("/terango-picks")}
+      {!hideHeader && (
+        <View
           style={{
             flexDirection: "row",
+            justifyContent: "space-between",
             alignItems: "center",
+            paddingHorizontal: 16,
+            marginBottom: 16,
           }}
         >
-          <Text
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                backgroundColor: "#1a1a1a",
+                borderRadius: 10,
+                padding: 10,
+                marginRight: 12,
+              }}
+            >
+              <Ionicons name="diamond" size={20} color="#FF6B00" />
+            </View>
+            <View>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text
+                  style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
+                >
+                  Teran
+                </Text>
+                <Text
+                  style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}
+                >
+                  GO
+                </Text>
+                <Text
+                  style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
+                >
+                  {" "}
+                  Picks
+                </Text>
+              </View>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: "#666",
+                  marginTop: 2,
+                }}
+              >
+                Quality products, best prices
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push("/terango-picks")}
             style={{
-              fontSize: 14,
-              fontWeight: "600",
-              color: PrimaryColor,
-              marginRight: 4,
+              flexDirection: "row",
+              alignItems: "center",
             }}
           >
-            See All
-          </Text>
-          <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "600",
+                color: PrimaryColor,
+                marginRight: 4,
+              }}
+            >
+              See All
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={PrimaryColor} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Products Horizontal Slider */}
       {loading ? (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   Image,
   StyleSheet,
   TextInput,
+  StatusBar,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -48,10 +50,82 @@ export default function ViewAllStores() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     fetchShops();
   }, []);
+
+  useEffect(() => {
+    if (!loading) return;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(skeletonOpacity, {
+          toValue: 1,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+        Animated.timing(skeletonOpacity, {
+          toValue: 0.3,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [loading, skeletonOpacity]);
+
+  const SkeletonBox = ({
+    w,
+    h,
+    style,
+  }: {
+    w: number | string;
+    h: number;
+    style?: any;
+  }) => (
+    <Animated.View
+      style={[
+        {
+          width: w,
+          height: h,
+          backgroundColor: "#E5E7EB",
+          borderRadius: 8,
+          opacity: skeletonOpacity,
+        },
+        style,
+      ]}
+    />
+  );
+
+  const renderSkeletonCards = () => (
+    <ScrollView
+      contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
+    >
+      {[1, 2, 3, 4].map((i) => (
+        <View key={i} style={[styles.card, { overflow: "hidden" }]}>
+          <SkeletonBox w="100%" h={140} style={{ borderRadius: 0 }} />
+          <View style={{ padding: 16 }}>
+            <SkeletonBox w="65%" h={16} style={{ marginBottom: 10 }} />
+            <SkeletonBox w="100%" h={12} style={{ marginBottom: 6 }} />
+            <SkeletonBox w="75%" h={12} style={{ marginBottom: 14 }} />
+            <SkeletonBox
+              w="40%"
+              h={20}
+              style={{ borderRadius: 8, marginBottom: 12 }}
+            />
+            <View
+              style={{ flexDirection: "row", justifyContent: "space-between" }}
+            >
+              <SkeletonBox w="55%" h={12} />
+              <SkeletonBox w="25%" h={12} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
 
   const fetchShops = async () => {
     try {
@@ -76,27 +150,23 @@ export default function ViewAllStores() {
     shop.name.toLowerCase().includes(search.toLowerCase()),
   );
 
-  // Generate random rating and review count if not available
-  const getRandomRating = () => "4.5";
-  const getRandomReviewCount = () => 100;
-  Math.floor(Math.random() * (500 - 50) + 50);
-
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={26} color="#333" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>All Stores</Text>
         <TouchableOpacity
           style={styles.cartButton}
           onPress={() => router.push("/cart")}
         >
-          <Ionicons name="cart" size={22} color="#333" />
+          <Ionicons name="cart-outline" size={22} color="#fff" />
           {cartItems.length > 0 && (
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{cartItems.length}</Text>
@@ -123,19 +193,63 @@ export default function ViewAllStores() {
 
       {/* Content */}
       {loading ? (
-        <View style={styles.loadingContainer}>
-          <Text style={{ color: PrimaryColor }}>Loading...</Text>
-        </View>
+        renderSkeletonCards()
       ) : error ? (
         <View style={styles.loadingContainer}>
-          <Text style={{ color: "#EF4444" }}>{error}</Text>
+          <Ionicons
+            name="alert-circle-outline"
+            size={48}
+            color="#EF4444"
+            style={{ marginBottom: 12 }}
+          />
+          <Text
+            style={{
+              color: "#EF4444",
+              fontSize: 14,
+              textAlign: "center",
+              marginBottom: 12,
+            }}
+          >
+            {error}
+          </Text>
           <TouchableOpacity onPress={fetchShops} style={styles.retryButton}>
-            <Text style={{ color: "#fff" }}>Try Again</Text>
+            <Text style={{ color: "#fff", fontWeight: "600" }}>Try Again</Text>
           </TouchableOpacity>
         </View>
       ) : filteredShops.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <Text style={{ color: "#888" }}>No stores found.</Text>
+          <View
+            style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              backgroundColor: "#FFF0E6",
+              justifyContent: "center",
+              alignItems: "center",
+              marginBottom: 16,
+            }}
+          >
+            <Ionicons
+              name="storefront-outline"
+              size={48}
+              color={PrimaryColor}
+            />
+          </View>
+          <Text
+            style={{
+              fontSize: 18,
+              fontWeight: "700",
+              color: "#1a1a1a",
+              marginBottom: 6,
+            }}
+          >
+            No stores found
+          </Text>
+          <Text style={{ fontSize: 14, color: "#6B7280", textAlign: "center" }}>
+            {search
+              ? `No results for "${search}"`
+              : "Check back later for local stores"}
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -258,16 +372,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 48,
-    paddingBottom: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 14,
+    backgroundColor: "#ff6b00",
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
@@ -276,14 +388,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
+    color: "#fff",
     textAlign: "center",
   },
   cartButton: {
     width: 40,
     height: 40,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,

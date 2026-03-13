@@ -10,6 +10,7 @@ import {
   Image,
   Dimensions,
   Animated,
+  StatusBar,
 } from "react-native";
 import { categoryApi } from "@/lib/api";
 
@@ -51,7 +52,7 @@ const AllCategoriesPage = () => {
           duration: 1200,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     if (loading) {
@@ -212,14 +213,15 @@ const AllCategoriesPage = () => {
   };
   return (
     <View style={styles.container}>
-      {/* Minimal Header - Just Back Button and Title */}
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -237,8 +239,8 @@ const AllCategoriesPage = () => {
         {loading
           ? renderSkeletonGrid()
           : error
-          ? renderErrorState()
-          : renderCategoryGrid()}
+            ? renderErrorState()
+            : renderCategoryGrid()}
       </ScrollView>
     </View>
   );
@@ -248,18 +250,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 40, // Safe area replacement
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 50,
+    backgroundColor: "#ff6b00",
   },
   backButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     height: 40,
     width: 40,
     justifyContent: "center",

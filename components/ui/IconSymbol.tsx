@@ -20,6 +20,7 @@ const MAPPING = {
   house: "home",
   "house.fill": "home",
   "square.grid.2x2": "grid-view",
+  "list.bullet.rectangle": "format-list-bulleted",
   "doc.plaintext": "description", // filled by default, change to outline below
   person: "person-outline", // use outline for Android
   "paperplane.fill": "send",

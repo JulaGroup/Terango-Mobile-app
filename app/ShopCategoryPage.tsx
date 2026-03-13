@@ -15,7 +15,6 @@ import {
   StatusBar,
   Modal,
   Platform,
-  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -24,16 +23,7 @@ import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { OpeningHours } from "@/lib/api";
-
-// Reanimated imports
-import {
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
 
 interface Product {
   id: string;
@@ -65,7 +55,6 @@ const SkeletonLoader = ({
   width?: string | number;
   height?: number;
 }) => {
-  // cast width to any to avoid TypeScript's strict width type mismatch for percentage strings
   const widthValue: any = width as any;
   return (
     <View
@@ -113,11 +102,10 @@ const ShopCategoryPage = () => {
     ? params.shopId[0]
     : (params.shopId as string | undefined);
 
-  // params & initial values
   const shopName = (params.shopName as string) || "";
   const initialCategory = (params.categoryName as string) || "";
 
-  // state
+  // ─── state ────────────────────────────────────────────────────────────────
   const [categories, setCategories] = useState<string[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>(
@@ -125,139 +113,56 @@ const ShopCategoryPage = () => {
   );
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(true);
-  const [categoryLoading, setCategoryLoading] = useState(false); // Loading per category
   const [shopMeta, setShopMeta] = useState<ShopMeta | null>(null);
-
-  // refs & layout
-  const categoriesTabsRef = useRef<FlatList>(null);
-  const tabLayoutsRef = useRef<
-    Map<string, { width: number; absoluteX: number }>
-  >(new Map());
-  const scrollOffsetRef = useRef(0);
-
-  // animated underline shared values
-  const underlineX = useSharedValue(0);
-  const underlineWidth = useSharedValue(0);
-
-  // modal state
   const [isModalVisible, setModalVisible] = useState(false);
 
-  // initialize tabLayouts when categories change
+  // ─── refs ─────────────────────────────────────────────────────────────────
+  const categoriesTabsRef = useRef<FlatList>(null);
+
+  // ─── single fetch: all products + categories ───────────────────────────────
   useEffect(() => {
-    tabLayoutsRef.current = new Map();
-  }, [categories]);
-
-  const animateUnderline = useCallback(
-    (category: string) => {
-      const layout = tabLayoutsRef.current.get(category);
-      if (!layout) {
-        return;
-      }
-
-      const widthFactor = 0.6;
-      const targetWidth = layout.width * widthFactor;
-      const relativeX = layout.absoluteX - scrollOffsetRef.current;
-      const targetX = relativeX + (layout.width - targetWidth) / 2;
-
-      underlineX.value = withTiming(targetX, {
-        duration: 240,
-        easing: Easing.out(Easing.exp),
-      });
-      underlineWidth.value = withTiming(targetWidth, {
-        duration: 240,
-        easing: Easing.out(Easing.exp),
-      });
-    },
-    [underlineX, underlineWidth],
-  );
-
-  const scrollToCategory = useCallback(
-    (category: string) => {
-      if (!category) {
-        return;
-      }
-
-      const index = categories.findIndex((c) => c === category);
-      if (index === -1) {
-        return;
-      }
-
-      try {
-        categoriesTabsRef.current?.scrollToIndex({
-          index,
-          animated: true,
-          viewPosition: 0.5,
-        });
-      } catch (error) {
-        void error;
-        requestAnimationFrame(() => scrollToCategory(category));
-      }
-
-      animateUnderline(category);
-    },
-    [categories, animateUnderline],
-  );
-
-  const handleTabLayout = (
-    category: string,
-    layout: { x: number; y: number; width: number; height: number },
-  ) => {
-    tabLayoutsRef.current.set(category, {
-      width: layout.width,
-      absoluteX: layout.x + scrollOffsetRef.current,
-    });
-    animateUnderline(category);
-  };
-
-  // fetch categories on mount
-  useEffect(() => {
-    const fetchCategories = async () => {
+    const fetchAllProducts = async () => {
       if (!shopId) return;
-
       setLoading(true);
       try {
-        const response = await fetch(`${API_URL}/api/products/shop/${shopId}`);
+        const response = await fetch(
+          `${API_URL}/api/products/shop/${shopId}?take=200`,
+        );
         if (!response.ok) throw new Error("Failed to fetch products");
         const parsed = await response.json();
 
-        // Extract unique categories
+        const items: Product[] = parsed.products ?? parsed;
+        setAllProducts(items);
+
         const uniqueCategories = [
-          ...new Set(
-            parsed.map((p: Product) => p.subCategory?.name || "Other"),
-          ),
+          ...new Set(items.map((p: Product) => p.subCategory?.name || "Other")),
         ].filter(Boolean) as string[];
 
         setCategories(uniqueCategories);
 
-        // Set initial category
         if (initialCategory && uniqueCategories.includes(initialCategory)) {
           setSelectedCategory(initialCategory);
         } else if (uniqueCategories.length > 0) {
           setSelectedCategory(uniqueCategories[0]);
         }
       } catch (error) {
-        console.error("Error fetching categories:", error);
+        console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCategories();
+    fetchAllProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId]);
 
+  // ─── shop meta ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchShopMeta = async () => {
-      if (!shopId) {
-        return;
-      }
-
+      if (!shopId) return;
       try {
         const response = await fetch(`${API_URL}/api/shops/${shopId}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch shop details");
-        }
-
+        if (!response.ok) throw new Error("Failed to fetch shop details");
         const data = await response.json();
         setShopMeta({
           id: data.id,
@@ -274,63 +179,34 @@ const ShopCategoryPage = () => {
     fetchShopMeta();
   }, [shopId]);
 
-  // Fetch products for selected category
-  useEffect(() => {
-    const fetchCategoryProducts = async () => {
-      if (!shopId || !selectedCategory) return;
-
-      setCategoryLoading(true);
+  // ─── scroll to selected tab ────────────────────────────────────────────────
+  const scrollToCategory = useCallback(
+    (category: string) => {
+      if (!category) return;
+      const index = categories.findIndex((c) => c === category);
+      if (index === -1) return;
       try {
-        const response = await fetch(`${API_URL}/api/products/shop/${shopId}`);
-        if (!response.ok) throw new Error("Failed to fetch products");
-        const parsed = await response.json();
-
-        // Filter products for selected category
-        const categoryProducts = parsed.filter(
-          (p: Product) => p.subCategory?.name === selectedCategory,
-        );
-
-        setAllProducts(categoryProducts);
-      } catch (error) {
-        console.error("Error fetching category products:", error);
-      } finally {
-        setCategoryLoading(false);
+        categoriesTabsRef.current?.scrollToIndex({
+          index,
+          animated: true,
+          viewPosition: 0.5,
+        });
+      } catch {
+        // ignore scroll errors
       }
-    };
-
-    if (selectedCategory) {
-      fetchCategoryProducts();
-    }
-  }, [selectedCategory, shopId]);
-
-  const animatedUnderlineStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: underlineX.value }],
-    width: underlineWidth.value,
-  }));
+    },
+    [categories],
+  );
 
   useEffect(() => {
     scrollToCategory(selectedCategory);
   }, [selectedCategory, scrollToCategory]);
 
-  const handleTabsScroll = useCallback(
-    (event: { nativeEvent: { contentOffset: { x: number } } }) => {
-      scrollOffsetRef.current = event.nativeEvent.contentOffset.x;
-      requestAnimationFrame(() => animateUnderline(selectedCategory));
-    },
-    [animateUnderline, selectedCategory],
-  );
-
-  // debounced search (no network call required)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // nothing to do - filteredProducts is memoized
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [searchText]);
-
-  // filtered products for current category + search
+  // ─── client-side filtering ─────────────────────────────────────────────────
   const filteredProducts = useMemo(() => {
-    let filtered = allProducts; // Already filtered by category in fetch
+    let filtered = allProducts.filter(
+      (p) => (p.subCategory?.name || "Other") === selectedCategory,
+    );
 
     if (searchText.trim()) {
       const q = searchText.toLowerCase();
@@ -340,10 +216,11 @@ const ShopCategoryPage = () => {
           (p.description && p.description.toLowerCase().includes(q)),
       );
     }
-    return filtered;
-  }, [allProducts, searchText]);
 
-  // cart helpers
+    return filtered;
+  }, [allProducts, selectedCategory, searchText]);
+
+  // ─── cart helpers ──────────────────────────────────────────────────────────
   const handleAddToCart = (product: Product) => {
     const cartItem = {
       id: product.id,
@@ -375,14 +252,12 @@ const ShopCategoryPage = () => {
   const getTotalCartItems = (): number =>
     cartItems.reduce((total, item) => total + item.quantity, 0);
 
-  // category selection (also used by modal)
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
-    scrollToCategory(category);
     setModalVisible(false);
   };
 
-  // render product card
+  // ─── render ────────────────────────────────────────────────────────────────
   const renderProductCard = ({ item }: { item: Product }) => (
     <View style={styles.productCardWrapper}>
       <VendorAwareProductCard
@@ -464,15 +339,14 @@ const ShopCategoryPage = () => {
           keyExtractor={(item) => item}
           style={styles.categoriesTabsContainer}
           contentContainerStyle={styles.categoriesTabsContent}
-          onScroll={handleTabsScroll}
-          scrollEventThrottle={16}
-          renderItem={({ item: category, index }) => (
+          renderItem={({ item: category }) => (
             <TouchableOpacity
-              key={category}
-              style={styles.categoryTab}
+              style={[
+                styles.categoryTab,
+                selectedCategory === category && styles.categoryTabActive,
+              ]}
               onPress={() => handleCategorySelect(category)}
               activeOpacity={0.8}
-              onLayout={(e) => handleTabLayout(category, e.nativeEvent.layout)}
             >
               <Text
                 style={[
@@ -484,11 +358,6 @@ const ShopCategoryPage = () => {
               </Text>
             </TouchableOpacity>
           )}
-        />
-
-        {/* Animated underline */}
-        <Animated.View
-          style={[styles.tabUnderlineAnimated, animatedUnderlineStyle]}
         />
 
         {/* Modal: All categories */}
@@ -567,7 +436,7 @@ const ShopCategoryPage = () => {
       </View>
 
       {/* Products */}
-      {loading || categoryLoading ? (
+      {loading ? (
         <FlatList
           data={Array(9).fill(0)}
           renderItem={() => <ProductCardSkeleton />}
@@ -678,20 +547,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
-    position: "relative",
   },
   categoriesTabsContainer: {
     flexGrow: 1,
   },
   categoriesTabsContent: {
     paddingHorizontal: 12,
-    gap: 24,
-    paddingVertical: 12,
+    paddingVertical: 10,
+    gap: 6,
   },
   categoryTab: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    marginRight: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginRight: 4,
+  },
+  categoryTabActive: {
+    backgroundColor: PrimaryColor,
   },
   categoryTabText: {
     fontSize: 14,
@@ -700,18 +572,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   categoryTabTextActive: {
-    color: "#000",
-    textDecorationLine: "underline",
-    textDecorationColor: PrimaryColor,
-    textDecorationStyle: "solid",
-  },
-  tabUnderlineAnimated: {
-    position: "absolute",
-    bottom: 0,
-    left: 0, // Start at 0 - translateX handles positioning
-    height: 3,
-    backgroundColor: PrimaryColor,
-    borderRadius: 2,
+    color: "#fff",
   },
 
   // Modal

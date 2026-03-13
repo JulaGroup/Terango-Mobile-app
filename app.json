@@ -9,7 +9,8 @@
     "userInterfaceStyle": "light",
     "scheme": ["teranggo"],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
+      "buildNumber": "20",
       "bundleIdentifier": "com.darboedev.terango",
       "associatedDomains": [
         "applinks:terango.gm",
@@ -17,6 +18,7 @@
       ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Camera access is required to scan QR codes for pickups.",
         "NSLocationWhenInUseUsageDescription": "Allow TeranGO to use your location to find nearby vendors and provide accurate delivery estimates.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow TeranGO to use your location to find nearby vendors and provide accurate delivery estimates.",
         "CFBundleURLTypes": [
@@ -46,6 +48,7 @@
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "package": "com.darboedev.terango",
+      "versionCode": 39,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -56,7 +59,6 @@
               "host": "monkfish-app-korrv.ondigitalocean.app",
               "pathPrefix": "/payment-success"
             },
-
             {
               "scheme": "https",
               "host": "monkfish-app-korrv.ondigitalocean.app",
@@ -67,7 +69,6 @@
               "host": "monkfish-app-korrv.ondigitalocean.app",
               "pathPrefix": "api/redirect/payment-cancel"
             },
-
             {
               "scheme": "https",
               "host": "monkfish-app-korrv.ondigitalocean.app",
@@ -91,6 +92,7 @@
         }
       ],
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.INTERNET",

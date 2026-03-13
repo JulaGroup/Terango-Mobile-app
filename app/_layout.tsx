@@ -147,7 +147,11 @@ export default function RootLayout() {
           if (orderId) {
             router.replace({
               pathname: "/order-details" as any,
-              params: { orderId, fromPayment: "true", paymentId: paymentId ?? "" },
+              params: {
+                orderId,
+                fromPayment: "true",
+                paymentId: paymentId ?? "",
+              },
             });
           } else {
             router.replace({ pathname: "/" });
@@ -550,6 +554,13 @@ export default function RootLayout() {
                           }}
                         />
                         <Stack.Screen
+                          name="driver-profile"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
                           name="order-details"
                           options={{
                             animation: "slide_from_right",
@@ -673,6 +684,20 @@ export default function RootLayout() {
                         />
                         <Stack.Screen
                           name="terango-picks"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="food"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="mart"
                           options={{
                             animation: "slide_from_right",
                             headerShown: false,

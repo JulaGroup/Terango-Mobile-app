@@ -82,7 +82,7 @@ export default function Cart() {
 
   // Calculate subtotal (delivery fee determined at checkout based on address)
   const subtotal = getTotalAmount();
-  const MIN_ORDER_AMOUNT = 50;
+  const MIN_ORDER_AMOUNT = 10;
   const meetsMinimum = subtotal >= MIN_ORDER_AMOUNT;
   const remaining = MIN_ORDER_AMOUNT - subtotal;
   const CartItemCard = ({
@@ -287,7 +287,7 @@ export default function Cart() {
   if (cartItems.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
 
         <View style={styles.header}>
           <TouchableOpacity
@@ -295,7 +295,7 @@ export default function Cart() {
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+            <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
 
           <View style={styles.headerCenter}>
@@ -338,7 +338,7 @@ export default function Cart() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
 
       <Animated.View
         style={[
@@ -354,7 +354,7 @@ export default function Cart() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -370,7 +370,7 @@ export default function Cart() {
         </View>
 
         <TouchableOpacity style={styles.clearButton} onPress={handleClearCart}>
-          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <Ionicons name="trash-outline" size={20} color="#fff" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -405,7 +405,7 @@ export default function Cart() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
             <Text style={styles.summaryValue}>
-              D{Math.max(1, Math.round(subtotal * 0.05))}
+              D{(subtotal * 0.05).toFixed(2)}
             </Text>
           </View>
 
@@ -522,20 +522,19 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    backgroundColor: "#ff6b00",
+    borderBottomWidth: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#f3f4f6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -565,20 +564,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1f2937",
+    color: "#fff",
     textAlign: "center",
   },
   headerSubtitle: {
     fontSize: 14,
-    color: "#6b7280",
+    color: "rgba(255,255,255,0.9)",
     marginTop: 2,
     textAlign: "center",
   },
   clearButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#fef2f2",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
   },

@@ -290,8 +290,8 @@ export function useRegisterPushToken(userId: string) {
         try {
           await NotificationService.scheduleOrderNotification({
             orderId: data.orderId,
-            title: "🎉 Order Successful!",
-            body: "Your order has been placed successfully. Tap to view your order.",
+            title: "🎉 Payment Successful!",
+            body: "Your payment has been processed. Your order is being prepared.",
             data: {
               orderId: data.orderId,
               type: "payment_success",

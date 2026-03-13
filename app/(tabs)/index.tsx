@@ -1,108 +1,299 @@
-import Cart from "@/components/common/Cart";
-import Header from "@/components/common/Header";
-import PermissionHandler from "@/components/common/PermissionHandler";
-import SearchBar from "@/components/common/SearchBar";
-import SearchModal from "@/components/common/SearchModal";
-import CategoryRow from "@/components/ui/home/CategoryRow";
-import AdvertCard from "@/components/ui/home/AdvertCard";
-import PromoBanner from "@/components/ui/home/PromoBanner";
-import TeranGOPicks from "@/components/ui/home/TerangoPicks";
-
-// Active home sections
-import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
-import LocalShops from "@/components/ui/home/LocalShops";
-
-import { useRef, useState } from "react";
+﻿/**
+ * TeranGO Super App Hub — Home Tab
+ * Orange-themed Grab-style hub page.
+ * Color palette: #ff6b00 (orange), #1a1a1a (black), #fff (white), #FFF5EE (light orange bg)
+ */
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
+  FlatList,
   Platform,
-  View,
   RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { getResponsivePadding } from "@/utils/responsive";
+import { useRouter } from "expo-router";
 
-const { width } = Dimensions.get("window");
-const RESPONSIVE_PADDING = getResponsivePadding();
+// Hub-specific components
+import HubHeader from "@/components/ui/home/HubHeader";
+import ServiceGrid from "@/components/ui/home/ServiceGrid";
+import HubDealBanners from "@/components/ui/home/HubDealBanners";
 
+// Existing reusable components
+import SearchModal from "@/components/common/SearchModal";
+import SearchBar from "@/components/common/SearchBar";
+import PermissionHandler from "@/components/common/PermissionHandler";
+import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
+import LocalShops from "@/components/ui/home/LocalShops";
+import AdvertCard from "@/components/ui/home/AdvertCard";
+import { Ionicons } from "@expo/vector-icons";
+import { API_URL } from "@/constants/config";
+import { useCart } from "@/context/CartContext";
+import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
+import TeranGOPicks from "@/components/ui/home/TerangoPicks";
+
+// ─── Trending Meal types ──────────────────────────────────────────────────────
+interface TrendingMeal {
+  id: string;
+  name: string;
+  price: number;
+  discountedPrice?: number;
+  imageUrl?: string;
+  description?: string;
+  menu?: { restaurant?: { id?: string; name?: string } };
+}
+
+// ─── Trending Meals Section ───────────────────────────────────────────────────
+const TrendingMealsSection = ({ refreshKey }: { refreshKey: number }) => {
+  const router = useRouter();
+  const { addToCart, removeFromCart, getQuantity } = useCart();
+  const [meals, setMeals] = useState<TrendingMeal[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMeals = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/api/public/meals/trending?limit=8`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setMeals(Array.isArray(data) ? data : data.data || []);
+    } catch {
+      setMeals([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMeals();
+  }, [refreshKey, fetchMeals]);
+
+  const handleMealPress = (id: string) => {
+    router.push({ pathname: "/menuitem/[id]", params: { id } } as any);
+  };
+
+  return (
+    <View style={{ paddingTop: 4, paddingBottom: 8 }}>
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          marginBottom: 12,
+        }}
+      >
+        <View>
+          <Text style={{ fontSize: 17, fontWeight: "700", color: "#1a1a1a" }}>
+            Top Meals Near You
+          </Text>
+          <Text style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+            Most ordered right now
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push("/food" as any)}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 13, fontWeight: "600", color: "#ff6b00" }}>
+            See All
+          </Text>
+        </TouchableOpacity>
+      </View>
+      {loading ? (
+        <FlatList
+          data={[1, 2, 3, 4]}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(item) => `m-sk-${item}`}
+          renderItem={() => (
+            <View
+              style={{
+                width: 155,
+                height: 175,
+                backgroundColor: "#f0f0f0",
+                borderRadius: 14,
+                marginRight: 12,
+              }}
+            />
+          )}
+        />
+      ) : meals.length > 0 ? (
+        <FlatList
+          data={meals}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item }) => (
+            <View style={{ width: 280, marginRight: 12 }}>
+              <VendorAwareMealItemCard
+                product={{
+                  id: Number(item.id),
+                  name: item.name,
+                  price: item.price,
+                  discountedPrice: item.discountedPrice,
+                  image: item.imageUrl,
+                  description: item.description,
+                  inStock: true,
+                }}
+                cartQuantity={getQuantity(item.id)}
+                onAddToCart={() =>
+                  addToCart({
+                    id: item.id,
+                    name: item.name,
+                    price: item.discountedPrice || item.price,
+                    imageUrl: item.imageUrl || "",
+                    vendorId: item.menu?.restaurant?.id || "",
+                    vendorName: item.menu?.restaurant?.name || "Restaurant",
+                    entityType: "RESTAURANT",
+                  })
+                }
+                onRemoveFromCart={() => removeFromCart(item.id)}
+                onPress={() => handleMealPress(item.id)}
+                vendor={{
+                  vendorId: item.menu?.restaurant?.id,
+                  vendorType: "restaurant",
+                  vendorName: item.menu?.restaurant?.name,
+                }}
+              />
+            </View>
+          )}
+        />
+      ) : (
+        <View
+          style={{
+            paddingHorizontal: 16,
+            paddingVertical: 16,
+            alignItems: "center",
+          }}
+        >
+          <Ionicons name="restaurant-outline" size={36} color="#ddd" />
+          <Text style={{ color: "#bbb", marginTop: 6, fontSize: 13 }}>
+            No trending meals found
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+// ─── Divider ─────────────────────────────────────────────────────────────────
+export const Divider = () => (
+  <View style={{ height: 8, backgroundColor: "#f5f5f5", marginVertical: 4 }} />
+);
+
+// ─── Quick Actions row (wallet / vouchers / rewards) ─────────────────────────
+const QuickActions = () => {
+  const actions = [
+    { icon: "💳", label: "TPay", sub: "Coming Soon" },
+    { icon: "🎟️", label: "Vouchers", sub: "Coming Soon" },
+    { icon: "⭐", label: "Rewards", sub: "Coming Soon" },
+  ];
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        backgroundColor: "#fff",
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 10,
+      }}
+    >
+      {actions.map((a) => (
+        <TouchableOpacity
+          key={a.label}
+          activeOpacity={0.8}
+          style={{
+            flex: 1,
+            backgroundColor: "#FFF5EE",
+            borderRadius: 12,
+            paddingVertical: 12,
+            paddingHorizontal: 10,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: "rgba(255,107,0,0.12)",
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>{a.icon}</Text>
+          <Text
+            style={{
+              fontSize: 12,
+              fontWeight: "700",
+              color: "#1a1a1a",
+              marginTop: 4,
+            }}
+          >
+            {a.label}
+          </Text>
+          <Text style={{ fontSize: 10, color: "#aaa", marginTop: 1 }}>
+            {a.sub}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
+
+// ─── Main Hub Screen ─────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const [searchText, setSearchText] = useState("");
+  const [searchText] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const showStickySearchBar = scrollY.interpolate({
-    inputRange: [100, 120],
+  const showStickySearch = scrollY.interpolate({
+    inputRange: [80, 110],
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
 
-  // This function handles navigation to category details or all categories page
-  const handleCategoryPress = (categoryId: string, categoryName: string) => {
-    if (categoryId === "all") {
-      // Navigate to All Categories page
-      router.push("/AllCategoriesPage");
-    } else {
-      // Navigate to specific category details
-      router.push({
-        pathname: "/CategoryDetailsPage",
-        params: { categoryId, categoryName }, // Pass both ID and name
-      });
-    }
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshKey((k) => k + 1);
+    setTimeout(() => setRefreshing(false), 700);
   };
 
   return (
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: "#fff",
+        backgroundColor: "#ff6b00",
         paddingTop: Platform.OS === "android" ? 20 : 0,
       }}
     >
-      {/* Sticky SearchBar */}
+      {/* Sticky search bar (appears on scroll) */}
       <Animated.View
         style={{
           position: "absolute",
-          top: Platform.OS === "web" ? 0 : Platform.OS === "android" ? 25 : 40,
+          top: Platform.OS === "android" ? 25 : Platform.OS === "web" ? 0 : 44,
           left: 0,
           right: 0,
           zIndex: 1000,
-          opacity: showStickySearchBar,
-          backgroundColor: "#fff",
-          flexDirection: "row",
-          paddingHorizontal: RESPONSIVE_PADDING,
+          opacity: showStickySearch,
+          backgroundColor: "#ff6b00",
+          paddingHorizontal: 16,
           paddingVertical: 10,
-          alignItems: "center",
-          gap: 12,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 4,
-          elevation: 5,
-          // On web, disable pointer events when opacity is low to prevent blocking location clicks
           pointerEvents: Platform.OS === "web" ? "none" : "auto",
         }}
       >
-        <View style={{ flex: 1 }}>
-          <SearchBar
-            onChangeText={(text) => setSearchText(text)}
-            value={searchText}
-            onPress={() => setSearchModalVisible(true)}
-            editable={false}
-            fullWidth={true}
-          />
-        </View>
-        <Cart />
+        <SearchBar
+          value=""
+          onChangeText={() => {}}
+          onPress={() => setSearchModalVisible(true)}
+          editable={false}
+          fullWidth
+        />
       </Animated.View>
 
+      {/* Scrollable Content */}
       <Animated.ScrollView
-        showsVerticalScrollIndicator={true}
-        contentContainerStyle={{
-          paddingBottom: 20,
-        }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
         scrollEventThrottle={16}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -111,125 +302,69 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              // bump key to signal children to refresh
-              setRefreshKey((k) => k + 1);
-              // small timeout to show spinner briefly
-              setTimeout(() => setRefreshing(false), 700);
-            }}
+            onRefresh={handleRefresh}
+            tintColor="#fff"
+            colors={["#ff6b00"]}
           />
         }
       >
-        {/* Header */}
-        <Header />
+        {/* ① Orange header (location + notif + profile) */}
+        <HubHeader />
 
-        {/* Regular Search Bar (inside scroll) */}
-        <SearchBar
-          onChangeText={(text) => setSearchText(text)}
-          value={searchText}
-          onPress={() => setSearchModalVisible(true)}
-          editable={false} // Make it non-editable to force modal usage
-        />
+        {/* White body */}
+        <View style={{ backgroundColor: "#fff" }}>
+          {/* ② Search bar */}
+          <View style={{ paddingVertical: 10 }}>
+            <SearchBar
+              value=""
+              onChangeText={() => {}}
+              onPress={() => setSearchModalVisible(true)}
+              editable={false}
+            />
+          </View>
 
-        {/* Promo Banner - FREE DELIVERY LAUNCH 2025 */}
-        <PromoBanner />
+          {/* ③ Service cards grid */}
+          <ServiceGrid />
 
-        {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
-        <AdvertCard />
+          {/* ④ Quick actions */}
+          {/* <QuickActions /> */}
 
-        {/* Categories - Now navigates on press (supports pull-to-refresh) */}
-        <CategoryRow
-          onCategoryPress={handleCategoryPress}
-          refreshKey={refreshKey}
-        />
+          {/* <Divider /> */}
 
-        {/* TeranGO Picks - Official products with priority */}
-        <TeranGOPicks refreshKey={refreshKey} />
+          <Divider />
 
-        {/* Restaurants Near You - Moved Higher */}
-        <RestaurantNearYou refreshKey={refreshKey} />
+          {/* ⑥ Promo adverts from backend */}
+          <AdvertCard position="HOME_TOP" refreshKey={refreshKey} />
+          <Divider />
 
-        {/* Advertisement after restaurants */}
-        <AdvertCard position="HOME_AFTER_RESTAURANTS" />
+          <TeranGOPicks />
+          <Divider />
 
-        {/* Stores Near You - Moved Higher */}
-        {/* <StoresNearYou /> */}
+          {/* ⑤ Deal banners */}
+          <HubDealBanners />
+          <Divider />
 
-        {/* Local Shops - Quality products near you */}
-        <LocalShops refreshKey={refreshKey} />
+          {/* ⑦ Top Meals */}
+          {/* <TrendingMealsSection refreshKey={refreshKey} /> */}
 
-        {/* Hero Banner with Navigation Buttons */}
-        {/* <HeroBanner /> */}
+          {/* <Divider /> */}
 
-        {/* Traditional Meals and Beverages */}
-        {/* <TraditionalMeals /> */}
-        {/* <LocalBeverages /> */}
-        {/* <FreshFromFarm /> */}
+          {/* ⑧ Restaurants Near You (component has its own header) */}
+          <RestaurantNearYou refreshKey={refreshKey} />
 
-        {/* Local Dishes - Authentic Gambian cuisine */}
-        {/* <LocalDishes /> */}
+          <Divider />
 
-        {/* Snacking Corner */}
-        {/* <SnackingCorner /> */}
+          {/* ⑨ Mid-page advert */}
+          <AdvertCard
+            position="HOME_AFTER_RESTAURANTS"
+            refreshKey={refreshKey}
+          />
 
-        {/* Rice & Grains - Premium quality staples */}
-        {/* <RiceGrains /> */}
+          <Divider />
 
-        {/* Great for Breakfast - Gambian Morning Favorites */}
-        {/* <GreatForBreakfast /> */}
-
-        {/* Traditional Gambian Meals */}
-        {/* <TraditionalMeals /> */}
-
-        {/* <AdBanner
-          title="Weekend Specials"
-          buttonText="Explore"
-          backgroundColor="#27AE60"
-          onPress={() => {}}
-        /> */}
-
-        {/* Local Beverages */}
-        {/* <LocalBeverages /> */}
-
-        {/* Pharmacy Essentials - Health & wellness */}
-        {/* <PharmacyEssentials /> */}
-
-        {/* Fresh from the Farm */}
-        {/* <FreshFromFarm /> */}
-
-        {/* Home Essentials - Everything for your home */}
-        {/* <HomeEssentials /> */}
-
-        {/* Deals Section */}
-        {/* <DealsSection /> */}
-
-        {/* Gadget & Tech Zone */}
-        {/* <GadgetTechZone /> */}
-
-        {/* <AdBanner
-          title="Premium Collection"
-          buttonText="Discover"
-          backgroundColor="#8E44AD"
-          onPress={() => {}}
-        /> */}
-
-        {/* Popular Stores */}
-        {/* <PopularStores /> */}
-
-        {/* Advertisement Banners Section - Moved Lower */}
-        {/* <AdBanner
-          title="Special Offers"
-          buttonText="Shop Now"
-          onPress={() => {}}
-        />
-
-        <AdBanner
-          title="Flash Sale"
-          buttonText="View Deals"
-          backgroundColor="#E74C3C"
-          onPress={() => {}}
-        /> */}
+          {/* ⑩ Stores / Mart (component has its own header) */}
+          <LocalShops refreshKey={refreshKey} />
+        </View>
       </Animated.ScrollView>
 
       {/* Permission Modals */}

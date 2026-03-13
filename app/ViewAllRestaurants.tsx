@@ -7,6 +7,7 @@ import {
   TextInput,
   Image,
   ScrollView,
+  StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -87,20 +88,21 @@ export default function ViewAllRestaurants() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={26} color="#333" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>All Restaurants</Text>
         <TouchableOpacity
           style={styles.cartButton}
           onPress={() => router.push("/cart")}
         >
-          <Ionicons name="cart" size={22} color="#333" />
+          <Ionicons name="cart-outline" size={22} color="#fff" />
           {cartItems.length > 0 && (
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{cartItems.length}</Text>
@@ -253,32 +255,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 48,
-    paddingBottom: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    paddingBottom: 14,
+    backgroundColor: "#ff6b00",
   },
   backButton: {
     width: 40,
     height: 40,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 8,
   },
   headerTitle: {
     flex: 1,
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#fff",
     textAlign: "center",
   },
   cartButton: {
     width: 40,
     height: 40,
-    borderRadius: 18,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
     marginLeft: 8,

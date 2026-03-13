@@ -145,7 +145,7 @@ const ProductCard = ({
               typeof product.image === "string" ? product.image : product.image
             }
             style={styles.image}
-            contentFit="contain"
+            contentFit="cover"
             transition={200}
             cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}

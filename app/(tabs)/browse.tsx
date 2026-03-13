@@ -1,3 +1,7 @@
+﻿/**
+ * Browse Screen — Grab-style Discover page for TeranGO super app.
+ * Orange header, service tiles, category filter tabs, product sections.
+ */
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
@@ -8,7 +12,7 @@ import {
   Dimensions,
   RefreshControl,
   FlatList,
-  Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -17,7 +21,6 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import SearchBar from "@/components/common/SearchBar";
 import Cart from "@/components/common/Cart";
 import SearchModal from "@/components/common/SearchModal";
 import { UniversalProduct } from "@/components/common/ProductCard";
@@ -34,14 +37,17 @@ import {
 } from "@/utils/responsive";
 import AdvertCard from "@/components/ui/home/AdvertCard";
 import { Image } from "expo-image";
+import TeranGOPicks from "@/components/ui/home/TerangoPicks";
+import { Divider } from ".";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const RESPONSIVE_PADDING = getResponsivePadding();
 const GRID_COLUMNS = getGridColumns();
 const PRODUCT_CARD_WIDTH = getProductCardWidth(GRID_COLUMNS);
 const HORIZONTAL_CARD_WIDTH = 160;
-const CARD_WIDTH = (SCREEN_WIDTH - RESPONSIVE_PADDING * 2 - 10 * 2) / 3;
-const CARD_IMAGE_HEIGHT = 95;
+
+// 4-column subcategory grid card size
+const SUB_CARD_SIZE = (SCREEN_WIDTH - RESPONSIVE_PADDING * 2 - 12 * 3) / 4;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Type definitions
@@ -75,28 +81,19 @@ type PublicProduct = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Subcategory IDs – copied from your category list
+// Subcategory IDs
 // ─────────────────────────────────────────────────────────────────────────────
 const SUBCATEGORY_IDS = {
-  // Nduga Staples (Rice, Oil, Sugar, Flour)
   riceGrains: "cca76ff8-bc4e-4544-acc1-872c119943a5",
   oilsSpices: "6ac60d93-a199-4cc0-a85d-3636dc0c4508",
   sugarsSweeteners: "9ed2498c-305c-484e-9177-08a56b7b3a82",
-
-  // Fresh & Frozen
   freshProduce: "3433f17f-fe9d-4d04-b4e2-05f9ae0db667",
   frozenFoods: "0a9a4987-a0e9-47fd-a303-0a3aaef5148a",
   dairyEggs: "d3b11157-d7ed-4069-a34f-271d79361451",
-
-  // Proteins
   meatPoultry: "930ea464-53b8-4f01-95e6-27e6d8ba8fce",
   fishSeafood: "4f6502da-96be-4c43-92c7-86df851675c5",
-
-  // Snacks & Beverages
   snacks: "be7ae270-3e96-4bb5-9118-61aa8bcf380b",
   beverages: "e5c6f708-f820-4c13-8691-e989ca8720e4",
-
-  // Meals / Food
   fastFood: "092780fb-8b37-4675-9e49-f4e7a99376a7",
   localDishes: "557e0c1d-4e5f-4c3e-8477-987e5ab07d73",
   africanCuisine: "3cfb1f8e-d781-4b48-9dad-ced44a9cf715",
@@ -154,18 +151,65 @@ const CACHE_KEY = "@browse_subcategories_v2";
 const CACHE_DURATION = 24 * 60 * 60 * 1000;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Service Tiles (Grab-style quick access)
+// ─────────────────────────────────────────────────────────────────────────────
+const SERVICE_TILES = [
+  {
+    key: "food",
+    label: "Food",
+    icon: "restaurant" as const,
+    color: "#FF6B6B",
+    bg: "#FFF0F0",
+  },
+  {
+    key: "mart",
+    label: "Mart",
+    icon: "basket" as const,
+    color: "#2F9E44",
+    bg: "#EDFAF1",
+  },
+  {
+    key: "pharmacy",
+    label: "Pharmacy",
+    icon: "medical" as const,
+    color: "#5C7CFA",
+    bg: "#EEF2FF",
+  },
+  // { key: "stores",   label: "Stores",    icon: "storefront" as const,   color: "#ff6b00", bg: "#FFF5EE" },
+  {
+    key: "more",
+    label: "More",
+    icon: "grid-outline" as const,
+    color: "#868E96",
+    bg: "#F4F4F5",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter Tabs
+// ─────────────────────────────────────────────────────────────────────────────
+const FILTER_TABS = [
+  { key: "all", label: "All" },
+  { key: "food", label: "Food & Drinks" },
+  { key: "groceries", label: "Groceries" },
+  { key: "beauty", label: "Beauty" },
+  { key: "home", label: "Home" },
+  { key: "pharmacy", label: "Pharmacy" },
+  { key: "hardware", label: "Hardware" },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
 const BrowseScreen: React.FC = () => {
   const { addToCart, removeFromCart, updateQuantity, getQuantity } = useCart();
 
-  const [searchText, setSearchText] = useState("");
   const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
-  // Dynamic section states
   const [ndugaStaples, setNdugaStaples] = useState<PublicProduct[]>([]);
   const [trendingNow, setTrendingNow] = useState<PublicProduct[]>([]);
   const [freshProduce, setFreshProduce] = useState<PublicProduct[]>([]);
@@ -178,9 +222,7 @@ const BrowseScreen: React.FC = () => {
     snacks: false,
   });
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Category groups (built from fetched subcategories)
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── Category groups ──────────────────────────────────────────────────────
   const categoryGroups = useMemo<CategoryGroup[]>(() => {
     if (!subcategories.length) return [];
 
@@ -279,9 +321,9 @@ const BrowseScreen: React.FC = () => {
       "otc",
     ];
 
-    const matchesKeywords = (name: string, keywords: string[]) => {
-      const lower = name.toLowerCase();
-      return keywords.some((k) => lower.includes(k));
+    const matches = (name: string, kw: string[]) => {
+      const l = name.toLowerCase();
+      return kw.some((k) => l.includes(k));
     };
 
     return [
@@ -292,7 +334,7 @@ const BrowseScreen: React.FC = () => {
         icon: "restaurant" as const,
         gradient: SECTION_GRADIENTS.food,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, foodKeywords),
+          matches(s.name, foodKeywords),
         ),
       },
       {
@@ -302,7 +344,7 @@ const BrowseScreen: React.FC = () => {
         icon: "basket" as const,
         gradient: SECTION_GRADIENTS.groceries,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, groceryKeywords),
+          matches(s.name, groceryKeywords),
         ),
       },
       {
@@ -312,7 +354,7 @@ const BrowseScreen: React.FC = () => {
         icon: "sparkles" as const,
         gradient: SECTION_GRADIENTS.beauty,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, beautyKeywords),
+          matches(s.name, beautyKeywords),
         ),
       },
       {
@@ -322,7 +364,7 @@ const BrowseScreen: React.FC = () => {
         icon: "home" as const,
         gradient: SECTION_GRADIENTS.home,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, homeKeywords),
+          matches(s.name, homeKeywords),
         ),
       },
       {
@@ -332,7 +374,7 @@ const BrowseScreen: React.FC = () => {
         icon: "construct" as const,
         gradient: SECTION_GRADIENTS.hardware,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, hardwareKeywords),
+          matches(s.name, hardwareKeywords),
         ),
       },
       {
@@ -342,15 +384,21 @@ const BrowseScreen: React.FC = () => {
         icon: "medkit" as const,
         gradient: SECTION_GRADIENTS.pharmacy,
         subcategories: subcategories.filter((s) =>
-          matchesKeywords(s.name, pharmacyKeywords),
+          matches(s.name, pharmacyKeywords),
         ),
       },
     ].filter((g) => g.subcategories.length > 0);
   }, [subcategories]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Fetch helpers
-  // ───────────────────────────────────────────────────────────────────────────
+  const filteredGroups = useMemo(
+    () =>
+      activeTab === "all"
+        ? categoryGroups
+        : categoryGroups.filter((g) => g.key === activeTab),
+    [categoryGroups, activeTab],
+  );
+
+  // ─── Fetch helpers ────────────────────────────────────────────────────────
   const fetchProductsBySubcategory = async (
     subCategoryId: string,
     limit = 12,
@@ -364,17 +412,14 @@ const BrowseScreen: React.FC = () => {
   };
 
   const fetchDynamicSections = useCallback(async () => {
-    // ── Phase 1: above-the-fold sections (load immediately) ──────────────
-    setSectionsLoading((prev) => ({ ...prev, staples: true, trending: true }));
+    setSectionsLoading((p) => ({ ...p, staples: true, trending: true }));
     try {
       const [staplesArr, trendingArr] = await Promise.all([
-        // Nduga Staples (Rice + Oils + Sugar combined)
         Promise.all([
           fetchProductsBySubcategory(SUBCATEGORY_IDS.riceGrains, 6),
           fetchProductsBySubcategory(SUBCATEGORY_IDS.oilsSpices, 4),
           fetchProductsBySubcategory(SUBCATEGORY_IDS.sugarsSweeteners, 4),
         ]).then((r) => r.flat()),
-        // Trending – using API endpoint
         fetch(`${API_URL}/api/public/products/trending?page=1&limit=12`)
           .then((r) => (r.ok ? r.json() : { data: [] }))
           .then((j) => (j?.data || []) as PublicProduct[]),
@@ -382,18 +427,13 @@ const BrowseScreen: React.FC = () => {
       setNdugaStaples(staplesArr.slice(0, 12));
       setTrendingNow(trendingArr.slice(0, 12));
     } catch (err) {
-      console.error("Error fetching phase-1 browse sections:", err);
+      console.error("browse phase-1:", err);
     } finally {
-      setSectionsLoading((prev) => ({
-        ...prev,
-        staples: false,
-        trending: false,
-      }));
+      setSectionsLoading((p) => ({ ...p, staples: false, trending: false }));
     }
 
-    // ── Phase 2: below-the-fold sections (lazy – deferred 500 ms) ────────
-    await new Promise<void>((resolve) => setTimeout(resolve, 500));
-    setSectionsLoading((prev) => ({ ...prev, fresh: true, snacks: true }));
+    await new Promise<void>((r) => setTimeout(r, 500));
+    setSectionsLoading((p) => ({ ...p, fresh: true, snacks: true }));
     try {
       const [freshArr, snacksArr] = await Promise.all([
         fetchProductsBySubcategory(SUBCATEGORY_IDS.freshProduce, 12),
@@ -402,9 +442,9 @@ const BrowseScreen: React.FC = () => {
       setFreshProduce(freshArr.slice(0, 12));
       setSnacksSection(snacksArr.slice(0, 12));
     } catch (err) {
-      console.error("Error fetching phase-2 browse sections:", err);
+      console.error("browse phase-2:", err);
     } finally {
-      setSectionsLoading((prev) => ({ ...prev, fresh: false, snacks: false }));
+      setSectionsLoading((p) => ({ ...p, fresh: false, snacks: false }));
     }
   }, []);
 
@@ -434,7 +474,7 @@ const BrowseScreen: React.FC = () => {
         );
         void fetchDynamicSections();
       } catch (err) {
-        console.error("Error fetching subcategories:", err);
+        console.error("browse subcategories:", err);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -452,29 +492,37 @@ const BrowseScreen: React.FC = () => {
     fetchSubcategories(true);
   }, [fetchSubcategories]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Navigation handlers
-  // ───────────────────────────────────────────────────────────────────────────
-  const handleSubcategoryPress = (sub: SubCategory) => {
+  // ─── Navigation ───────────────────────────────────────────────────────────
+  const handleServiceTap = (key: string) => {
+    if (key === "food") router.push("/food" as any);
+    else if (key === "mart") router.push("/mart" as any);
+    else if (key === "pharmacy")
+      router.push({
+        pathname: "/CategoryDetailsPage",
+        params: {
+          categoryId: "b61f14eb-25e6-4faa-8807-53dc376565e5",
+          categoryName: "Pharmacy",
+        },
+      } as any);
+    else if (key === "stores") router.push("/AllCategoriesPage" as any);
+  };
+
+  const handleSubcategoryPress = (sub: SubCategory) =>
     router.push({
       pathname: "/SubCategoryView",
       params: { subCategoryId: sub.id, subCategoryName: sub.name },
     });
-  };
-  const handleCustomDelivery = () =>
-    Alert.alert("Coming Soon", "Custom Parcel Delivery is coming soon!");
+
   const handleSeeAll = (section: string, title: string) =>
     router.push({ pathname: "/browse/[section]", params: { section, title } });
+
   const handleProductPress = (id: string) =>
     router.push({
       pathname: "/product/[productId]",
       params: { productId: id },
     });
-  const handleOpenSearch = () => setSearchModalVisible(true);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Cart helpers (for product cards)
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── Cart helpers ─────────────────────────────────────────────────────────
   const handleAddProduct = (
     p: UniversalProduct & {
       vendorId?: string;
@@ -499,9 +547,7 @@ const BrowseScreen: React.FC = () => {
     else updateQuantity(id, qty - 1);
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Render helpers
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── Render helpers ───────────────────────────────────────────────────────
   const renderProductCard = (item: PublicProduct, horizontal = false) => {
     const qty = getQuantity(item.id);
     const product: UniversalProduct = {
@@ -521,7 +567,9 @@ const BrowseScreen: React.FC = () => {
     return (
       <View
         key={item.id}
-        style={horizontal ? styles.horizontalCardWrap : styles.gridCardWrap}
+        style={
+          horizontal ? styles.horizontalCardWrap : { width: PRODUCT_CARD_WIDTH }
+        }
       >
         <VendorAwareProductCard
           product={product}
@@ -536,69 +584,42 @@ const BrowseScreen: React.FC = () => {
     );
   };
 
-  const renderSubcategoryCard = (
-    sub: SubCategory,
-    placeholderGradient: [string, string] = ["#FF6B00", "#CC5500"],
-  ) => {
+  // 4-column Grab-style subcategory card
+  const renderSubCard = (sub: SubCategory, gradient: [string, string]) => {
     const icon = CATEGORY_ICONS[sub.name] || "grid";
     return (
       <TouchableOpacity
         key={sub.id}
-        style={styles.subcategoryCard}
-        activeOpacity={0.82}
+        style={styles.subCard}
+        activeOpacity={0.75}
         onPress={() => handleSubcategoryPress(sub)}
       >
-        {sub.imageUrl ? (
-          <Image
-            source={{ uri: sub.imageUrl }}
-            style={styles.subcategoryImage}
-            contentFit="cover"
-            transition={200}
-          />
-        ) : (
-          <LinearGradient
-            colors={placeholderGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.subcategoryImagePlaceholder}
-          >
-            <Ionicons name={icon} size={36} color="rgba(255,255,255,0.95)" />
-          </LinearGradient>
-        )}
-        <View style={styles.subcategoryNameWrap}>
-          <Text style={styles.subcategoryName} numberOfLines={2}>
-            {sub.name}
-          </Text>
+        <View style={styles.subCardIconWrap}>
+          {sub.imageUrl ? (
+            <Image
+              source={{ uri: sub.imageUrl }}
+              style={styles.subCardImage}
+              contentFit="cover"
+              transition={200}
+            />
+          ) : (
+            <LinearGradient
+              colors={gradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.subCardGradient}
+            >
+              <Ionicons name={icon} size={28} color="rgba(255,255,255,0.95)" />
+            </LinearGradient>
+          )}
         </View>
+        <Text style={styles.subCardName} numberOfLines={2}>
+          {sub.name}
+        </Text>
       </TouchableOpacity>
     );
   };
 
-  const renderCategoryGroup = (group: CategoryGroup) => (
-    <View key={group.key} style={styles.groupSection}>
-      <View style={styles.groupHeader}>
-        <View
-          style={[
-            styles.groupAccentBar,
-            { backgroundColor: group.gradient[0] },
-          ]}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.groupTitle}>{group.title}</Text>
-          <Text style={styles.groupSubtitle}>{group.subtitle}</Text>
-        </View>
-      </View>
-      <View style={styles.subcategoryGrid}>
-        {group.subcategories
-          .slice(0, 6)
-          .map((sub) => renderSubcategoryCard(sub, group.gradient))}
-      </View>
-    </View>
-  );
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Section wrapper
-  // ───────────────────────────────────────────────────────────────────────────
   const SectionHeader = ({
     title,
     subtitle,
@@ -611,39 +632,41 @@ const BrowseScreen: React.FC = () => {
     <View style={styles.sectionHeaderRow}>
       <View style={{ flex: 1 }}>
         <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        {subtitle ? (
+          <Text style={styles.sectionSubtitle}>{subtitle}</Text>
+        ) : null}
       </View>
       {onSeeAll && (
         <TouchableOpacity
-          style={styles.seeAllButton}
           onPress={onSeeAll}
-          activeOpacity={0.8}
+          activeOpacity={0.7}
+          style={styles.seeAllBtn}
         >
           <Text style={styles.seeAllText}>See all</Text>
-          <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+          <Ionicons name="chevron-forward" size={14} color={PrimaryColor} />
         </TouchableOpacity>
       )}
     </View>
   );
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Main Render
-  // ───────────────────────────────────────────────────────────────────────────
+  // ─── Main Render ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      {/* Header */}
+      {/* ── Orange Header ───────────────────────────────── */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }}>
-          <SearchBar
-            onChangeText={setSearchText}
-            value={searchText}
-            onPress={handleOpenSearch}
-            editable={false}
-            fullWidth
-          />
-        </View>
+        {/* Search touchable */}
+        <TouchableOpacity
+          style={styles.searchBar}
+          onPress={() => setSearchModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="search-outline" size={17} color="#aaa" />
+          <Text style={styles.searchPlaceholder}>
+            Search food, groceries, pharmacy…
+          </Text>
+        </TouchableOpacity>
         <Cart />
       </View>
 
@@ -659,128 +682,115 @@ const BrowseScreen: React.FC = () => {
           />
         }
       >
-        {/* Title */}
-        <View style={styles.titleSection}>
-          <Text style={styles.pageTitle}>
-            Browse Teran<Text style={{ color: PrimaryColor }}>GO</Text>
-          </Text>
-          <Text style={styles.pageSubtitle}>
-            Shop by category for everything you need
-          </Text>
+        {/* ── Service Tiles ── */}
+        <View style={styles.serviceRow}>
+          {SERVICE_TILES.map((tile) => (
+            <TouchableOpacity
+              key={tile.key}
+              style={styles.serviceTile}
+              onPress={() => handleServiceTap(tile.key)}
+              activeOpacity={0.75}
+            >
+              <View
+                style={[styles.serviceIconCircle, { backgroundColor: tile.bg }]}
+              >
+                <Ionicons name={tile.icon} size={26} color={tile.color} />
+              </View>
+              <Text style={styles.serviceTileLabel}>{tile.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
-        {/* Custom Delivery Card */}
-        <TouchableOpacity
-          style={styles.customDeliveryCard}
-          activeOpacity={0.9}
-          onPress={handleCustomDelivery}
-        >
-          <LinearGradient
-            colors={["#1F1F23", "#0B0D0F"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.customDeliveryGradient}
-          >
-            <View style={styles.customDeliveryBadge}>
-              <Ionicons name="flash" size={12} color="#0B0D0F" />
-              <Text style={styles.customDeliveryBadgeText}>NEW</Text>
-            </View>
-            <Text style={styles.customDeliveryTitle}>
-              Custom Parcel Delivery
-            </Text>
-            <Text style={styles.customDeliveryDesc}>
-              Send parcels anywhere with real-time tracking & vehicle matching
-            </Text>
-            <View style={styles.customDeliveryFeatures}>
-              <View style={styles.featurePill}>
-                <Ionicons name="navigate" size={12} color={PrimaryColor} />
-                <Text style={styles.featurePillText}>Live tracking</Text>
-              </View>
-              <View style={styles.featurePill}>
-                <Ionicons name="car" size={12} color={PrimaryColor} />
-                <Text style={styles.featurePillText}>Vehicle match</Text>
-              </View>
-            </View>
-            <View style={styles.customDeliveryCTA}>
-              <Text style={styles.customDeliveryCTAText}>Start delivery</Text>
-              <Ionicons name="arrow-forward" size={16} color="#0B0D0F" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
-        {/* ─────────── Top Categories ─────────── */}
-        {loading ? (
-          <View style={styles.topCategoriesSection}>
-            <SectionHeader
-              title="Top Categories"
-              subtitle="Browse everything we offer"
-            />
-            <SkeletonLoader type="category" count={9} />
-          </View>
-        ) : categoryGroups.length > 0 ? (
-          <View style={styles.topCategoriesSection}>
-            <SectionHeader
-              title="Top Categories"
-              subtitle="Browse everything we offer"
-            />
-            {categoryGroups.map((group, index) => (
-              <React.Fragment key={group.key}>
-                {renderCategoryGroup(group)}
-                {index < categoryGroups.length - 1 && (
-                  <View style={{ marginBottom: 8 }}>
-                    <AdvertCard
-                      position={
-                        index % 2 === 0 ? undefined : "HOME_AFTER_RESTAURANTS"
-                      }
-                    />
-                  </View>
-                )}
-              </React.Fragment>
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="grid-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No categories available</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
-              <Ionicons name="refresh" size={16} color="#FFF" />
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Top Advertisement Banner (Auto-scroll every 7 seconds) */}
-        <View style={{ marginBottom: 14 }}>
+        {/* ── Hero Ad Banner ── */}
+        <View style={styles.heroBannerWrap}>
           <AdvertCard />
         </View>
+        <Divider />
 
-        {/* ─────────── Dynamic Sections ─────────── */}
+        <TeranGOPicks />
+        <Divider />
+        {/* ── Browse Categories ── */}
+        <View style={styles.categoriesSection}>
+          {/* Section header */}
+          <View style={styles.categoriesTitleRow}>
+            <Text style={styles.categoriesTitle}>Browse Categories</Text>
+            <Text style={styles.categoriesSubtitle}>
+              Everything you need, one tap away
+            </Text>
+          </View>
 
-        {/* Nduga Staples */}
-        <View style={styles.sectionBlock}>
-          <SectionHeader
-            title="Nduga Staples"
-            subtitle="Rice, oils, sugar & flour essentials"
-            onSeeAll={() => handleSeeAll("essentials", "Nduga Staples")}
-          />
-          {sectionsLoading.staples ? (
-            <SkeletonLoader type="horizontal" count={3} />
-          ) : ndugaStaples.length > 0 ? (
-            <FlatList
-              data={ndugaStaples}
-              keyExtractor={(i) => i.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalList}
-              renderItem={({ item }) => renderProductCard(item, true)}
-            />
-          ) : null}
+          {/* Filter tabs */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterTabsRow}
+          >
+            {FILTER_TABS.map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                style={[
+                  styles.filterTab,
+                  activeTab === tab.key && styles.filterTabActive,
+                ]}
+                onPress={() => setActiveTab(tab.key)}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[
+                    styles.filterTabText,
+                    activeTab === tab.key && styles.filterTabTextActive,
+                  ]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Category grid */}
+          {loading ? (
+            <View style={{ paddingHorizontal: RESPONSIVE_PADDING }}>
+              <SkeletonLoader type="category" count={8} />
+            </View>
+          ) : filteredGroups.length > 0 ? (
+            filteredGroups.map((group) => (
+              <View key={group.key} style={styles.groupBlock}>
+                {/* Group label row */}
+                <View style={styles.groupLabelRow}>
+                  <View
+                    style={[
+                      styles.groupAccentDot,
+                      { backgroundColor: group.gradient[0] },
+                    ]}
+                  />
+                  <Text style={styles.groupLabelTitle}>{group.title}</Text>
+                </View>
+
+                {/* 4-column grid */}
+                <View style={styles.subGrid}>
+                  {group.subcategories
+                    .slice(0, 8)
+                    .map((sub) => renderSubCard(sub, group.gradient))}
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="grid-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyText}>No categories yet</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+                <Ionicons name="refresh" size={14} color="#fff" />
+                <Text style={styles.retryBtnText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        {/* Trending Now */}
+        {/* ── Trending Now ── */}
         <View style={styles.sectionBlock}>
           <SectionHeader
             title="Trending Now"
-            subtitle="Most ordered items"
+            subtitle="Most ordered today"
             onSeeAll={() => handleSeeAll("trending", "Trending Now")}
           />
           {sectionsLoading.trending ? (
@@ -797,31 +807,33 @@ const BrowseScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Popular Meals (MealItemCard) */}
-        {/* <View style={styles.sectionBlock}>
+        {/* ── Nduga Staples ── */}
+        <View style={styles.sectionBlock}>
           <SectionHeader
-            title="Popular Meals"
-            subtitle="Local dishes loved by many"
-            onSeeAll={() => handleSeeAll("meals", "Popular Meals")}
+            title="Everyday Staples"
+            subtitle="Rice, oils, sugar & flour"
+            onSeeAll={() => handleSeeAll("essentials", "Everyday Staples")}
           />
-          {sectionsLoading.meals ? (
-            <ActivityIndicator
-              style={styles.loader}
-              size="small"
-              color={PrimaryColor}
+          {sectionsLoading.staples ? (
+            <SkeletonLoader type="horizontal" count={3} />
+          ) : ndugaStaples.length > 0 ? (
+            <FlatList
+              data={ndugaStaples}
+              keyExtractor={(i) => i.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+              renderItem={({ item }) => renderProductCard(item, true)}
             />
-          ) : popularMeals.length > 0 ? (
-            <View style={styles.mealsList}>
-              {popularMeals.slice(0, 4).map(renderMealCard)}
-            </View>
           ) : null}
-        </View> */}
-        {/* Advertisement after restaurants */}
-        <View style={{ marginBottom: 14 }}>
+        </View>
+
+        {/* ── Mid Ad ── */}
+        <View style={styles.midAdWrap}>
           <AdvertCard position="HOME_AFTER_RESTAURANTS" />
         </View>
 
-        {/* Fresh Produce */}
+        {/* ── Fresh Produce ── */}
         <View style={styles.sectionBlock}>
           <SectionHeader
             title="Fresh Produce"
@@ -842,7 +854,7 @@ const BrowseScreen: React.FC = () => {
           ) : null}
         </View>
 
-        {/* Snacks */}
+        {/* ── Snacks & Treats ── */}
         <View style={styles.sectionBlock}>
           <SectionHeader
             title="Snacks & Treats"
@@ -864,7 +876,6 @@ const BrowseScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      {/* Search Modal */}
       <SearchModal
         visible={searchModalVisible}
         onClose={() => setSearchModalVisible(false)}
@@ -877,218 +888,233 @@ const BrowseScreen: React.FC = () => {
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F3F4F6" },
+  container: { flex: 1, backgroundColor: "#F7F8FA" },
+
+  // ── Orange Header ───────────────────────────────────────────────────────
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: RESPONSIVE_PADDING,
-    paddingVertical: 12,
-    gap: 12,
-    backgroundColor: "#FFF",
+    backgroundColor: "#ff6b00",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  searchPlaceholder: { fontSize: 14, color: "#aaa", flex: 1 },
+
+  scrollContent: { paddingBottom: 36 },
+
+  // ── Service Tiles ────────────────────────────────────────────────────────
+  serviceRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: "#fff",
+    paddingVertical: 18,
+    paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    borderBottomColor: "#F1F3F5",
   },
-  scrollContent: { paddingBottom: 32 },
-  titleSection: {
+  serviceTile: {
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  serviceIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  serviceTileLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#374151",
+    textAlign: "center",
+  },
+
+  // ── Hero Banner ──────────────────────────────────────────────────────────
+  heroBannerWrap: {
+    marginTop: 12,
+    marginBottom: 4,
+  },
+
+  // ── Browse Categories section ────────────────────────────────────────────
+  categoriesSection: {
+    backgroundColor: "#fff",
+    marginTop: 12,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  categoriesTitleRow: {
     paddingHorizontal: RESPONSIVE_PADDING,
-    paddingTop: 24,
-    paddingBottom: 16,
+    marginBottom: 14,
   },
-  pageTitle: {
-    fontSize: 28,
+  categoriesTitle: {
+    fontSize: 20,
     fontWeight: "800",
     color: "#111827",
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  pageSubtitle: { fontSize: 14, color: "#6B7280", marginTop: 4 },
+  categoriesSubtitle: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 3,
+  },
 
-  // Custom Delivery
-  customDeliveryCard: {
-    marginHorizontal: RESPONSIVE_PADDING,
-    borderRadius: 16,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+  // Filter tabs
+  filterTabsRow: {
+    paddingHorizontal: RESPONSIVE_PADDING,
+    paddingBottom: 16,
+    gap: 8,
   },
-  customDeliveryGradient: { padding: 20 },
-  customDeliveryBadge: {
+  filterTab: {
+    paddingHorizontal: 15,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "transparent",
+  },
+  filterTabActive: {
+    backgroundColor: "#FF6B0015",
+    borderColor: "#ff6b00",
+  },
+  filterTabText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  filterTabTextActive: {
+    color: "#ff6b00",
+  },
+
+  // Category group in grid
+  groupBlock: {
+    marginBottom: 20,
+    paddingHorizontal: RESPONSIVE_PADDING,
+  },
+  groupLabelRow: {
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: PrimaryColor,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    gap: 4,
+    gap: 8,
     marginBottom: 12,
   },
-  customDeliveryBadgeText: {
-    fontSize: 11,
+  groupAccentDot: {
+    width: 4,
+    height: 18,
+    borderRadius: 3,
+  },
+  groupLabelTitle: {
+    fontSize: 15,
     fontWeight: "700",
-    color: "#0B0D0F",
-    letterSpacing: 0.5,
+    color: "#111827",
   },
-  customDeliveryTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#FFF",
-    marginBottom: 8,
-  },
-  customDeliveryDesc: {
-    fontSize: 13,
-    color: "#D1D5DB",
-    lineHeight: 18,
-    marginBottom: 16,
-  },
-  customDeliveryFeatures: { flexDirection: "row", gap: 8, marginBottom: 16 },
-  featurePill: {
+
+  // 4-column subcategory grid
+  subGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  subCard: {
+    width: SUB_CARD_SIZE,
     alignItems: "center",
-    backgroundColor: "rgba(255,180,114,0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
     gap: 6,
   },
-  featurePillText: { fontSize: 11, fontWeight: "600", color: PrimaryColor },
-  customDeliveryCTA: {
+  subCardIconWrap: {
+    width: SUB_CARD_SIZE,
+    height: SUB_CARD_SIZE,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  subCardImage: {
+    width: "100%",
+    height: "100%",
+  },
+  subCardGradient: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  subCardName: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#374151",
+    textAlign: "center",
+    lineHeight: 15,
+  },
+
+  // Empty / retry
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 40,
+    gap: 10,
+  },
+  emptyText: { fontSize: 14, color: "#9CA3AF" },
+  retryBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: PrimaryColor,
+    backgroundColor: "#ff6b00",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    marginTop: 4,
   },
-  customDeliveryCTAText: { fontSize: 14, fontWeight: "700", color: "#0B0D0F" },
+  retryBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
 
-  // Section block
-  sectionBlock: { marginBottom: 24 },
+  // ── Horizontal product sections ──────────────────────────────────────────
+  sectionBlock: {
+    backgroundColor: "#fff",
+    marginTop: 12,
+    paddingTop: 18,
+    paddingBottom: 18,
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "flex-end",
     paddingHorizontal: RESPONSIVE_PADDING,
-    marginBottom: 6,
-    gap: 12,
+    marginBottom: 12,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
-  sectionSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  seeAllButton: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+    letterSpacing: -0.3,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginTop: 2,
+  },
+  seeAllBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 6,
+    gap: 2,
+    paddingVertical: 4,
     paddingLeft: 8,
   },
-  seeAllText: { fontSize: 12, fontWeight: "600", color: "#6B7280" },
+  seeAllText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#ff6b00",
+  },
 
-  loader: { marginVertical: 24 },
-
-  // Horizontal list
   horizontalList: { paddingLeft: RESPONSIVE_PADDING, paddingRight: 8, gap: 12 },
   horizontalCardWrap: { width: HORIZONTAL_CARD_WIDTH },
 
-  // Grid card (2 columns)
-  gridCardWrap: { width: PRODUCT_CARD_WIDTH },
-
-  // Meals (vertical list)
-  mealsList: { paddingHorizontal: RESPONSIVE_PADDING, gap: 12 },
-  mealCardWrap: {},
-
-  // Category groups
-  topCategoriesSection: { paddingTop: 20, marginBottom: 4 },
-  groupSection: { marginBottom: 32 },
-  groupHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: RESPONSIVE_PADDING,
-    marginBottom: 14,
-    gap: 10,
-  },
-  groupAccentBar: {
-    width: 4,
-    height: 38,
-    borderRadius: 2,
-  },
-  groupTitle: { fontSize: 18, fontWeight: "800", color: "#111827" },
-  groupSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 2 },
-  subcategoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: RESPONSIVE_PADDING,
-    columnGap: 10,
-    rowGap: 12,
-  },
-  subcategoryCard: {
-    width: CARD_WIDTH,
-    backgroundColor: "#FFF",
-    borderRadius: 14,
-    overflow: "hidden",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.09,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-  },
-  subcategoryImage: {
-    width: "100%",
-    height: CARD_IMAGE_HEIGHT,
-  },
-  subcategoryImagePlaceholder: {
-    width: "100%",
-    height: CARD_IMAGE_HEIGHT,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  subcategoryNameWrap: {
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    minHeight: 48,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF",
-  },
-  subcategoryName: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#1F2937",
-    textAlign: "center",
-    lineHeight: 17,
-  },
-
-  // Loading & Empty
-  loadingContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  loadingText: { fontSize: 14, color: "#9CA3AF", marginTop: 12 },
-  emptyContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#9CA3AF",
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: PrimaryColor,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    gap: 8,
-  },
-  retryButtonText: { fontSize: 14, fontWeight: "600", color: "#FFF" },
+  midAdWrap: { marginVertical: 12 },
 });
 
 export default BrowseScreen;

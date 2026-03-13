@@ -688,7 +688,7 @@ export default function SubCategoryView() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -697,7 +697,7 @@ export default function SubCategoryView() {
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -714,7 +714,7 @@ export default function SubCategoryView() {
           onPress={() => router.push("/cart")}
           activeOpacity={0.7}
         >
-          <Ionicons name="cart" size={22} color="#111827" />
+          <Ionicons name="cart-outline" size={22} color="#fff" />
           {getTotalCartItems() > 0 && (
             <View style={styles.cartBadge}>
               <Text style={styles.cartBadgeText}>{getTotalCartItems()}</Text>
@@ -775,14 +775,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#ff6b00",
   },
   backButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     height: 40,
     width: 40,
     justifyContent: "center",
@@ -795,18 +793,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   title: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#fff",
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 13,
-    color: "#64748B",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.8)",
     marginTop: 2,
   },
   cartButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     height: 40,
     width: 40,
     justifyContent: "center",

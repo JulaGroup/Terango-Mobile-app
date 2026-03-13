@@ -19,7 +19,7 @@ const { width, height } = Dimensions.get("window");
 const slides = [
   {
     key: "1",
-    title: "Welcome to TeranGo!",
+    title: "Welcome to TeranGO!",
     description:
       "Your go-to super app in The Gambia. Start with delivery of food, groceries, and pharmacy — fast, fresh, and reliable to your door.",
     image: require("../assets/images/onboarding/motor0.jpg"),
@@ -127,7 +127,7 @@ export default function Onboarding() {
         {item.key === "1" ? (
           <Text style={[styles.title, { color: "#1A3C34" }]}>
             Welcome to Teran
-            <Text style={{ color: PrimaryColor, fontWeight: "800" }}>Go</Text>
+            <Text style={{ color: PrimaryColor, fontWeight: "800" }}>GO</Text>
             <Text style={{ color: "#1A3C34", fontWeight: "800" }}>!</Text>
           </Text>
         ) : (
@@ -211,7 +211,7 @@ export default function Onboarding() {
             </TouchableOpacity>
           )}
         </View>
-        <Text style={styles.footerText}>Powered by JulaGroup. &copy; 2025</Text>
+        <Text style={styles.footerText}>Powered by TeranGO. &copy; 2026</Text>
       </View>
     </View>
   );

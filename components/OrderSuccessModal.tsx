@@ -49,7 +49,8 @@ export default function OrderSuccessModal({
             <Ionicons name="checkmark-circle" size={60} color="#10B981" />
             <Text style={styles.title}>Order Placed Successfully! 🎉</Text>
             <Text style={styles.subtitle}>
-              Your order has been confirmed and is being prepared.
+              Your order has been placed successfully. We&apos;ll notify you
+              when the vendor accepts it — then you can pay to confirm.
             </Text>
           </View>
 

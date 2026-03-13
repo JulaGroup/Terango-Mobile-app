@@ -141,11 +141,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="orders"
         options={{
-          title: "Orders",
+          title: "Activities",
           tabBarBadge:
             acceptedPaymentCount > 0 ? acceptedPaymentCount : undefined,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="doc.plaintext" color={color} />
+            <IconSymbol size={28} name="list.bullet.rectangle" color={color} />
           ),
         }}
       />

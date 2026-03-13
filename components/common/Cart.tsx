@@ -54,15 +54,9 @@ const Cart = () => {
   return (
     <TouchableOpacity
       style={{
-        backgroundColor: "#F4F4F4CE",
+        backgroundColor: "rgba(255,255,255,0.22)",
         padding: 8,
-        borderRadius: 8,
-        marginRight: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 10,
       }}
       onPress={() => router.push("/cart")}
       activeOpacity={0.8}
@@ -73,18 +67,18 @@ const Cart = () => {
           transform: [{ scale: bounceAnim }],
         }}
       >
-        <Ionicons name="cart-outline" size={22} color="black" />
+        <Ionicons name="cart-outline" size={22} color="#fff" />
         {currentQuantity > 0 && (
           <Animated.View
             style={{
               position: "absolute",
               top: -8,
               right: -10,
-              backgroundColor: PrimaryColor,
+              backgroundColor: "white",
               borderRadius: 10,
               paddingHorizontal: 5,
               paddingVertical: 2,
-              shadowColor: PrimaryColor,
+              shadowColor: "white",
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.3,
               shadowRadius: 4,
@@ -94,7 +88,7 @@ const Cart = () => {
           >
             <Text
               style={{
-                color: "white",
+                color: PrimaryColor,
                 fontSize: 10,
                 fontWeight: "700",
                 textAlign: "center",

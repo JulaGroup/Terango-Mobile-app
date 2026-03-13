@@ -612,7 +612,7 @@ export default function ProfilePage() {
               />
             </View>
 
-            <Text style={styles.loginPromptTitle}>Welcome to TeranGo!</Text>
+            <Text style={styles.loginPromptTitle}>Welcome to TeranGO!</Text>
             <Text style={styles.loginPromptSubtitle}>
               Sign in to access your profile, track orders, and enjoy
               personalized features.

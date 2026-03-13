@@ -306,9 +306,9 @@ export default function VendorDashboard() {
         showsVerticalScrollIndicator={false}
       >
         {/* Subscription Status Section */}
-        <View style={styles.subscriptionSection}>
+        {/* <View style={styles.subscriptionSection}>
           <SubscriptionStatus />
-        </View>
+        </View> */}
 
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
@@ -322,6 +322,11 @@ export default function VendorDashboard() {
             onPress={() => router.push("/vendor/orders")}
             badge={metrics.pendingOrders}
           />
+
+          {/*
+            Product & Menu management are now handled in the Complete Admin Panel.
+            Hiding these navigation cards in the mobile vendor dashboard to avoid
+            duplicate editing surfaces. Re-enable here if you want in-app editing.
 
           {(currentBusiness?.type === "RESTAURANT" ||
             vendor?.businessType?.includes("RESTAURANT")) && (
@@ -344,15 +349,20 @@ export default function VendorDashboard() {
               onPress={() => router.push("/vendor/products")}
             />
           )}
+          */}
 
-          <NavigationCard
+          {/* <NavigationCard
             title="Analytics"
             subtitle="View detailed reports"
             icon="bar-chart-outline"
             color={PrimaryColor}
-            onPress={() => {}} // TODO: Add analytics screen
-          />
+            onPress={() => router.push("/vendor/earnings")}
+          /> */}
 
+          {/*
+            Business settings should be managed from the Complete Admin Panel.
+            Commented out in the mobile vendor dashboard to centralize management.
+          
           <NavigationCard
             title="Settings"
             subtitle="Business settings"
@@ -360,6 +370,7 @@ export default function VendorDashboard() {
             color={PrimaryColor}
             onPress={() => router.push("/vendor/profile")}
           />
+          */}
         </View>
 
         {/* Metrics Grid */}
@@ -376,7 +387,7 @@ export default function VendorDashboard() {
               value={metrics.completedOrders}
               icon="checkmark-circle-outline"
             />
-            <MetricCard
+            {/* <MetricCard
               title="Total Revenue"
               value={formatCurrency(metrics.totalRevenue)}
               icon="cash-outline"
@@ -395,7 +406,7 @@ export default function VendorDashboard() {
               title="Menu Items"
               value={metrics.totalMenuItems}
               icon="list-outline"
-            />
+            /> */}
           </View>
         </View>
       </ScrollView>

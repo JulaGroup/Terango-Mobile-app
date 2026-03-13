@@ -300,7 +300,7 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 20,
+    marginVertical: 10,
     width: "100%",
   },
   cardWrapper: {

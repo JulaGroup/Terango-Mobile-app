@@ -16,13 +16,16 @@ import {
   AppState,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 // Alert is imported above
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
 import { orderApi, Order } from "../lib/api";
+import { useVendor } from "@/context/VendorContext";
 import { PrimaryColor } from "@/constants/Colors";
+import { useCart } from "@/context/CartContext";
 import {
   on as socketOn,
   off as socketOff,
@@ -56,6 +59,7 @@ const statusIcons = {
 export default function OrderDetailsPage() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { replaceCart } = useCart();
   const { orderId } = params;
   const { from } = params;
   const { fromPayment } = params;
@@ -72,6 +76,37 @@ export default function OrderDetailsPage() {
   const [ratingReview, setRatingReview] = useState("");
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  // Persisted set of order IDs the user has already rated
+  const [ratedOrderIds, setRatedOrderIds] = useState<Set<string>>(new Set());
+
+  const { isVendor: isVendorUser } = useVendor();
+
+  // Load persisted rated order IDs on mount
+  useEffect(() => {
+    SecureStorage.getItem("ratedOrderIds")
+      .then((raw) => {
+        if (raw) {
+          const arr: string[] = JSON.parse(raw);
+          setRatedOrderIds(new Set(arr));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const MAX_RATED_IDS = 50;
+
+  const markOrderRated = async (id: string) => {
+    setRatedOrderIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      // Keep only the 50 most recent entries so storage stays tiny
+      const trimmed = [...next].slice(-MAX_RATED_IDS);
+      SecureStorage.setItem("ratedOrderIds", JSON.stringify(trimmed)).catch(
+        () => {},
+      );
+      return new Set(trimmed);
+    });
+  };
 
   // Web Modal State (for confirmations and alerts on web platform)
   const [modalVisible, setModalVisible] = useState(false);
@@ -221,7 +256,8 @@ export default function OrderDetailsPage() {
   useEffect(() => {
     // Immediately patch the order status in state (no API round-trip)
     const applyStatusPatch = (data: any) => {
-      if (!data?.orderId || data.orderId !== orderId) return;
+      // Normalise to string so number IDs from the server still match URL-param strings
+      if (!data?.orderId || String(data.orderId) !== String(orderId)) return;
       const newStatus = data.status || data.newStatus;
       if (newStatus) {
         setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
@@ -290,6 +326,20 @@ export default function OrderDetailsPage() {
     });
     return () => subscription.remove();
   }, [fetchOrderDetails]);
+
+  // Polling fallback: refresh order every 30 s while the screen is open and
+  // the order is in an active (non-terminal) state, so status is always current
+  // even if a socket event is missed.
+  useEffect(() => {
+    if (!orderId) return;
+    if (order?.status === "DELIVERED" || order?.status === "CANCELLED") return;
+
+    const interval = setInterval(() => {
+      fetchOrderDetails(true);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [orderId, order?.status, fetchOrderDetails]);
 
   // Listen for postMessage events from payment popup windows
   useEffect(() => {
@@ -459,6 +509,7 @@ export default function OrderDetailsPage() {
         ratingReview.trim() || undefined,
       );
       setRatingSubmitted(true);
+      markOrderRated(order.id);
       setOrder((prev) =>
         prev
           ? {
@@ -485,6 +536,50 @@ export default function OrderDetailsPage() {
     } finally {
       setRatingSubmitting(false);
     }
+  };
+
+  const handleReorder = () => {
+    if (!order || !order.items || order.items.length === 0) return;
+    const vendorId =
+      order.restaurant?.id || order.shop?.id || order.pharmacy?.id || "";
+    const vendorName =
+      order.restaurant?.name ||
+      order.shop?.name ||
+      order.pharmacy?.name ||
+      "Store";
+    const entityType = order.restaurant
+      ? "restaurant"
+      : order.shop
+        ? "shop"
+        : "pharmacy";
+
+    const cartItems = order.items
+      .map((item: any) => {
+        const itemData = item.menuItem || item.product || item.medicine;
+        if (!itemData) return null;
+        return {
+          id: itemData.id,
+          name: itemData.name,
+          price: item.price,
+          imageUrl: itemData.imageUrl,
+          vendorId,
+          vendorName,
+          entityType,
+          quantity: item.quantity || 1,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    if (cartItems.length === 0) {
+      Alert.alert(
+        "Re-order",
+        "No items could be added to cart from this order.",
+      );
+      return;
+    }
+
+    replaceCart(cartItems);
+    router.push("/cart");
   };
 
   const handleCancelOrder = async (orderId: string) => {
@@ -560,7 +655,7 @@ export default function OrderDetailsPage() {
 
   const renderSkeletonLoader = () => (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
       {/* Header Skeleton */}
       <View style={styles.header}>
@@ -654,7 +749,7 @@ export default function OrderDetailsPage() {
   if (error || !order) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
         {/* Header */}
         <View style={styles.header}>
@@ -667,7 +762,7 @@ export default function OrderDetailsPage() {
             }}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-back" size={22} color="#111827" />
+            <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Order Details</Text>
           <View style={{ width: 40 }} />
@@ -706,7 +801,7 @@ export default function OrderDetailsPage() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -718,7 +813,7 @@ export default function OrderDetailsPage() {
           }}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Details</Text>
         <View style={{ width: 40 }} />
@@ -824,13 +919,15 @@ export default function OrderDetailsPage() {
 
         {/* QR Code Card - Prominent at top for delivery verification (or pickup verification) */}
         {/* Show QR code once order is ACCEPTED by vendor (and all subsequent statuses) */}
-        {[
-          "ACCEPTED",
-          "PREPARING",
-          "PROCESSING",
-          "READY",
-          "DISPATCHED",
-        ].includes(order.status) &&
+        {/* Gift orders: no QR card — driver manually notifies admin, no scan needed */}
+        {!order.isGiftOrder &&
+          [
+            "ACCEPTED",
+            "PREPARING",
+            "PROCESSING",
+            "READY",
+            "DISPATCHED",
+          ].includes(order.status) &&
           (order.qrCodeUrl || order.qrCode) && (
             <View style={[styles.qrCodeCard, styles.qrCardElevated]}>
               <View style={styles.qrCodeHeaderRow}>
@@ -847,6 +944,35 @@ export default function OrderDetailsPage() {
                   </Text>
                 </View>
                 <View style={styles.qrActions}>
+                  {isVendorUser &&
+                    order.orderType === "PICKUP" &&
+                    order.status === "READY" && (
+                      <TouchableOpacity
+                        onPress={async () => {
+                          try {
+                            const res = await orderApi.vendorScanPickup(
+                              order.id,
+                            );
+                            setOrder(res);
+                            Alert.alert(
+                              "Success",
+                              "Order marked as picked up (DELIVERED)",
+                            );
+                          } catch (e: any) {
+                            console.warn("Vendor scan failed:", e);
+                            Alert.alert(
+                              "Scan failed",
+                              e?.message || "Failed to verify pickup",
+                            );
+                          }
+                        }}
+                        style={styles.copyButton}
+                      >
+                        <Text style={styles.copyButtonText}>
+                          Mark Picked (Scan)
+                        </Text>
+                      </TouchableOpacity>
+                    )}
                   {/* <TouchableOpacity
                     onPress={() => {
                       try {
@@ -883,8 +1009,9 @@ export default function OrderDetailsPage() {
               </View>
 
               <Text style={styles.qrCodeSubtitle}>
-                Show this QR code to your driver or support for quick
-                verification
+                Show this QR code to your{" "}
+                {order.orderType === "PICKUP" ? "vendor" : "delivery driver"} or
+                support for quick verification
               </Text>
 
               <View style={styles.qrCodeContainerProminent}>
@@ -952,84 +1079,119 @@ export default function OrderDetailsPage() {
               <Text style={styles.sectionTitle}>Your Driver</Text>
 
               <View style={styles.driverInfo}>
-                {/* Driver Avatar */}
-                <View style={styles.driverImageContainer}>
-                  {order.driverImage ? (
-                    <Image
-                      source={{ uri: order.driverImage }}
-                      style={styles.driverImage}
-                    />
-                  ) : (
-                    <View style={styles.driverImagePlaceholder}>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    flex: 1,
+                  }}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/driver-profile",
+                      params: {
+                        driverName: order.driverName,
+                        driverPhone: order.driverPhone,
+                        driverImage: order.driverImage,
+                        driverVehicleType: order.driverVehicleType,
+                        driverVehicleNumber: order.driverVehicleNumber,
+                        orderStatus: order.status,
+                        driverRating: order.driverRating
+                          ? JSON.stringify(order.driverRating)
+                          : undefined,
+                      },
+                    })
+                  }
+                  activeOpacity={0.7}
+                >
+                  {/* Driver Avatar */}
+                  <View style={styles.driverImageContainer}>
+                    {order.driverImage ? (
+                      <Image
+                        source={{ uri: order.driverImage }}
+                        style={styles.driverImage}
+                      />
+                    ) : (
+                      <View style={styles.driverImagePlaceholder}>
+                        <Ionicons
+                          name="person-circle-outline"
+                          size={50}
+                          color={PrimaryColor}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Driver Details */}
+                  <View style={styles.driverDetails}>
+                    <Text style={styles.driverName}>{order.driverName}</Text>
+                    <Text style={styles.driverPhone}>{order.driverPhone}</Text>
+                    <Text style={styles.driverStatus}>
+                      {order.status === "DELIVERED"
+                        ? "Delivery Completed"
+                        : "On the Way"}
+                    </Text>
+                    <Text style={styles.viewProfileHint}>
+                      Tap to view profile →
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* Action Buttons — hide when order is already delivered */}
+                {order.status !== "DELIVERED" && (
+                  <View style={styles.driverActions}>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={handleCallDriver}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="call" size={18} color={PrimaryColor} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => {
+                        if (order?.driverPhone) {
+                          Linking.openURL(
+                            `sms:${order.driverPhone}?body=Hi%20Driver`,
+                          ).catch((err) => {
+                            Alert.alert(
+                              "Error",
+                              "Could not open messaging app",
+                            );
+                          });
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
                       <Ionicons
-                        name="person-circle-outline"
-                        size={50}
+                        name="chatbubbles"
+                        size={18}
                         color={PrimaryColor}
                       />
-                    </View>
-                  )}
-                </View>
-
-                {/* Driver Details */}
-                <View style={styles.driverDetails}>
-                  <Text style={styles.driverName}>{order.driverName}</Text>
-                  <Text style={styles.driverPhone}>{order.driverPhone}</Text>
-                  <Text style={styles.driverStatus}>
-                    {order.status === "DELIVERED"
-                      ? "Delivery Completed"
-                      : "On the Way"}
-                  </Text>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.driverActions}>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={handleCallDriver}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="call" size={18} color={PrimaryColor} />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => {
-                      if (order?.driverPhone) {
-                        Linking.openURL(
-                          `sms:${order.driverPhone}?body=Hi%20Driver`,
-                        ).catch((err) => {
-                          Alert.alert("Error", "Could not open messaging app");
-                        });
-                      }
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="chatbubbles"
-                      size={18}
-                      color={PrimaryColor}
-                    />
-                  </TouchableOpacity>
-                </View>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               {/* ⭐ Rate Your Driver — shown after delivery, once per order */}
-              {order.status === "DELIVERED" && !order.driverRating && (
-                <TouchableOpacity
-                  style={styles.rateDriverButton}
-                  onPress={() => {
-                    setSelectedRating(0);
-                    setRatingReview("");
-                    setRatingSubmitted(false);
-                    setRatingModalVisible(true);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="star" size={16} color="#F59E0B" />
-                  <Text style={styles.rateDriverButtonText}>
-                    Rate Your Driver
-                  </Text>
-                </TouchableOpacity>
-              )}
+              {order.status === "DELIVERED" &&
+                !order.driverRating &&
+                !ratedOrderIds.has(order.id) && (
+                  <TouchableOpacity
+                    style={styles.rateDriverButton}
+                    onPress={() => {
+                      setSelectedRating(0);
+                      setRatingReview("");
+                      setRatingSubmitted(false);
+                      setRatingModalVisible(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="star" size={16} color="#F59E0B" />
+                    <Text style={styles.rateDriverButtonText}>
+                      Rate Your Driver
+                    </Text>
+                  </TouchableOpacity>
+                )}
               {order.status === "DELIVERED" && order.driverRating && (
                 <View style={styles.ratedBadge}>
                   <Ionicons name="star" size={14} color="#F59E0B" />
@@ -1361,6 +1523,22 @@ export default function OrderDetailsPage() {
             <Text style={styles.cancelButtonText}>Cancel Order</Text>
           </TouchableOpacity>
         )}
+
+        {/* Re-order Button - shown for completed or cancelled orders */}
+        {(order.status === "DELIVERED" || order.status === "CANCELLED") && (
+          <TouchableOpacity
+            style={[
+              styles.trackButton,
+              { backgroundColor: PrimaryColor },
+              Platform.OS === "web" && { cursor: "pointer" },
+            ]}
+            onPress={handleReorder}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="refresh-outline" size={20} color="#fff" />
+            <Text style={styles.trackButtonText}>Order Again</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Web Modal for Confirmations and Alerts */}
@@ -1446,7 +1624,10 @@ export default function OrderDetailsPage() {
         animationType="slide"
         onRequestClose={() => setRatingModalVisible(false)}
       >
-        <View style={styles.ratingOverlay}>
+        <KeyboardAvoidingView
+          style={styles.ratingOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.ratingSheet}>
             {/* Header */}
             <View style={styles.ratingHeader}>
@@ -1530,7 +1711,7 @@ export default function OrderDetailsPage() {
               </>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -1547,22 +1728,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: Platform.OS === "web" ? 12 : 20,
     paddingVertical: 15,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9",
+    backgroundColor: PrimaryColor,
+    borderBottomWidth: 0,
   },
   backButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     height: 40,
     width: 40,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 10,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#1E293B",
+    color: "#fff",
   },
   scrollView: {
     flex: 1,
@@ -1735,6 +1915,12 @@ const styles = StyleSheet.create({
     color: PrimaryColor,
     fontWeight: "600",
     marginTop: 4,
+  },
+  viewProfileHint: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    marginTop: 3,
+    fontWeight: "500",
   },
   driverActions: {
     flexDirection: "row",

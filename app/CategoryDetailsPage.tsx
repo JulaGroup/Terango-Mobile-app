@@ -11,6 +11,7 @@ import {
   Alert,
   Dimensions,
   Animated,
+  StatusBar,
 } from "react-native";
 import { categoryApi } from "@/lib/api";
 
@@ -53,7 +54,7 @@ const CategoryDetailsPage = () => {
           duration: 1200,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     );
 
     if (loading) {
@@ -111,7 +112,7 @@ const CategoryDetailsPage = () => {
       const response = await categoryApi.getAllCategories();
       // Create a virtual category for "All Categories"
       const allSubCategories = (response || []).flatMap(
-        (cat: Category) => cat.subCategories || []
+        (cat: Category) => cat.subCategories || [],
       );
       setCategory({
         id: "all",
@@ -241,14 +242,15 @@ const CategoryDetailsPage = () => {
   };
   return (
     <View style={styles.container}>
-      {/* Minimal Header - Just Back Button and Title */}
+      <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={22} color="#111827" />
+          <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -266,8 +268,8 @@ const CategoryDetailsPage = () => {
         {loading
           ? renderSkeletonGrid()
           : error
-          ? renderErrorState()
-          : renderSubCategoryGrid()}
+            ? renderErrorState()
+            : renderSubCategoryGrid()}
       </ScrollView>
     </View>
   );
@@ -277,18 +279,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingTop: 50, // Safe area replacement
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: "#fff",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingTop: 50,
+    backgroundColor: "#ff6b00",
   },
   backButton: {
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     height: 40,
     width: 40,
     justifyContent: "center",

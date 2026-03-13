@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Animated,
 } from "react-native";
+// Use dynamic import for camera to avoid native module load errors
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import {
@@ -47,6 +49,36 @@ export default function VendorOrdersEnhanced() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailsModalVisible, setDetailsModalVisible] = useState(false);
+  // Add this state near the top with your other states
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const successScaleAnim = useRef(new Animated.Value(0)).current;
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [hasCameraPermission, setHasCameraPermission] = useState<
+    boolean | null
+  >(null);
+  const [scanned, setScanned] = useState(false);
+  const [CameraComponent, setCameraComponent] = useState<any>(null);
+  const scanLineAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (scannerVisible) {
+      scanLineAnim.setValue(0);
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(scanLineAnim, {
+            toValue: 1,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scanLineAnim, {
+            toValue: 0,
+            duration: 1800,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    }
+  }, [scannerVisible]);
 
   const orderStatuses = [
     {
@@ -209,7 +241,12 @@ export default function VendorOrdersEnhanced() {
 
     setFilteredOrders(filtered);
   }, [orders, activeTab]);
-
+  useEffect(() => {
+    if (selectedOrder) {
+      const updated = orders.find((o) => o.id === selectedOrder.id);
+      if (updated) setSelectedOrder(updated);
+    }
+  }, [orders]);
   const getOrderStats = useCallback((): OrderStats => {
     return {
       total: orders.length,
@@ -271,8 +308,17 @@ export default function VendorOrdersEnhanced() {
       // No actions - waiting for customer payment
       // The system will auto-update to PREPARING once paid
     }
+    // PROCESSING: Vendor can start preparing (explicit step)
+    else if (order.status === "PROCESSING") {
+      actions.push({
+        label: "Start Preparing",
+        status: "PREPARING",
+        color: PrimaryColor,
+      });
+      console.log("✅ Added 'Start Preparing' action for order", order.id);
+    }
     // PREPARING: Vendor can mark as Ready
-    else if (order.status === "PREPARING" || order.status === "PROCESSING") {
+    else if (order.status === "PREPARING") {
       actions.push({
         label: "Mark Ready",
         status: "READY",
@@ -388,6 +434,109 @@ export default function VendorOrdersEnhanced() {
         `Failed to update order status. Please try again.\n\nError: ${error instanceof Error ? error.message : "Unknown error"}`,
         [{ text: "OK" }],
       );
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    try {
+      const cam = await import("expo-camera");
+      // SDK 50+: CameraView is the new component; fall back to Camera for older versions
+      const CameraView = cam.CameraView ?? cam.Camera;
+      setCameraComponent(() => CameraView); // ← wrap in arrow fn so React doesn't call it as initializer
+      const result = await cam.Camera.requestCameraPermissionsAsync();
+      const granted =
+        result.status === "granted" || (result as any).granted === true;
+      setHasCameraPermission(granted);
+    } catch (err) {
+      console.warn("Camera permission request failed", err);
+      setHasCameraPermission(false);
+    }
+  };
+
+  const openScanner = async () => {
+    let hasPermission = hasCameraPermission;
+
+    if (hasPermission === null) {
+      // requestCameraPermission sets state but we also need the value NOW
+      try {
+        const cam = await import("expo-camera");
+        const CameraView = cam.CameraView ?? cam.Camera;
+        setCameraComponent(() => CameraView);
+        const result = await cam.Camera.requestCameraPermissionsAsync();
+        hasPermission =
+          result.status === "granted" || (result as any).granted === true;
+        setHasCameraPermission(hasPermission);
+      } catch {
+        hasPermission = false;
+        setHasCameraPermission(false);
+      }
+    }
+
+    if (!hasPermission) {
+      Alert.alert(
+        "Camera Permission",
+        "Camera permission is required to scan customer QR codes.",
+      );
+      return;
+    }
+
+    setScanned(false);
+    setScannerVisible(true);
+  };
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+
+    const expected = selectedOrder?.id;
+    const normalized = (data || "").trim();
+
+    const matchesOrder =
+      expected &&
+      (normalized === expected ||
+        normalized.includes(expected) ||
+        normalized === `TG${expected.slice(-4).toUpperCase()}`);
+
+    if (matchesOrder && selectedOrder) {
+      // Show success animation
+      setScanSuccess(true);
+      successScaleAnim.setValue(0);
+      Animated.spring(successScaleAnim, {
+        toValue: 1,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }).start();
+
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      try {
+        // Use the dedicated vendorScanPickup endpoint — triggers both notifications
+        await orderApi.vendorScanPickup(selectedOrder.id);
+      } catch {
+        // Fallback to regular status update
+        await handleUpdateStatus(selectedOrder.id, "DELIVERED");
+      }
+
+      // Refresh orders AND update selectedOrder
+      await fetchOrders();
+      setSelectedOrder((prev) =>
+        prev ? { ...prev, status: "DELIVERED" } : prev,
+      );
+
+      setTimeout(() => {
+        setScanSuccess(false);
+        setScannerVisible(false);
+      }, 2000);
+    } else {
+      Alert.alert("Invalid QR", "Scanned QR does not match this order.", [
+        { text: "Try again", onPress: () => setScanned(false) },
+        {
+          text: "Cancel",
+          style: "cancel",
+          onPress: () => setScannerVisible(false),
+        },
+      ]);
     }
   };
 
@@ -942,7 +1091,287 @@ export default function VendorOrdersEnhanced() {
                   ))}
                 </View>
               )}
+
+              {/* Pickup QR scan action */}
+              {selectedOrder.orderType === "PICKUP" &&
+                selectedOrder.status === "READY" && (
+                  <View style={{ marginTop: 12 }}>
+                    <TouchableOpacity
+                      style={styles.scanButton}
+                      onPress={() => openScanner()}
+                    >
+                      <Text style={styles.scanButtonText}>
+                        Scan Customer QR
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
             </ScrollView>
+          )}
+          {/* Scanner overlay — lives inside the detail Modal, no nesting needed */}
+          {scannerVisible && (
+            <View style={styles.scannerOverlay}>
+              {/* Header */}
+              <View
+                style={[styles.scannerHeader, { paddingTop: insets.top + 14 }]}
+              >
+                <TouchableOpacity
+                  style={styles.backButton}
+                  onPress={() => setScannerVisible(false)}
+                >
+                  <Ionicons name="close" size={20} color="white" />
+                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{ color: "white", fontSize: 15, fontWeight: "700" }}
+                  >
+                    Verify Pickup
+                  </Text>
+                  <Text
+                    style={{
+                      color: "rgba(255,255,255,0.4)",
+                      fontSize: 11,
+                      marginTop: 1,
+                    }}
+                  >
+                    TG{selectedOrder?.id.slice(-4).toUpperCase()}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: PrimaryColor },
+                  ]}
+                >
+                  <Ionicons name="scan-outline" size={12} color="white" />
+                  <Text style={styles.statusText}>PICKUP</Text>
+                </View>
+              </View>
+
+              {/* Camera or fallback */}
+              <View style={styles.scannerViewfinder}>
+                {CameraComponent ? (
+                  <CameraComponent
+                    onBarcodeScanned={
+                      scanned ? undefined : handleBarCodeScanned
+                    }
+                    style={StyleSheet.absoluteFillObject}
+                    // CameraView uses `barcodeScannerSettings`, Camera uses `barCodeScannerSettings`
+                    barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                  />
+                ) : (
+                  <View style={{ alignItems: "center", gap: 12 }}>
+                    <Text
+                      style={{ color: "rgba(255,255,255,0.5)", fontSize: 13 }}
+                    >
+                      Camera unavailable
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.actionButtonPrimary]}
+                      onPress={requestCameraPermission}
+                    >
+                      <Text style={styles.actionButtonText}>
+                        Retry Permission
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Viewfinder frame */}
+                <View style={styles.scannerFrame} pointerEvents="none">
+                  {/* Corners */}
+                  <View
+                    style={[
+                      styles.scannerCorner,
+                      {
+                        top: 0,
+                        left: 0,
+                        borderBottomWidth: 0,
+                        borderRightWidth: 0,
+                        borderTopLeftRadius: 6,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.scannerCorner,
+                      {
+                        top: 0,
+                        right: 0,
+                        borderBottomWidth: 0,
+                        borderLeftWidth: 0,
+                        borderTopRightRadius: 6,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.scannerCorner,
+                      {
+                        bottom: 0,
+                        left: 0,
+                        borderTopWidth: 0,
+                        borderRightWidth: 0,
+                        borderBottomLeftRadius: 6,
+                      },
+                    ]}
+                  />
+                  <View
+                    style={[
+                      styles.scannerCorner,
+                      {
+                        bottom: 0,
+                        right: 0,
+                        borderTopWidth: 0,
+                        borderLeftWidth: 0,
+                        borderBottomRightRadius: 6,
+                      },
+                    ]}
+                  />
+
+                  {/* Animated scan line */}
+                  <Animated.View
+                    style={{
+                      position: "absolute",
+                      left: 10,
+                      right: 10,
+                      height: 1.5,
+                      backgroundColor: PrimaryColor,
+                      opacity: 0.7,
+                      borderRadius: 2,
+                      transform: [
+                        {
+                          translateY: scanLineAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 200],
+                          }),
+                        },
+                      ],
+                    }}
+                  />
+                </View>
+              </View>
+
+              {/* Footer */}
+              <View style={styles.scannerFooter}>
+                {/* Status hint */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 7,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: PrimaryColor,
+                    }}
+                  />
+                  <Text
+                    style={{ color: "rgba(255,255,255,0.5)", fontSize: 11 }}
+                  >
+                    {scanned
+                      ? "Processing..."
+                      : "Scanning for customer QR code..."}
+                  </Text>
+                </View>
+
+                {/* Customer info */}
+                {selectedOrder && (
+                  <View style={styles.scannerOrderInfo}>
+                    <View style={styles.scannerOrderAvatar}>
+                      <Ionicons
+                        name="person-outline"
+                        size={16}
+                        color={PrimaryColor}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scannerOrderName}>
+                        {selectedOrder.customerName || "Guest"}
+                      </Text>
+                      <Text style={styles.scannerOrderSub}>
+                        Order TG{selectedOrder.id.slice(-4).toUpperCase()} ·
+                        PICKUP
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        color: PrimaryColor,
+                        fontSize: 13,
+                        fontWeight: "700",
+                      }}
+                    >
+                      GMD{" "}
+                      {(
+                        selectedOrder.subtotalAmount ||
+                        selectedOrder.totalAmount
+                      )?.toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Cancel */}
+                <TouchableOpacity
+                  style={styles.scannerCancelBtn}
+                  onPress={() => setScannerVisible(false)}
+                >
+                  <Text style={styles.scannerCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+              {/* Success animation overlay */}
+              {scanSuccess && (
+                <View
+                  style={{
+                    ...StyleSheet.absoluteFillObject,
+                    backgroundColor: "rgba(0,0,0,0.85)",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    zIndex: 200,
+                  }}
+                >
+                  <Animated.View
+                    style={{
+                      transform: [{ scale: successScaleAnim }],
+                      alignItems: "center",
+                      gap: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: 50,
+                        backgroundColor: "#4CAF50",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons name="checkmark" size={56} color="white" />
+                    </View>
+                    <Text
+                      style={{
+                        color: "white",
+                        fontSize: 22,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Pickup Confirmed!
+                    </Text>
+                    <Text
+                      style={{ color: "rgba(255,255,255,0.6)", fontSize: 14 }}
+                    >
+                      {selectedOrder?.customerName || "Customer"} has collected
+                      their order
+                    </Text>
+                  </Animated.View>
+                </View>
+              )}
+            </View>
           )}
         </SafeAreaView>
       </Modal>
@@ -1024,11 +1453,14 @@ const styles = StyleSheet.create({
   // ── Stats row ────────────────────────────────────────────
   statsContainer: {
     backgroundColor: "#F8F8F8",
+    flexGrow: 0, // ← prevents it from expanding
+    flexShrink: 0,
   },
   statsContent: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 12, // ← replaces paddingTop/paddingBottom
     gap: 10,
+    alignItems: "center",
   },
   statsCard: {
     flexDirection: "row",
@@ -1043,6 +1475,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 4,
     elevation: 1,
+    height: 80,
   },
   statsIconContainer: {
     width: 34,
@@ -1072,7 +1505,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "white",
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F0F0F0",
   },
@@ -1413,6 +1846,101 @@ const styles = StyleSheet.create({
   },
   detailActionBtnTextSecondary: {
     color: "white",
+  },
+  scanButton: {
+    backgroundColor: "#FF8C00",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "black",
+    zIndex: 100,
+  },
+  scannerHeader: {
+    backgroundColor: "rgba(26,26,26,0.95)",
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(255,255,255,0.08)",
+  },
+  scannerViewfinder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scannerFrame: {
+    width: 220,
+    height: 220,
+    position: "relative",
+  },
+  scannerCorner: {
+    position: "absolute",
+    width: 28,
+    height: 28,
+    borderColor: PrimaryColor,
+    borderWidth: 2.5,
+  },
+  scannerFooter: {
+    backgroundColor: "rgba(26,26,26,0.95)",
+    paddingTop: 14,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+    gap: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: "rgba(255,255,255,0.08)",
+  },
+  scannerOrderInfo: {
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  scannerOrderAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,107,0,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scannerOrderName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.85)",
+  },
+  scannerOrderSub: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.35)",
+    marginTop: 2,
+  },
+  scannerCancelBtn: {
+    backgroundColor: "rgba(255,255,255,0.07)",
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: "rgba(255,255,255,0.12)",
+  },
+  scannerCancelText: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 14,
+    fontWeight: "600",
   },
   // ── Shared ───────────────────────────────────────────────
   vendorNote: {

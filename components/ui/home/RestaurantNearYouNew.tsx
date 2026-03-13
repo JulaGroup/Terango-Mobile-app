@@ -163,7 +163,13 @@ interface Restaurant {
   }[];
 }
 
-const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
+const RestaurantNearYou = ({
+  refreshKey,
+  hideHeader,
+}: {
+  refreshKey?: number;
+  hideHeader?: boolean;
+}) => {
   const router = useRouter();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -231,65 +237,66 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
   if (loading) {
     return (
       <View style={{ paddingVertical: 20 }}>
-        {/* Section Header */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            marginBottom: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                borderRadius: 8,
-                padding: 8,
-                marginRight: 12,
-              }}
-            >
-              <Ionicons name="restaurant" size={20} color="#fff" />
-            </View>
-            <View>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#333",
-                }}
-              >
-                Popular Restaurants
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#666",
-                  marginTop: 2,
-                }}
-              >
-                Loading delicious meals...
-              </Text>
-            </View>
-          </View>
-
+        {!hideHeader && (
           <View
             style={{
               flexDirection: "row",
+              justifyContent: "space-between",
               alignItems: "center",
-              backgroundColor: "#f0f0f0",
-              borderRadius: 20,
-              paddingHorizontal: 12,
-              paddingVertical: 6,
+              paddingHorizontal: 16,
+              marginBottom: 16,
             }}
           >
-            <SkeletonLoader
-              width={60}
-              height={12}
-              style={{ borderRadius: 6 }}
-            />
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
+                style={{
+                  borderRadius: 8,
+                  padding: 8,
+                  marginRight: 12,
+                }}
+              >
+                <Ionicons name="restaurant" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Popular Restaurants
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#666",
+                    marginTop: 2,
+                  }}
+                >
+                  Loading delicious meals...
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: "#f0f0f0",
+                borderRadius: 20,
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+              }}
+            >
+              <SkeletonLoader
+                width={60}
+                height={12}
+                style={{ borderRadius: 6 }}
+              />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Skeleton Cards */}
         <ScrollView
@@ -310,47 +317,49 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
   if (error) {
     return (
       <View style={{ paddingVertical: 20 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            marginBottom: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                borderRadius: 8,
-                padding: 8,
-                marginRight: 12,
-              }}
-            >
-              <Ionicons name="restaurant" size={20} color="#fff" />
-            </View>
-            <View>
-              <Text
+        {!hideHeader && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
                 style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#333",
+                  borderRadius: 8,
+                  padding: 8,
+                  marginRight: 12,
                 }}
               >
-                Popular Restaurants
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#666",
-                  marginTop: 2,
-                }}
-              >
-                Error loading restaurants
-              </Text>
+                <Ionicons name="restaurant" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Popular Restaurants
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#666",
+                    marginTop: 2,
+                  }}
+                >
+                  Error loading restaurants
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         <View
           style={{
@@ -393,47 +402,49 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
   if (restaurants.length === 0) {
     return (
       <View style={{ paddingVertical: 20 }}>
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            paddingHorizontal: 16,
-            marginBottom: 16,
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
-              style={{
-                borderRadius: 8,
-                padding: 8,
-                marginRight: 12,
-              }}
-            >
-              <Ionicons name="restaurant" size={20} color="#fff" />
-            </View>
-            <View>
-              <Text
+        {!hideHeader && (
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingHorizontal: 16,
+              marginBottom: 16,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View
                 style={{
-                  fontSize: 20,
-                  fontWeight: "bold",
-                  color: "#333",
+                  borderRadius: 8,
+                  padding: 8,
+                  marginRight: 12,
                 }}
               >
-                Popular Restaurants
-              </Text>
-              <Text
-                style={{
-                  fontSize: 14,
-                  color: "#666",
-                  marginTop: 2,
-                }}
-              >
-                No restaurants available
-              </Text>
+                <Ionicons name="restaurant" size={20} color="#fff" />
+              </View>
+              <View>
+                <Text
+                  style={{
+                    fontSize: 20,
+                    fontWeight: "bold",
+                    color: "#333",
+                  }}
+                >
+                  Popular Restaurants
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    color: "#666",
+                    marginTop: 2,
+                  }}
+                >
+                  No restaurants available
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         <View
           style={{
@@ -461,71 +472,72 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
 
   return (
     <View style={{ paddingVertical: 4 }}>
-      {/* Section Header */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingHorizontal: 16,
-          marginBottom: 1,
-        }}
-      >
-        <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <View
-            style={{
-              width: 4,
-              height: 38,
-              borderRadius: 2,
-              backgroundColor: PrimaryColor,
-              marginRight: 10,
-            }}
-          />
-          <View>
-            <Text
-              style={{
-                fontSize: 20,
-                fontWeight: "800",
-                color: "#111827",
-              }}
-            >
-              Popular Restaurants
-            </Text>
-            <Text
-              style={{
-                fontSize: 13,
-                color: "#6B7280",
-                marginTop: 2,
-              }}
-            >
-              Delicious meals delivered
-            </Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          onPress={() => router.push("/ViewAllRestaurants")}
+      {!hideHeader && (
+        <View
           style={{
             flexDirection: "row",
+            justifyContent: "space-between",
             alignItems: "center",
-            borderRadius: 20,
-            paddingHorizontal: 12,
-            paddingVertical: 6,
+            paddingHorizontal: 16,
+            marginBottom: 1,
           }}
         >
-          <Text
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View
+              style={{
+                width: 4,
+                height: 38,
+                borderRadius: 2,
+                backgroundColor: PrimaryColor,
+                marginRight: 10,
+              }}
+            />
+            <View>
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "800",
+                  color: "#111827",
+                }}
+              >
+                Popular Restaurants
+              </Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: "#6B7280",
+                  marginTop: 2,
+                }}
+              >
+                Delicious meals delivered
+              </Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            onPress={() => router.push("/ViewAllRestaurants")}
             style={{
-              fontSize: 14,
-              color: "#979797FF",
-              fontWeight: "500",
-              marginRight: 4,
+              flexDirection: "row",
+              alignItems: "center",
+              borderRadius: 20,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
             }}
           >
-            See All
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color="#979797FF" />
-        </TouchableOpacity>
-      </View>
+            <Text
+              style={{
+                fontSize: 14,
+                color: "#979797FF",
+                fontWeight: "500",
+                marginRight: 4,
+              }}
+            >
+              See All
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#979797FF" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Restaurants Horizontal Scroll */}
       <ScrollView
@@ -536,7 +548,7 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
         }}
         decelerationRate="fast"
         snapToInterval={CARD_WIDTH + 16}
-        snapToAlignment="start"
+        snapToAlignment="center"
       >
         {restaurants.slice(0, 8).map((restaurant, index) => {
           const cuisineTypes = getCuisineTypes(restaurant);
@@ -596,13 +608,13 @@ const RestaurantNearYou = ({ refreshKey }: { refreshKey?: number }) => {
                         "Failed to load image for:",
                         restaurant.name,
                         "Error:",
-                        error
+                        error,
                       );
                     }}
                     onLoad={() => {
                       console.log(
                         "Successfully loaded image for:",
-                        restaurant.name
+                        restaurant.name,
                       );
                     }}
                   />

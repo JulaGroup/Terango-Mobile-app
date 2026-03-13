@@ -174,6 +174,7 @@ export default function Orders() {
       if (storedUserId && loggedInStatus === "true") {
         setUserId(storedUserId);
         setIsLoggedIn(true);
+        setLoading(true); // Ensure loading state before fetching
         fetchOrders();
         refreshLiveCount();
       } else {
@@ -185,7 +186,7 @@ export default function Orders() {
       setIsLoggedIn(false);
       setLoading(false);
     }
-  }, [fetchOrders]);
+  }, [fetchOrders, refreshLiveCount]);
 
   // Check for successful order on page load
 
@@ -218,14 +219,11 @@ export default function Orders() {
   // Check for successful order after authentication is complete
 
   // Refresh orders when page comes into focus (e.g., returning from payment)
+  // Also re-checks auth so logging out on profile tab is reflected immediately
   useFocusEffect(
     useCallback(() => {
-      if (userId && isLoggedIn) {
-        console.log("[Orders] Page focused, refreshing orders");
-        fetchOrders();
-        refreshLiveCount();
-      }
-    }, [userId, isLoggedIn, fetchOrders, refreshLiveCount]),
+      checkAuthentication();
+    }, [checkAuthentication]),
   );
 
   const onRefresh = () => {
@@ -762,7 +760,7 @@ export default function Orders() {
                 marginBottom: 12,
               }}
             >
-              Track Your Orders
+              Your Activities
             </Text>
 
             <Text
@@ -774,8 +772,8 @@ export default function Orders() {
                 marginBottom: 30,
               }}
             >
-              Sign in to view your order history, track deliveries, and manage
-              your purchases.
+              Sign in to track deliveries, view your order history, and manage
+              purchases.
             </Text>
 
             <TouchableOpacity
@@ -844,7 +842,7 @@ export default function Orders() {
                 textAlign: "center",
               }}
             >
-              What you can do with orders:
+              What you can track:
             </Text>
 
             <View
@@ -891,7 +889,7 @@ export default function Orders() {
         {/* Header */}
         <View style={{ padding: 16, backgroundColor: "#fff" }}>
           <Text style={{ fontSize: 24, fontWeight: "bold", color: "#333" }}>
-            My Orders
+            Activities
           </Text>
         </View>
         {renderSkeletonLoader()}
@@ -902,17 +900,56 @@ export default function Orders() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
       {/* Header */}
-      <View style={{ padding: 16, backgroundColor: "#fff" }}>
-        <Text
+      <View
+        style={{
+          paddingHorizontal: 16,
+          paddingTop: 16,
+          paddingBottom: 12,
+          backgroundColor: "#fff",
+        }}
+      >
+        {/* Title row */}
+        <View
           style={{
-            fontSize: 24,
-            fontWeight: "bold",
-            color: "#333",
-            marginBottom: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
           }}
         >
-          My Orders
-        </Text>
+          <Text style={{ fontSize: 24, fontWeight: "bold", color: "#1a1a1a" }}>
+            Activities
+          </Text>
+          {liveCount !== null && liveCount > 0 && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 5,
+                backgroundColor: "#FFF5EE",
+                borderRadius: 20,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderWidth: 1,
+                borderColor: "rgba(255,107,0,0.2)",
+              }}
+            >
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 3.5,
+                  backgroundColor: PrimaryColor,
+                }}
+              />
+              <Text
+                style={{ fontSize: 12, fontWeight: "700", color: PrimaryColor }}
+              >
+                {liveCount} live
+              </Text>
+            </View>
+          )}
+        </View>
 
         {/* Tab Selector */}
         <View
@@ -941,7 +978,7 @@ export default function Orders() {
                 color: activeTab === "live" ? "#fff" : "#666",
               }}
             >
-              Live Orders (
+              Live (
               {liveCount !== null
                 ? liveCount
                 : orders.filter((o) =>
@@ -975,7 +1012,7 @@ export default function Orders() {
                 color: activeTab === "past" ? "#fff" : "#666",
               }}
             >
-              Past Orders (
+              History (
               {
                 orders.filter((o) =>
                   ["DELIVERED", "CANCELLED"].includes(o.status),
@@ -1016,7 +1053,7 @@ export default function Orders() {
           ) : null
         }
         ListEmptyComponent={() =>
-          error ? (
+          loading ? null : error ? (
             <View
               style={{
                 alignItems: "center",
@@ -1061,36 +1098,103 @@ export default function Orders() {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={{ alignItems: "center", paddingVertical: 48 }}>
-              <Ionicons
-                name={
-                  activeTab === "live" ? "receipt-outline" : "archive-outline"
-                }
-                size={48}
-                color="#D1D5DB"
-              />
-              <Text
+            <View
+              style={{
+                alignItems: "center",
+                paddingVertical: 56,
+                paddingHorizontal: 32,
+              }}
+            >
+              {/* Icon bubble */}
+              <View
                 style={{
-                  marginTop: 16,
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: "#6B7280",
+                  width: 110,
+                  height: 110,
+                  borderRadius: 55,
+                  backgroundColor: "#FFF0E6",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginBottom: 8,
                 }}
               >
-                {activeTab === "live" ? "No active orders" : "No past orders"}
+                <View
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: "#FFD9C0",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <Ionicons
+                    name={
+                      activeTab === "live"
+                        ? "bag-handle-outline"
+                        : "receipt-outline"
+                    }
+                    size={40}
+                    color={PrimaryColor}
+                  />
+                </View>
+              </View>
+
+              <Text
+                style={{
+                  marginTop: 20,
+                  fontSize: 20,
+                  fontWeight: "700",
+                  color: "#1a1a1a",
+                  textAlign: "center",
+                }}
+              >
+                No activities yet
               </Text>
               <Text
                 style={{
                   marginTop: 8,
                   fontSize: 14,
-                  color: "#9CA3AF",
+                  color: "#6B7280",
                   textAlign: "center",
+                  lineHeight: 20,
                 }}
               >
                 {activeTab === "live"
-                  ? "When you place an order, it will appear here"
-                  : "Your completed orders will appear here"}
+                  ? "Browse and place your first order,\nride, or delivery request."
+                  : "Your completed activities will\nshow up here for easy reference."}
               </Text>
+
+              {activeTab === "live" && (
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)")}
+                  style={{
+                    marginTop: 28,
+                    backgroundColor: PrimaryColor,
+                    paddingHorizontal: 32,
+                    paddingVertical: 14,
+                    borderRadius: 30,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    shadowColor: PrimaryColor,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.35,
+                    shadowRadius: 8,
+                    elevation: 5,
+                  }}
+                >
+                  <Ionicons name="storefront-outline" size={18} color="#fff" />
+                  <Text
+                    style={{
+                      color: "#fff",
+                      fontSize: 15,
+                      fontWeight: "700",
+                    }}
+                  >
+                    Start Ordering
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )
         }

@@ -180,7 +180,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
           backgroundColor: "white",
           borderColor: isFocused ? "#FF6B35" : "#E0E0E0",
           borderWidth: isFocused ? 2 : 1,
-          borderRadius: 30,
+          borderRadius: 12,
           height: 50,
           paddingHorizontal: 15,
           marginHorizontal: fullWidth ? 0 : 20,

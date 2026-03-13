@@ -31,6 +31,7 @@ interface CartContextType {
   removeFromCart: (itemId: string) => void;
   updateQuantity: (itemId: string, quantity: number) => void;
   clearCart: () => void;
+  replaceCart: (newItems: CartItem[]) => void;
   getCartTotal: () => number;
   getTotalAmount: () => number;
   getItemCount: () => number;
@@ -47,6 +48,7 @@ const CartContext = createContext<CartContextType>({
   removeFromCart: () => {},
   updateQuantity: () => {},
   clearCart: () => {},
+  replaceCart: () => {},
   getCartTotal: () => 0,
   getTotalAmount: () => 0,
   getItemCount: () => 0,
@@ -268,6 +270,13 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Atomically replace cart with a new list of items (used for re-orders)
+  const replaceCart = (newItems: CartItem[]) => {
+    setItems(
+      newItems.map((item) => ({ ...item, quantity: item.quantity || 1 })),
+    );
+  };
+
   const getCartTotal = () => {
     return items.reduce((total, item) => {
       // Use discounted price if available, otherwise use regular price
@@ -324,6 +333,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         removeFromCart,
         updateQuantity,
         clearCart,
+        replaceCart,
         getCartTotal,
         getTotalAmount,
         getItemCount,
