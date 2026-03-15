@@ -1,9 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
-  <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+  <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
@@ -35,6 +36,18 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="teranggo"/>
         <data android:scheme="exp+terango"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
+        <data android:scheme="https" android:host="monkfish-app-korrv.ondigitalocean.app" android:pathPrefix="/payment-success"/>
+        <data android:scheme="https" android:host="monkfish-app-korrv.ondigitalocean.app" android:pathPrefix="api/redirect/payment-success"/>
+        <data android:scheme="https" android:host="monkfish-app-korrv.ondigitalocean.app" android:pathPrefix="api/redirect/payment-cancel"/>
+        <data android:scheme="https" android:host="monkfish-app-korrv.ondigitalocean.app" android:pathPrefix="/payment-cancel"/>
+        <data android:scheme="https" android:host="terango.gm" android:pathPrefix="/payment-success"/>
+        <data android:scheme="https" android:host="terango.gm" android:pathPrefix="/payment-cancel"/>
+        <data android:scheme="teranggo"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
     </activity>
   </application>
