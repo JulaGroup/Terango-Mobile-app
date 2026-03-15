@@ -10,7 +10,7 @@
     "scheme": ["teranggo"],
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "20",
+      "buildNumber": "24",
       "bundleIdentifier": "com.darboedev.terango",
       "associatedDomains": [
         "applinks:terango.gm",
