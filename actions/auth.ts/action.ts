@@ -116,7 +116,7 @@ export const verifyOtp = async ({
 
     return isNewUser;
   } catch (err: any) {
-    console.error("OTP verification error:", err.response?.data || err.message);
+    // console.error("OTP verification error:", err.response?.data || err.message);
     throw new Error(err.response?.data?.message || "Invalid OTP");
   }
 };

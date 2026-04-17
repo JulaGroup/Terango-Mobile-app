@@ -34,6 +34,7 @@ import WebContainer from "@/components/WebContainer";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import OfflineNotice from "@/components/common/OfflineNotice";
 import CookieConsent from "@/components/CookieConsent";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -130,11 +131,17 @@ export default function RootLayout() {
         const qs = url.includes("?") ? url.split("?")[1] : "";
         const urlParams = new URLSearchParams(qs);
         const orderId = urlParams.get("orderId") ?? undefined;
+        const deliveryId = urlParams.get("deliveryId") ?? undefined;
         const paymentId = urlParams.get("paymentId") ?? undefined;
         const status = urlParams.get("status") ?? undefined;
         const reason = urlParams.get("reason") ?? undefined;
 
-        console.log("[DeepLink] Params:", { orderId, paymentId, status });
+        console.log("[DeepLink] Params:", {
+          orderId,
+          deliveryId,
+          paymentId,
+          status,
+        });
 
         // ── SUCCESS ────────────────────────────────────────────────────────
         if (
@@ -153,6 +160,11 @@ export default function RootLayout() {
                 paymentId: paymentId ?? "",
               },
             });
+          } else if (deliveryId) {
+            router.replace({
+              pathname: "/custom-delivery/[deliveryId]" as any,
+              params: { deliveryId, fromPayment: "true" },
+            });
           } else {
             router.replace({ pathname: "/" });
           }
@@ -160,7 +172,9 @@ export default function RootLayout() {
           showPaymentToast(
             orderId
               ? `Payment received — Order TG${String(orderId).slice(-4).toUpperCase()}`
-              : "Payment successful",
+              : deliveryId
+                ? `Payment received — Express ${formatExpressDeliveryId(String(deliveryId))}`
+                : "Payment successful",
             "success",
           );
 
@@ -169,13 +183,15 @@ export default function RootLayout() {
             const notifTitle = "Your payment has been made successfully";
             const notifBody = orderId
               ? `Order TG${String(orderId).slice(-4).toUpperCase()} — Tap to view your order.`
-              : "Payment successful — Tap to view your order.";
+              : deliveryId
+                ? `${formatExpressDeliveryId(String(deliveryId))} — Tap to view your delivery.`
+                : "Payment successful — Tap to view your order.";
 
             NotificationService.scheduleOrderNotification({
-              orderId: orderId ?? "",
+              orderId: orderId ?? deliveryId ?? "",
               title: notifTitle,
               body: "Tap to view your order.",
-              data: { orderId, type: "payment_success", paymentId },
+              data: { orderId, deliveryId, type: "payment_success", paymentId },
             }).catch((e) =>
               console.warn(
                 "[DeepLink] Failed to schedule local notification:",
@@ -186,8 +202,8 @@ export default function RootLayout() {
             if (Platform.OS === "web") {
               BrowserNotificationService.showNotification(notifTitle, {
                 body: notifBody,
-                tag: `payment-${orderId ?? "unknown"}`,
-                data: { orderId, type: "payment_success" },
+                tag: `payment-${orderId ?? deliveryId ?? "unknown"}`,
+                data: { orderId, deliveryId, type: "payment_success" },
               }).catch((e) =>
                 console.warn(
                   "[DeepLink] Failed to show browser notification:",
@@ -220,6 +236,29 @@ export default function RootLayout() {
                   e,
                 ),
               );
+          } else if (deliveryId) {
+            console.log(
+              "[DeepLink] Express payment-success received for delivery:",
+              deliveryId,
+            );
+            
+            // Confirm express delivery payment in background
+            customDeliveryApi.updateDelivery(deliveryId, {
+              paymentStatus: "PAID"
+            }).catch((e) =>
+              console.warn(
+                "[DeepLink] Express payment confirm failed (non-fatal):",
+                e,
+              ),
+            );
+            
+            // Navigate to tracking page with refresh flag
+            router.replace({
+              pathname: "/custom-delivery/[deliveryId]" as any,
+              params: { deliveryId, fromPayment: "true" },
+            });
+            
+            return; // Exit early after handling
           } else {
             console.warn(
               "[DeepLink] payment-success deep-link received WITHOUT orderId — " +
@@ -246,6 +285,14 @@ export default function RootLayout() {
             : "Payment cancelled",
           "error",
         );
+
+        if (deliveryId) {
+          router.replace({
+            pathname: "/custom-delivery/[deliveryId]" as any,
+            params: { deliveryId },
+          });
+          return;
+        }
 
         router.replace({
           pathname: target,
@@ -358,6 +405,14 @@ export default function RootLayout() {
             pathname: "/order-details",
             params: { orderId: String(data.orderId) },
           });
+          return;
+        }
+
+        if (data?.deliveryId) {
+          router.push({
+            pathname: "/custom-delivery/[deliveryId]" as any,
+            params: { deliveryId: String(data.deliveryId) },
+          });
         }
       },
     );
@@ -370,6 +425,14 @@ export default function RootLayout() {
           router.push({
             pathname: "/order-details",
             params: { orderId: String(data.orderId) },
+          });
+          return;
+        }
+
+        if (data?.deliveryId) {
+          router.push({
+            pathname: "/custom-delivery/[deliveryId]" as any,
+            params: { deliveryId: String(data.deliveryId) },
           });
         }
       }
@@ -670,6 +733,13 @@ export default function RootLayout() {
                         />
                         <Stack.Screen
                           name="custom-delivery/[deliveryId]"
+                          options={{
+                            animation: "slide_from_right",
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="express-payment"
                           options={{
                             animation: "slide_from_right",
                             headerShown: false,

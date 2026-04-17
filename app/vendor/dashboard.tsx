@@ -313,7 +313,6 @@ export default function VendorDashboard() {
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
           <Text style={styles.sectionTitle}>Manage Your Business</Text>
-
           <NavigationCard
             title="Orders"
             subtitle="Manage incoming orders"
@@ -322,13 +321,10 @@ export default function VendorDashboard() {
             onPress={() => router.push("/vendor/orders")}
             badge={metrics.pendingOrders}
           />
-
-          {/*
-            Product & Menu management are now handled in the Complete Admin Panel.
-            Hiding these navigation cards in the mobile vendor dashboard to avoid
-            duplicate editing surfaces. Re-enable here if you want in-app editing.
-
-          {(currentBusiness?.type === "RESTAURANT" ||
+          Product & Menu management are now handled in the Complete Admin Panel.
+          Hiding these navigation cards in the mobile vendor dashboard to avoid
+          duplicate editing surfaces. Re-enable here if you want in-app editing.
+          {/* {(currentBusiness?.type === "RESTAURANT" ||
             vendor?.businessType?.includes("RESTAURANT")) && (
             <NavigationCard
               title="Menu"
@@ -337,9 +333,8 @@ export default function VendorDashboard() {
               color={PrimaryColor}
               onPress={() => router.push("/vendor/menu")}
             />
-          )}
-
-          {(currentBusiness?.type === "SHOP" ||
+          )} */}
+          {/* {(currentBusiness?.type === "SHOP" ||
             vendor?.businessType?.includes("SHOP")) && (
             <NavigationCard
               title="Products"
@@ -348,9 +343,7 @@ export default function VendorDashboard() {
               color={PrimaryColor}
               onPress={() => router.push("/vendor/products")}
             />
-          )}
-          */}
-
+          )} */}
           {/* <NavigationCard
             title="Analytics"
             subtitle="View detailed reports"
@@ -358,19 +351,15 @@ export default function VendorDashboard() {
             color={PrimaryColor}
             onPress={() => router.push("/vendor/earnings")}
           /> */}
-
-          {/*
-            Business settings should be managed from the Complete Admin Panel.
-            Commented out in the mobile vendor dashboard to centralize management.
-          
-          <NavigationCard
+          {/* Business settings should be managed from the Complete Admin Panel.
+            Commented out in the mobile vendor dashboard to centralize management. */}
+          {/* <NavigationCard
             title="Settings"
             subtitle="Business settings"
             icon="settings-outline"
             color={PrimaryColor}
             onPress={() => router.push("/vendor/profile")}
-          />
-          */}
+          /> */}
         </View>
 
         {/* Metrics Grid */}

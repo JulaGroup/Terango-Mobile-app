@@ -319,16 +319,17 @@ export default function Checkout() {
     // ❌ Block order if below vendor's minimum order amount
     isBelowMinimumOrder;
 
-  // Auto-open location modal when user selects DELIVERY and they have no saved addresses
+  // Auto-open location modal (logged-in users only) when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
     if (
+      isUserLoggedIn === true &&
       form.orderType === "DELIVERY" &&
       addressesLoaded &&
       (!addresses || addresses.length === 0)
     ) {
       setShowLocationModal(true);
     }
-  }, [form.orderType, addresses, addressesLoaded]);
+  }, [isUserLoggedIn, form.orderType, addresses, addressesLoaded]);
 
   // Animate distance loader dots
   useEffect(() => {
@@ -938,9 +939,10 @@ export default function Checkout() {
     };
   }, [items.length]);
 
-  // Auto-prompt payment method setup for new users
+  // Auto-prompt payment method setup for logged-in users who don't have methods
   useEffect(() => {
     if (
+      isUserLoggedIn === true &&
       paymentMethodsLoaded &&
       (!paymentMethods ||
         !paymentMethods.methods ||
@@ -956,7 +958,7 @@ export default function Checkout() {
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [paymentMethodsLoaded, paymentMethods]);
+  }, [isUserLoggedIn, paymentMethodsLoaded, paymentMethods]);
 
   // Reload payment methods when screen comes into focus (e.g., after adding a payment method)
   useFocusEffect(

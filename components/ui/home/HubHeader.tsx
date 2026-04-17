@@ -13,7 +13,7 @@ import { AddressContext } from "@/context/AddressContext";
 import { Address } from "@/services/AddressService";
 import { useNotifications } from "@/context/NotificationContext";
 import LocationModal from "@/components/common/LocationModal";
-
+import Cart from "@/components/common/Cart";
 const { width } = Dimensions.get("window");
 
 const HubHeader = () => {
@@ -173,7 +173,7 @@ const HubHeader = () => {
               </TouchableOpacity>
             </Animated.View>
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={{
                 backgroundColor: "rgba(255,255,255,0.22)",
                 padding: 8,
@@ -183,7 +183,8 @@ const HubHeader = () => {
               activeOpacity={0.8}
             >
               <Ionicons name="person-outline" size={21} color="#fff" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+            <Cart />
           </View>
         </View>
       </View>

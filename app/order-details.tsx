@@ -14,6 +14,7 @@ import {
   Platform,
   ActivityIndicator,
   AppState,
+  Dimensions,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -56,6 +57,23 @@ const statusIcons = {
   CANCELLED: "close-circle-outline",
 };
 
+const getVehicleInfo = (vehicleType?: string) => {
+  switch ((vehicleType || "").toUpperCase()) {
+    case "BIKE":
+      return { emoji: "🏍️", label: "Motorbike" };
+    case "KEKE_CARGO":
+      return { emoji: "🛺", label: "Keke Cargo" };
+    case "CAR":
+      return { emoji: "🚗", label: "Car" };
+    case "VAN":
+      return { emoji: "🚐", label: "Van" };
+    case "LORRY":
+      return { emoji: "🚛", label: "Mini Lorry" };
+    default:
+      return { emoji: "🚗", label: vehicleType ?? "Vehicle" };
+  }
+};
+
 export default function OrderDetailsPage() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -76,6 +94,8 @@ export default function OrderDetailsPage() {
   const [ratingReview, setRatingReview] = useState("");
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [showDriverProfile, setShowDriverProfile] = useState(false);
+  const [showFullscreenImage, setShowFullscreenImage] = useState(false);
   // Persisted set of order IDs the user has already rated
   const [ratedOrderIds, setRatedOrderIds] = useState<Set<string>>(new Set());
 
@@ -1085,22 +1105,7 @@ export default function OrderDetailsPage() {
                     alignItems: "center",
                     flex: 1,
                   }}
-                  onPress={() =>
-                    router.push({
-                      pathname: "/driver-profile",
-                      params: {
-                        driverName: order.driverName,
-                        driverPhone: order.driverPhone,
-                        driverImage: order.driverImage,
-                        driverVehicleType: order.driverVehicleType,
-                        driverVehicleNumber: order.driverVehicleNumber,
-                        orderStatus: order.status,
-                        driverRating: order.driverRating
-                          ? JSON.stringify(order.driverRating)
-                          : undefined,
-                      },
-                    })
-                  }
+                  onPress={() => setShowDriverProfile(true)}
                   activeOpacity={0.7}
                 >
                   {/* Driver Avatar */}
@@ -1616,6 +1621,152 @@ export default function OrderDetailsPage() {
           </View>
         </View>
       )}
+
+      {/* Driver Profile Modal */}
+      <Modal
+        visible={showDriverProfile}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowDriverProfile(false)}
+      >
+        <View style={styles.driverModalOverlay}>
+          <TouchableOpacity
+            style={styles.driverModalBackdrop}
+            onPress={() => setShowDriverProfile(false)}
+            activeOpacity={1}
+          />
+          <View style={styles.driverModalSheet}>
+            <View style={styles.driverModalHandle} />
+
+            <TouchableOpacity
+              style={styles.driverModalClose}
+              onPress={() => setShowDriverProfile(false)}
+            >
+              <Ionicons name="close" size={22} color="#6B7280" />
+            </TouchableOpacity>
+
+            <View style={styles.driverModalAvatarContainer}>
+              {order?.driverImage ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    setShowDriverProfile(false);
+                    setShowFullscreenImage(true);
+                  }}
+                >
+                  <Image
+                    source={{ uri: order.driverImage }}
+                    style={styles.driverModalAvatar}
+                  />
+                  <View style={styles.driverModalAvatarZoomHint}>
+                    <Ionicons name="expand" size={14} color="#FFF" />
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View
+                  style={[
+                    styles.driverModalAvatar,
+                    styles.driverModalAvatarPlaceholder,
+                  ]}
+                >
+                  <Ionicons name="person" size={44} color="#9CA3AF" />
+                </View>
+              )}
+              <View style={styles.driverModalOnlineDot} />
+            </View>
+
+            <Text style={styles.driverModalName}>{order?.driverName}</Text>
+            <Text style={styles.driverModalSubtitle}>Delivery Driver</Text>
+
+            <View style={styles.driverModalInfoList}>
+              {order?.driverPhone && (
+                <View style={styles.driverModalInfoRow}>
+                  <View style={styles.driverModalInfoIcon}>
+                    <Ionicons name="call" size={18} color={PrimaryColor} />
+                  </View>
+                  <View>
+                    <Text style={styles.driverModalInfoLabel}>Phone</Text>
+                    <Text style={styles.driverModalInfoValue}>
+                      {order.driverPhone}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {order?.driverVehicleType &&
+                (() => {
+                  const vehicleInfo = getVehicleInfo(order.driverVehicleType);
+                  return (
+                    <View style={styles.driverModalInfoRow}>
+                      <View style={styles.driverModalInfoIcon}>
+                        <Text style={{ fontSize: 18 }}>
+                          {vehicleInfo.emoji}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.driverModalInfoLabel}>
+                          Vehicle Type
+                        </Text>
+                        <Text style={styles.driverModalInfoValue}>
+                          {vehicleInfo.label}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+
+              {order?.driverVehicleNumber && (
+                <View style={styles.driverModalInfoRow}>
+                  <View style={styles.driverModalInfoIcon}>
+                    <Ionicons name="card" size={18} color={PrimaryColor} />
+                  </View>
+                  <View>
+                    <Text style={styles.driverModalInfoLabel}>
+                      Plate Number
+                    </Text>
+                    <Text style={styles.driverModalInfoValue}>
+                      {order.driverVehicleNumber}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={styles.driverModalCallButton}
+              onPress={handleCallDriver}
+            >
+              <Ionicons name="call" size={20} color="#FFF" />
+              <Text style={styles.driverModalCallText}>Call Driver</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Fullscreen Driver Photo */}
+      <Modal
+        visible={showFullscreenImage}
+        animationType="fade"
+        transparent
+        statusBarTranslucent
+        onRequestClose={() => setShowFullscreenImage(false)}
+      >
+        <View style={styles.driverFullscreenOverlay}>
+          <TouchableOpacity
+            style={styles.driverFullscreenClose}
+            onPress={() => setShowFullscreenImage(false)}
+          >
+            <Ionicons name="close" size={28} color="#FFF" />
+          </TouchableOpacity>
+          {order?.driverImage && (
+            <Image
+              source={{ uri: order.driverImage }}
+              style={styles.driverFullscreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
 
       {/* ⭐ Driver Rating Modal */}
       <Modal
@@ -2588,6 +2739,154 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     color: "#374151",
+  },
+
+  // Driver Profile Modal
+  driverModalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  driverModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  driverModalSheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+    alignItems: "center",
+  },
+  driverModalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 16,
+  },
+  driverModalClose: {
+    position: "absolute",
+    top: 16,
+    right: 20,
+    padding: 6,
+  },
+  driverModalAvatarContainer: {
+    position: "relative",
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  driverModalAvatar: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    borderWidth: 3,
+    borderColor: PrimaryColor + "30",
+  },
+  driverModalAvatarPlaceholder: {
+    backgroundColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  driverModalOnlineDot: {
+    position: "absolute",
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#22C55E",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  driverModalName: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1F2937",
+    textAlign: "center",
+  },
+  driverModalSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  driverModalInfoList: {
+    width: "100%",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    marginBottom: 24,
+    overflow: "hidden",
+  },
+  driverModalInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    gap: 14,
+  },
+  driverModalInfoIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: PrimaryColor + "15",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  driverModalInfoLabel: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginBottom: 2,
+  },
+  driverModalInfoValue: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1F2937",
+  },
+  driverModalCallButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: PrimaryColor,
+    borderRadius: 16,
+    paddingVertical: 16,
+    width: "100%",
+  },
+  driverModalCallText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFF",
+  },
+  driverModalAvatarZoomHint: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 10,
+    padding: 4,
+  },
+  driverFullscreenOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  driverFullscreenClose: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 20,
+    padding: 6,
+  },
+  driverFullscreenImage: {
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height * 0.75,
   },
 
   // ⭐ Driver Rating styles

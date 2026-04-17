@@ -203,10 +203,10 @@ export function getZoneInfoForTown(townId: string) {
 
 // Search towns by name
 export function searchTowns(query: string): GambianTown[] {
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = typeof query === "string" ? query.toLowerCase() : "";
   return GAMBIAN_TOWNS.filter(
     (town) =>
-      town.name.toLowerCase().includes(lowerQuery) ||
-      town.area.toLowerCase().includes(lowerQuery),
+      (town.name || "").toLowerCase().includes(lowerQuery) ||
+      (town.area || "").toLowerCase().includes(lowerQuery),
   );
 }

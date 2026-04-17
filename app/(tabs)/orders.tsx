@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
 import { useFocusEffect } from "@react-navigation/native";
 import { PrimaryColor } from "@/constants/Colors";
-import { orderApi, type Order } from "@/lib/api";
+import { customDeliveryApi, orderApi, type Order } from "@/lib/api";
 import {
   setOrdersRefreshCallback,
   setNavigateToOrderCallback,
@@ -26,6 +26,7 @@ import {
 import { useRouter } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -33,6 +34,9 @@ const statusColors = {
   ACCEPTED: "#3498DB",
   PREPARING: "#3498DB",
   PROCESSING: "#3498DB",
+  DRIVER_ASSIGNED: "#3B82F6",
+  PICKED_UP: "#8B5CF6",
+  IN_TRANSIT: "#6366F1",
   READY: "#10B981",
   DISPATCHED: "#9B59B6",
   DELIVERED: "#27AE60",
@@ -44,15 +48,79 @@ const statusIcons = {
   ACCEPTED: "checkmark-outline",
   PREPARING: "restaurant-outline",
   PROCESSING: "restaurant-outline",
+  DRIVER_ASSIGNED: "person-outline",
+  PICKED_UP: "cube-outline",
+  IN_TRANSIT: "car-outline",
   READY: "checkmark-circle-outline",
   DISPATCHED: "car-outline",
   DELIVERED: "checkmark-circle-outline",
   CANCELLED: "close-circle-outline",
 };
 
+interface DeliveryActivity {
+  id: string;
+  status: string;
+  createdAt: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  estimatedFee?: number | null;
+  estimatedDistanceKm?: number | null;
+  isExpress?: boolean;
+  priorityLevel?: string;
+  paymentStatus?: "UNPAID" | "PAID" | "FAILED" | "REFUNDED";
+  adminApprovedForPayment?: boolean;
+}
+
+type ActivityItem =
+  | { kind: "order"; id: string; createdAt: string; order: Order }
+  | {
+      kind: "delivery";
+      id: string;
+      createdAt: string;
+      delivery: DeliveryActivity;
+    };
+
+const LIVE_ORDER_STATUSES = [
+  "PENDING",
+  "ACCEPTED",
+  "PREPARING",
+  "PROCESSING",
+  "READY",
+  "DISPATCHED",
+];
+
+const LIVE_DELIVERY_STATUSES = [
+  "PENDING",
+  "DRIVER_ASSIGNED",
+  "PICKED_UP",
+  "IN_TRANSIT",
+];
+
+const PAST_STATUSES = ["DELIVERED", "CANCELLED"];
+
+const parseDeliveryList = (response: any): DeliveryActivity[] => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  return [];
+};
+
+const isExpressDelivery = (delivery: DeliveryActivity): boolean => {
+  if (delivery.isExpress === true) return true;
+  const priority = String(delivery.priorityLevel ?? "").toUpperCase();
+  return priority === "EXPRESS" || priority === "URGENT";
+};
+
+const isDeliveryVisibleInActivities = (delivery: DeliveryActivity) => {
+  if (!isExpressDelivery(delivery)) return true;
+  if (delivery.paymentStatus === "PAID") return true;
+  return PAST_STATUSES.includes(delivery.status);
+};
+
 export default function Orders() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [deliveries, setDeliveries] = useState<DeliveryActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -72,21 +140,24 @@ export default function Orders() {
         return;
       }
 
-      const res = await orderApi.getOrderStatusCounts();
+      const [res, deliveryResponse] = await Promise.all([
+        orderApi.getOrderStatusCounts(),
+        customDeliveryApi.listDeliveries().catch(() => []),
+      ]);
       const statuses = res?.byStatus || {};
-      const liveStatuses = [
-        "PENDING",
-        "ACCEPTED",
-        "PREPARING",
-        "PROCESSING",
-        "READY",
-        "DISPATCHED",
-      ];
-      const total = liveStatuses.reduce(
+      const totalOrders = LIVE_ORDER_STATUSES.reduce(
         (sum, s) => sum + (statuses[s] || 0),
         0,
       );
-      setLiveCount(total);
+
+      const parsedDeliveries = parseDeliveryList(deliveryResponse);
+      const liveDeliveries = parsedDeliveries.filter(
+        (delivery) =>
+          isDeliveryVisibleInActivities(delivery) &&
+          LIVE_DELIVERY_STATUSES.includes(delivery.status),
+      ).length;
+
+      setLiveCount(totalOrders + liveDeliveries);
     } catch (err) {
       console.warn("Failed to load live orders count:", err);
     }
@@ -143,13 +214,19 @@ export default function Orders() {
           setLoadingMore(true);
         }
 
-        const result = await orderApi.getCustomerOrders(page, PAGE_SIZE);
+        const [result, deliveryResponse] = await Promise.all([
+          orderApi.getCustomerOrders(page, PAGE_SIZE),
+          customDeliveryApi.listDeliveries().catch(() => []),
+        ]);
 
         if (append) {
           setOrders((prev) => [...prev, ...result.orders]);
         } else {
           setOrders(result.orders);
         }
+
+        const parsedDeliveries = parseDeliveryList(deliveryResponse);
+        setDeliveries(parsedDeliveries);
 
         setHasMore(result.hasMore);
         setCurrentPage(page);
@@ -438,22 +515,56 @@ export default function Orders() {
   };
 
   const getFilteredOrders = () => {
-    if (activeTab === "live") {
-      return orders.filter((order) =>
-        [
-          "PENDING",
-          "ACCEPTED",
-          "PREPARING",
-          "PROCESSING",
-          "READY",
-          "DISPATCHED",
-        ].includes(order.status),
-      );
-    } else {
-      return orders.filter((order) =>
-        ["DELIVERED", "CANCELLED"].includes(order.status),
-      );
-    }
+    const filteredOrders =
+      activeTab === "live"
+        ? orders.filter((order) => LIVE_ORDER_STATUSES.includes(order.status))
+        : orders.filter((order) => PAST_STATUSES.includes(order.status));
+
+    const filteredDeliveries = deliveries.filter(
+      (delivery) =>
+        isDeliveryVisibleInActivities(delivery) &&
+        (activeTab === "live"
+          ? LIVE_DELIVERY_STATUSES.includes(delivery.status)
+          : PAST_STATUSES.includes(delivery.status)),
+    );
+
+    const merged: ActivityItem[] = [
+      ...filteredOrders.map((order) => ({
+        kind: "order" as const,
+        id: `order-${order.id}`,
+        createdAt: order.createdAt,
+        order,
+      })),
+      ...filteredDeliveries.map((delivery) => ({
+        kind: "delivery" as const,
+        id: `delivery-${delivery.id}`,
+        createdAt: delivery.createdAt,
+        delivery,
+      })),
+    ];
+
+    return merged.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  };
+
+  const getTabCount = (tab: "live" | "past") => {
+    const orderCount =
+      tab === "live"
+        ? orders.filter((order) => LIVE_ORDER_STATUSES.includes(order.status))
+            .length
+        : orders.filter((order) => PAST_STATUSES.includes(order.status)).length;
+
+    const deliveryCount = deliveries.filter(
+      (delivery) =>
+        isDeliveryVisibleInActivities(delivery) &&
+        (tab === "live"
+          ? LIVE_DELIVERY_STATUSES.includes(delivery.status)
+          : PAST_STATUSES.includes(delivery.status)),
+    ).length;
+
+    return orderCount + deliveryCount;
   };
 
   const renderOrderCard = (order: Order) => (
@@ -707,6 +818,241 @@ export default function Orders() {
       </View>
     </TouchableOpacity>
   );
+
+  const renderDeliveryCard = (delivery: DeliveryActivity) => {
+    const expressDelivery = isExpressDelivery(delivery);
+    const statusColor =
+      statusColors[delivery.status as keyof typeof statusColors] || "#64748B";
+    const statusIcon =
+      statusIcons[delivery.status as keyof typeof statusIcons] ||
+      "time-outline";
+    const canTrack = !PAST_STATUSES.includes(delivery.status);
+    const canPay =
+      expressDelivery &&
+      delivery.paymentStatus !== "PAID" &&
+      delivery.adminApprovedForPayment === true;
+
+    return (
+      <TouchableOpacity
+        key={delivery.id}
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 4,
+          borderLeftWidth: 4,
+          borderLeftColor: statusColor,
+        }}
+        activeOpacity={0.8}
+        onPress={() =>
+          router.push({
+            pathname: "/custom-delivery/[deliveryId]",
+            params: { deliveryId: delivery.id },
+          })
+        }
+      >
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
+              {expressDelivery
+                ? `TeranGO Express ${formatExpressDeliveryId(delivery.id)}`
+                : `Delivery TG${delivery.id.slice(-4).toUpperCase()}`}
+            </Text>
+            {expressDelivery && (
+              <View
+                style={{
+                  backgroundColor: "#FFF5EE",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: "#FFD4A3",
+                }}
+              >
+                <Text
+                  style={{
+                    color: PrimaryColor,
+                    fontSize: 11,
+                    fontWeight: "700",
+                  }}
+                >
+                  EXPRESS
+                </Text>
+              </View>
+            )}
+          </View>
+          <View
+            style={{
+              backgroundColor: statusColor,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Ionicons name={statusIcon as any} size={12} color="#fff" />
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
+              {delivery.status}
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
+          <Ionicons name="arrow-up-circle-outline" size={16} color="#666" />
+          <Text
+            style={{ marginLeft: 8, color: "#666", flex: 1 }}
+            numberOfLines={1}
+          >
+            {delivery.pickupAddress}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
+          <Ionicons name="arrow-down-circle-outline" size={16} color="#666" />
+          <Text
+            style={{ marginLeft: 8, color: "#666", flex: 1 }}
+            numberOfLines={1}
+          >
+            {delivery.dropoffAddress}
+          </Text>
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons name="wallet-outline" size={16} color="#666" />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 18,
+              fontWeight: "bold",
+              color: PrimaryColor,
+            }}
+          >
+            {formatAmount(delivery.estimatedFee ?? 0)}
+          </Text>
+          {expressDelivery && (
+            <Text style={{ marginLeft: 8, color: "#666", fontSize: 12 }}>
+              {delivery.paymentStatus === "PAID" ? "Paid" : "Unpaid"}
+            </Text>
+          )}
+        </View>
+
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: "#F3F4F6",
+          }}
+        >
+          <Text style={{ fontSize: 12, color: "#999" }}>
+            {formatDate(delivery.createdAt)}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {canPay ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: PrimaryColor,
+                }}
+                onPress={() =>
+                  router.push({
+                    pathname: "/express-payment",
+                    params: {
+                      deliveryId: delivery.id,
+                      amount: String(delivery.estimatedFee || 0),
+                      pickupAddress: delivery.pickupAddress,
+                      dropoffAddress: delivery.dropoffAddress,
+                    },
+                  })
+                }
+              >
+                <Text
+                  style={{ fontSize: 12, color: "#fff", fontWeight: "700" }}
+                >
+                  Pay
+                </Text>
+                <Ionicons name="card-outline" size={12} color="#fff" />
+              </TouchableOpacity>
+            ) : canTrack ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: "#F0F9FF",
+                  borderWidth: 1,
+                  borderColor: "#E0F2FE",
+                }}
+                onPress={() =>
+                  router.push({
+                    pathname: "/custom-delivery/[deliveryId]",
+                    params: { deliveryId: delivery.id },
+                  })
+                }
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: PrimaryColor,
+                    fontWeight: "600",
+                  }}
+                >
+                  Track
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={12}
+                  color={PrimaryColor}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   // If user is not logged in, show login prompt
   if (isLoggedIn === false) {
@@ -978,20 +1324,7 @@ export default function Orders() {
                 color: activeTab === "live" ? "#fff" : "#666",
               }}
             >
-              Live (
-              {liveCount !== null
-                ? liveCount
-                : orders.filter((o) =>
-                    [
-                      "PENDING",
-                      "ACCEPTED",
-                      "PREPARING",
-                      "PROCESSING",
-                      "READY",
-                      "DISPATCHED",
-                    ].includes(o.status),
-                  ).length}
-              )
+              Live ({liveCount !== null ? liveCount : getTabCount("live")})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -1012,13 +1345,7 @@ export default function Orders() {
                 color: activeTab === "past" ? "#fff" : "#666",
               }}
             >
-              History (
-              {
-                orders.filter((o) =>
-                  ["DELIVERED", "CANCELLED"].includes(o.status),
-                ).length
-              }
-              )
+              History ({getTabCount("past")})
             </Text>
           </TouchableOpacity>
         </View>
@@ -1028,7 +1355,11 @@ export default function Orders() {
       <FlatList
         data={getFilteredOrders()}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => renderOrderCard(item)}
+        renderItem={({ item }) =>
+          item.kind === "order"
+            ? renderOrderCard(item.order)
+            : renderDeliveryCard(item.delivery)
+        }
         contentContainerStyle={{ padding: 16 }}
         onEndReached={loadMoreOrders}
         onEndReachedThreshold={0.5}
@@ -1048,7 +1379,7 @@ export default function Orders() {
             </View>
           ) : !hasMore ? (
             <View style={{ paddingVertical: 12, alignItems: "center" }}>
-              <Text style={{ color: "#999" }}>No more orders</Text>
+              <Text style={{ color: "#999" }}>No more activities</Text>
             </View>
           ) : null
         }

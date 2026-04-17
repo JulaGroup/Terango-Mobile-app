@@ -145,7 +145,7 @@ const ProductCard = ({
               typeof product.image === "string" ? product.image : product.image
             }
             style={styles.image}
-            contentFit="cover"
+            contentFit="contain"
             transition={200}
             cachePolicy="memory-disk"
             onError={() => setImageLoadError(true)}
@@ -299,6 +299,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
     backgroundColor: "#ffff",
+    alignContent: "center",
   },
   imagePlaceholder: {
     flex: 1,

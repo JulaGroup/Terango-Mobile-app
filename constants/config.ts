@@ -19,4 +19,5 @@ export const API_BASE_URL = API_URL; // Alias for consistency
 //
 // Note: Google Places has a generous free tier ($200/month credit)
 // but requires a billing account with credit card for verification
-export const GOOGLE_PLACES_API_KEY = "YOUR_ACTUAL_API_KEY_HERE"; // Replace with your real API key
+export const GOOGLE_PLACES_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "YOUR_ACTUAL_API_KEY_HERE"; // Replace with your real API key

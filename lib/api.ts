@@ -125,6 +125,24 @@ export interface Order {
   // New fields to support pick-up orders
   orderType?: "DELIVERY" | "PICKUP";
   pickupInstructions?: string;
+  // Enhanced delivery types for Express functionality
+  deliveryType?: "STANDARD" | "EXPRESS";
+  expressDeliveryTime?: number; // ETA in minutes for EXPRESS orders
+  isBadgeEligible?: boolean; // Whether order qualifies for Express badge
+  // Sender information (for verification)
+  senderName?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  // Receiver information (for verification)
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverAddress?: string;
+  // Delivery options
+  deliveryMethod?: "PICKUP_BY_USER" | "DELIVERY_TO_USER" | "SEND_TO_SOMEONE";
+  // Enhanced QR verification
+  qrVerificationRequired?: boolean;
+  qrVerificationStatus?: "PENDING" | "SCANNED" | "ADMIN_CONFIRMED" | "FAILED";
+  verificationNotes?: string;
   // Generic address field used by backend for either delivery or pickup location
   customerLatitude?: number;
   customerLongitude?: number;
@@ -307,7 +325,7 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`❌ API Error: ${response.status} - ${errorText}`);
+    // console.error(`❌ API Error: ${response.status} - ${errorText}`);
     throw new Error(`API Error: ${response.status} - ${errorText}`);
   }
 
@@ -867,11 +885,195 @@ export const orderApi = {
     return apiCall(`/api/orders/${orderId}`);
   },
 
-  // Get QR code for an order
+  // Get QR code for an order with comprehensive verification data
   getOrderQRCode: async (
     orderId: string,
-  ): Promise<{ qrCode: string; qrCodeUrl: string; orderInfo: any }> => {
+  ): Promise<{ 
+    qrCode: string; 
+    qrCodeUrl: string; 
+    orderInfo: any;
+    verificationData: {
+      orderId: string;
+      orderType: string;
+      senderInfo: { name: string; phone: string };
+      receiverInfo: { name: string; phone: string };
+      deliveryType: string;
+      timestamp: string;
+    }
+  }> => {
     return apiCall(`/api/qrcode/order/${orderId}`);
+  },
+
+  // Generate QR code for Express delivery with enhanced verification
+  generateExpressQR: async (
+    orderId: string,
+    options?: {
+      includeTimestamp?: boolean;
+      includeLocationData?: boolean;
+      customValidation?: string;
+    }
+  ): Promise<{
+    qrCode: string;
+    qrCodeUrl: string;
+    expressData: {
+      estimatedDelivery: number;
+      vehicleType: string;
+      priority: "HIGH" | "MEDIUM" | "LOW";
+    }
+  }> => {
+    return apiCall(`/api/qrcode/express/${orderId}`, {
+      method: "POST",
+      body: JSON.stringify(options || {}),
+    });
+  },
+
+  // Driver: scan QR code for delivery verification
+  driverScanQR: async (
+    qrData: string,
+    driverId: string,
+    location?: { latitude: number; longitude: number }
+  ): Promise<{
+    success: boolean;
+    order: Order;
+    verificationStatus: "SUCCESS" | "INVALID_QR" | "ORDER_MISMATCH" | "ALREADY_SCANNED";
+    message: string;
+  }> => {
+    return apiCall(`/api/orders/driver-scan`, {
+      method: "POST",
+      body: JSON.stringify({
+        qrData,
+        driverId,
+        location,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  },
+
+  // Admin confirmation for failed QR scans
+  adminConfirmDelivery: async (
+    orderId: string,
+    adminId: string,
+    confirmationData: {
+      reason: "QR_FAILED" | "CUSTOMER_UNAVAILABLE" | "TECHNICAL_ISSUE";
+      notes: string;
+      verificationMethod: "PHONE_CALL" | "SMS" | "PHOTO_PROOF";
+      customerConfirmed: boolean;
+    }
+  ): Promise<{
+    success: boolean;
+    order: Order;
+    confirmationId: string;
+  }> => {
+    return apiCall(`/api/orders/${orderId}/admin-confirm`, {
+      method: "POST",
+      body: JSON.stringify({
+        adminId,
+        ...confirmationData,
+        timestamp: new Date().toISOString(),
+      }),
+    });
+  },
+
+  // Request admin confirmation for delivery
+  requestAdminConfirmation: async (
+    orderId: string,
+    driverId: string,
+    reason: string
+  ): Promise<{
+    success: boolean;
+    confirmationId: string;
+    message: string;
+  }> => {
+    return apiCall(`/api/orders/${orderId}/request-admin-confirmation`, {
+      method: "POST",
+      body: JSON.stringify({
+        driverId,
+        reason,
+        requestedAt: new Date().toISOString(),
+      }),
+    });
+  },
+
+  // Get pending admin confirmations
+  getPendingConfirmations: async (): Promise<{
+    success: boolean;
+    data: Array<{
+      id: string;
+      orderId: string;
+      driverName: string;
+      driverPhone: string;
+      customerName: string;
+      customerPhone: string;
+      deliveryAddress: string;
+      requestedAt: string;
+      status: string;
+      priority: string;
+      notes?: string;
+    }>;
+  }> => {
+    return apiCall(`/api/admin/pending-confirmations`);
+  },
+
+  // Admin reject delivery confirmation
+  adminRejectDelivery: async (
+    orderId: string,
+    rejectionData: {
+      confirmationId: string;
+      adminId: string;
+      rejectedAt: string;
+      reason: string;
+    }
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    return apiCall(`/api/orders/${orderId}/admin-reject`, {
+      method: "POST",
+      body: JSON.stringify(rejectionData),
+    });
+  },
+
+  // Update delivery status with location
+  updateDeliveryStatus: async (
+    orderId: string,
+    status: string,
+    location?: { latitude: number; longitude: number },
+    notes?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    return apiCall(`/api/orders/${orderId}/update-status`, {
+      method: "POST",
+      body: JSON.stringify({
+        status,
+        location,
+        notes,
+        updatedAt: new Date().toISOString(),
+      }),
+    });
+  },
+
+  // Calculate Express delivery time
+  calculateExpressDeliveryTime: async (
+    pickupLocation: string,
+    deliveryLocation: string,
+    orderType?: string
+  ): Promise<{
+    success: boolean;
+    estimatedTime: number;
+    canBeExpress: boolean;
+    zone: string;
+    distance: number;
+  }> => {
+    return apiCall(`/api/delivery/calculate-express-time`, {
+      method: "POST",
+      body: JSON.stringify({
+        pickupLocation,
+        deliveryLocation,
+        orderType,
+      }),
+    });
   },
 
   // Vendor: scan pickup QR (mark pickup as delivered)
@@ -1009,7 +1211,14 @@ export const customDeliveryApi = {
     packageDescription?: string | null;
     customerNote?: string | null;
     weightClass: "LIGHT" | "MEDIUM" | "HEAVY";
-    vehicleType: "BIKE" | "CAR" | "VAN" | "LORRY";
+    vehicleType: "BIKE" | "KEKE_CARGO" | "CAR" | "VAN" | "LORRY";
+    senderName?: string;
+    senderPhone?: string;
+    receiverName?: string;
+    receiverPhone?: string;
+    isExpress?: boolean;
+    priorityLevel?: "STANDARD" | "EXPRESS" | "URGENT";
+    expressDeadlineMinutes?: number;
   }) => {
     return apiCall("/api/custom-deliveries", {
       method: "POST",
@@ -1035,6 +1244,192 @@ export const customDeliveryApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     });
+  },
+};
+
+// Express Delivery API
+export const expressDeliveryApi = {
+  quoteExpressDelivery: async (payload: {
+    pickupLatitude: number;
+    pickupLongitude: number;
+    dropoffLatitude: number;
+    dropoffLongitude: number;
+    weightClass: "LIGHT" | "MEDIUM" | "HEAVY";
+    vehicleType: "BIKE" | "KEKE_CARGO" | "CAR" | "VAN" | "LORRY";
+    isExpress?: boolean;
+    priorityLevel?: "STANDARD" | "EXPRESS" | "URGENT";
+  }) => {
+    return apiCall("/api/express-delivery/quote", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  createExpressDelivery: async (payload: {
+    pickupAddress: string;
+    pickupCity?: string;
+    pickupLatitude?: number;
+    pickupLongitude?: number;
+    dropoffAddress: string;
+    dropoffCity?: string;
+    dropoffLatitude?: number;
+    dropoffLongitude?: number;
+    packageDescription?: string;
+    customerNote?: string;
+    weightClass: "LIGHT" | "MEDIUM" | "HEAVY";
+    vehicleType: "BIKE" | "KEKE_CARGO" | "CAR" | "VAN" | "LORRY";
+    senderName: string;
+    senderPhone: string;
+    receiverName: string;
+    receiverPhone: string;
+    priorityLevel: "EXPRESS" | "URGENT";
+    expressDeadlineMinutes: number;
+  }) => {
+    return apiCall("/api/express-delivery", {
+      method: "POST",
+      body: JSON.stringify({
+        ...payload,
+        isExpress: true,
+      }),
+    });
+  },
+  
+  getExpressDeliveries: async (filters?: {
+    isExpress?: boolean;
+    priorityLevel?: string;
+    status?: string;
+    urgent?: boolean;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return apiCall(`/api/express-delivery${queryString ? `?${queryString}` : ""}`);
+  },
+
+  getExpressDeliveryById: async (deliveryId: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}`);
+  },
+
+  getExpressDeliveryTracking: async (deliveryId: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/tracking`);
+  },
+
+  getExpressDeliveryTimeline: async (deliveryId: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/timeline`);
+  },
+
+  generateExpressQR: async (deliveryId: string, options?: {
+    includeTimestamp?: boolean;
+    includeLocationData?: boolean;
+  }) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/qr`, {
+      method: "POST",
+      body: JSON.stringify(options || {}),
+    });
+  },
+
+  verifyExpressQR: async (deliveryId: string, qrData: {
+    qrCodeData: string;
+    verificationLocation?: {
+      latitude: number;
+      longitude: number;
+    };
+  }) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/verify-qr`, {
+      method: "POST",
+      body: JSON.stringify(qrData),
+    });
+  },
+
+  requestAdminConfirmation: async (deliveryId: string, reason: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/admin-confirm`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
+  },
+
+  updateExpressDeliveryStatus: async (
+    deliveryId: string,
+    data: {
+      status: string;
+      note?: string;
+      locationLatitude?: number;
+      locationLongitude?: number;
+      driverNote?: string;
+    }
+  ) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/status`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  },
+
+  addExpressTrackingUpdate: async (
+    deliveryId: string,
+    data: {
+      status: string;
+      message?: string;
+      location?: {
+        latitude: number;
+        longitude: number;
+      };
+    }
+  ) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/tracking/update`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  updateDriverLocation: async (data: {
+    latitude: number;
+    longitude: number;
+    heading?: number;
+    speed?: number;
+  }) => {
+    return apiCall("/api/express-delivery/driver/location", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Driver-specific endpoints
+  getDriverExpressDeliveries: async (filters?: {
+    isExpress?: boolean;
+    priorityLevel?: string;
+    status?: string;
+  }) => {
+    const queryParams = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined) {
+          queryParams.append(key, String(value));
+        }
+      });
+    }
+    const queryString = queryParams.toString();
+    return apiCall(`/api/express-delivery/driver${queryString ? `?${queryString}` : ""}`);
+  },
+
+  // Admin endpoints for assignment and monitoring
+  autoAssignExpressDelivery: async (deliveryId: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/assign`, {
+      method: "POST",
+    });
+  },
+
+  getUrgentExpressDeliveries: async () => {
+    return apiCall("/api/express-delivery/urgent");
+  },
+
+  getExpressMetrics: async () => {
+    return apiCall("/api/express-delivery/metrics/dashboard");
   },
 };
 

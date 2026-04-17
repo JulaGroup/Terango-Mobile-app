@@ -17,6 +17,8 @@ import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
+import { VendorType } from "@/utils/vendorOrdering";
 
 export default function Cart() {
   const router = useRouter();
@@ -82,7 +84,7 @@ export default function Cart() {
 
   // Calculate subtotal (delivery fee determined at checkout based on address)
   const subtotal = getTotalAmount();
-  const MIN_ORDER_AMOUNT = 10;
+  const MIN_ORDER_AMOUNT = 1;
   const meetsMinimum = subtotal >= MIN_ORDER_AMOUNT;
   const remaining = MIN_ORDER_AMOUNT - subtotal;
   const CartItemCard = ({
@@ -95,6 +97,16 @@ export default function Cart() {
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const itemSlideAnim = useRef(new Animated.Value(50)).current;
     const itemFadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Determine vendor type from entity type
+    const vendorType: VendorType =
+      item.entityType === "menuItem" ? "restaurant" : "shop";
+
+    // Check vendor ordering status
+    const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
+      vendorId: item.vendorId,
+      vendorType,
+    });
 
     useEffect(() => {
       Animated.parallel([
@@ -114,6 +126,17 @@ export default function Cart() {
     }, [itemFadeAnim, itemSlideAnim, index]);
 
     const handleQuantityChange = (newQuantity: number) => {
+      // Prevent adding more items if vendor is not accepting orders
+      if (newQuantity > item.quantity && orderingDisabled) {
+        const vendorLabel = vendorType === "restaurant" ? "restaurant" : "shop";
+        Alert.alert(
+          "Cannot Add More Items",
+          disabledReason ||
+            `This ${vendorLabel} is not accepting orders right now. You can keep existing items in your cart, but cannot add more.`,
+        );
+        return;
+      }
+
       Animated.sequence([
         Animated.timing(scaleAnim, {
           toValue: 0.95,
@@ -174,6 +197,12 @@ export default function Cart() {
             colors={["transparent", "rgba(0,0,0,0.3)"]}
             style={styles.imageGradient}
           />
+          {orderingDisabled && (
+            <View style={styles.disabledBadge}>
+              <Ionicons name="warning" size={12} color="#fff" />
+              <Text style={styles.disabledBadgeText}>Unavailable</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <View style={styles.itemDetails}>
@@ -190,7 +219,16 @@ export default function Cart() {
             </TouchableOpacity>
           </View>
 
-          {item.description ? (
+          {orderingDisabled && disabledReason && (
+            <View style={styles.warningBanner}>
+              <Ionicons name="warning-outline" size={14} color="#F59E0B" />
+              <Text style={styles.warningText} numberOfLines={2}>
+                {disabledReason}
+              </Text>
+            </View>
+          )}
+
+          {item.description && !orderingDisabled ? (
             <Text style={styles.itemDescription} numberOfLines={2}>
               {item.description}
             </Text>
@@ -236,11 +274,19 @@ export default function Cart() {
               </View>
 
               <TouchableOpacity
-                style={styles.quantityButton}
+                style={[
+                  styles.quantityButton,
+                  orderingDisabled && styles.quantityButtonDisabled,
+                ]}
                 onPress={() => handleQuantityChange(item.quantity + 1)}
-                activeOpacity={0.7}
+                activeOpacity={orderingDisabled ? 1 : 0.7}
+                disabled={orderingDisabled}
               >
-                <Ionicons name="add" size={16} color="#fff" />
+                <Ionicons
+                  name="add"
+                  size={16}
+                  color={orderingDisabled ? "#9CA3AF" : "#fff"}
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -405,7 +451,7 @@ export default function Cart() {
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
             <Text style={styles.summaryValue}>
-              D{(subtotal * 0.05).toFixed(2)}
+              D{(subtotal * 0.05).toFixed(1)}
             </Text>
           </View>
 
@@ -964,5 +1010,43 @@ const styles = StyleSheet.create({
     borderTopColor: "#f3f4f6",
     lineHeight: 18,
     fontStyle: "italic",
+  },
+  disabledBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    backgroundColor: "rgba(239, 68, 68, 0.95)",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    gap: 3,
+  },
+  disabledBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#fff",
+    textTransform: "uppercase",
+  },
+  warningBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FEF3C7",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    gap: 6,
+    marginBottom: 6,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#92400E",
+    lineHeight: 14,
+  },
+  quantityButtonDisabled: {
+    backgroundColor: "#E5E7EB",
+    opacity: 0.5,
   },
 });

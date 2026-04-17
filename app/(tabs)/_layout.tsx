@@ -15,11 +15,11 @@ import {
 } from "@/services/NotificationService";
 import { on as socketOn, off as socketOff } from "@/services/SocketService";
 import { SecureStorage } from "@/utils/secureStorage";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { vendorPendingOrders } = useVendor();
-
+  const insets = useSafeAreaInsets();
   // Accepted orders that still need payment (badge on Orders tab)
   const [acceptedPaymentCount, setAcceptedPaymentCount] =
     React.useState<number>(0);
@@ -104,8 +104,8 @@ export default function TabLayout() {
             backgroundColor: "#fff",
             borderTopWidth: 1,
             borderTopColor: "#F3F4F6",
-            height: 75,
-            paddingBottom: 10,
+            height: 75 + insets.bottom, // 👈 grow the bar
+            paddingBottom: 10 + insets.bottom, // 👈 push content up
             paddingTop: 5,
           },
         }),

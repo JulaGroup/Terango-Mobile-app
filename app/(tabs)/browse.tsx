@@ -888,13 +888,17 @@ const BrowseScreen: React.FC = () => {
 // Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F8FA" },
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+    paddingTop: Platform.OS === "android" ? 20 : 0,
+  },
 
   // ── Orange Header ───────────────────────────────────────────────────────
   header: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ff6b00",
+    backgroundColor: PrimaryColor,
     paddingHorizontal: 16,
     paddingVertical: 10,
     gap: 10,
