@@ -41,32 +41,60 @@ export const MEAL_TIMES: MealTimeCategory[] = [
     order: 3,
   },
   {
+    id: "starter",
+    name: "Starter",
+    displayName: "Starter",
+    icon: "fast-food-outline",
+    order: 4,
+  },
+  {
     id: "main-course",
     name: "Main Course",
     displayName: "Main Course",
     icon: "fast-food-outline",
-    order: 4,
+    order: 5,
+  },
+  {
+    id: "breakfast",
+    name: "Breakfast",
+    displayName: "Breakfast Specials",
+    icon: "sunrise-outline",
+    order: 6,
+  },
+  {
+    id: "lunch",
+    name: "Lunch",
+    displayName: "Lunch Specials",
+    icon: "sunny-outline",
+    order: 7,
+  },
+  {
+    id: "dinner",
+    name: "Dinner",
+    displayName: "Dinner Specials",
+    icon: "moon-outline",
+    order: 8,
   },
   {
     id: "sides",
     name: "Sides",
     displayName: "Sides",
     icon: "nutrition-outline",
-    order: 5,
+    order: 9,
   },
   {
     id: "desserts",
     name: "Desserts",
     displayName: "Desserts",
     icon: "ice-cream-outline",
-    order: 6,
+    order: 10,
   },
   {
     id: "beverages",
     name: "Beverages",
     displayName: "Beverages",
     icon: "wine-outline",
-    order: 7,
+    order: 11,
   },
 ];
 
@@ -77,7 +105,7 @@ export const getMealTimeById = (id: string): MealTimeCategory | undefined => {
 
 // Helper function to get meal time by name
 export const getMealTimeByName = (
-  name: string
+  name: string,
 ): MealTimeCategory | undefined => {
   return MEAL_TIMES.find((mt) => mt.name.toLowerCase() === name.toLowerCase());
 };

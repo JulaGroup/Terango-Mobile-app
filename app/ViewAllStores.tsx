@@ -137,6 +137,8 @@ export default function ViewAllStores() {
       }
       const data = await response.json();
       const shopList = Array.isArray(data) ? data : data.data || [];
+      console.log(`Fetched ${shopList.length} shops`);
+      console.log(shopList);
       setShops(shopList);
     } catch (err: any) {
       console.error("Error fetching shops:", err);
@@ -257,6 +259,7 @@ export default function ViewAllStores() {
         >
           {filteredShops.map((shop) => {
             const isOpen = shop.isActive && shop.acceptsOrders;
+            const displayAddress = `${shop.address?.trim() ?? "Location"}`;
 
             return (
               <TouchableOpacity
@@ -326,21 +329,30 @@ export default function ViewAllStores() {
                       style={{
                         flexDirection: "row",
                         alignItems: "center",
-                        flex: 1,
+                        marginTop: 4,
                       }}
                     >
-                      <Ionicons
-                        name="location-outline"
-                        size={14}
-                        color="#666"
+                      <View
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: PrimaryColor,
+                          marginRight: 6,
+                        }}
                       />
-                      <Text style={styles.locationText} numberOfLines={1}>
-                        {`${shop.city?.trim() ?? ""}${
-                          shop.city && shop.address ? ", " : ""
-                        }${shop.address?.trim() ?? "Location"}`}
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#6B7280",
+                          fontWeight: "500",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
+                        {displayAddress}
                       </Text>
                     </View>
-                    {/* <Text style={styles.reviewText}>{reviewCount} reviews</Text> */}
                   </View>
 
                   {/* Accepts Orders Badge */}

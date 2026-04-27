@@ -65,6 +65,8 @@ const ShopCard = ({
   shop: Shop;
   onPress: (shopId: string) => void;
 }) => {
+  const displayAddress = `${shop.address ?? ""}`;
+
   return (
     <TouchableOpacity
       style={{
@@ -181,46 +183,35 @@ const ShopCard = ({
           style={{
             flexDirection: "row",
             alignItems: "center",
-            marginBottom: 8,
+            marginTop: 4,
           }}
         >
-          {/* {typeof shop.rating === "number" && shop.rating >= 0 && (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                marginRight: 12,
-              }}
-            >
-              <Ionicons name="star" size={12} color="#FFD700" />
-              <Text style={{ fontSize: 12, color: "#6B7280", marginLeft: 2 }}>
-                {shop.rating.toFixed(1)}
-              </Text>
-            </View>
-          )} */}
-
-          {typeof shop.address === "string" && (
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="location" size={12} color="#6B7280" />
-              <Text style={{ fontSize: 12, color: "#6B7280", marginLeft: 2 }}>
-                {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
-                  shop.address ?? ""
-                }`}
-              </Text>
-            </View>
-          )}
+          <View
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: PrimaryColor,
+              marginRight: 6,
+            }}
+          />
+          <Text
+            style={{
+              fontSize: 12,
+              color: "#6B7280",
+              fontWeight: "500",
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            {displayAddress}
+          </Text>
         </View>
 
         {/* Minimum Order */}
         {typeof shop.minimumOrderAmount === "number" &&
           shop.minimumOrderAmount > 0 && (
-            <Text style={{ fontSize: 11, color: "#9CA3AF" }}>
+            <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8 }}>
               Min. order: D{shop.minimumOrderAmount.toFixed(2)}
             </Text>
           )}

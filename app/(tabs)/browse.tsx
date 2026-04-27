@@ -574,7 +574,14 @@ const BrowseScreen: React.FC = () => {
         <VendorAwareProductCard
           product={product}
           cartQuantity={qty}
-          onAddToCart={() => handleAddProduct(product)}
+          onAddToCart={() =>
+            handleAddProduct({
+              ...product,
+              vendorId: item.shop?.id,
+              vendorName: item.shop?.name,
+              entityType: "product",
+            })
+          }
           onRemoveFromCart={() => handleRemoveProduct(item.id)}
           onPress={() => handleProductPress(item.id)}
           cardWidth={horizontal ? HORIZONTAL_CARD_WIDTH : PRODUCT_CARD_WIDTH}

@@ -172,6 +172,7 @@ export default function OrderDetailsPage() {
         setError(null);
 
         const data = await orderApi.getOrderById(orderId as string);
+        console.log("Fetched order details:", data);
         setOrder(data);
       } catch (err: any) {
         console.error("Error fetching order details:", err);
@@ -759,7 +760,7 @@ export default function OrderDetailsPage() {
   };
 
   const formatAmount = (amount: number) => {
-    return `D ${amount.toFixed(2)}`;
+    return `D ${Math.ceil(amount)}`;
   };
 
   if (loading) {
@@ -853,79 +854,90 @@ export default function OrderDetailsPage() {
         showsVerticalScrollIndicator={false}
       >
         {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <View>
-              <Text style={styles.orderNumber}>
-                Order TG{order.id.slice(-4).toUpperCase()}
-              </Text>
-              <Text style={styles.orderDate}>
-                {formatDate(order.createdAt)}
-              </Text>
+        <View
+          style={[
+            styles.statusCard,
+            {
+              borderTopWidth: 4,
+              borderTopColor: statusColors[order.status] ?? "#6B7280",
+            },
+          ]}
+        >
+          {/* Order ID row */}
+          <View style={{ marginBottom: 10 }}>
+            <Text style={styles.orderNumber}>
+              TG{order.id.slice(-6).toUpperCase()}
+            </Text>
+            <Text style={[styles.orderDate, { marginTop: 4 }]}>
+              {formatDate(order.createdAt)}
+            </Text>
+          </View>
 
-              {/* If user arrived from payment and order is not yet confirmed, show waiting banner */}
-              {fromPayment === "true" &&
-                order &&
-                order.paymentStatus !== "PAID" &&
-                (order as any).paymentStatus !== "SUCCEEDED" && (
-                  <View style={styles.waitingBanner}>
-                    <ActivityIndicator size="small" color={PrimaryColor} />
-                    <Text style={styles.waitingText}>
-                      Waiting for payment confirmation...
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => fetchOrderDetails(true)}
-                      style={styles.waitingRefresh}
-                    >
-                      <Text style={styles.waitingRefreshText}>Refresh</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+          {/* Badges row */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 4,
+            }}
+          >
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: statusColors[order.status] },
+              ]}
+            >
+              <Ionicons
+                name={statusIcons[order.status] as any}
+                size={13}
+                color="#fff"
+              />
+              <Text style={styles.statusText}>{order.status}</Text>
             </View>
             <View
-              style={{
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 8,
-              }}
-            >
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor: statusColors[order.status],
-                    marginBottom: 4,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={statusIcons[order.status] as any}
-                  size={16}
-                  color="#fff"
-                />
-                <Text style={styles.statusText}>{order.status}</Text>
-              </View>
-
-              {/* Order type badge (stacked below status) */}
-              <View
-                style={{
+              style={[
+                styles.statusBadge,
+                {
                   backgroundColor:
                     order.orderType === "PICKUP" ? "#2563EB" : "#059669",
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 16,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}
-              >
-                <Text
-                  style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}
-                >
-                  {order.orderType === "PICKUP" ? "PICKUP" : "DELIVERY"}
-                </Text>
-              </View>
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  order.orderType === "PICKUP"
+                    ? "storefront-outline"
+                    : "bicycle-outline"
+                }
+                size={13}
+                color="#fff"
+              />
+              <Text style={styles.statusText}>
+                {order.orderType === "PICKUP" ? "PICKUP" : "DELIVERY"}
+              </Text>
             </View>
           </View>
+
+          {/* Payment waiting banner */}
+          {fromPayment === "true" &&
+            order &&
+            order.paymentStatus !== "PAID" &&
+            (order as any).paymentStatus !== "SUCCEEDED" && (
+              <View style={styles.waitingBanner}>
+                <ActivityIndicator size="small" color={PrimaryColor} />
+                <Text style={styles.waitingText}>
+                  Waiting for payment confirmation...
+                </Text>
+                <TouchableOpacity
+                  onPress={() => fetchOrderDetails(true)}
+                  style={styles.waitingRefresh}
+                >
+                  <Text style={styles.waitingRefreshText}>Refresh</Text>
+                </TouchableOpacity>
+              </View>
+            )}
 
           {order.estimatedDeliveryTime && (
             <View style={styles.estimatedTime}>
@@ -1281,7 +1293,9 @@ export default function OrderDetailsPage() {
                 </View>
                 <View style={styles.infoContent}>
                   <Text style={styles.infoLabel}>Recipient Address</Text>
-                  <Text style={styles.infoValue}>{order.recipientAddress}</Text>
+                  <Text style={styles.infoValue}>
+                    {order.deliveryAddress || order.recipientAddress}
+                  </Text>
                 </View>
               </View>
             </>
@@ -1908,9 +1922,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 4,
+    overflow: "hidden",
   },
   statusHeader: {
     flexDirection: "row",
@@ -1919,14 +1934,16 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   orderNumber: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   orderDate: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: 13,
+    color: "#9CA3AF",
+    fontWeight: "500",
   },
   waitingBanner: {
     marginTop: 12,
@@ -1945,16 +1962,17 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
-    gap: 6,
+    gap: 5,
   },
   statusText: {
     color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "700",
     textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   estimatedTime: {
     flexDirection: "row",

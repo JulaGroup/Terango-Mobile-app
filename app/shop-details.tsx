@@ -477,35 +477,75 @@ export default function ShopDetails() {
   const { shopId } = useLocalSearchParams<{ shopId: string }>();
   const { cartItems, addToCart, removeFromCart } = useCart();
   const [searchText, setSearchText] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const [searchResults, setSearchResults] = useState<{
+    [key: string]: Product[];
+  } | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<Shop | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
-  // Removed unused image error tracking state
 
-  // Group products by category
+  // Group products by category (must be declared before filteredGroupedProducts)
   const [groupedProducts, setGroupedProducts] = useState<{
     [key: string]: Product[];
   }>({});
 
-  // Filter grouped products by search text (client-side) so search works instantly
-  const filteredGroupedProducts = React.useMemo(() => {
-    if (!searchText || searchText.trim().length === 0) return groupedProducts;
-    const q = searchText.trim().toLowerCase();
-    const out: { [key: string]: Product[] } = {};
-    Object.entries(groupedProducts).forEach(([category, products]) => {
-      const matches = products.filter((p) => {
-        return (
-          p.name.toLowerCase().includes(q) ||
-          (p.description || "").toLowerCase().includes(q) ||
-          (p.subCategory?.name || "").toLowerCase().includes(q)
+  // Debounce the search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchText.trim());
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+
+  // Server-side search whenever debouncedSearch changes
+  useEffect(() => {
+    if (!debouncedSearch || debouncedSearch.length === 0) {
+      setSearchResults(null);
+      return;
+    }
+    if (!shopId) return;
+
+    let cancelled = false;
+    const runSearch = async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(
+          `${API_URL}/api/products/shop/${shopId}/search?search=${encodeURIComponent(debouncedSearch)}`,
         );
-      });
-      if (matches.length > 0) out[category] = matches;
-    });
-    return out;
-  }, [groupedProducts, searchText]);
+        if (!res.ok) throw new Error("Search failed");
+        const products: Product[] = await res.json();
+
+        if (cancelled) return;
+
+        // Group results by subcategory (same structure as groupedProducts)
+        const grouped: { [key: string]: Product[] } = {};
+        products.forEach((p) => {
+          const cat = p.subCategory?.name || "All Products";
+          if (!grouped[cat]) grouped[cat] = [];
+          grouped[cat].push(p);
+        });
+        setSearchResults(grouped);
+      } catch (e) {
+        if (!cancelled) setSearchResults({});
+      } finally {
+        if (!cancelled) setSearchLoading(false);
+      }
+    };
+
+    runSearch();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, shopId]);
+
+  // Use search results when searching, otherwise show paginated grouped products
+  const filteredGroupedProducts = debouncedSearch
+    ? (searchResults ?? {})
+    : groupedProducts;
 
   // Category tabs state
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -1141,6 +1181,22 @@ export default function ShopDetails() {
             placeholder={`Search in ${shop?.name || "shop"}`}
             fullWidth
           />
+          {searchLoading && (
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                paddingTop: 6,
+                gap: 6,
+              }}
+            >
+              <Ionicons name="search" size={14} color="#9CA3AF" />
+              <Text style={{ fontSize: 12, color: "#9CA3AF" }}>
+                Searching all products…
+              </Text>
+            </View>
+          )}
         </View>
 
         {orderingDisabled && (
@@ -1255,10 +1311,18 @@ export default function ShopDetails() {
             )
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Ionicons name="cube-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyStateTitle}>No Products Available</Text>
+              <Ionicons
+                name={debouncedSearch ? "search-outline" : "cube-outline"}
+                size={64}
+                color="#ccc"
+              />
+              <Text style={styles.emptyStateTitle}>
+                {debouncedSearch ? "No results found" : "No Products Available"}
+              </Text>
               <Text style={styles.emptyStateText}>
-                This shop doesn&apos;t have any products listed yet.
+                {debouncedSearch
+                  ? `No products matched "${debouncedSearch}" in this shop.`
+                  : "This shop doesn't have any products listed yet."}
               </Text>
             </View>
           )}

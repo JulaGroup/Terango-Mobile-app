@@ -31,6 +31,8 @@ interface TownPickerModalProps {
   onClose: () => void;
   onSelectTown: (town: GambianTown) => void;
   selectedTownId?: string;
+  towns?: GambianTown[]; // Dynamic towns from API (defaults to hardcoded if not provided)
+  usingFallback?: boolean; // Indicates if using cached/offline towns
   // Vehicle-based pricing info (from delivery estimate)
   vehicleType?: string; // e.g. "KEKE_CARGO"
   vehicleBaseFee?: number; // e.g. 100
@@ -70,6 +72,8 @@ export default function TownPickerModal({
   onClose,
   onSelectTown,
   selectedTownId,
+  towns,
+  usingFallback = false,
   vehicleType,
   vehicleBaseFee,
   vehiclePerKmFee,
@@ -82,6 +86,22 @@ export default function TownPickerModal({
   );
 
   const { loading: settingsLoading, getZoneFee } = useDeliverySettings();
+
+  // Group towns by area for display
+  const townsByArea = useMemo(() => {
+    const activeTowns = towns || [];
+    const grouped: Record<string, GambianTown[]> = {};
+    activeTowns.forEach((town) => {
+      if (!grouped[town.area]) {
+        grouped[town.area] = [];
+      }
+      grouped[town.area].push(town);
+    });
+    return grouped;
+  }, [towns]);
+
+  // Use dynamic towns if provided, otherwise fall back to hardcoded
+  const allTowns = towns || Object.values(TOWNS_BY_AREA).flat();
 
   // Whether we can show precise vehicle-based fees per town
   const hasVehiclePricing =
@@ -103,9 +123,15 @@ export default function TownPickerModal({
   };
 
   const filteredTowns = useMemo(() => {
-    if (searchQuery.trim()) return searchTowns(searchQuery);
-    return null;
-  }, [searchQuery]);
+    if (!searchQuery.trim()) return null;
+    // Search within provided towns or fall back to hardcoded
+    const query = searchQuery.toLowerCase();
+    return allTowns.filter(
+      (town) =>
+        town.name.toLowerCase().includes(query) ||
+        town.area.toLowerCase().includes(query)
+    );
+  }, [searchQuery, allTowns]);
 
   const toggleArea = (area: string) => {
     const next = new Set(expandedAreas);
@@ -270,6 +296,16 @@ export default function TownPickerModal({
           )}
         </View>
 
+        {/* Offline/Fallback indicator */}
+        {usingFallback && (
+          <View style={styles.fallbackBanner}>
+            <Ionicons name="cloud-offline-outline" size={14} color="#6B7280" />
+            <Text style={styles.fallbackBannerText}>
+              Using cached towns · May not reflect latest updates
+            </Text>
+          </View>
+        )}
+
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#9CA3AF" />
@@ -308,12 +344,21 @@ export default function TownPickerModal({
           />
         ) : (
           <FlatList
-            data={Object.entries(TOWNS_BY_AREA)}
+            data={Object.entries(townsByArea)}
             keyExtractor={([area]) => area}
-            renderItem={({ item: [area, towns] }) =>
-              renderAreaSection(area, towns)
+            renderItem={({ item: [area, areaTowns] }) =>
+              renderAreaSection(area, areaTowns)
             }
             contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="location-outline" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No towns available</Text>
+                <Text style={styles.emptySubtext}>
+                  Contact support if you need delivery to your area
+                </Text>
+              </View>
+            }
           />
         )}
       </SafeAreaView>
@@ -366,6 +411,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#3B82F6",
     marginTop: 1,
+  },
+
+  /* Fallback banner */
+  fallbackBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    gap: 6,
+  },
+  fallbackBannerText: {
+    fontSize: 11,
+    color: "#6B7280",
   },
 
   /* Search */

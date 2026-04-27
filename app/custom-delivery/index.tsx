@@ -17,7 +17,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
-import { GAMBIAN_TOWNS, GambianTown } from "@/constants/gambianTowns";
+import { fetchDeliveryTowns, DeliveryTown } from "@/services/deliveryTowns.service";
+import { GambianTown } from "@/constants/gambianTowns";
 import { UnifiedLocationSection } from "@/components/express/UnifiedLocationSection";
 import { SavedLocationDropdown } from "@/components/express/SavedLocationDropdown";
 import LocationModal from "@/components/common/LocationModal";
@@ -113,10 +114,10 @@ interface DeliveryQuote {
 }
 
 // ── Helpers ───────────────────────────────────────────────
-const findNearestTown = (lat: number, lon: number): GambianTown | null => {
-  let nearest: GambianTown | null = null;
+const findNearestTown = (lat: number, lon: number, towns: DeliveryTown[]): DeliveryTown | null => {
+  let nearest: DeliveryTown | null = null;
   let minD = Infinity;
-  for (const town of GAMBIAN_TOWNS) {
+  for (const town of towns) {
     const d = Math.hypot(town.latitude - lat, town.longitude - lon);
     if (d < minD) {
       minD = d;
@@ -369,6 +370,9 @@ export default function CustomDeliveryScreen() {
   const { selectedAddress, setSelectedAddress, addresses, fetchAddresses } =
     useAddress();
 
+  // 🏙️ Dynamic delivery towns from API
+  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
+
   const [pickupTown, setPickupTown] = useState<GambianTown | null>(null);
   const [dropoffTown, setDropoffTown] = useState<GambianTown | null>(null);
   const [pickupAddressLabel, setPickupAddressLabel] = useState("");
@@ -582,6 +586,7 @@ export default function CustomDeliveryScreen() {
     const nearestTown = findNearestTown(
       selectedAddress.latitude,
       selectedAddress.longitude,
+      deliveryTowns,
     );
     if (nearestTown) setPickupTown(nearestTown);
     setPickupLatitude(selectedAddress.latitude);
@@ -654,7 +659,7 @@ export default function CustomDeliveryScreen() {
 
   const handleSavedPickupAddressSelect = async (address: Address) => {
     await setSelectedAddress(address);
-    const nearestTown = findNearestTown(address.latitude, address.longitude);
+    const nearestTown = findNearestTown(address.latitude, address.longitude, deliveryTowns);
     if (nearestTown) setPickupTown(nearestTown);
     setPickupLatitude(address.latitude);
     setPickupLongitude(address.longitude);
@@ -729,6 +734,7 @@ export default function CustomDeliveryScreen() {
         const t = findNearestTown(
           selectedAddress.latitude,
           selectedAddress.longitude,
+          deliveryTowns,
         );
         if (t) setPickupTown(t);
         setPickupLatitude(selectedAddress.latitude);

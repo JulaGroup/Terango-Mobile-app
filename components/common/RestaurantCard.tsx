@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { OpeningHours } from "@/lib/api";
+import { PrimaryColor } from "@/constants/Colors";
 import {
   getOperatingStatus,
   formatDayLabel,
@@ -52,7 +53,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
         isActive: restaurant.isActive,
         acceptsOrders: restaurant.acceptsOrders,
       }),
-    [restaurant.openingHours, restaurant.isActive, restaurant.acceptsOrders]
+    [restaurant.openingHours, restaurant.isActive, restaurant.acceptsOrders],
   );
 
   const currentlyOpen = operatingStatus.isOpen;
@@ -69,7 +70,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   const nextOpeningLabel =
     !currentlyOpen && operatingStatus.nextOpening
       ? `Opens ${formatDayLabel(
-          operatingStatus.nextOpening.day
+          operatingStatus.nextOpening.day,
         )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
       : undefined;
 
@@ -155,12 +156,41 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
         </Text>
 
         <View style={styles.restaurantFooter}>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.locationText} numberOfLines={1}>
-              {restaurant.address || "Nearby"}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <View
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: PrimaryColor,
+                marginRight: 6,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#6B7280",
+                fontWeight: "500",
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {restaurant.city || restaurant.address || "Nearby"}
             </Text>
           </View>
+          {restaurant.rating && (
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={14} color="#FFD700" />
+              <Text style={styles.ratingText}>
+                {restaurant.rating.toFixed(1)}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -248,6 +278,20 @@ const styles = {
   },
   locationText: {
     fontSize: 12,
+    color: "#10b981",
+    marginLeft: 4,
+    fontWeight: "500" as const,
+    flex: 1,
+  },
+  ratingRow: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600" as const,
     color: "#666",
     marginLeft: 4,
   },

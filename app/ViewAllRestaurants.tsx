@@ -97,7 +97,7 @@ export default function ViewAllRestaurants() {
         >
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>All Restaurants</Text>
+        <Text style={styles.headerTitle}>All Restaurants & Bakeries</Text>
         <TouchableOpacity
           style={styles.cartButton}
           onPress={() => router.push("/cart")}
@@ -121,7 +121,7 @@ export default function ViewAllRestaurants() {
         />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search restaurants..."
+          placeholder="Search ..."
           value={search}
           onChangeText={setSearch}
         />
@@ -227,14 +227,30 @@ export default function ViewAllRestaurants() {
                   {/* Footer */}
                   <View style={styles.footerRow}>
                     <View
-                      style={{ flexDirection: "row", alignItems: "center" }}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        marginTop: 4,
+                      }}
                     >
-                      <Ionicons
-                        name="location-outline"
-                        size={14}
-                        color="#666"
+                      <View
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: PrimaryColor,
+                          marginRight: 6,
+                        }}
                       />
-                      <Text style={styles.locationText} numberOfLines={1}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#6B7280",
+                          fontWeight: "500",
+                          flex: 1,
+                        }}
+                        numberOfLines={1}
+                      >
                         {displayAddress}
                       </Text>
                     </View>

@@ -28,6 +28,7 @@ import { useAddress } from "@/context/AddressContext";
 import LocationModal from "@/components/common/LocationModal";
 import {
   storeSuccessfulOrder,
+  clearSuccessfulOrder,
   NotificationService,
 } from "@/services/NotificationService";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,13 +36,16 @@ import { AddressService } from "@/services/AddressService";
 import { API_URL } from "@/constants/config";
 import TownPickerModal from "@/components/modals/TownPickerModal";
 import {
-  GambianTown,
+  fetchDeliveryTowns,
+  getTownById as getDynamicTownById,
+  DeliveryTown,
+} from "@/services/deliveryTowns.service";
+import {
   getZoneInfoForTown,
-  getTownById,
+  GambianTown, // Keep for backward compatibility with components
+  TOWNS_BY_AREA, // Fallback when API is unavailable
 } from "@/constants/gambianTowns";
 import { useDeliverySettings } from "@/hooks/useDeliverySettings";
-import { useDeliveryZone } from "@/hooks/useDeliveryZone";
-import DeliveryZoneBadge from "@/components/checkout/DeliveryZoneBadge";
 /*
  Try to use expo-linear-gradient if it's available in the project; otherwise
  fall back to a lightweight stub that uses a plain View so TypeScript and the
@@ -107,6 +111,7 @@ export default function Checkout() {
   const [paymentStatus, setPaymentStatus] = useState<
     "pending" | "processing" | "completed" | "failed" | "cancelled" | null
   >(null);
+  const [deliveryFeeError, setDeliveryFeeError] = useState(false);
   const [orderCreated, setOrderCreated] = useState<{
     visible: boolean;
     orderId?: string | null;
@@ -164,7 +169,20 @@ export default function Checkout() {
     const onPaymentFailed = async (data: any) => {
       console.log("[Socket] paymentFailed received in checkout", data);
       setPaymentStatus("failed");
-      Alert.alert("Payment Failed", "Your payment failed. Please try again.");
+      Alert.alert(
+        "Payment Failed",
+        "Your Wave payment was not completed. Please open Wave and try again, or choose a different payment method.",
+        [
+          { text: "Dismiss", style: "cancel" },
+          {
+            text: "Retry",
+            onPress: () => {
+              setPaymentStatus(null);
+              setLoading(false);
+            },
+          },
+        ],
+      );
     };
 
     socketOn("paymentSuccess", onPaymentSuccess);
@@ -247,12 +265,10 @@ export default function Checkout() {
     longitude: number;
   } | null>(null);
 
-  // 🗺️ Client-side delivery zone check — instant feedback before API call
-  const deliveryZone = useDeliveryZone(
-    form.orderType === "DELIVERY" && !form.isGiftOrder
-      ? customerCoordinates
-      : null,
-  );
+  // 🏙️ DYNAMIC DELIVERY TOWNS STATE
+  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
+  const [loadingTowns, setLoadingTowns] = useState(true);
+  const [townsFromAPI, setTownsFromAPI] = useState(false); // Track if using API or fallback
 
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
@@ -279,9 +295,10 @@ export default function Checkout() {
         : (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE)
       : 0;
 
-  // Free delivery for first order
-  if (isFirstOrder && form.orderType === "DELIVERY") {
-    deliveryFee = 0;
+  // First order: customer pays 75% of delivery fee (company covers the 25% platform cut)
+  // Driver still receives their full 75% — the company simply takes D0 on this order.
+  if (isFirstOrder && form.orderType === "DELIVERY" && deliveryFee > 0) {
+    deliveryFee = Math.round(deliveryFee * 0.75 * 100) / 100;
   }
 
   // Free delivery from promo code
@@ -310,12 +327,10 @@ export default function Checkout() {
       form.isGiftOrder &&
       (!form.recipientName.trim() ||
         !form.recipientPhone.trim() ||
-        !form.recipientAddress.trim())) ||
+        form.recipientPhone.replace(/\D/g, "").length < 7 ||
+        form.recipientAddress.trim().length < 5 ||
+        !form.recipientTown)) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
-    // 🗺️ Block order if address is outside serviceable zone
-    (form.orderType === "DELIVERY" &&
-      !form.isGiftOrder &&
-      deliveryZone.isServiceable === false) ||
     // ❌ Block order if below vendor's minimum order amount
     isBelowMinimumOrder;
 
@@ -410,6 +425,45 @@ export default function Checkout() {
       mounted = false;
     };
   }, [fetchAddresses]);
+
+  // 🏙️ Fetch delivery towns from backend API on mount with fallback to hardcoded towns
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        console.log("[Delivery Towns] Fetching from API...");
+        const response = await fetchDeliveryTowns();
+        if (mounted && response.success && response.data.length > 0) {
+          console.log(
+            `[Delivery Towns] ✅ Loaded ${response.data.length} towns from API`,
+          );
+          setDeliveryTowns(response.data);
+          setTownsFromAPI(true);
+        } else {
+          throw new Error("No towns returned from API");
+        }
+      } catch (error) {
+        console.warn(
+          "[Delivery Towns] ⚠️ API failed, using fallback towns:",
+          error,
+        );
+        // Fallback: Use hardcoded towns for offline reliability
+        const fallbackTowns = Object.values(TOWNS_BY_AREA).flat();
+        if (mounted) {
+          setDeliveryTowns(fallbackTowns);
+          setTownsFromAPI(false);
+          console.log(
+            `[Delivery Towns] 📦 Using ${fallbackTowns.length} fallback towns`,
+          );
+        }
+      } finally {
+        if (mounted) setLoadingTowns(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // If there is a default address available, prefill the form.address
   useEffect(() => {
@@ -727,10 +781,12 @@ export default function Checkout() {
       if (!address || form.orderType !== "DELIVERY") {
         setDeliveryEstimate(null);
         setCustomerCoordinates(null);
+        setDeliveryFeeError(false);
         return;
       }
 
       setLoadingDeliveryFee(true);
+      setDeliveryFeeError(false);
       try {
         // Step 1: Geocode address to get coordinates
         console.log("📍 Geocoding address:", address);
@@ -795,13 +851,16 @@ export default function Checkout() {
         if (data.success) {
           console.log("✅ Delivery fee estimate:", data);
           setDeliveryEstimate(data);
+          setDeliveryFeeError(false);
         } else {
           console.warn("⚠️ Delivery fee estimation failed:", data.message);
           setDeliveryEstimate(null);
+          setDeliveryFeeError(true);
         }
       } catch (error) {
         console.error("❌ Failed to estimate delivery fee:", error);
         setDeliveryEstimate(null);
+        setDeliveryFeeError(true);
       } finally {
         setLoadingDeliveryFee(false);
       }
@@ -812,7 +871,7 @@ export default function Checkout() {
   // ── Gift order: estimate fee using the selected town's known coordinates ──
   // This gives the same vehicle-based price as regular orders (no geocoding needed).
   const estimateGiftDeliveryFee = useCallback(
-    async (town: GambianTown) => {
+    async (town: DeliveryTown) => {
       const fallbackFee = getZoneFee(town.deliveryZone);
 
       const firstItem = items[0];
@@ -983,7 +1042,7 @@ export default function Checkout() {
     if (isBelowMinimumOrder && minimumOrderAmount !== null) {
       Alert.alert(
         "Minimum Order Not Met",
-        `This vendor requires a minimum order of D${minimumOrderAmount.toFixed(2)}. Your current subtotal is D${subtotal.toFixed(2)}.`,
+        `This vendor requires a minimum order of D${Math.ceil(minimumOrderAmount)}. Your current subtotal is D${Math.ceil(subtotal)}.`,
       );
       return;
     }
@@ -1176,10 +1235,10 @@ export default function Checkout() {
             // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
             // For gift orders, use recipient town coordinates for tracking
             customerLatitude: form.isGiftOrder
-              ? getTownById(form.recipientTown)?.latitude
+              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.latitude
               : customerCoordinates?.latitude,
             customerLongitude: form.isGiftOrder
-              ? getTownById(form.recipientTown)?.longitude
+              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.longitude
               : customerCoordinates?.longitude,
             // 🚀 ADD CALCULATED DELIVERY FEE
             deliveryFee: deliveryFee, // Send the calculated delivery fee
@@ -1198,10 +1257,10 @@ export default function Checkout() {
             isGiftOrder: form.isGiftOrder,
             recipientTown: form.recipientTown,
             customerLatitude: form.isGiftOrder
-              ? getTownById(form.recipientTown)?.latitude
+              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.latitude
               : customerCoordinates?.latitude,
             customerLongitude: form.isGiftOrder
-              ? getTownById(form.recipientTown)?.longitude
+              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.longitude
               : customerCoordinates?.longitude,
             deliveryFee,
             serviceFee,
@@ -1965,7 +2024,7 @@ export default function Checkout() {
                   <TouchableOpacity
                     style={[styles.input, styles.townSelector]}
                     onPress={() => setTownPickerVisible(true)}
-                    disabled={loading}
+                    disabled={loading || loadingTowns}
                     activeOpacity={0.7}
                   >
                     <View style={styles.townSelectorContent}>
@@ -1980,14 +2039,19 @@ export default function Checkout() {
                           !form.recipientTown && styles.townSelectorPlaceholder,
                         ]}
                       >
-                        {form.recipientTownName || "Select town or area"}
+                        {loadingTowns
+                          ? "Loading towns..."
+                          : form.recipientTownName ||
+                            (deliveryTowns.length > 0
+                              ? "Select town or area"
+                              : "No towns available")}
                       </Text>
                     </View>
                     <View style={styles.townSelectorRight}>
                       {form.recipientTown && (
                         <View style={styles.deliveryFeeBadge}>
                           <Text style={styles.deliveryFeeBadgeText}>
-                            D{form.recipientDeliveryFee.toFixed(2)}
+                            D{Math.ceil(form.recipientDeliveryFee)}
                           </Text>
                         </View>
                       )}
@@ -2000,7 +2064,7 @@ export default function Checkout() {
                   </TouchableOpacity>
                   {form.recipientTown && (
                     <Text style={styles.inputNoteSuccess}>
-                      ✓ Delivery fee: D{form.recipientDeliveryFee.toFixed(2)} (
+                      ✓ Delivery fee: D{Math.ceil(form.recipientDeliveryFee)} (
                       {getZoneInfoForTown(form.recipientTown)?.name} zone)
                     </Text>
                   )}
@@ -2091,12 +2155,6 @@ export default function Checkout() {
                     Refresh addresses
                   </Text>
                 </TouchableOpacity>
-
-                {/* 🗺️ Delivery zone validation badge */}
-                <DeliveryZoneBadge
-                  zone={deliveryZone}
-                  onChangeAddress={() => setShowLocationModal(true)}
-                />
               </View>
             )}
 
@@ -2176,13 +2234,13 @@ export default function Checkout() {
                               <Text
                                 style={{ textDecorationLine: "line-through" }}
                               >
-                                D{item.price.toFixed(2)}
+                                D{Math.ceil(item.price)}
                               </Text>
                               {" → "}
                               <Text
                                 style={{ color: "#EF4444", fontWeight: "600" }}
                               >
-                                D{item.discountedPrice!.toFixed(2)}
+                                D{Math.ceil(item.discountedPrice!)}
                               </Text>
                             </Text>
                           )}
@@ -2193,7 +2251,7 @@ export default function Checkout() {
                             hasDiscount ? { color: "#EF4444" } : null,
                           ]}
                         >
-                          D{itemTotal.toFixed(2)}
+                          D{Math.ceil(itemTotal)}
                         </Text>
                       </View>
                     );
@@ -2201,7 +2259,7 @@ export default function Checkout() {
 
                   <View style={styles.restaurantTotal}>
                     <Text style={styles.restaurantTotalText}>
-                      Total: D{restaurantTotal.toFixed(2)}
+                      Total: D{Math.ceil(restaurantTotal)}
                     </Text>
                   </View>
 
@@ -2215,7 +2273,7 @@ export default function Checkout() {
             <View style={styles.orderTotals}>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Subtotal</Text>
-                <Text style={styles.totalValue}>D{subtotal.toFixed(2)}</Text>
+                <Text style={styles.totalValue}>D{Math.ceil(subtotal)}</Text>
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>Service Fee</Text>
@@ -2224,9 +2282,15 @@ export default function Checkout() {
               {form.orderType === "DELIVERY" && (
                 <>
                   <View style={styles.totalRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.totalLabel}>Delivery Fee</Text>
-                      {loadingDeliveryFee && (
+                    <Text style={styles.totalLabel}>Delivery Fee</Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      {loadingDeliveryFee ? (
                         <View style={styles.distanceLoaderContainer}>
                           <Ionicons
                             name="location"
@@ -2255,38 +2319,106 @@ export default function Checkout() {
                             />
                           </View>
                           <Text style={styles.distanceLoaderText}>
-                            Calculating route & fee
+                            Calculating…
                           </Text>
                         </View>
-                      )}
-                      {deliveryEstimate && !loadingDeliveryFee && (
-                        <View>
+                      ) : appliedPromo?.freeDelivery ||
+                        deliveryEstimate?.isFreeDelivery ? (
+                        <>
+                          <Text
+                            style={[
+                              styles.totalValue,
+                              {
+                                textDecorationLine: "line-through",
+                                color: "#9CA3AF",
+                              },
+                            ]}
+                          >
+                            D
+                            {deliveryFee > 0
+                              ? Math.ceil(deliveryFee)
+                              : Math.ceil(DEFAULT_DELIVERY_FEE)}
+                          </Text>
                           <Text
                             style={{
-                              fontSize: 11,
-                              color: "#6B7280",
-                              marginTop: 2,
+                              color: "#10B981",
+                              fontWeight: "700",
+                              fontSize: 14,
                             }}
                           >
-                            📍 {deliveryEstimate.distanceKm.toFixed(1)} km • ⏱️
+                            FREE
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={styles.totalValue}>
+                          D
+                          {deliveryFee > 0
+                            ? Math.ceil(deliveryFee)
+                            : Math.ceil(DEFAULT_DELIVERY_FEE)}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+
+                  {/* Delivery fee error — shown when estimation fails */}
+                  {deliveryFeeError &&
+                    !loadingDeliveryFee &&
+                    !deliveryEstimate && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 6,
+                          marginTop: 4,
+                          paddingHorizontal: 2,
+                        }}
+                      >
+                        <Ionicons
+                          name="warning-outline"
+                          size={13}
+                          color="#F97316"
+                        />
+                        <Text
+                          style={{ fontSize: 12, color: "#F97316", flex: 1 }}
+                        >
+                          Could not calculate exact fee. An estimate will be
+                          used — the driver will confirm on arrival.
+                        </Text>
+                      </View>
+                    )}
+
+                  {/* Delivery breakdown card — full width below the fee row */}
+                  {deliveryEstimate && !loadingDeliveryFee && (
+                    <View style={styles.deliveryBreakdownCard}>
+                      {/* Distance · ETA · Vehicle */}
+                      <View style={styles.deliveryBreakdownMetaRow}>
+                        <View style={styles.deliveryBreakdownMetaItem}>
+                          <Ionicons
+                            name="location-outline"
+                            size={12}
+                            color="#6B7280"
+                          />
+                          <Text style={styles.deliveryBreakdownMetaText}>
+                            {deliveryEstimate.distanceKm.toFixed(1)} km
+                          </Text>
+                        </View>
+                        <View style={styles.deliveryBreakdownMetaDivider} />
+                        <View style={styles.deliveryBreakdownMetaItem}>
+                          <Ionicons
+                            name="time-outline"
+                            size={12}
+                            color="#6B7280"
+                          />
+                          <Text style={styles.deliveryBreakdownMetaText}>
                             ~{deliveryEstimate.estimatedDeliveryTimeMinutes}{" "}
                             mins
                           </Text>
-
-                          {/* Weight-Based Vehicle Information */}
-                          {deliveryEstimate.weightAnalysis && (
-                            <View>
-                              <Text
-                                style={{
-                                  fontSize: 11,
-                                  color: "#059669",
-                                  marginTop: 2,
-                                  fontWeight: "500",
-                                }}
-                              >
-                                🚛{" "}
-                                {deliveryEstimate.weightAnalysis.totalWeightKg}
-                                kg →{" "}
+                        </View>
+                        {deliveryEstimate.weightAnalysis?.vehicleTypeUsed && (
+                          <>
+                            <View style={styles.deliveryBreakdownMetaDivider} />
+                            <View style={styles.deliveryBreakdownMetaItem}>
+                              <Text style={styles.deliveryBreakdownMetaText}>
                                 {getVehicleEmoji(
                                   deliveryEstimate.weightAnalysis
                                     .vehicleTypeUsed,
@@ -2296,112 +2428,60 @@ export default function Checkout() {
                                     .vehicleTypeUsed,
                                 )}
                               </Text>
-
-                              {/* Distance-Based Pricing Breakdown */}
-                              {deliveryEstimate.weightAnalysis
-                                .baseVehicleFee !== undefined &&
-                                deliveryEstimate.weightAnalysis.distanceFee !==
-                                  undefined && (
-                                  <View style={{ marginTop: 4 }}>
-                                    <Text
-                                      style={{
-                                        fontSize: 10,
-                                        color: "#6B7280",
-                                        fontWeight: "500",
-                                      }}
-                                    >
-                                      💰 Pricing Breakdown:
-                                    </Text>
-                                    <Text
-                                      style={{
-                                        fontSize: 10,
-                                        color: "#374151",
-                                        marginTop: 1,
-                                      }}
-                                    >
-                                      Base: D
-                                      {deliveryEstimate.weightAnalysis.baseVehicleFee.toFixed(
-                                        2,
-                                      )}{" "}
-                                      + Distance: D
-                                      {deliveryEstimate.weightAnalysis.distanceFee.toFixed(
-                                        2,
-                                      )}{" "}
-                                      = D
-                                      {deliveryEstimate.deliveryFee.toFixed(2)}
-                                    </Text>
-                                    {deliveryEstimate.weightAnalysis.perKmFee &&
-                                      deliveryEstimate.distanceKm && (
-                                        <Text
-                                          style={{
-                                            fontSize: 9,
-                                            color: "#8B5CF6",
-                                            marginTop: 1,
-                                          }}
-                                        >
-                                          (
-                                          {deliveryEstimate.distanceKm.toFixed(
-                                            1,
-                                          )}
-                                          km × D
-                                          {deliveryEstimate.weightAnalysis.perKmFee.toFixed(
-                                            2,
-                                          )}
-                                          /km)
-                                        </Text>
-                                      )}
-                                  </View>
-                                )}
                             </View>
-                          )}
+                          </>
+                        )}
+                      </View>
 
-                          {/* Pricing Method Indicator */}
-                          {deliveryEstimate.pricingMethod && (
-                            <Text
-                              style={{
-                                fontSize: 10,
-                                color: "#8B5CF6",
-                                marginTop: 1,
-                              }}
+                      {/* Base + distance fee rows */}
+                      {deliveryEstimate.weightAnalysis?.baseVehicleFee !==
+                        undefined &&
+                        deliveryEstimate.weightAnalysis?.distanceFee !==
+                          undefined && (
+                          <View style={styles.deliveryBreakdownRows}>
+                            <View style={styles.deliveryBreakdownRow}>
+                              <Text style={styles.deliveryBreakdownRowLabel}>
+                                Base fee
+                              </Text>
+                              <Text style={styles.deliveryBreakdownRowValue}>
+                                D
+                                {Math.ceil(
+                                  deliveryEstimate.weightAnalysis
+                                    .baseVehicleFee,
+                                )}
+                              </Text>
+                            </View>
+                            <View style={styles.deliveryBreakdownRow}>
+                              <Text style={styles.deliveryBreakdownRowLabel}>
+                                Distance fee
+                                {deliveryEstimate.weightAnalysis.perKmFee
+                                  ? ` (D${Math.ceil(deliveryEstimate.weightAnalysis.perKmFee)}/km)`
+                                  : ""}
+                              </Text>
+                              <Text style={styles.deliveryBreakdownRowValue}>
+                                D
+                                {Math.ceil(
+                                  deliveryEstimate.weightAnalysis.distanceFee,
+                                )}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.deliveryBreakdownRow,
+                                styles.deliveryBreakdownTotalRow,
+                              ]}
                             >
-                              {deliveryEstimate.pricingMethod === "weight-based"
-                                ? "🎯 Smart vehicle pricing"
-                                : "📏 Distance-based pricing"}
-                            </Text>
-                          )}
-                        </View>
-                      )}
+                              <Text style={styles.deliveryBreakdownTotalLabel}>
+                                Total delivery
+                              </Text>
+                              <Text style={styles.deliveryBreakdownTotalValue}>
+                                D{Math.ceil(deliveryEstimate.deliveryFee)}
+                              </Text>
+                            </View>
+                          </View>
+                        )}
                     </View>
-                    <Text
-                      style={[
-                        styles.totalValue,
-                        (appliedPromo?.freeDelivery ||
-                          isFirstOrder ||
-                          deliveryEstimate?.isFreeDelivery) && {
-                          textDecorationLine: "line-through",
-                          color: "#9CA3AF",
-                        },
-                      ]}
-                    >
-                      D
-                      {deliveryFee > 0
-                        ? deliveryFee.toFixed(2)
-                        : DEFAULT_DELIVERY_FEE.toFixed(2)}
-                    </Text>
-                    {(appliedPromo?.freeDelivery ||
-                      isFirstOrder ||
-                      deliveryEstimate?.isFreeDelivery) && (
-                      <Text
-                        style={{
-                          color: "#10B981",
-                          fontWeight: "600",
-                          marginLeft: 8,
-                        }}
-                      >
-                        FREE 🎉
-                      </Text>
-                    )}
-                  </View>
+                  )}
 
                   {/* Show free delivery promotion hint */}
                   {deliveryEstimate?.freeDeliveryPromotion?.available &&
@@ -2439,14 +2519,14 @@ export default function Checkout() {
                     Promo Discount
                   </Text>
                   <Text style={[styles.totalValue, { color: "#10B981" }]}>
-                    -D{discountAmount.toFixed(2)}
+                    -D{Math.ceil(discountAmount)}
                   </Text>
                 </View>
               )}
 
               <View style={[styles.totalRow, styles.grandTotalRow]}>
                 <Text style={styles.grandTotalLabel}>Total</Text>
-                <Text style={styles.grandTotalValue}>D{total.toFixed(2)}</Text>
+                <Text style={styles.grandTotalValue}>D{Math.ceil(total)}</Text>
               </View>
             </View>
 
@@ -2533,6 +2613,7 @@ export default function Checkout() {
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={() => {
+                    clearSuccessfulOrder();
                     setOrderCreated({ visible: false, orderId: null });
                     router.replace("/");
                   }}
@@ -2543,6 +2624,7 @@ export default function Checkout() {
                   style={[styles.modalButton, styles.modalPrimary]}
                   onPress={() => {
                     const id = orderCreated.orderId;
+                    clearSuccessfulOrder();
                     setOrderCreated({ visible: false, orderId: null });
                     if (id)
                       router.replace({
@@ -2580,6 +2662,8 @@ export default function Checkout() {
         <TownPickerModal
           visible={townPickerVisible}
           onClose={() => setTownPickerVisible(false)}
+          towns={deliveryTowns}
+          usingFallback={!townsFromAPI}
           onSelectTown={(town: GambianTown) => {
             // Set town info immediately with zone fallback, then replace fee
             // with vehicle-based calculation using town coordinates.
@@ -2731,7 +2815,7 @@ export default function Checkout() {
                               marginBottom: 4,
                             }}
                           >
-                            💳 Wave
+                            🐧 Wave
                           </Text>
                           <Text style={{ color: "#6B7280", fontSize: 14 }}>
                             Account: ***{paymentMethods.methods.wave.slice(-4)}
@@ -2928,8 +3012,8 @@ export default function Checkout() {
             <Text
               style={{ color: "#B91C1C", fontSize: 13, marginLeft: 8, flex: 1 }}
             >
-              Minimum order is D{minimumOrderAmount.toFixed(2)}. Add D
-              {(minimumOrderAmount - subtotal).toFixed(2)} more to place this
+              Minimum order is D{Math.ceil(minimumOrderAmount)}. Add D
+              {Math.ceil(minimumOrderAmount - subtotal)} more to place this
               order.
             </Text>
           </View>
@@ -2988,9 +3072,7 @@ export default function Checkout() {
                       ? "Calculating Delivery Fee..."
                       : isBelowMinimumOrder
                         ? "Minimum Order Not Met"
-                        : deliveryZone.isServiceable === false
-                          ? "Address Outside Zone"
-                          : "Place Order"}
+                        : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>
@@ -3290,6 +3372,89 @@ const styles = StyleSheet.create({
     color: "#D97706",
     fontWeight: "500",
     marginLeft: 4,
+  },
+  // Delivery fee breakdown card
+  deliveryBreakdownCard: {
+    marginTop: 8,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    overflow: "hidden",
+  },
+  deliveryBreakdownMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  deliveryBreakdownMetaItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+  },
+  deliveryBreakdownMetaDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: "#D1D5DB",
+    marginHorizontal: 2,
+  },
+  deliveryBreakdownMetaText: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "500",
+  },
+  deliveryBreakdownRows: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  deliveryBreakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  deliveryBreakdownRowLabel: {
+    fontSize: 11,
+    color: "#6B7280",
+  },
+  deliveryBreakdownRowValue: {
+    fontSize: 11,
+    color: "#374151",
+    fontWeight: "600",
+  },
+  deliveryBreakdownTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    marginTop: 4,
+    paddingTop: 6,
+  },
+  deliveryBreakdownTotalLabel: {
+    fontSize: 12,
+    color: "#111827",
+    fontWeight: "600",
+  },
+  deliveryBreakdownTotalValue: {
+    fontSize: 12,
+    color: "#111827",
+    fontWeight: "700",
+  },
+  firstOrderDiscountBadge: {
+    backgroundColor: "#FEF3C7",
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  firstOrderDiscountText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#B45309",
   },
   grandTotalRow: {
     marginTop: 8,

@@ -81,20 +81,20 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 
         <View style={styles.footer}>
           <View style={styles.infoItem}>
-            <Ionicons name="time-outline" size={16} color="#6B7280" />
+            <Ionicons name="time-outline" size={16} color="#10b981" />
             <Text style={styles.infoText}>{deliveryTime} mins</Text>
           </View>
           <View style={styles.dot} />
           <View style={styles.infoItem}>
-            <Ionicons name="location-outline" size={16} color="#6B7280" />
+            <Ionicons name="location-outline" size={16} color="#10b981" />
             <Text style={styles.infoText}>{distance}</Text>
           </View>
           {minOrder > 0 && (
             <>
               <View style={styles.dot} />
               <View style={styles.infoItem}>
-                <Ionicons name="cart-outline" size={16} color="#6B7280" />
-                <Text style={styles.infoText}>Min. D{minOrder}</Text>
+                <Ionicons name="wallet-outline" size={16} color="#6B7280" />
+                <Text style={styles.infoText}>D{minOrder} min</Text>
               </View>
             </>
           )}
@@ -215,8 +215,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     marginLeft: 4,
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "500",
   },
   dot: {
     width: 4,

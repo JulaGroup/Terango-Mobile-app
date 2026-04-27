@@ -47,6 +47,23 @@ const COUNTRIES: Country[] = [
   { code: "SN", name: "Senegal", flag: "🇸🇳", dialCode: "+221", maxLength: 9 },
   { code: "NG", name: "Nigeria", flag: "🇳🇬", dialCode: "+234", maxLength: 10 },
   { code: "GH", name: "Ghana", flag: "🇬🇭", dialCode: "+233", maxLength: 9 },
+  { code: "GER", name: "Germany", flag: "🇩🇪", dialCode: "+49", maxLength: 11 },
+  { code: "FRA", name: "France", flag: "🇫🇷", dialCode: "+33", maxLength: 10 },
+  { code: "ESP", name: "Spain", flag: "🇪🇸", dialCode: "+34", maxLength: 9 },
+  { code: "ITA", name: "Italy", flag: "🇮🇹", dialCode: "+39", maxLength: 10 },
+  {
+    code: "NED",
+    name: "Netherlands",
+    flag: "🇳🇱",
+    dialCode: "+31",
+    maxLength: 9,
+  },
+  { code: "BEL", name: "Belgium", flag: "🇧🇪", dialCode: "+32", maxLength: 9 },
+  { code: "SWE", name: "Sweden", flag: "🇸🇪", dialCode: "+46", maxLength: 8 },
+  { code: "DNK", name: "Denmark", flag: "🇩🇰", dialCode: "+45", maxLength: 8 },
+  { code: "NOR", name: "Norway", flag: "🇳🇴", dialCode: "+47", maxLength: 8 },
+  { code: "FIN", name: "Finland", flag: "🇫🇮", dialCode: "+358", maxLength: 8 },
+  { code: "SWE", name: "Sweden", flag: "🇸🇪", dialCode: "+46", maxLength: 8 },
 ];
 
 export default function AuthScreen() {

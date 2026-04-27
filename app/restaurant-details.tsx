@@ -322,6 +322,18 @@ export default function RestaurantDetails() {
     [key: string]: boolean;
   }>({});
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearchText, setDebouncedSearchText] = useState("");
+
+  // Debounce search text
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchText]);
 
   // All menu items (flat list)
   const [allMenuItems, setAllMenuItems] = useState<MenuItem[]>([]);
@@ -340,7 +352,7 @@ export default function RestaurantDetails() {
     // Check each meal time category
     MEAL_TIMES.slice(1).forEach((mealTime) => {
       const hasItems = allMenuItems.some(
-        (item) => item.mealTime?.toLowerCase() === mealTime.name.toLowerCase()
+        (item) => item.mealTime?.toLowerCase() === mealTime.name.toLowerCase(),
       );
       if (hasItems) {
         availableTabs.push(mealTime);
@@ -350,13 +362,21 @@ export default function RestaurantDetails() {
     return availableTabs;
   };
 
-  // Filter menu items by selected meal time
+  // Filter menu items by selected meal time and search text
   const getFilteredMenuItems = (): { [key: string]: MenuItem[] } => {
+    const itemsToFilter =
+      debouncedSearchText.length > 0
+        ? allMenuItems.filter((item) =>
+            item.name.toLowerCase().includes(debouncedSearchText.toLowerCase())
+          )
+        : allMenuItems;
+
     if (activeSection === "all") {
       // Group all items by their meal time
       const grouped: { [key: string]: MenuItem[] } = {};
-      allMenuItems.forEach((item) => {
-        const mealTime = item.mealTime || "Main Course";
+      itemsToFilter.forEach((item) => {
+        const mealTime =
+          item.mealTime || "Main Course" || "Breakfast" || "Lunch" || "Dinner";
         if (!grouped[mealTime]) {
           grouped[mealTime] = [];
         }
@@ -368,7 +388,7 @@ export default function RestaurantDetails() {
       const mealTimeCategory = MEAL_TIMES.find((mt) => mt.id === activeSection);
       if (!mealTimeCategory) return {};
 
-      const filtered = allMenuItems.filter(
+      const filtered = itemsToFilter.filter(
         (item) =>
           item.mealTime?.toLowerCase() === mealTimeCategory.name.toLowerCase()
       );
@@ -383,7 +403,7 @@ export default function RestaurantDetails() {
       setError(null);
 
       const response = await fetch(
-        `${API_URL}/api/restaurants/${restaurantId}`
+        `${API_URL}/api/restaurants/${restaurantId}`,
       );
 
       if (!response.ok) {
@@ -492,7 +512,7 @@ export default function RestaurantDetails() {
         isActive: restaurant?.isActive,
         acceptsOrders: restaurant?.acceptsOrders,
       }),
-    [restaurant?.openingHours, restaurant?.isActive, restaurant?.acceptsOrders]
+    [restaurant?.openingHours, restaurant?.isActive, restaurant?.acceptsOrders],
   );
 
   const isOpen = operatingStatus.isOpen;
@@ -503,34 +523,34 @@ export default function RestaurantDetails() {
         color: "rgba(16,185,129,0.95)",
       }
     : operatingStatus.reason === "inactive"
-    ? {
-        label: "Offline",
-        badge: "Offline",
-        color: "rgba(107,114,128,0.95)",
-      }
-    : operatingStatus.reason === "not_accepting_orders"
-    ? {
-        label: "Paused",
-        badge: "Paused",
-        color: "rgba(234,179,8,0.95)",
-      }
-    : {
-        label: "Closed",
-        badge: "Closed",
-        color: "rgba(239,68,68,0.95)",
-      };
+      ? {
+          label: "Offline",
+          badge: "Offline",
+          color: "rgba(107,114,128,0.95)",
+        }
+      : operatingStatus.reason === "not_accepting_orders"
+        ? {
+            label: "Paused",
+            badge: "Paused",
+            color: "rgba(234,179,8,0.95)",
+          }
+        : {
+            label: "Closed",
+            badge: "Closed",
+            color: "rgba(239,68,68,0.95)",
+          };
 
   const nextOpeningText =
     !isOpen && operatingStatus.nextOpening
       ? `Opens ${formatDayLabel(
-          operatingStatus.nextOpening.day
+          operatingStatus.nextOpening.day,
         )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
       : null;
 
   const closesAtText =
     isOpen && operatingStatus.closesAt
       ? `Closes ${formatDayLabel(
-          operatingStatus.closesAt.day
+          operatingStatus.closesAt.day,
         )} ${formatTimeLabel(operatingStatus.closesAt.time)}`
       : null;
 
@@ -614,7 +634,7 @@ export default function RestaurantDetails() {
       handleAddAttemptBlocked,
       orderingDisabled,
       restaurant,
-    ]
+    ],
   );
 
   const handleRemove = useCallback(
@@ -626,7 +646,7 @@ export default function RestaurantDetails() {
         removeFromCart(productId);
       }
     },
-    [cartItems, removeFromCart, updateQuantity]
+    [cartItems, removeFromCart, updateQuantity],
   );
 
   const stickySubtitleParts = [statusTheme.label];
@@ -705,7 +725,7 @@ export default function RestaurantDetails() {
         style={styles.scrollView}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
+          { useNativeDriver: false },
         )}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
@@ -758,8 +778,8 @@ export default function RestaurantDetails() {
                   nextOpeningText
                     ? `${statusTheme.badge}. ${nextOpeningText}.`
                     : closesAtText
-                    ? `${statusTheme.badge}. ${closesAtText}.`
-                    : undefined
+                      ? `${statusTheme.badge}. ${closesAtText}.`
+                      : undefined
                 }
               >
                 <View
@@ -978,7 +998,7 @@ export default function RestaurantDetails() {
                     </View>
                   )}
                 </View>
-              )
+              ),
             )
           )}
         </Animated.View>

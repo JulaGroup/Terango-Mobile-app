@@ -47,7 +47,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "serrekunda",
     name: "Serrekunda",
-    area: "Kanifing",
+    area: "Zone 1",
     latitude: 13.438762,
     longitude: -16.674807,
     deliveryZone: "zone1",
@@ -55,7 +55,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "kanifing",
     name: "Kanifing",
-    area: "Kanifing",
+    area: "Zone 1",
     latitude: 13.453768,
     longitude: -16.674822,
     deliveryZone: "zone1",
@@ -63,7 +63,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "pipeline",
     name: "Pipeline",
-    area: "Kanifing",
+    area: "Zone 1",
     latitude: 13.458312,
     longitude: -16.684491,
     deliveryZone: "zone1",
@@ -73,7 +73,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "kairaba_avenue",
     name: "Kairaba Avenue",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.454347,
     longitude: -16.682122,
     deliveryZone: "zone2",
@@ -81,7 +81,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "bakau",
     name: "Bakau",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.475264,
     longitude: -16.676071,
     deliveryZone: "zone2",
@@ -89,7 +89,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "fajara",
     name: "Fajara",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.471065,
     longitude: -16.695437,
     deliveryZone: "zone2",
@@ -97,7 +97,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "kotu",
     name: "Kotu",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.45422,
     longitude: -16.704328,
     deliveryZone: "zone2",
@@ -105,7 +105,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "kololi",
     name: "Kololi",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.441142,
     longitude: -16.708187,
     deliveryZone: "zone2",
@@ -113,7 +113,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "senegambia",
     name: "Senegambia",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.441176,
     longitude: -16.719614,
     deliveryZone: "zone2",
@@ -121,7 +121,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "bijilo",
     name: "Bijilo",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.42109,
     longitude: -16.729352,
     deliveryZone: "zone3",
@@ -129,7 +129,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "manjai",
     name: "Manjai",
-    area: "Greater Banjul",
+    area: "Zone 2",
     latitude: 13.44496,
     longitude: -16.70131,
     deliveryZone: "zone2",
@@ -139,7 +139,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "brusubi",
     name: "Brusubi",
-    area: "West Coast",
+    area: "Zone 3",
     latitude: 13.406691,
     longitude: -16.729346,
     deliveryZone: "zone3",
@@ -147,7 +147,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "brufut",
     name: "Brufut",
-    area: "West Coast",
+    area: "Zone 3",
     latitude: 13.380278,
     longitude: -16.750301,
     deliveryZone: "zone3",
@@ -155,7 +155,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "kerr_serign",
     name: "Kerr Serign",
-    area: "West Coast",
+    area: "Zone 3",
     latitude: 13.431773,
     longitude: -16.721298,
     deliveryZone: "zone3",
@@ -163,7 +163,7 @@ export const GAMBIAN_TOWNS: GambianTown[] = [
   {
     id: "sukuta",
     name: "Sukuta",
-    area: "West Coast",
+    area: "Zone 3",
     latitude: 13.41427,
     longitude: -16.707112,
     deliveryZone: "zone3",

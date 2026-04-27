@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { OpeningHours } from "@/lib/api";
+import { PrimaryColor } from "@/constants/Colors";
 import {
   getOperatingStatus,
   formatDayLabel,
@@ -52,7 +53,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
         isActive: shop.isActive,
         acceptsOrders: shop.acceptsOrders,
       }),
-    [shop.openingHours, shop.isActive, shop.acceptsOrders]
+    [shop.openingHours, shop.isActive, shop.acceptsOrders],
   );
 
   const currentlyOpen = operatingStatus.isOpen;
@@ -69,7 +70,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
   const nextOpeningLabel =
     !currentlyOpen && operatingStatus.nextOpening
       ? `Opens ${formatDayLabel(
-          operatingStatus.nextOpening.day
+          operatingStatus.nextOpening.day,
         )} ${formatTimeLabel(operatingStatus.nextOpening.time)}`
       : undefined;
 
@@ -165,15 +166,40 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
         )}
 
         <View style={styles.shopFooter}>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.locationText} numberOfLines={2}>
-              {`${shop.city ?? ""}${shop.city && shop.address ? ", " : ""}${
-                shop.address ?? "Location"
-              }`}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              flex: 1,
+            }}
+          >
+            <View
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: PrimaryColor,
+                marginRight: 6,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#6B7280",
+                fontWeight: "500",
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {shop.city || shop.address || "Location"}
             </Text>
           </View>
-          <Text style={styles.reviewText}>{reviewCount} reviews</Text>
+          {shop.rating && (
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={12} color="#FFD700" />
+              <Text style={styles.ratingValue}>{shop.rating.toFixed(1)}</Text>
+            </View>
+          )}
         </View>
 
         {shop.acceptsOrders && (
@@ -282,9 +308,24 @@ const styles = {
   },
   locationText: {
     fontSize: 12,
-    color: "#666",
+    color: "#10b981",
     marginLeft: 4,
+    fontWeight: "500" as const,
     flex: 1,
+  },
+  ratingBadge: {
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    backgroundColor: "#FFF7ED",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  ratingValue: {
+    fontSize: 12,
+    color: "#666",
+    fontWeight: "600" as const,
   },
   reviewText: {
     fontSize: 12,

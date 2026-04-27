@@ -773,11 +773,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 8,
   },
   itemRestaurant: {
     fontSize: 11,
     color: "#9ca3af",
-    maxWidth: "50%",
+    flex: 1,
+    marginRight: 8,
   },
   quantityControls: {
     flexDirection: "row",
@@ -786,7 +788,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 4,
     paddingVertical: 4,
-    gap: 8,
+    gap: 6,
+    flexShrink: 0,
   },
   quantityButton: {
     width: 28,

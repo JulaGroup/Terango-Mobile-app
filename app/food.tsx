@@ -201,10 +201,15 @@ const SectionHeader = ({
       )}
     </View>
     {onSeeAll && (
-      <TouchableOpacity onPress={onSeeAll} activeOpacity={0.7}>
+      <TouchableOpacity
+        onPress={onSeeAll}
+        activeOpacity={0.7}
+        style={{ flexDirection: "row", alignItems: "center" }}
+      >
         <Text style={{ fontSize: 13, fontWeight: "600", color: "#ff6b00" }}>
           See All
         </Text>
+        <Ionicons name="chevron-forward" size={14} color="#ff6b00" />
       </TouchableOpacity>
     )}
   </View>
@@ -651,9 +656,9 @@ export default function FoodPage() {
 
           <Divider /> */}
 
-            {/* ── Restaurants Near You ───────────────────── */}
+            {/* ── Restaurants & Bakeries Near You ───────────────────── */}
             <SectionHeader
-              title="Restaurants Near You"
+              title="Restaurants & Bakeries Near You"
               subtitle="Order from local favourites"
               onSeeAll={() => router.push("/ViewAllRestaurants" as any)}
             />

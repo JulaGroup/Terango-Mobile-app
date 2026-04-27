@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   Dimensions,
 } from "react-native";
@@ -14,6 +13,8 @@ import { useLocalSearchParams, router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
+import Cart from "@/components/common/Cart";
+import SkeletonLoader from "@/components/ui/browse/SkeletonLoader";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
@@ -97,17 +98,6 @@ const QUICK_FILTER_METADATA: Record<
     subtitle: "Glow-up and grooming heroes",
   },
 };
-
-const ESSENTIAL_KEYWORDS = [
-  "pharmacy",
-  "drug",
-  "medicine",
-  "grocery",
-  "mart",
-  "market",
-  "fresh",
-  "essential",
-];
 
 const BEAUTY_KEYWORDS = [
   "beauty",
@@ -261,11 +251,14 @@ const BrowseSectionScreen: React.FC = () => {
       }
 
       if (sectionKey === "fresh") {
-        const response = await fetch(
-          `${API_URL}/api/public/products/new-arrivals?page=1&limit=60`,
+        // Match browse.tsx: freshProduce subcategory
+        const res = await fetch(
+          `${API_URL}/api/subcategories/3433f17f-fe9d-4d04-b4e2-05f9ae0db667/entities?limit=60`,
         );
-        const json = await response.json();
-        setProducts((json.data || []).map(mapProductResponse));
+        const json = res.ok ? await res.json() : { products: [] };
+        setProducts(
+          (json?.products || json?.data || []).map(mapProductResponse),
+        );
         return;
       }
 
@@ -278,15 +271,44 @@ const BrowseSectionScreen: React.FC = () => {
         return;
       }
 
-      if (sectionKey === "essentials" || sectionKey === "beauty") {
+      if (sectionKey === "essentials") {
+        // Match browse.tsx: riceGrains + oilsSpices + sugarsSweeteners subcategories
+        const SUBCATEGORY_IDS = [
+          "cca76ff8-bc4e-4544-acc1-872c119943a5", // riceGrains
+          "6ac60d93-a199-4cc0-a85d-3636dc0c4508", // oilsSpices
+          "9ed2498c-305c-484e-9177-08a56b7b3a82", // sugarsSweeteners
+        ];
+        const results = await Promise.all(
+          SUBCATEGORY_IDS.map((id) =>
+            fetch(`${API_URL}/api/subcategories/${id}/entities?limit=30`)
+              .then((r) => (r.ok ? r.json() : { products: [] }))
+              .then((j) =>
+                (j?.products || j?.data || []).map(mapProductResponse),
+              ),
+          ),
+        );
+        setProducts(uniqueProducts(results.flat()));
+        return;
+      }
+
+      if (sectionKey === "snacks") {
+        const res = await fetch(
+          `${API_URL}/api/subcategories/be7ae270-3e96-4bb5-9118-61aa8bcf380b/entities?limit=60`,
+        );
+        const json = res.ok ? await res.json() : { products: [] };
+        setProducts(
+          (json?.products || json?.data || []).map(mapProductResponse),
+        );
+        return;
+      }
+
+      if (sectionKey === "beauty") {
         const response = await fetch(
           `${API_URL}/api/public/products?limit=80&sortBy=orders&sortOrder=desc`,
         );
         const json = await response.json();
         const pool: Product[] = (json.data || []).map(mapProductResponse);
-        const keywords =
-          sectionKey === "essentials" ? ESSENTIAL_KEYWORDS : BEAUTY_KEYWORDS;
-        const filtered = filterByKeywords(pool, keywords);
+        const filtered = filterByKeywords(pool, BEAUTY_KEYWORDS);
         setProducts(filtered.length > 0 ? filtered : pool.slice(0, 40));
         return;
       }
@@ -332,10 +354,10 @@ const BrowseSectionScreen: React.FC = () => {
       const cartItem = {
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: item.discountedPrice || item.price,
         discountedPrice: item.discountedPrice,
         description: item.shopName || item.shop?.name || "",
-        vendorId: item.shop?.vendorId || "",
+        vendorId: item.shop?.id || "",
         vendorName: item.shopName || item.shop?.name || "",
         imageUrl: item.imageUrl,
         entityType: "product",
@@ -383,7 +405,7 @@ const BrowseSectionScreen: React.FC = () => {
           onPress={() => handleProductPress(item)}
           cardWidth={(width - 16 * 2 - 12) / 2}
           vendor={{
-            vendorId: item.shop?.vendorId,
+            vendorId: item.shop?.id,
             vendorType: "shop",
             vendorName: item.shopName || item.shop?.name,
           }}
@@ -429,12 +451,28 @@ const BrowseSectionScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <StatusBar style="dark" />
-      {loading ? (
-        <View style={styles.centerState}>
-          <ActivityIndicator size="small" color={PrimaryColor} />
-          <Text style={styles.stateLabel}>Loading up this section...</Text>
+      <StatusBar style="light" />
+
+      {/* ── Orange Header ── */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="arrow-back" size={20} color="#fff" />
+        </TouchableOpacity>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>{screenTitle}</Text>
+          {metadata.subtitle ? (
+            <Text style={styles.headerSubtitle}>{metadata.subtitle}</Text>
+          ) : null}
         </View>
+        <Cart />
+      </View>
+
+      {loading ? (
+        <SkeletonLoader type="card" count={6} />
       ) : error ? (
         <View style={styles.centerState}>
           <Ionicons name="alert-circle" size={20} color="#ef4444" />
@@ -498,9 +536,11 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: PrimaryColor,
     paddingHorizontal: 16,
-    paddingVertical: 18,
+    paddingVertical: 12,
     gap: 12,
+    marginBottom: 12,
   },
   backButton: {
     width: 36,
@@ -512,24 +552,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "800",
-    color: "#111827",
+    color: "#fff",
   },
   headerSubtitle: {
     fontSize: 12,
-    color: "#6B7280",
-    marginTop: 4,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 2,
   },
-  homeChip: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: PrimaryColor,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
   centerState: {
     flex: 1,
     alignItems: "center",

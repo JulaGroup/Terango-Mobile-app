@@ -500,7 +500,7 @@ const RestaurantNearYou = ({
                   color: "#111827",
                 }}
               >
-                Popular Restaurants
+                Restaurants and Bakeries
               </Text>
               <Text
                 style={{
@@ -509,7 +509,7 @@ const RestaurantNearYou = ({
                   marginTop: 2,
                 }}
               >
-                Delicious meals delivered
+                Delicious food at your fingertips
               </Text>
             </View>
           </View>
@@ -751,26 +751,34 @@ const RestaurantNearYou = ({
                 </ScrollView>
 
                 {/* Footer Info */}
+                {/* Footer Info */}
                 <View
                   style={{
                     flexDirection: "row",
-                    justifyContent: "space-between",
                     alignItems: "center",
+                    marginTop: 4,
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <Ionicons name="location-outline" size={14} color="#666" />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#666",
-                        marginLeft: 4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {displayAddress}
-                    </Text>
-                  </View>
+                  <View
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: PrimaryColor,
+                      marginRight: 6,
+                    }}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: "#6B7280",
+                      fontWeight: "500",
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
+                    {displayAddress}
+                  </Text>
                 </View>
               </View>
             </TouchableOpacity>

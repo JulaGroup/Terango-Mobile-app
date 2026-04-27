@@ -35,7 +35,7 @@ import {
   emit,
 } from "@/services/SocketService";
 import { LinearGradient } from "expo-linear-gradient";
-import { getTownById } from "@/constants/gambianTowns";
+import { fetchDeliveryTowns, getTownById as getDynamicTownById, DeliveryTown } from "@/services/deliveryTowns.service";
 
 // Conditionally import MapView only for native platforms
 let MapView: any, Marker: any, PROVIDER_DEFAULT: any, Polyline: any;
@@ -167,6 +167,9 @@ export default function OrderTrackingPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 🏙️ Delivery towns from API
+  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
 
   // Map and location state
   const [showDriverProfile, setShowDriverProfile] = useState(false);
@@ -312,7 +315,7 @@ export default function OrderTrackingPage() {
 
       // Set delivery location - for gift orders, use town coordinates
       if (data.isGiftOrder && data.recipientTown) {
-        const town = getTownById(data.recipientTown);
+        const town = getDynamicTownById(deliveryTowns, data.recipientTown);
         if (town) {
           setDeliveryLocation({
             latitude: town.latitude,
@@ -894,9 +897,9 @@ export default function OrderTrackingPage() {
                   <Text style={styles.recipientName}>
                     {order.recipientName}
                   </Text>
-                  {order.recipientAddress && (
+                  {(order.deliveryAddress || order.recipientAddress) && (
                     <Text style={styles.recipientAddress} numberOfLines={2}>
-                      {order.recipientAddress}
+                      {order.deliveryAddress || order.recipientAddress}
                     </Text>
                   )}
                 </View>
