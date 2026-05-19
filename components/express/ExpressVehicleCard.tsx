@@ -19,7 +19,7 @@ export const WEIGHT_VEHICLE_MAP: Record<WeightClass, VehicleType[]> = {
 // Helper function to check if vehicle supports weight class
 export function vehicleSupportsWeight(
   vehicleType: VehicleType,
-  weightClass: WeightClass
+  weightClass: WeightClass,
 ): boolean {
   return WEIGHT_VEHICLE_MAP[weightClass].includes(vehicleType);
 }
@@ -30,14 +30,17 @@ export function getAvailableVehicles(weightClass: WeightClass): VehicleType[] {
 }
 
 // Admin panel vehicle icons and styling
-export const VEHICLE_CONFIG: Record<VehicleType, { 
-  emoji: string; 
-  label: string; 
-  description: string; 
-  weightRange: string;
-  backgroundColor: string;
-  borderColor: string;
-}> = {
+export const VEHICLE_CONFIG: Record<
+  VehicleType,
+  {
+    emoji: string;
+    label: string;
+    description: string;
+    weightRange: string;
+    backgroundColor: string;
+    borderColor: string;
+  }
+> = {
   BIKE: {
     emoji: "🏍️",
     label: "Motorbike",
@@ -48,7 +51,7 @@ export const VEHICLE_CONFIG: Record<VehicleType, {
   },
   KEKE_CARGO: {
     emoji: "🛺",
-    label: "Keke Cargo", 
+    label: "Keke Cargo",
     description: "Perfect for rice bags",
     weightRange: "25-250kg",
     backgroundColor: "#EFF6FF",
@@ -58,7 +61,7 @@ export const VEHICLE_CONFIG: Record<VehicleType, {
     emoji: "🚗",
     label: "Car",
     description: "Medium to heavy loads",
-    weightRange: "25-500kg", 
+    weightRange: "25-500kg",
     backgroundColor: "#FFF7ED",
     borderColor: "#F97316",
   },
@@ -73,7 +76,7 @@ export const VEHICLE_CONFIG: Record<VehicleType, {
   LORRY: {
     emoji: "🚚",
     label: "Mini Truck",
-    description: "Industrial freight", 
+    description: "Industrial freight",
     weightRange: "500kg+",
     backgroundColor: "#F9FAFB",
     borderColor: "#6B7280",
@@ -84,7 +87,7 @@ export interface VehicleOption {
   key: VehicleType;
   label: string;
   description: string;
-  emoji: string;
+  iconName: string;
   estimatedPrice?: number | null;
   estimatedTime?: string;
   weightRange?: string;
@@ -106,34 +109,44 @@ export const ExpressVehicleCard: React.FC<ExpressVehicleCardProps> = ({
   showPrice = false,
 }) => {
   const config = VEHICLE_CONFIG[vehicle.key];
-  
+
   return (
     <TouchableOpacity
       style={[
-        styles.card, 
-        { 
+        styles.card,
+        {
           backgroundColor: selected ? config.backgroundColor : "#FFFFFF",
-          borderColor: selected ? config.borderColor : "#E5E7EB" 
-        }
+          borderColor: selected ? config.borderColor : "#E5E7EB",
+        },
       ]}
       activeOpacity={0.75}
       onPress={onPress}
     >
       <View style={styles.header}>
-        {/* Vehicle Emoji Icon */}
-        <View style={[
-          styles.iconContainer, 
-          { 
-            backgroundColor: selected ? "rgba(255,255,255,0.9)" : "#F9FAFB" 
-          }
-        ]}>
-          <Text style={styles.vehicleEmoji}>{config.emoji}</Text>
+        {/* Vehicle Icon */}
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: selected ? "rgba(255,255,255,0.9)" : "#F9FAFB",
+            },
+          ]}
+        >
+          <Ionicons
+            name={config.iconName as any}
+            size={26}
+            color={selected ? config.borderColor : "#6B7280"}
+          />
         </View>
-        
+
         {/* Selection Checkmark */}
         {selected && (
           <View style={styles.checkmarkContainer}>
-            <Ionicons name="checkmark-circle" size={24} color={config.borderColor} />
+            <Ionicons
+              name="checkmark-circle"
+              size={24}
+              color={config.borderColor}
+            />
           </View>
         )}
       </View>
@@ -142,13 +155,9 @@ export const ExpressVehicleCard: React.FC<ExpressVehicleCardProps> = ({
         <Text style={[styles.label, selected && { color: config.borderColor }]}>
           {config.label}
         </Text>
-        <Text style={styles.description}>
-          {config.description}
-        </Text>
-        <Text style={styles.weightRange}>
-          {config.weightRange}
-        </Text>
-        
+        <Text style={styles.description}>{config.description}</Text>
+        <Text style={styles.weightRange}>{config.weightRange}</Text>
+
         {vehicle.estimatedTime && (
           <View style={styles.timeContainer}>
             <Ionicons name="time-outline" size={14} color="#9CA3AF" />
@@ -157,13 +166,17 @@ export const ExpressVehicleCard: React.FC<ExpressVehicleCardProps> = ({
         )}
       </View>
 
-      {showPrice && vehicle.estimatedPrice !== null && vehicle.estimatedPrice !== undefined && (
-        <View style={styles.priceContainer}>
-          <Text style={[styles.price, selected && { color: config.borderColor }]}>
-            D{vehicle.estimatedPrice.toFixed(0)}
-          </Text>
-        </View>
-      )}
+      {showPrice &&
+        vehicle.estimatedPrice !== null &&
+        vehicle.estimatedPrice !== undefined && (
+          <View style={styles.priceContainer}>
+            <Text
+              style={[styles.price, selected && { color: config.borderColor }]}
+            >
+              D{vehicle.estimatedPrice.toFixed(0)}
+            </Text>
+          </View>
+        )}
     </TouchableOpacity>
   );
 };

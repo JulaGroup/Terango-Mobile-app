@@ -8,7 +8,7 @@ export type WeightClass = "LIGHT" | "MEDIUM" | "HEAVY";
 export const WEIGHT_CONFIG: Record<
   WeightClass,
   {
-    emoji: string;
+    iconName: string;
     label: string;
     description: string;
     weightRange: string;
@@ -17,7 +17,7 @@ export const WEIGHT_CONFIG: Record<
   }
 > = {
   LIGHT: {
-    emoji: "📦",
+    iconName: "cube-outline",
     label: "Light Package",
     description: "Food, documents, small items",
     weightRange: "0-25kg",
@@ -25,7 +25,7 @@ export const WEIGHT_CONFIG: Record<
     borderColor: "#3B82F6",
   },
   MEDIUM: {
-    emoji: "📦📦",
+    iconName: "layers-outline",
     label: "Medium Package",
     description: "Clothing, electronics, groceries",
     weightRange: "25-100kg",
@@ -33,7 +33,7 @@ export const WEIGHT_CONFIG: Record<
     borderColor: "#F97316",
   },
   HEAVY: {
-    emoji: "📦📦📦",
+    iconName: "server-outline",
     label: "Heavy Package",
     description: "Rice bags, furniture, appliances",
     weightRange: "100kg+",
@@ -46,7 +46,7 @@ export interface WeightClassOption {
   key: WeightClass;
   label: string;
   description: string;
-  emoji: string;
+  iconName: string;
   weightRange?: string;
   backgroundColor?: string;
   borderColor?: string;
@@ -90,7 +90,7 @@ export const ExpressWeightClassCard: React.FC<ExpressWeightClassCardProps> = ({
       onPress={handlePress}
     >
       <View style={styles.header}>
-        {/* Weight Emoji Icon */}
+        {/* Weight Icon */}
         <View
           style={[
             styles.iconContainer,
@@ -99,7 +99,11 @@ export const ExpressWeightClassCard: React.FC<ExpressWeightClassCardProps> = ({
             },
           ]}
         >
-          <Text style={styles.weightEmoji}>{config.emoji}</Text>
+          <Ionicons
+            name={config.iconName as any}
+            size={26}
+            color={selected ? config.borderColor : "#6B7280"}
+          />
         </View>
 
         {/* Selection Checkmark */}

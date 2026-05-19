@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Image,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   useInfiniteScroll,
   createScrollHandler,
@@ -85,22 +86,57 @@ const MenuItemList: React.FC<MenuItemListProps> = ({
           <Text style={styles.price}>${item.price.toFixed(2)}</Text>
 
           {item.preparationTime && (
-            <Text style={styles.prepTime}>⏱️ {item.preparationTime} min</Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
+              <Ionicons name="time-outline" size={12} color="#888" />
+              <Text style={styles.prepTime}>{item.preparationTime} min</Text>
+            </View>
           )}
         </View>
 
         {item.mealTime && (
-          <Text style={styles.mealTime}>🍽️ {item.mealTime}</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            <Ionicons name="restaurant-outline" size={12} color="#888" />
+            <Text style={styles.mealTime}>{item.mealTime}</Text>
+          </View>
         )}
 
         {item.menu?.restaurant && (
-          <Text style={styles.restaurantInfo}>
-            🏪 {item.menu.restaurant.name}
-          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            <Ionicons name="storefront-outline" size={12} color="#888" />
+            <Text style={styles.restaurantInfo}>
+              {item.menu.restaurant.name}
+            </Text>
+          </View>
         )}
 
         {item.subCategory && (
-          <Text style={styles.categoryInfo}>📂 {item.subCategory.name}</Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            <Ionicons name="grid-outline" size={12} color="#888" />
+            <Text style={styles.categoryInfo}>{item.subCategory.name}</Text>
+          </View>
         )}
 
         <View style={styles.statusContainer}>

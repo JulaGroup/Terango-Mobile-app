@@ -17,7 +17,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
-import { fetchDeliveryTowns, DeliveryTown } from "@/services/deliveryTowns.service";
+import {
+  fetchDeliveryTowns,
+  DeliveryTown,
+} from "@/services/deliveryTowns.service";
 import { GambianTown } from "@/constants/gambianTowns";
 import { UnifiedLocationSection } from "@/components/express/UnifiedLocationSection";
 import { SavedLocationDropdown } from "@/components/express/SavedLocationDropdown";
@@ -35,10 +38,7 @@ import {
   WeightClassOption,
   WEIGHT_CONFIG,
 } from "@/components/express/ExpressWeightClassCard";
-import {
-  VehicleType,
-  WeightClass,
-} from "@/utils/expressPriceCalculator";
+import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -114,7 +114,11 @@ interface DeliveryQuote {
 }
 
 // ── Helpers ───────────────────────────────────────────────
-const findNearestTown = (lat: number, lon: number, towns: DeliveryTown[]): DeliveryTown | null => {
+const findNearestTown = (
+  lat: number,
+  lon: number,
+  towns: DeliveryTown[],
+): DeliveryTown | null => {
   let nearest: DeliveryTown | null = null;
   let minD = Infinity;
   for (const town of towns) {
@@ -425,7 +429,7 @@ export default function CustomDeliveryScreen() {
       key,
       label: VEHICLE_CONFIG[key].label,
       description: VEHICLE_CONFIG[key].description,
-      emoji: VEHICLE_CONFIG[key].emoji,
+      iconName: VEHICLE_CONFIG[key].iconName,
       estimatedPrice: vehiclePrice,
       estimatedTime: vehicleTime ? `${vehicleTime} min` : undefined,
     };
@@ -437,7 +441,7 @@ export default function CustomDeliveryScreen() {
     key,
     label: WEIGHT_CONFIG[key].label,
     description: WEIGHT_CONFIG[key].description,
-    emoji: WEIGHT_CONFIG[key].emoji,
+    iconName: WEIGHT_CONFIG[key].iconName,
   }));
 
   // Clear selected vehicle if it's not compatible with new weight selection
@@ -659,7 +663,11 @@ export default function CustomDeliveryScreen() {
 
   const handleSavedPickupAddressSelect = async (address: Address) => {
     await setSelectedAddress(address);
-    const nearestTown = findNearestTown(address.latitude, address.longitude, deliveryTowns);
+    const nearestTown = findNearestTown(
+      address.latitude,
+      address.longitude,
+      deliveryTowns,
+    );
     if (nearestTown) setPickupTown(nearestTown);
     setPickupLatitude(address.latitude);
     setPickupLongitude(address.longitude);

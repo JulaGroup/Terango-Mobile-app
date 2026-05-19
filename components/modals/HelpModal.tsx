@@ -34,37 +34,37 @@ const faqData: FAQItem[] = [
     id: "2",
     question: "What payment methods do you accept?",
     answer:
-      "We accept various payment methods including mobile money, bank cards, and cash on delivery. You can manage your payment methods in your profile settings.",
+      "We accept only Wave payments for now. You can link your Wave account in the app and use it to pay for your orders securely.",
   },
   {
     id: "3",
     question: "How long does delivery take?",
     answer:
-      "Delivery times vary by location and restaurant preparation time, typically ranging from 20-45 minutes. You&apos;ll see estimated delivery time before placing your order.",
+      "Delivery times vary by location and restaurant preparation time, typically ranging from 20-45 minutes. You can see estimated delivery time before placing your order.",
   },
   {
     id: "4",
     question: "Can I cancel my order?",
     answer:
-      "You can cancel your order within 2 minutes of placing it. After that, cancellation depends on the restaurant&apos;s policy and order preparation status.",
+      "You can cancel your order within 2 minutes of placing it. After that, cancellation depends on the restaurant's policy and order preparation status.",
   },
   {
     id: "5",
     question: "How do I track my order?",
     answer:
-      "Once your order is confirmed, you&apos;ll receive real-time updates via push notifications. You can also check your order status in the app.",
+      "Once your order is confirmed, you'll receive real-time updates via push notifications. You can also check your order status in the app.",
   },
   {
     id: "6",
     question: "What if my order is incorrect or damaged?",
     answer:
-      "If there&apos;s an issue with your order, please contact support immediately. We&apos;ll work with the restaurant to resolve the issue or provide a refund.",
+      "If there's an issue with your order, please contact support immediately. We'll work with the restaurant to resolve the issue or provide a refund.",
   },
 ];
 
 export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const [activeTab, setActiveTab] = useState<"faq" | "contact" | "feedback">(
-    "faq"
+    "faq",
   );
   const [expandedFAQ, setExpandedFAQ] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
@@ -72,18 +72,18 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const [contactMessage, setContactMessage] = useState("");
 
   const handleContactEmail = () => {
-    const email = "support@terango.gm";
+    const email = "info@terango.gm";
     const subject = contactSubject || "Support Request";
     const body = contactMessage || "Please describe your issue...";
     const mailto = `mailto:${email}?subject=${encodeURIComponent(
-      subject
+      subject,
     )}&body=${encodeURIComponent(body)}`;
 
     Linking.openURL(mailto).catch(() => {
       Alert.alert(
         "Email App Not Available",
         `Please send your message to: ${email}`,
-        [{ text: "Copy Email", onPress: () => {} }, { text: "OK" }]
+        [{ text: "Copy Email", onPress: () => {} }, { text: "OK" }],
       );
     });
   };
@@ -92,13 +92,13 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
     const phoneNumber = "+220XXXXXXX"; // Replace with actual WhatsApp number
     const message = contactMessage || "Hi, I need help with TeranGo app";
     const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
-      message
+      message,
     )}`;
 
     Linking.openURL(whatsappUrl).catch(() => {
       Alert.alert(
         "WhatsApp Not Available",
-        "Please install WhatsApp or contact us via email"
+        "Please install WhatsApp or contact us via email",
       );
     });
   };
@@ -120,7 +120,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
             onClose();
           },
         },
-      ]
+      ],
     );
   };
 
@@ -283,9 +283,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
                 <Text style={styles.contactInfoTitle}>
                   Other Ways to Reach Us
                 </Text>
-                <Text style={styles.contactInfoText}>
-                  📧 support@terango.gm
-                </Text>
+                <Text style={styles.contactInfoText}>📧 info@terango.gm</Text>
                 <Text style={styles.contactInfoText}>
                   📱 +220 633554/ 7595999/ 3902798
                 </Text>

@@ -17,7 +17,14 @@ export async function registerForPushNotificationsAsync() {
 
     if (finalStatus !== "granted") return null;
 
-    const token = (await Notifications.getExpoPushTokenAsync()).data;
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+    const token = (
+      await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      )
+    ).data;
 
     // Save token locally
     await SecureStorage.setItem("expoPushToken", token);
@@ -26,7 +33,7 @@ export async function registerForPushNotificationsAsync() {
     const jwt = await SecureStorage.getItem("token");
     if (jwt) {
       try {
-        await fetch(`${API_URL}/api/push-tokens`, {
+        await fetch(`${API_URL}/auth/save-push-token`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

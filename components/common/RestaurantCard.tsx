@@ -290,7 +290,6 @@ const styles = {
   },
   ratingText: {
     fontSize: 12,
-    color: "#666",
     fontWeight: "600" as const,
     color: "#666",
     marginLeft: 4,

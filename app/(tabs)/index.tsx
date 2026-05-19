@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 
 // Hub-specific components
 import HubHeader from "@/components/ui/home/HubHeader";
@@ -33,6 +35,271 @@ import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 import TeranGOPicks from "@/components/ui/home/TerangoPicks";
+
+// ─── KërSpace Featured Section ──────────────────────────────────────────────
+interface KerSpaceProperty {
+  id: string;
+  title: string;
+  type: string;
+  listingType: "FOR_SALE" | "FOR_RENT";
+  price: number;
+  currency: string;
+  address: string;
+  city: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  images: { url: string; isPrimary: boolean }[];
+}
+
+const formatKsPrice = (price: number, currency: string) => {
+  if (price >= 1_000_000)
+    return `${currency} ${(price / 1_000_000).toFixed(1)}M`;
+  if (price >= 1_000) return `${currency} ${(price / 1_000).toFixed(0)}K`;
+  return `${currency} ${price.toLocaleString()}`;
+};
+
+// Module-level cache — persists across tab switches, cleared on full refresh
+let _ksCache: { data: KerSpaceProperty[]; ts: number } | null = null;
+const KS_TTL = 5 * 60 * 1000; // 5 minutes
+
+const KerSpaceFeaturedSection = () => {
+  const router = useRouter();
+  const [properties, setProperties] = useState<KerSpaceProperty[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const now = Date.now();
+    if (_ksCache && now - _ksCache.ts < KS_TTL) {
+      setProperties(_ksCache.data);
+      setLoading(false);
+      return;
+    }
+    fetch(`${API_URL}/api/kerspace/properties?featured=true&limit=6`)
+      .then((r) => r.json())
+      .then((json) => {
+        const data = json.data || [];
+        _ksCache = { data, ts: Date.now() };
+        setProperties(data);
+      })
+      .catch(() => setProperties([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (!loading && properties.length === 0) return null;
+
+  return (
+    <View style={{ paddingTop: 4, paddingBottom: 8 }}>
+      {/* Header */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          marginBottom: 14,
+        }}
+      >
+        <View>
+          <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "900",
+                color: "#1a1a1a",
+                letterSpacing: -0.5,
+              }}
+            >
+              Kër
+            </Text>
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: "900",
+                color: "#ff6b00",
+                letterSpacing: -0.5,
+              }}
+            >
+              Space
+            </Text>
+          </View>
+          <Text style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>
+            Real Estate · Gambia
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push("/kerspace" as any)}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 4,
+            backgroundColor: "#FFF5EE",
+            paddingHorizontal: 12,
+            paddingVertical: 7,
+            borderRadius: 20,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "700", color: "#ff6b00" }}>
+            Browse All
+          </Text>
+          <Ionicons name="arrow-forward" size={12} color="#ff6b00" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Skeleton */}
+      {loading ? (
+        <FlatList
+          horizontal
+          data={[1, 2, 3]}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(i) => `ks-sk-${i}`}
+          renderItem={() => (
+            <View
+              style={{
+                width: 220,
+                height: 200,
+                backgroundColor: "#f0f0f0",
+                borderRadius: 16,
+                marginRight: 12,
+              }}
+            />
+          )}
+        />
+      ) : (
+        <FlatList
+          horizontal
+          data={properties}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16 }}
+          keyExtractor={(p) => p.id}
+          renderItem={({ item }) => {
+            const img = item.images.find((i) => i.isPrimary) || item.images[0];
+            return (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/kerspace/[id]",
+                    params: { id: item.id },
+                  } as any)
+                }
+                activeOpacity={0.92}
+                style={{
+                  width: 220,
+                  marginRight: 12,
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  backgroundColor: "#fff",
+                  shadowColor: "#000",
+                  shadowOpacity: 0.08,
+                  shadowRadius: 8,
+                  elevation: 3,
+                }}
+              >
+                {/* Image + gradient */}
+                <View style={{ height: 140, position: "relative" }}>
+                  {img ? (
+                    <Image
+                      source={{ uri: img.url }}
+                      style={{ width: "100%", height: "100%" }}
+                      contentFit="cover"
+                      transition={300}
+                    />
+                  ) : (
+                    <View
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#F5F0EB",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons name="home-outline" size={36} color="#C0A090" />
+                    </View>
+                  )}
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.72)"]}
+                    style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 80,
+                      justifyContent: "flex-end",
+                      paddingHorizontal: 10,
+                      paddingBottom: 8,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        color: "#fff",
+                        fontSize: 14,
+                        fontWeight: "900",
+                        letterSpacing: -0.3,
+                      }}
+                    >
+                      {formatKsPrice(item.price, item.currency)}
+                    </Text>
+                  </LinearGradient>
+                  {/* Listing type badge */}
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 8,
+                      left: 8,
+                      backgroundColor:
+                        item.listingType === "FOR_SALE" ? "#1E3A5F" : "#5B2D8E",
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}
+                    >
+                      {item.listingType === "FOR_SALE"
+                        ? "For Sale"
+                        : "For Rent"}
+                    </Text>
+                  </View>
+                </View>
+                {/* Info */}
+                <View style={{ padding: 10 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      color: "#1a1a1a",
+                    }}
+                    numberOfLines={1}
+                  >
+                    {item.title}
+                  </Text>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 3,
+                      marginTop: 3,
+                    }}
+                  >
+                    <Ionicons name="location-outline" size={11} color="#aaa" />
+                    <Text
+                      style={{ fontSize: 11, color: "#888" }}
+                      numberOfLines={1}
+                    >
+                      {item.address}, {item.city}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
+      )}
+    </View>
+  );
+};
 
 // ─── Trending Meal types ──────────────────────────────────────────────────────
 interface TrendingMeal {
@@ -187,12 +454,14 @@ export const Divider = () => (
 );
 
 // ─── Quick Actions row (wallet / vouchers / rewards) ─────────────────────────
+const QUICK_ACTIONS = [
+  { icon: "💳", label: "TPay", sub: "Coming Soon" },
+  { icon: "🎟️", label: "Vouchers", sub: "Coming Soon" },
+  { icon: "⭐", label: "Rewards", sub: "Coming Soon" },
+];
+
 const QuickActions = () => {
-  const actions = [
-    { icon: "💳", label: "TPay", sub: "Coming Soon" },
-    { icon: "🎟️", label: "Vouchers", sub: "Coming Soon" },
-    { icon: "⭐", label: "Rewards", sub: "Coming Soon" },
-  ];
+  const actions = QUICK_ACTIONS;
   return (
     <View
       style={{
@@ -362,7 +631,12 @@ export default function HomeScreen() {
 
           <Divider />
 
-          {/* ⑩ Stores / Mart (component has its own header) */}
+          {/* ⑩ KërSpace Featured Properties */}
+          <KerSpaceFeaturedSection />
+
+          <Divider />
+
+          {/* ⑪ Stores / Mart (component has its own header) */}
           <LocalShops refreshKey={refreshKey} />
         </View>
       </Animated.ScrollView>

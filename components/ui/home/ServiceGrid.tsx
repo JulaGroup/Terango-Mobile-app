@@ -1,172 +1,708 @@
-import React from "react";
-import { Dimensions, Alert, Text, TouchableOpacity, View } from "react-native";
+import React, { useRef, useState } from "react";
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { PrimaryColor } from "@/constants/Colors";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
-const COL = 5;
-const CARD_SIZE = (width - 32 - (COL - 1) * 8) / COL;
+const ORANGE = "#ff6b00";
+const DARK = "#1a1a1a";
+const GAP = 10;
+const H_PAD = 16;
+const HERO_W = (width - H_PAD * 2 - GAP) / 2;
 
-export interface ServiceItem {
-  id: string;
+// ─── Hero card (Food / Mart) ─────────────────────────────────────────────────
+const HeroCard = ({
+  label,
+  subtitle,
+  image,
+  bg,
+  accentColor,
+  route,
+  comingSoon,
+  badge,
+}: {
   label: string;
+  subtitle: string;
   image: number;
+  bg: string;
+  accentColor: string;
   route?: string;
   comingSoon?: boolean;
-}
-
-const DEFAULT_SERVICES: ServiceItem[] = [
-  {
-    id: "food",
-    label: "Food",
-    image: require("@/assets/images/food_icon.png"),
-    route: "/food",
-  },
-  {
-    id: "mart",
-    label: "Mart",
-    image: require("@/assets/images/mart_icon.png"),
-    route: "/mart",
-  },
-  {
-    id: "express",
-    label: "Express",
-    image: require("@/assets/images/express_icon.png"),
-    route: "/custom-delivery",
-    comingSoon: true,
-  },
-  {
-    id: "yobu",
-    label: "YoBu",
-    image: require("@/assets/images/yobu_icon.png"),
-    comingSoon: true,
-  },
-  {
-    id: "shopping",
-    label: "KërSpace",
-    image: require("@/assets/images/kerrspace_icon (2).png"),
-    comingSoon: true,
-  },
-];
-
-interface ServiceGridProps {
-  services?: ServiceItem[];
-}
-
-const ServiceCard = ({ item }: { item: ServiceItem }) => {
+  badge?: string;
+}) => {
   const router = useRouter();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () =>
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
 
   const handlePress = () => {
-    if (item.comingSoon) {
-      Alert.alert(
-        "Coming Soon",
-        `${item.label} will be available soon. Stay tuned!`,
-      );
+    if (comingSoon) {
+      Alert.alert("Coming Soon", `${label} will be available soon!`);
       return;
     }
-    if (item.route) router.push(item.route as any);
+    if (route) router.push(route as any);
   };
 
   return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.75}
-      style={{ alignItems: "center", width: CARD_SIZE }}
-    >
-      {/* Card */}
-      <View
+    <Animated.View style={{ transform: [{ scale }], width: HERO_W }}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
         style={{
-          width: CARD_SIZE - 4,
-          height: CARD_SIZE - 4,
-          backgroundColor: item.comingSoon ? "#F5F5F5" : "#FFF5EE",
-          borderRadius: 14,
-          justifyContent: "center",
-          alignItems: "center",
-          position: "relative",
+          backgroundColor: bg,
+          borderRadius: 20,
+          height: 118,
           overflow: "hidden",
-          borderWidth: 1,
-          borderColor: item.comingSoon
-            ? "rgba(0,0,0,0.05)"
-            : "rgba(255,107,0,0.12)",
+          position: "relative",
         }}
       >
+        {/* Illustration — top-right, large, slightly bleeding */}
         <Image
-          source={item.image}
+          source={image}
           style={{
-            width: 50,
-            height: 50,
-            opacity: item.comingSoon ? 0.3 : 1,
+            position: "absolute",
+            top: -8,
+            right: -8,
+            width: 110,
+            height: 110,
+            opacity: comingSoon ? 0.2 : 0.92,
           }}
           contentFit="contain"
         />
 
-        {/* Floating pill badge — Grab/Gojek style */}
-        {item.comingSoon && (
+        {/* Subtle accent strip at top */}
+        <View
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 3,
+            backgroundColor: accentColor,
+            opacity: 0.6,
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+          }}
+        />
+
+        {/* Badge */}
+        {badge && (
           <View
             style={{
               position: "absolute",
-              top: 7,
-              alignSelf: "center",
-              backgroundColor: PrimaryColor,
-              borderRadius: 20,
-              paddingHorizontal: 6,
-              paddingVertical: 2.5,
+              top: 10,
+              left: 10,
+              backgroundColor: accentColor,
+              borderRadius: 8,
+              paddingHorizontal: 7,
+              paddingVertical: 3,
             }}
           >
             <Text
               style={{
-                fontSize: 7,
-                fontWeight: "700",
-                color: "#FFFFFF",
-                letterSpacing: 0.8,
-                textTransform: "uppercase",
+                color: "#fff",
+                fontSize: 9,
+                fontWeight: "800",
+                letterSpacing: 0.5,
               }}
             >
-              Soon
+              {badge}
             </Text>
           </View>
         )}
-      </View>
+        {comingSoon && (
+          <View
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              backgroundColor: "#888",
+              borderRadius: 8,
+              paddingHorizontal: 7,
+              paddingVertical: 3,
+            }}
+          >
+            <Text
+              style={{
+                color: "#fff",
+                fontSize: 9,
+                fontWeight: "800",
+                letterSpacing: 0.5,
+              }}
+            >
+              SOON
+            </Text>
+          </View>
+        )}
 
-      {/* Label */}
-      <Text
-        style={{
-          marginTop: 5,
-          fontSize: 11,
-          fontWeight: "600",
-          color: item.comingSoon ? "#C0C0C0" : "#1a1a1a",
-          textAlign: "center",
-        }}
-        numberOfLines={1}
-      >
-        {item.label}
-      </Text>
-    </TouchableOpacity>
+        {/* Text — absolute bottom-left */}
+        <View style={{ position: "absolute", bottom: 11, left: 12 }}>
+          <Text
+            style={{
+              fontSize: 19,
+              fontWeight: "900",
+              color: DARK,
+              letterSpacing: -0.5,
+            }}
+          >
+            {label}
+          </Text>
+          <Text style={{ fontSize: 10.5, color: "#666", marginTop: 1 }}>
+            {subtitle}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    </Animated.View>
   );
 };
 
-const ServiceGrid = ({ services = DEFAULT_SERVICES }: ServiceGridProps) => {
+// ─── Small icon tile ─────────────────────────────────────────────────────────
+const TILE_W = (width - H_PAD * 2 - GAP * 3) / 4;
+
+const SmallTile = ({
+  label,
+  image,
+  iconName,
+  route,
+  comingSoon,
+  tint,
+  onPress,
+}: {
+  label: string;
+  image?: number;
+  iconName?: keyof typeof Ionicons.glyphMap;
+  route?: string;
+  comingSoon?: boolean;
+  tint?: string;
+  onPress?: () => void;
+}) => {
+  const router = useRouter();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () =>
+    Animated.spring(scale, {
+      toValue: 0.93,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
+  const onPressOut = () =>
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 40,
+    }).start();
+
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+      return;
+    }
+    if (comingSoon) {
+      Alert.alert("Coming Soon", `${label} will be available soon!`);
+      return;
+    }
+    if (route) router.push(route as any);
+  };
+
+  const bg = tint ?? (comingSoon ? "#F5F5F5" : "#FFF5EE");
+  const border = comingSoon ? "rgba(0,0,0,0.05)" : "rgba(255,107,0,0.12)";
+  const iconColor = comingSoon ? "#ccc" : ORANGE;
+
+  return (
+    <Animated.View
+      style={{ transform: [{ scale }], alignItems: "center", width: TILE_W }}
+    >
+      <TouchableOpacity
+        onPress={handlePress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
+        activeOpacity={1}
+        style={{ alignItems: "center" }}
+      >
+        <View
+          style={{
+            width: TILE_W - 2,
+            height: TILE_W - 2,
+            backgroundColor: bg,
+            borderRadius: 16,
+            justifyContent: "center",
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: border,
+            overflow: "hidden",
+          }}
+        >
+          {iconName ? (
+            <Ionicons name={iconName} size={28} color={iconColor} />
+          ) : image ? (
+            <Image
+              source={image}
+              style={{ width: 70, height: 70, opacity: comingSoon ? 0.3 : 1 }}
+              contentFit="contain"
+            />
+          ) : null}
+          {comingSoon && (
+            <View
+              style={{
+                position: "absolute",
+                bottom: 4,
+                alignSelf: "center",
+                backgroundColor: "#bbb",
+                borderRadius: 6,
+                paddingHorizontal: 5,
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 7,
+                  fontWeight: "700",
+                  letterSpacing: 0.5,
+                }}
+              >
+                SOON
+              </Text>
+            </View>
+          )}
+        </View>
+        <Text
+          style={{
+            marginTop: 5,
+            fontSize: 11,
+            fontWeight: "600",
+            color: comingSoon ? "#C0C0C0" : DARK,
+            textAlign: "center",
+          }}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// ─── More Services Bottom Sheet ──────────────────────────────────────────────
+const MORE_SERVICES = [
+  {
+    id: "wholesale",
+    label: "Wholesale",
+    description: "Bulk orders at trade prices",
+    iconName: "cube-outline" as keyof typeof Ionicons.glyphMap,
+    iconBg: "#FFF3E6",
+    iconColor: "#FF8C00",
+  },
+  {
+    id: "furniture",
+    label: "Furniture",
+    description: "Home & office furniture",
+    iconName: "bed-outline" as keyof typeof Ionicons.glyphMap,
+    iconBg: "#F3E8FF",
+    iconColor: "#9B59B6",
+  },
+  {
+    id: "electronics",
+    label: "Electronics",
+    description: "Gadgets, phones & more",
+    iconName: "phone-portrait-outline" as keyof typeof Ionicons.glyphMap,
+    iconBg: "#E8F4FF",
+    iconColor: "#2980B9",
+  },
+  {
+    id: "experiences",
+    label: "Experiences",
+    description: "Events, tours & activities",
+    iconName: "star-outline" as keyof typeof Ionicons.glyphMap,
+    iconBg: "#FFF9E6",
+    iconColor: "#F39C12",
+  },
+  {
+    id: "teranpro",
+    label: "TeranPro",
+    description: "Home & professional services",
+    iconName: "construct-outline" as keyof typeof Ionicons.glyphMap,
+    iconBg: "#E8FFF3",
+    iconColor: "#27AE60",
+  },
+];
+
+const MoreServicesSheet = ({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) => {
+  const { bottom: safeBottom } = useSafeAreaInsets();
+  const router = useRouter();
+  const slideAnim = useRef(new Animated.Value(400)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Mounted controls actual Modal visibility — stays true during close animation
+  const [mounted, setMounted] = useState(false);
+
+  // Stable ref so PanResponder (created once) always calls the latest close fn
+  const closeSheetRef = useRef<() => void>(() => {});
+
+  const closeSheet = () => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 400,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setMounted(false);
+      onClose();
+    });
+  };
+
+  // Keep ref current on every render
+  closeSheetRef.current = closeSheet;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderMove: (_, { dy }) => {
+        if (dy > 0) {
+          slideAnim.setValue(dy);
+          fadeAnim.setValue(Math.max(0, 1 - dy / 300));
+        }
+      },
+      onPanResponderRelease: (_, { dy, vy }) => {
+        if (dy > 120 || vy > 0.5) {
+          closeSheetRef.current();
+        } else {
+          // Snap back up
+          Animated.parallel([
+            Animated.spring(slideAnim, {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+              speed: 14,
+            }),
+            Animated.timing(fadeAnim, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }
+      },
+    }),
+  ).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      slideAnim.setValue(400);
+      fadeAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 4,
+          speed: 14,
+        }),
+      ]).start();
+    }
+  }, [visible]);
+
+  return (
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      onRequestClose={() => closeSheetRef.current()}
+      statusBarTranslucent
+    >
+      {/* Backdrop */}
+      <Animated.View
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.45)",
+          opacity: fadeAnim,
+        }}
+      >
+        <Pressable
+          style={{ flex: 1 }}
+          onPress={() => closeSheetRef.current()}
+        />
+
+        {/* Sheet */}
+        <Animated.View
+          style={{
+            backgroundColor: "#fff",
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: Math.max(safeBottom, 24),
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          {/* Draggable handle + header — pan gesture applied here only */}
+          <View {...panResponder.panHandlers}>
+            {/* Handle bar */}
+            <View
+              style={{ alignItems: "center", paddingTop: 10, paddingBottom: 4 }}
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 4,
+                  backgroundColor: "#E0E0E0",
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+
+            {/* Header */}
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                paddingHorizontal: 20,
+                paddingVertical: 14,
+                borderBottomWidth: 1,
+                borderBottomColor: "#F5F5F5",
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: "800", color: DARK }}>
+                More Services
+              </Text>
+              <TouchableOpacity onPress={closeSheet} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={26} color="#C0C0C0" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Service rows */}
+          <View style={{ position: "relative" }}>
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              style={{ paddingTop: 6, maxHeight: 380 }}
+              contentContainerStyle={{ paddingBottom: 8 }}
+            >
+              {MORE_SERVICES.map((svc) => {
+                const isTeranPro = svc.id === "teranpro";
+                const isFurniture = svc.id === "furniture";
+                return (
+                  <TouchableOpacity
+                    key={svc.id}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (isTeranPro) {
+                        closeSheetRef.current();
+                        router.push("/teranpro" as any);
+                      } else if (isFurniture) {
+                        closeSheetRef.current();
+                        router.push("/furniture" as any);
+                      } else {
+                        Alert.alert(
+                          "Coming Soon",
+                          `${svc.label} will be available soon. Stay tuned!`,
+                        );
+                      }
+                    }}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 20,
+                      paddingVertical: 14,
+                      gap: 14,
+                      borderBottomWidth: 1,
+                      borderBottomColor: "#F9F9F9",
+                    }}
+                  >
+                    {/* Icon circle */}
+                    <View
+                      style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 14,
+                        backgroundColor: svc.iconBg,
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Ionicons
+                        name={svc.iconName}
+                        size={24}
+                        color={svc.iconColor}
+                      />
+                    </View>
+
+                    {/* Text */}
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={{ fontSize: 15, fontWeight: "700", color: DARK }}
+                      >
+                        {svc.label}
+                      </Text>
+                      <Text
+                        style={{ fontSize: 12, color: "#888", marginTop: 2 }}
+                      >
+                        {svc.description}
+                      </Text>
+                    </View>
+
+                    {/* Badge */}
+                    {!isTeranPro && !isFurniture && (
+                      <View
+                        style={{
+                          backgroundColor: "#F0F0F0",
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "700",
+                            color: "#999",
+                          }}
+                        >
+                          SOON
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {/* Scroll fade hint */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: 36,
+                backgroundColor: "rgba(255,255,255,0)",
+                shadowColor: "#fff",
+                shadowOffset: { width: 0, height: -20 },
+                shadowOpacity: 1,
+                shadowRadius: 16,
+              }}
+            />
+          </View>
+        </Animated.View>
+      </Animated.View>
+    </Modal>
+  );
+};
+
+// ─── Main Grid ────────────────────────────────────────────────────────────────
+const ServiceGrid = () => {
+  const [showMore, setShowMore] = useState(false);
+
   return (
     <View
       style={{
         backgroundColor: "#fff",
-        paddingHorizontal: 16,
-        paddingVertical: 18,
+        paddingHorizontal: H_PAD,
+        paddingTop: 16,
+        paddingBottom: 20,
+        gap: 12,
       }}
     >
+      {/* Row 1 — Hero cards */}
+      <View style={{ flexDirection: "row", gap: GAP }}>
+        <HeroCard
+          label="Food"
+          subtitle="Order food & drinks"
+          image={require("@/assets/images/food_icon.png")}
+          bg="#FFF3E6"
+          accentColor="#FF8C00"
+          route="/food"
+        />
+        <HeroCard
+          label="Mart"
+          subtitle="Delivered to your door"
+          image={require("@/assets/images/mart_icon.png")}
+          bg="#E8F5E9"
+          accentColor="#2E7D32"
+          route="/mart"
+        />
+      </View>
+
+      {/* Row 2 — Small tiles */}
       <View
         style={{
           flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 8,
-          justifyContent: "flex-start",
+          gap: GAP,
+          justifyContent: "space-between",
         }}
       >
-        {services.map((item) => (
-          <ServiceCard key={item.id} item={item} />
-        ))}
+        <SmallTile
+          label="KërSpace"
+          image={require("@/assets/images/kerrspace_icon (2).png")}
+          route="/kerspace"
+          tint="#FFF5EE"
+        />
+        <SmallTile
+          label="Express"
+          image={require("@/assets/images/express_icon.png")}
+          route="/custom-delivery"
+          comingSoon
+        />
+        <SmallTile
+          label="YoBu"
+          image={require("@/assets/images/yobu_icon.png")}
+          comingSoon
+        />
+        <SmallTile
+          label="More"
+          iconName="grid-outline"
+          tint="#FFF5EE"
+          onPress={() => setShowMore(true)}
+        />
       </View>
+
+      <MoreServicesSheet
+        visible={showMore}
+        onClose={() => setShowMore(false)}
+      />
     </View>
   );
 };

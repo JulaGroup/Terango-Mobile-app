@@ -106,7 +106,9 @@ class NotificationService {
         return false;
       }
 
-      const authToken = await SecureStorage.getItem("authToken");
+      const authToken =
+        (await SecureStorage.getItem("authToken")) ||
+        (await SecureStorage.getItem("token"));
 
       // Fixed: Changed from /api/push-tokens to /api/push-token (singular) to match server route
       // Server expects: { userId, expoPushToken, deviceInfo }
@@ -150,7 +152,7 @@ class NotificationService {
   async showLocalNotification(
     title: string,
     body: string,
-    data?: NotificationData
+    data?: NotificationData,
   ): Promise<void> {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -198,7 +200,7 @@ class NotificationService {
    */
   async showOrderStatusNotification(
     status: string,
-    orderNumber: string
+    orderNumber: string,
   ): Promise<void> {
     const statusEmojis: Record<string, string> = {
       ACCEPTED: "✅",
@@ -224,7 +226,7 @@ class NotificationService {
     await this.showLocalNotification(
       `${emoji} Order #${orderNumber}`,
       message,
-      { type: "order_status", status }
+      { type: "order_status", status },
     );
   }
 
@@ -232,7 +234,7 @@ class NotificationService {
    * Add notification received listener
    */
   addNotificationReceivedListener(
-    callback: (notification: Notifications.Notification) => void
+    callback: (notification: Notifications.Notification) => void,
   ): Notifications.Subscription {
     return Notifications.addNotificationReceivedListener(callback);
   }
@@ -241,7 +243,7 @@ class NotificationService {
    * Add notification response listener (when user taps notification)
    */
   addNotificationResponseListener(
-    callback: (response: Notifications.NotificationResponse) => void
+    callback: (response: Notifications.NotificationResponse) => void,
   ): Notifications.Subscription {
     return Notifications.addNotificationResponseReceivedListener(callback);
   }

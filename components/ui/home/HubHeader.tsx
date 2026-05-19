@@ -16,7 +16,16 @@ import LocationModal from "@/components/common/LocationModal";
 import Cart from "@/components/common/Cart";
 const { width } = Dimensions.get("window");
 
+// ─── Time-aware greeting ──────────────────────────────────────────────────────
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+};
+
 const HubHeader = () => {
+  const greeting = getGreeting();
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const router = useRouter();
@@ -186,6 +195,20 @@ const HubHeader = () => {
             </TouchableOpacity> */}
             <Cart />
           </View>
+        </View>
+
+        {/* ── Greeting row ──────────────────────────────── */}
+        <View style={{ marginTop: 10, marginBottom: 2 }}>
+          <Text
+            style={{
+              fontSize: 20,
+              fontWeight: "900",
+              color: "#fff",
+              letterSpacing: -0.4,
+            }}
+          >
+            {greeting} 👋
+          </Text>
         </View>
       </View>
 

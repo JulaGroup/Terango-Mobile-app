@@ -2,7 +2,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   ScrollView,
   Text,
@@ -29,7 +29,9 @@ const SkeletonLoader = ({
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
+    let active = true;
     const pulse = () => {
+      if (!active) return;
       Animated.sequence([
         Animated.timing(opacity, {
           toValue: 1,
@@ -43,8 +45,11 @@ const SkeletonLoader = ({
         }),
       ]).start(() => pulse());
     };
-
     pulse();
+    return () => {
+      active = false;
+      opacity.stopAnimation();
+    };
   }, [opacity]);
 
   return (
@@ -175,11 +180,7 @@ const RestaurantNearYou = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchRestaurants();
-  }, [refreshKey]);
-
-  const fetchRestaurants = async () => {
+  const fetchRestaurants = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -191,27 +192,18 @@ const RestaurantNearYou = ({
       }
 
       const data = await response.json();
-
-      // Handle both array response and object with data property
       const restaurantList = Array.isArray(data) ? data : data.data || [];
-
-      // Debug each restaurant's image data
-      restaurantList.forEach((restaurant: Restaurant) => {
-        console.log(`Restaurant ${restaurant.name}:`, {
-          restaurantImageUrl: restaurant.imageUrl,
-          serviceImageUrl: restaurant.service?.imageUrl,
-          hasImage: !!(restaurant.imageUrl || restaurant.service?.imageUrl),
-        });
-      });
-
       setRestaurants(restaurantList);
     } catch (err: any) {
-      console.error("Error fetching restaurants:", err);
       setError(err.message || "Failed to load restaurants");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchRestaurants();
+  }, [refreshKey, fetchRestaurants]);
 
   const getCuisineTypes = (restaurant: Restaurant): string[] => {
     const types: string[] = [];
@@ -602,20 +594,6 @@ const RestaurantNearYou = ({
                       width: "100%",
                       height: "100%",
                       resizeMode: "cover",
-                    }}
-                    onError={(error) => {
-                      console.log(
-                        "Failed to load image for:",
-                        restaurant.name,
-                        "Error:",
-                        error,
-                      );
-                    }}
-                    onLoad={() => {
-                      console.log(
-                        "Successfully loaded image for:",
-                        restaurant.name,
-                      );
                     }}
                   />
                 ) : (

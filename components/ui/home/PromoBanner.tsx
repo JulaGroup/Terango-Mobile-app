@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function PromoSection() {
   const [copied, setCopied] = useState(false);
@@ -58,7 +59,7 @@ export default function PromoSection() {
         onPress={handleCopy}
       >
         <View style={styles.smallLeft}>
-          <Text style={styles.tagIcon}>🎉</Text>
+          <Ionicons name="gift-outline" size={24} color="#fff" />
           <View>
             <Text style={styles.smallHeading}>
               Free delivery for app launch! (code: LAUNCH2026)
@@ -79,9 +80,11 @@ export default function PromoSection() {
         </View>
 
         <View style={styles.copyButtonSmall}>
-          <Text style={styles.copyIcon}>
-            {promoUsed ? "✓" : copied ? "✓" : "📋"}
-          </Text>
+          <Ionicons
+            name={promoUsed || copied ? "checkmark-circle" : "copy-outline"}
+            size={20}
+            color="#fff"
+          />
         </View>
       </TouchableOpacity>
     </View>

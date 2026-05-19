@@ -58,14 +58,14 @@ export const OrderManagementHub: React.FC<OrderManagementHubProps> = ({
 
       switch (userType) {
         case "customer":
-          response = await orderApi.getOrders();
+          response = await orderApi.getCustomerOrders();
           break;
         case "driver":
-          response = await orderApi.getDriverOrders();
+          response = await orderApi.getAllVendorOrders();
           break;
         case "admin":
         case "operator":
-          response = await orderApi.getAllOrders();
+          response = await orderApi.getAllVendorOrders();
           break;
         default:
           response = [];
@@ -126,7 +126,7 @@ export const OrderManagementHub: React.FC<OrderManagementHubProps> = ({
       // Show order details or other actions
       Alert.alert(
         `Order #${order.id}`,
-        `Status: ${order.status}\nCustomer: ${order.customerName}\nTotal: D${order.totalPrice.toFixed(2)}`,
+        `Status: ${order.status}\nCustomer: ${order.customerName}\nTotal: D${(order.totalAmount ?? 0).toFixed(2)}`,
         [
           { text: "Close", style: "cancel" },
           {

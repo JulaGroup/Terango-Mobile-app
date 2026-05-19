@@ -587,7 +587,7 @@ export default function VendorSettings() {
             icon="help-circle"
             onPress={() => {
               // Navigate to help screen or open support
-              Alert.alert("Support", "Contact support at support@teranggo.com");
+              Alert.alert("Support", "Contact support at info@teranggo.com");
             }}
           />
 

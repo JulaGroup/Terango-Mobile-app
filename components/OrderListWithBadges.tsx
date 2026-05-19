@@ -177,7 +177,7 @@ export const OrderListWithBadges: React.FC<OrderListWithBadgesProps> = ({
 
           <View style={styles.orderActions}>
             <Text style={styles.orderPrice}>
-              {formatPrice(order.totalPrice)}
+              {formatPrice(order.totalAmount)}
             </Text>
             {showQRCodes && order.qrCode && (
               <TouchableOpacity

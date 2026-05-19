@@ -58,167 +58,165 @@ const SkeletonLoader = ({
   );
 };
 
-const ShopCard = ({
-  shop,
-  onPress,
-}: {
-  shop: Shop;
-  onPress: (shopId: string) => void;
-}) => {
-  const displayAddress = `${shop.address ?? ""}`;
+const ShopCard = React.memo(
+  ({ shop, onPress }: { shop: Shop; onPress: (shopId: string) => void }) => {
+    const displayAddress = `${shop.address ?? ""}`;
 
-  return (
-    <TouchableOpacity
-      style={{
-        width: 280,
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        marginRight: 16,
-        elevation: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
-        overflow: "hidden",
-        // Additional shadow for better distinction
-        borderWidth: 0.5,
-        borderColor: "rgba(0, 0, 0, 0.08)",
-      }}
-      onPress={() => onPress(shop.id)}
-      activeOpacity={0.8}
-    >
-      {/* Shop Image */}
-      <View style={{ height: 120, position: "relative" }}>
-        {shop.imageUrl ? (
-          <Image
-            source={{ uri: shop.imageUrl }}
-            style={{ width: "100%", height: "100%" }}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory-disk"
-          />
-        ) : (
+    return (
+      <TouchableOpacity
+        style={{
+          width: 280,
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          marginRight: 16,
+          elevation: 12,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.25,
+          shadowRadius: 15,
+          overflow: "hidden",
+          // Additional shadow for better distinction
+          borderWidth: 0.5,
+          borderColor: "rgba(0, 0, 0, 0.08)",
+        }}
+        onPress={() => onPress(shop.id)}
+        activeOpacity={0.8}
+      >
+        {/* Shop Image */}
+        <View style={{ height: 120, position: "relative" }}>
+          {shop.imageUrl ? (
+            <Image
+              source={{ uri: shop.imageUrl }}
+              style={{ width: "100%", height: "100%" }}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View
+              style={{
+                width: "100%",
+                height: "100%",
+                backgroundColor: "#F3F4F6",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Ionicons name="storefront" size={32} color="#9CA3AF" />
+            </View>
+          )}
+
+          {/* Status Badge */}
           <View
             style={{
-              width: "100%",
-              height: "100%",
-              backgroundColor: "#F3F4F6",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons name="storefront" size={32} color="#9CA3AF" />
-          </View>
-        )}
-
-        {/* Status Badge */}
-        <View
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            backgroundColor:
-              shop.isActive && shop.acceptsOrders
-                ? "rgba(0,200,81,0.9)"
-                : "rgba(239,68,68,0.9)",
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            borderRadius: 12,
-          }}
-        >
-          <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>
-            {shop.isActive && shop.acceptsOrders ? "Open" : "Closed"}
-          </Text>
-        </View>
-      </View>
-
-      {/* Shop Info */}
-      <View style={{ padding: 16 }}>
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: "700",
-            color: "#1F2937",
-            marginBottom: 4,
-          }}
-          numberOfLines={1}
-        >
-          {shop.name}
-        </Text>
-
-        {shop.description ? (
-          <Text
-            style={{
-              fontSize: 12,
-              color: "#6B7280",
-              marginBottom: 8,
-              lineHeight: 16,
-            }}
-            numberOfLines={2}
-          >
-            {shop.description}
-          </Text>
-        ) : null}
-
-        {/* Shop Type */}
-        {shop.shopType && (
-          <View
-            style={{
-              backgroundColor: "#F3F4F6",
+              position: "absolute",
+              top: 8,
+              right: 8,
+              backgroundColor:
+                shop.isActive && shop.acceptsOrders
+                  ? "rgba(0,200,81,0.9)"
+                  : "rgba(239,68,68,0.9)",
               paddingHorizontal: 8,
-              paddingVertical: 2,
-              borderRadius: 8,
-              alignSelf: "flex-start",
-              marginBottom: 8,
+              paddingVertical: 4,
+              borderRadius: 12,
             }}
           >
-            <Text style={{ fontSize: 10, color: "#6B7280", fontWeight: "500" }}>
-              {shop.shopType}
+            <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>
+              {shop.isActive && shop.acceptsOrders ? "Open" : "Closed"}
             </Text>
           </View>
-        )}
+        </View>
 
-        {/* Rating and Location */}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            marginTop: 4,
-          }}
-        >
-          <View
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: PrimaryColor,
-              marginRight: 6,
-            }}
-          />
+        {/* Shop Info */}
+        <View style={{ padding: 16 }}>
           <Text
             style={{
-              fontSize: 12,
-              color: "#6B7280",
-              fontWeight: "500",
-              flex: 1,
+              fontSize: 16,
+              fontWeight: "700",
+              color: "#1F2937",
+              marginBottom: 4,
             }}
             numberOfLines={1}
           >
-            {displayAddress}
+            {shop.name}
           </Text>
-        </View>
 
-        {/* Minimum Order */}
-        {typeof shop.minimumOrderAmount === "number" &&
-          shop.minimumOrderAmount > 0 && (
-            <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8 }}>
-              Min. order: D{shop.minimumOrderAmount.toFixed(2)}
+          {shop.description ? (
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#6B7280",
+                marginBottom: 8,
+                lineHeight: 16,
+              }}
+              numberOfLines={2}
+            >
+              {shop.description}
             </Text>
+          ) : null}
+
+          {/* Shop Type */}
+          {shop.shopType && (
+            <View
+              style={{
+                backgroundColor: "#F3F4F6",
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 8,
+                alignSelf: "flex-start",
+                marginBottom: 8,
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, color: "#6B7280", fontWeight: "500" }}
+              >
+                {shop.shopType}
+              </Text>
+            </View>
           )}
-      </View>
-    </TouchableOpacity>
-  );
-};
+
+          {/* Rating and Location */}
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: 4,
+            }}
+          >
+            <View
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: PrimaryColor,
+                marginRight: 6,
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                color: "#6B7280",
+                fontWeight: "500",
+                flex: 1,
+              }}
+              numberOfLines={1}
+            >
+              {displayAddress}
+            </Text>
+          </View>
+
+          {/* Minimum Order */}
+          {typeof shop.minimumOrderAmount === "number" &&
+            shop.minimumOrderAmount > 0 && (
+              <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8 }}>
+                Min. order: D{shop.minimumOrderAmount.toFixed(2)}
+              </Text>
+            )}
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
 
 export default function LocalShops({
   refreshKey,

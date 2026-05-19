@@ -1322,8 +1322,8 @@ export default function OrderDetailsPage() {
                         ? `\n${vendor.address}`
                         : vendor?.address &&
                             typeof vendor.address === "object" &&
-                            vendor.address.street
-                          ? `\n${vendor.address.street}, ${vendor.address.city || ""}`
+                            (vendor.address as any).street
+                          ? `\n${(vendor.address as any).street}, ${(vendor.address as any).city || ""}`
                           : ""}
                     </Text>
                   </View>

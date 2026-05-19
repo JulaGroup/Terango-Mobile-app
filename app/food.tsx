@@ -13,7 +13,6 @@ import React, {
 import {
   Animated,
   Dimensions,
-  FlatList,
   Platform,
   RefreshControl,
   ScrollView,
@@ -23,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/config";
@@ -39,6 +39,8 @@ import PromoBanner from "@/components/ui/home/PromoBanner";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 32 - 9 * 3) / 4; // 4-col grid
+const CAT_W = (width - 32 - 8 * 3) / 4;
+const CAT_H = Math.round(CAT_W * 1.25);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FoodCategory {
@@ -60,15 +62,25 @@ interface MenuItem {
 
 // ─── Food subcategory filter chips ───────────────────────────────────────────
 const FOOD_FILTERS = [
-  { id: "all", label: "All" },
-  { id: "fast-food", label: "Fast Food" },
-  { id: "local", label: "Local Dishes" },
-  { id: "african", label: "African" },
-  { id: "street", label: "Street Food" },
-  { id: "breakfast", label: "Breakfast" },
-  { id: "bakery", label: "Bakery" },
-  { id: "beverages", label: "Drinks" },
-  { id: "desserts", label: "Desserts" },
+  { id: "all", label: "All", icon: "apps-outline" },
+  { id: "fast-food", label: "Fast Food", icon: "fast-food-outline" },
+  { id: "local", label: "Local Dishes", icon: "leaf-outline" },
+  { id: "african", label: "African", icon: "earth-outline" },
+  { id: "street", label: "Street Food", icon: "walk-outline" },
+  { id: "breakfast", label: "Breakfast", icon: "sunny-outline" },
+  { id: "bakery", label: "Bakery", icon: "cafe-outline" },
+  { id: "beverages", label: "Drinks", icon: "wine-outline" },
+  { id: "desserts", label: "Desserts", icon: "ice-cream-outline" },
+];
+
+const CRAVINGS = [
+  "Benachin",
+  "Domoda",
+  "Shawarma",
+  "Afra",
+  "Yassa",
+  "Thiébou Jën",
+  "Soup",
 ];
 
 // ─── Skeleton pulse ───────────────────────────────────────────────────────────
@@ -111,64 +123,63 @@ const Skeleton = ({
   );
 };
 
-// ─── Category card (lazy image) ───────────────────────────────────────────────
-const CategoryCard = ({
+// ─── Category card — 3-col grid with gradient overlay ────────────────────────
+const CategoryCard3Col = ({
   item,
   onPress,
 }: {
   item: FoodCategory;
   onPress: (id: string, name: string) => void;
-}) => {
-  const [imgLoaded, setImgLoaded] = useState(false);
-  return (
-    <TouchableOpacity
-      onPress={() => onPress(item.id, item.name)}
-      activeOpacity={0.78}
-      style={{ width: CARD_W, alignItems: "center", marginBottom: 14 }}
-    >
-      <View
-        style={{
-          width: CARD_W,
-          height: CARD_W,
-          backgroundColor: "#FFF5EE",
-          borderRadius: 14,
-          overflow: "hidden",
-          justifyContent: "center",
-          alignItems: "center",
-          borderWidth: 1,
-          borderColor: "rgba(255,107,0,0.1)",
-        }}
-      >
-        {item.imageUrl ? (
-          <>
-            {!imgLoaded && <Skeleton w="100%" h={CARD_W} radius={14} />}
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={{ width: "100%", height: "100%", position: "absolute" }}
-              contentFit="cover"
-              onLoad={() => setImgLoaded(true)}
-              transition={300}
-            />
-          </>
-        ) : (
-          <Ionicons name="restaurant-outline" size={28} color="#ff6b00" />
-        )}
+}) => (
+  <TouchableOpacity
+    onPress={() => onPress(item.id, item.name)}
+    activeOpacity={0.8}
+    style={{
+      width: CAT_W,
+      height: CAT_H,
+      borderRadius: 14,
+      overflow: "hidden",
+      backgroundColor: "#FFF5EE",
+    }}
+  >
+    {item.imageUrl ? (
+      <Image
+        source={{ uri: item.imageUrl }}
+        style={{ width: "100%", height: "100%" }}
+        contentFit="cover"
+        transition={300}
+      />
+    ) : (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Ionicons name="restaurant-outline" size={32} color="#ff6b00" />
       </View>
+    )}
+    <LinearGradient
+      colors={["transparent", "rgba(0,0,0,0.72)"]}
+      style={{
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: CAT_H * 0.55,
+        justifyContent: "flex-end",
+        padding: 8,
+      }}
+    >
       <Text
         numberOfLines={2}
         style={{
-          marginTop: 5,
+          color: "#fff",
           fontSize: 11,
-          fontWeight: "600",
-          color: "#1a1a1a",
-          textAlign: "center",
+          fontWeight: "700",
+          lineHeight: 14,
         }}
       >
         {item.name}
       </Text>
-    </TouchableOpacity>
-  );
-};
+    </LinearGradient>
+  </TouchableOpacity>
+);
 
 // ─── Section header ───────────────────────────────────────────────────────────
 const SectionHeader = ({
@@ -243,12 +254,12 @@ export default function FoodPage() {
     const full = parts.join(", ");
     return full.length > 28 ? `${full.substring(0, 28)}\u2026` : full;
   }, [selectedAddress]);
-  const categoryPairs = useMemo(() => {
-    const pairs: FoodCategory[][] = [];
-    for (let i = 0; i < categories.length; i += 2) {
-      pairs.push(categories.slice(i, i + 2));
+  const categoryRows = useMemo(() => {
+    const rows: FoodCategory[][] = [];
+    for (let i = 0; i < categories.length; i += 4) {
+      rows.push(categories.slice(i, i + 4));
     }
-    return pairs;
+    return rows;
   }, [categories]);
 
   const fetchCategories = useCallback(async () => {
@@ -486,32 +497,42 @@ export default function FoodPage() {
               }}
               style={{ backgroundColor: "#fff" }}
             >
-              {FOOD_FILTERS.map((f) => (
-                <TouchableOpacity
-                  key={f.id}
-                  onPress={() => handleFilterPress(f.id, f.label)}
-                  activeOpacity={0.8}
-                  style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 8,
-                    borderRadius: 20,
-                    backgroundColor:
-                      activeFilter === f.id ? "#ff6b00" : "#f5f5f5",
-                    borderWidth: activeFilter === f.id ? 0 : 1,
-                    borderColor: "#eee",
-                  }}
-                >
-                  <Text
+              {FOOD_FILTERS.map((f) => {
+                const isActive = activeFilter === f.id;
+                return (
+                  <TouchableOpacity
+                    key={f.id}
+                    onPress={() => handleFilterPress(f.id, f.label)}
+                    activeOpacity={0.8}
                     style={{
-                      fontSize: 13,
-                      fontWeight: "600",
-                      color: activeFilter === f.id ? "#fff" : "#555",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      paddingHorizontal: 14,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: isActive ? "#ff6b00" : "#f5f5f5",
+                      borderWidth: isActive ? 0 : 1,
+                      borderColor: "#eee",
+                      gap: 5,
                     }}
                   >
-                    {f.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Ionicons
+                      name={f.icon as any}
+                      size={15}
+                      color={isActive ? "#fff" : "#888"}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: isActive ? "#fff" : "#555",
+                      }}
+                    >
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
 
             <Divider />
@@ -519,58 +540,39 @@ export default function FoodPage() {
             {/* ── Promo banners (free delivery + launch offer) ── */}
             <PromoBanner />
 
-            {/* ── Category grid (2-row horizontal slider) ──── */}
-            <SectionHeader title="Browse by Category" />
+            {/* ── Category grid (3-col) ──── */}
+            <SectionHeader title="Categories" />
             {catLoading ? (
-              <FlatList
-                horizontal
-                data={[1, 2, 3, 4, 5, 6]}
-                keyExtractor={(i) => `cat-sk-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  gap: 10,
-                }}
-                renderItem={() => (
-                  <View style={{ gap: 8 }}>
-                    <View style={{ alignItems: "center" }}>
-                      <Skeleton w={CARD_W} h={CARD_W} radius={14} />
-                      <View style={{ marginTop: 5 }}>
-                        <Skeleton w={CARD_W * 0.75} h={10} />
-                      </View>
-                    </View>
-                    <View style={{ alignItems: "center" }}>
-                      <Skeleton w={CARD_W} h={CARD_W} radius={14} />
-                      <View style={{ marginTop: 5 }}>
-                        <Skeleton w={CARD_W * 0.75} h={10} />
-                      </View>
-                    </View>
+              <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
+                {[0, 1].map((ri) => (
+                  <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
+                    {[0, 1, 2, 3].map((ci) => (
+                      <Skeleton key={ci} w={CAT_W} h={CAT_H} radius={14} />
+                    ))}
                   </View>
-                )}
-              />
+                ))}
+              </View>
             ) : (
-              <FlatList
-                horizontal
-                data={categoryPairs}
-                keyExtractor={(_, i) => `cat-col-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}
-                renderItem={({ item: pair }) => (
-                  <View style={{ marginRight: 10 }}>
-                    {pair.map((cat) => (
-                      <CategoryCard
+              <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
+                {categoryRows.map((row, ri) => (
+                  <View
+                    key={`row-${ri}`}
+                    style={{ flexDirection: "row", gap: 8 }}
+                  >
+                    {row.map((cat) => (
+                      <CategoryCard3Col
                         key={cat.id}
                         item={cat}
                         onPress={handleCategoryPress}
                       />
                     ))}
+                    {row.length < 4 &&
+                      Array.from({ length: 4 - row.length }).map((_, j) => (
+                        <View key={`empty-${j}`} style={{ width: CAT_W }} />
+                      ))}
                   </View>
-                )}
-              />
+                ))}
+              </View>
             )}
 
             <Divider />
