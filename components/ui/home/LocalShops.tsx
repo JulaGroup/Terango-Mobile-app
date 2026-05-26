@@ -5,6 +5,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
+import { getOperatingStatus } from "@/utils/openingHours";
 import { useRouter } from "expo-router";
 
 interface Shop {
@@ -22,6 +23,7 @@ interface Shop {
   totalReviews?: number;
   isActive: boolean;
   acceptsOrders: boolean;
+  openingHours?: any;
   minimumOrderAmount?: number;
   products?: Product[];
 }
@@ -61,6 +63,11 @@ const SkeletonLoader = ({
 const ShopCard = React.memo(
   ({ shop, onPress }: { shop: Shop; onPress: (shopId: string) => void }) => {
     const displayAddress = `${shop.address ?? ""}`;
+    const isShopOpen = getOperatingStatus({
+      openingHours: shop.openingHours,
+      isActive: shop.isActive,
+      acceptsOrders: shop.acceptsOrders,
+    }).isOpen;
 
     return (
       <TouchableOpacity
@@ -112,17 +119,16 @@ const ShopCard = React.memo(
               position: "absolute",
               top: 8,
               right: 8,
-              backgroundColor:
-                shop.isActive && shop.acceptsOrders
-                  ? "rgba(0,200,81,0.9)"
-                  : "rgba(239,68,68,0.9)",
+              backgroundColor: isShopOpen
+                ? "rgba(0,200,81,0.9)"
+                : "rgba(239,68,68,0.9)",
               paddingHorizontal: 8,
               paddingVertical: 4,
               borderRadius: 12,
             }}
           >
             <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>
-              {shop.isActive && shop.acceptsOrders ? "Open" : "Closed"}
+              {isShopOpen ? "Open" : "Closed"}
             </Text>
           </View>
         </View>

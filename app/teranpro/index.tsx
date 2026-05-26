@@ -23,6 +23,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/config";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width } = Dimensions.get("window");
 const ORANGE = "#ff6b00";
@@ -617,6 +619,7 @@ const ServiceCard = ({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function TeranProScreen() {
+  const { flags } = useMaintenance();
   const router = useRouter();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -702,6 +705,10 @@ export default function TeranProScreen() {
 
   const navigateTo = (id: string) =>
     router.push({ pathname: "/teranpro/[id]", params: { id } } as any);
+
+  if (flags.teranproMaintenanceMode) {
+    return <MaintenanceScreen serviceName="TeranPro Services" />;
+  }
 
   return (
     <SafeAreaView

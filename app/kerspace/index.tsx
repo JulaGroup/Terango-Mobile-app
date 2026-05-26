@@ -24,6 +24,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/config";
 import AdvertCard from "@/components/ui/home/AdvertCard";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width } = Dimensions.get("window");
 const ORANGE = "#ff6b00";
@@ -775,6 +777,7 @@ const PropertyListRow = ({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function KerSpaceScreen() {
+  const { flags } = useMaintenance();
   const router = useRouter();
 
   // Data
@@ -856,6 +859,10 @@ export default function KerSpaceScreen() {
 
   const navigateTo = (id: string) =>
     router.push({ pathname: "/kerspace/[id]", params: { id } } as any);
+
+  if (flags.kerspaceMaintenanceMode) {
+    return <MaintenanceScreen serviceName="KërSpace Real Estate" />;
+  }
 
   return (
     <SafeAreaView

@@ -27,6 +27,8 @@ import { SavedLocationDropdown } from "@/components/express/SavedLocationDropdow
 import LocationModal from "@/components/common/LocationModal";
 import { useAddress } from "@/context/AddressContext";
 import { Address } from "@/services/AddressService";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 import {
   ExpressVehicleCard,
   VehicleOption,
@@ -370,6 +372,7 @@ const qs = StyleSheet.create({
 
 // ── Main Screen ────────────────────────────────────────────
 export default function CustomDeliveryScreen() {
+  const { flags } = useMaintenance();
   const router = useRouter();
   const { selectedAddress, setSelectedAddress, addresses, fetchAddresses } =
     useAddress();
@@ -861,6 +864,10 @@ export default function CustomDeliveryScreen() {
     estimatedPrice != null &&
     !loadingQuotes &&
     !isSubmitting;
+
+  if (flags.expressDeliveryMaintenance) {
+    return <MaintenanceScreen serviceName="Express Delivery" />;
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>

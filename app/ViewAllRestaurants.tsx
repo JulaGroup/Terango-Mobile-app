@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import { API_URL } from "@/constants/config";
+import { getOperatingStatus } from "@/utils/openingHours";
 
 interface Restaurant {
   id: string;
@@ -24,6 +25,7 @@ interface Restaurant {
   city?: string;
   isActive: boolean;
   acceptsOrders: boolean;
+  openingHours?: any;
   service?: {
     id?: string;
     name?: string;
@@ -154,7 +156,11 @@ export default function ViewAllRestaurants() {
             const cuisineTypes = getCuisineTypes(restaurant);
             const displayAddress =
               restaurant.address || restaurant.service?.location || "Location";
-            const isOpen = restaurant.isActive && restaurant.acceptsOrders;
+            const isOpen = getOperatingStatus({
+              openingHours: restaurant.openingHours,
+              isActive: restaurant.isActive,
+              acceptsOrders: restaurant.acceptsOrders,
+            }).isOpen;
 
             return (
               <TouchableOpacity

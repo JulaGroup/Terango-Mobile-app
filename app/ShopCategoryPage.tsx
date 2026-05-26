@@ -24,6 +24,7 @@ import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { OpeningHours } from "@/lib/api";
+import { getOperatingStatus } from "@/utils/openingHours";
 
 interface Product {
   id: string;
@@ -434,6 +435,44 @@ const ShopCategoryPage = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Products */}
+      {shopMeta &&
+        !getOperatingStatus({
+          openingHours: shopMeta.openingHours,
+          isActive: shopMeta.isActive ?? undefined,
+          acceptsOrders: shopMeta.acceptsOrders ?? undefined,
+        }).isOpen && (
+          <View
+            style={{
+              backgroundColor: "#FEF2F2",
+              borderLeftWidth: 4,
+              borderLeftColor: "#EF4444",
+              marginHorizontal: 16,
+              marginBottom: 8,
+              marginTop: 4,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Ionicons name="time-outline" size={18} color="#EF4444" />
+            <Text
+              style={{
+                color: "#B91C1C",
+                fontSize: 13,
+                fontWeight: "600",
+                flex: 1,
+              }}
+            >
+              This shop is currently closed. You can browse but cannot add items
+              to cart.
+            </Text>
+          </View>
+        )}
 
       {/* Products */}
       {loading ? (

@@ -20,6 +20,7 @@ import { router } from "expo-router";
 import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
+import { getOperatingStatus } from "@/utils/openingHours";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import MealItemCard from "@/components/common/MealItemCard";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
@@ -287,17 +288,30 @@ const SearchModal: React.FC<SearchModalProps> = ({
                 </View>
               )}
 
-              {restaurant.isActive && (
-                <View
-                  style={[
-                    styles.modernStatusBadge,
-                    { backgroundColor: "rgba(34,197,94,0.95)" },
-                  ]}
-                >
-                  <View style={styles.statusIndicator} />
-                  <Text style={styles.modernStatusText}>Open</Text>
-                </View>
-              )}
+              {(() => {
+                const isOpen = getOperatingStatus({
+                  openingHours: restaurant.openingHours,
+                  isActive: restaurant.isActive,
+                  acceptsOrders: restaurant.acceptsOrders,
+                }).isOpen;
+                return (
+                  <View
+                    style={[
+                      styles.modernStatusBadge,
+                      {
+                        backgroundColor: isOpen
+                          ? "rgba(34,197,94,0.95)"
+                          : "rgba(239,68,68,0.95)",
+                      },
+                    ]}
+                  >
+                    <View style={styles.statusIndicator} />
+                    <Text style={styles.modernStatusText}>
+                      {isOpen ? "Open" : "Closed"}
+                    </Text>
+                  </View>
+                );
+              })()}
             </View>
 
             <View style={styles.modernCardContent}>
@@ -339,92 +353,107 @@ const SearchModal: React.FC<SearchModalProps> = ({
           </View>
           <Text style={styles.sectionCount}>{results.shops.length}</Text>
         </View>
-        {results.shops.map((shop) => (
-          <TouchableOpacity
-            key={shop.id}
-            style={styles.modernCard}
-            onPress={() => {
-              onClose();
-              router.push({
-                pathname: "/shop-details",
-                params: { shopId: shop.id },
-              });
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={styles.modernImageContainer}>
-              {shop.imageUrl ? (
-                <Image
-                  source={{ uri: shop.imageUrl }}
-                  style={{
-                    width: "100%" as const,
-                    height: "100%" as const,
-                    borderTopLeftRadius: 16,
-                    borderTopRightRadius: 16,
-                  }}
-                  onError={() => {
-                    // Could add error state handling here
-                  }}
-                />
-              ) : (
-                <View style={styles.modernImagePlaceholder}>
-                  <Ionicons name="storefront" size={40} color="#94a3b8" />
-                </View>
-              )}
-
-              <View
-                style={[
-                  styles.modernStatusBadge,
-                  {
-                    backgroundColor: shop.isActive
-                      ? "rgba(34,197,94,0.95)"
-                      : "rgba(239,68,68,0.95)",
-                  },
-                ]}
-              >
-                <View style={styles.statusIndicator} />
-                <Text style={styles.modernStatusText}>
-                  {shop.isActive ? "Open" : "Closed"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.modernCardContent}>
-              <View style={styles.modernCardHeader}>
-                <Text style={styles.modernCardTitle} numberOfLines={1}>
-                  {shop.name}
-                </Text>
-                {shop.shopType && (
-                  <View style={styles.modernTypeBadge}>
-                    <Text style={styles.modernTypeText}>{shop.shopType}</Text>
+        {results.shops.map((shop) => {
+          const shopIsOpen = getOperatingStatus({
+            openingHours: shop.openingHours,
+            isActive: shop.isActive,
+            acceptsOrders: shop.acceptsOrders,
+          }).isOpen;
+          return (
+            <TouchableOpacity
+              key={shop.id}
+              style={styles.modernCard}
+              onPress={() => {
+                onClose();
+                router.push({
+                  pathname: "/shop-details",
+                  params: { shopId: shop.id },
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={styles.modernImageContainer}>
+                {shop.imageUrl ? (
+                  <Image
+                    source={{ uri: shop.imageUrl }}
+                    style={{
+                      width: "100%" as const,
+                      height: "100%" as const,
+                      borderTopLeftRadius: 16,
+                      borderTopRightRadius: 16,
+                    }}
+                    onError={() => {
+                      // Could add error state handling here
+                    }}
+                  />
+                ) : (
+                  <View style={styles.modernImagePlaceholder}>
+                    <Ionicons name="storefront" size={40} color="#94a3b8" />
                   </View>
                 )}
-              </View>
 
-              <Text style={styles.modernCardDescription} numberOfLines={2}>
-                {shop.description || "Quality products served fresh"}
-              </Text>
-
-              <View style={styles.modernCardFooter}>
-                <View style={styles.modernLocationInfo}>
-                  <Ionicons name="location-outline" size={12} color="#64748b" />
-                  <Text style={styles.modernLocationText} numberOfLines={1}>
-                    {`${shop.city ?? ""}${
-                      shop.city && shop.address ? ", " : ""
-                    }${shop.address ?? "Location"}`}
+                <View
+                  style={[
+                    styles.modernStatusBadge,
+                    {
+                      backgroundColor: shopIsOpen
+                        ? "rgba(34,197,94,0.95)"
+                        : "rgba(239,68,68,0.95)",
+                    },
+                  ]}
+                >
+                  <View style={styles.statusIndicator} />
+                  <Text style={styles.modernStatusText}>
+                    {shopIsOpen ? "Open" : "Closed"}
                   </Text>
                 </View>
               </View>
 
-              {shop.acceptsOrders && (
-                <View style={styles.acceptsOrdersBadge}>
-                  <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-                  <Text style={styles.acceptsOrdersText}>Accepts Orders</Text>
+              <View style={styles.modernCardContent}>
+                <View style={styles.modernCardHeader}>
+                  <Text style={styles.modernCardTitle} numberOfLines={1}>
+                    {shop.name}
+                  </Text>
+                  {shop.shopType && (
+                    <View style={styles.modernTypeBadge}>
+                      <Text style={styles.modernTypeText}>{shop.shopType}</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        ))}
+
+                <Text style={styles.modernCardDescription} numberOfLines={2}>
+                  {shop.description || "Quality products served fresh"}
+                </Text>
+
+                <View style={styles.modernCardFooter}>
+                  <View style={styles.modernLocationInfo}>
+                    <Ionicons
+                      name="location-outline"
+                      size={12}
+                      color="#64748b"
+                    />
+                    <Text style={styles.modernLocationText} numberOfLines={1}>
+                      {`${shop.city ?? ""}${
+                        shop.city && shop.address ? ", " : ""
+                      }${shop.address ?? "Location"}`}
+                    </Text>
+                  </View>
+                </View>
+
+                {shop.acceptsOrders && (
+                  <View style={styles.acceptsOrdersBadge}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={12}
+                      color="#10b981"
+                    />
+                    <Text style={styles.acceptsOrdersText}>Accepts Orders</Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
     );
   };

@@ -71,7 +71,7 @@ export const AdminConfirmationSystem: React.FC<
       setLoading(true);
       const response = await orderApi.getPendingConfirmations();
       if (response.success) {
-        setPendingConfirmations(response.data || []);
+        setPendingConfirmations((response.data || []) as PendingConfirmation[]);
       }
     } catch (error) {
       console.error("Failed to load pending confirmations:", error);
@@ -97,13 +97,17 @@ export const AdminConfirmationSystem: React.FC<
             style: "default",
             onPress: async () => {
               try {
-                const response = await orderApi.adminConfirmDelivery(orderId, {
-                  confirmationId,
-                  adminId:
-                    mode === "admin" ? "current_admin" : "current_operator",
-                  confirmedAt: new Date().toISOString(),
-                  notes: "Manual confirmation by admin due to QR scan failure",
-                });
+                const response = await orderApi.adminConfirmDelivery(
+                  orderId,
+                  mode === "admin" ? "current_admin" : "current_operator",
+                  {
+                    reason: "QR_FAILED",
+                    notes:
+                      "Manual confirmation by admin due to QR scan failure",
+                    verificationMethod: "PHONE_CALL",
+                    customerConfirmed: true,
+                  },
+                );
 
                 if (response.success) {
                   onConfirmDelivery(orderId, "Manual admin confirmation");
@@ -112,7 +116,7 @@ export const AdminConfirmationSystem: React.FC<
                 } else {
                   Alert.alert(
                     "Error",
-                    response.message || "Failed to confirm delivery",
+                    (response as any).message || "Failed to confirm delivery",
                   );
                 }
               } catch (error) {
@@ -140,7 +144,7 @@ export const AdminConfirmationSystem: React.FC<
         {
           text: "Reject",
           style: "destructive",
-          onPress: async (reason) => {
+          onPress: async (reason: string | undefined) => {
             if (!reason || reason.trim().length === 0) {
               Alert.alert("Error", "Please provide a reason for rejection");
               return;
@@ -164,7 +168,7 @@ export const AdminConfirmationSystem: React.FC<
               } else {
                 Alert.alert(
                   "Error",
-                  response.message || "Failed to reject delivery",
+                  (response as any).message || "Failed to reject delivery",
                 );
               }
             } catch (error) {

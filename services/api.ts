@@ -61,6 +61,7 @@ export interface Product {
     id: string;
     name: string;
     city?: string;
+    vendorId?: string;
   };
   subCategory?: {
     name: string;
@@ -118,7 +119,7 @@ class RestaurantAPI {
       search?: string;
       sortBy?: "rating" | "name" | "reviews";
       sortOrder?: "asc" | "desc";
-    }
+    },
   ): Promise<PaginationResponse<Restaurant>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -154,7 +155,7 @@ class RestaurantAPI {
   async searchRestaurants(
     query: string,
     page = 1,
-    limit = 20
+    limit = 20,
   ): Promise<PaginationResponse<Restaurant>> {
     return this.getRestaurants(page, limit, { search: query });
   }
@@ -175,7 +176,7 @@ class ShopAPI {
       shopType?: string;
       sortBy?: "rating" | "name" | "reviews";
       sortOrder?: "asc" | "desc";
-    }
+    },
   ): Promise<PaginationResponse<any>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -214,7 +215,7 @@ class ProductAPI {
       sortBy?: "price" | "name" | "rating" | "createdAt";
       sortOrder?: "asc" | "desc";
       isAvailable?: boolean;
-    }
+    },
   ): Promise<PaginationResponse<any>> {
     const params = new URLSearchParams({
       page: page.toString(),
@@ -256,7 +257,7 @@ class MenuItemAPI {
       sortBy?: "price" | "name" | "rating";
       sortOrder?: "asc" | "desc";
       isAvailable?: boolean;
-    }
+    },
   ): Promise<PaginationResponse<any>> {
     const params = new URLSearchParams({
       page: page.toString(),

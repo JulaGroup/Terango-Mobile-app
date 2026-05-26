@@ -160,9 +160,9 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
             )}
           </View>
           <Text style={styles.addressText} numberOfLines={2}>
-            {item.addressLine || item.fullAddress || item.name}
+            {item.addressLine}
           </Text>
-          {item.town && <Text style={styles.townText}>{item.town}</Text>}
+          {item.city && <Text style={styles.townText}>{item.city}</Text>}
         </View>
 
         {isSelected && (
@@ -194,7 +194,7 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
                   {selectedAddress.label || "Location"}
                 </Text>
                 <Text style={styles.selectedAddress} numberOfLines={2}>
-                  {selectedAddress.addressLine || selectedAddress.fullAddress || selectedAddress.name}
+                  {selectedAddress.addressLine}
                 </Text>
               </>
             ) : (

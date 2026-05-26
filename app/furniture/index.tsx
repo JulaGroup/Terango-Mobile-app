@@ -23,6 +23,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { API_URL } from "@/constants/config";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width } = Dimensions.get("window");
 const ORANGE = "#ff6b00";
@@ -410,7 +412,7 @@ const CategorySlider = ({
     ...categories,
   ];
   const ROWS = 3;
-  const columns: (typeof allItems)[][] = [];
+  const columns: (typeof allItems)[number][][] = [];
   for (let i = 0; i < allItems.length; i += ROWS) {
     columns.push(allItems.slice(i, i + ROWS));
   }
@@ -640,6 +642,7 @@ const ListingCard = ({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function FurnitureScreen() {
+  const { flags } = useMaintenance();
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -732,6 +735,10 @@ export default function FurnitureScreen() {
   const goToDetail = (id: string) => router.push(`/furniture/${id}` as any);
 
   const nonFeatured = listings.filter((i) => !i.isFeatured);
+
+  if (flags.furnitureMaintenanceMode) {
+    return <MaintenanceScreen serviceName="Furniture Marketplace" />;
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F6F3" }}>

@@ -1,5 +1,6 @@
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
+import { getOperatingStatus } from "@/utils/openingHours";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect, useRef, useCallback } from "react";
@@ -137,6 +138,7 @@ interface Restaurant {
   city?: string;
   isActive: boolean;
   acceptsOrders: boolean;
+  openingHours?: any;
   createdAt: string;
   updatedAt: string;
   service: {
@@ -544,6 +546,11 @@ const RestaurantNearYou = ({
       >
         {restaurants.slice(0, 8).map((restaurant, index) => {
           const cuisineTypes = getCuisineTypes(restaurant);
+          const isOpen = getOperatingStatus({
+            openingHours: restaurant.openingHours,
+            isActive: restaurant.isActive,
+            acceptsOrders: restaurant.acceptsOrders,
+          }).isOpen;
 
           // Prefer explicit address (city + address) when available, otherwise fall back to service.location or a placeholder
           const displayAddress =
@@ -620,10 +627,7 @@ const RestaurantNearYou = ({
                     position: "absolute",
                     top: 12,
                     left: 12,
-                    backgroundColor:
-                      restaurant.isActive && restaurant.acceptsOrders
-                        ? "#27AE60"
-                        : "#EF4444",
+                    backgroundColor: isOpen ? "#27AE60" : "#EF4444",
                     borderRadius: 12,
                     paddingHorizontal: 8,
                     paddingVertical: 4,
@@ -636,9 +640,7 @@ const RestaurantNearYou = ({
                       fontWeight: "600",
                     }}
                   >
-                    {restaurant.isActive && restaurant.acceptsOrders
-                      ? "OPEN"
-                      : "CLOSED"}
+                    {isOpen ? "OPEN" : "CLOSED"}
                   </Text>
                 </View>
 

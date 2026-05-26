@@ -21,6 +21,8 @@ interface QRCodeDisplayProps {
   showFullDetails?: boolean;
   onQRGenerated?: (qrData: string) => void;
   containerStyle?: any;
+  size?: string;
+  showActions?: boolean;
 }
 
 interface QRCodeData {
@@ -269,9 +271,11 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
   const isExpressOrder = order.deliveryType === "EXPRESS";
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View style={[styles.container, containerStyle] as any}>
       {/* Header */}
-      <View style={[styles.header, isExpressOrder && styles.expressHeader]}>
+      <View
+        style={[styles.header, isExpressOrder && styles.expressHeader] as any}
+      >
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>
             {isExpressOrder ? "⚡ Express Delivery" : "📦 Delivery"} QR Code
@@ -537,4 +541,4 @@ const styles = StyleSheet.create({
     color: "#666",
     lineHeight: 18,
   },
-});
+}) as Record<string, any>;

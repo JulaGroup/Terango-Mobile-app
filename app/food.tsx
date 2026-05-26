@@ -36,6 +36,8 @@ import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import ActiveOrderBanner from "@/components/ui/home/ActiveOrderBanner";
 import PromoBanner from "@/components/ui/home/PromoBanner";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 32 - 9 * 3) / 4; // 4-col grid
@@ -232,6 +234,7 @@ const Divider = () => (
 
 // ─── Food Page ────────────────────────────────────────────────────────────────
 export default function FoodPage() {
+  const { flags } = useMaintenance();
   const router = useRouter();
   const { selectedAddress, setSelectedAddress } = useAddress();
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -346,6 +349,10 @@ export default function FoodPage() {
   const handleMealPress = (id: string) => {
     router.push({ pathname: "/menuitem/[id]", params: { id } } as any);
   };
+
+  if (flags.restaurantMaintenanceMode) {
+    return <MaintenanceScreen serviceName="Restaurant Ordering" />;
+  }
 
   return (
     <SafeAreaView

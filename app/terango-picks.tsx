@@ -16,7 +16,9 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
-import SearchBar from "@/components/common/SearchBar"; // Reusable, animated search UI
+import SearchBar from "@/components/common/SearchBar";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2; // 2 columns with padding
@@ -54,6 +56,7 @@ const SkeletonCard = () => (
 );
 
 export default function TeranGOPicksPage() {
+  const { flags } = useMaintenance();
   const router = useRouter();
   const { addToCart, getQuantity, removeFromCart, cartItems } = useCart();
   const [products, setProducts] = useState<TeranGOProduct[]>([]);
@@ -216,6 +219,10 @@ export default function TeranGOPicksPage() {
       </View>
     );
   };
+
+  if (flags.storeMaintenanceMode) {
+    return <MaintenanceScreen serviceName="TeranGO Store" />;
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>

@@ -11,5 +11,12 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"]
+  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "exclude": [
+    "app/custom-delivery/index-fixed.tsx",
+    "app/order-tracking.web.tsx",
+    "components/express/ExpressLocationPicker.tsx",
+    "components/express/ModernLocationPicker.tsx",
+    "components/OrderManagementHub.tsx"
+  ]
 }

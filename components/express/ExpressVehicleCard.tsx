@@ -34,6 +34,7 @@ export const VEHICLE_CONFIG: Record<
   VehicleType,
   {
     emoji: string;
+    iconName: string;
     label: string;
     description: string;
     weightRange: string;
@@ -43,6 +44,7 @@ export const VEHICLE_CONFIG: Record<
 > = {
   BIKE: {
     emoji: "🏍️",
+    iconName: "bicycle-outline",
     label: "Motorbike",
     description: "Fast food delivery",
     weightRange: "0-25kg",
@@ -51,6 +53,7 @@ export const VEHICLE_CONFIG: Record<
   },
   KEKE_CARGO: {
     emoji: "🛺",
+    iconName: "car-outline",
     label: "Keke Cargo",
     description: "Perfect for rice bags",
     weightRange: "25-250kg",
@@ -59,6 +62,7 @@ export const VEHICLE_CONFIG: Record<
   },
   CAR: {
     emoji: "🚗",
+    iconName: "car-sport-outline",
     label: "Car",
     description: "Medium to heavy loads",
     weightRange: "25-500kg",
@@ -67,6 +71,7 @@ export const VEHICLE_CONFIG: Record<
   },
   VAN: {
     emoji: "🚐",
+    iconName: "bus-outline",
     label: "Van",
     description: "Heavy cargo",
     weightRange: "250-1000kg",
@@ -75,6 +80,7 @@ export const VEHICLE_CONFIG: Record<
   },
   LORRY: {
     emoji: "🚚",
+    iconName: "cube-outline",
     label: "Mini Truck",
     description: "Industrial freight",
     weightRange: "500kg+",

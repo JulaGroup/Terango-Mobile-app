@@ -37,6 +37,8 @@ import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import ActiveOrderBanner from "@/components/ui/home/ActiveOrderBanner";
 import PromoBanner from "@/components/ui/home/PromoBanner";
 import TeranGOPicks from "@/components/ui/home/TerangoPicks";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width } = Dimensions.get("window");
 const CARD_W = (width - 32 - 9 * 3) / 4;
@@ -284,6 +286,7 @@ const Divider = () => (
 
 // ─── Mart Page ────────────────────────────────────────────────────────────────
 export default function MartPage() {
+  const { flags } = useMaintenance();
   const router = useRouter();
   const { addToCart, getQuantity, removeFromCart } = useCart();
   const { selectedAddress, setSelectedAddress } = useAddress();
@@ -382,6 +385,10 @@ export default function MartPage() {
       params: { subCategoryId: id, subCategoryName: name },
     } as any);
   };
+
+  if (flags.shopMaintenanceMode) {
+    return <MaintenanceScreen serviceName="Shop Ordering" />;
+  }
 
   return (
     <SafeAreaView

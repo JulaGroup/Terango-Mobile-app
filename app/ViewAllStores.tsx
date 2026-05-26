@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import { API_URL } from "@/constants/config";
+import { getOperatingStatus } from "@/utils/openingHours";
 
 interface Shop {
   id: string;
@@ -31,6 +32,7 @@ interface Shop {
   totalReviews?: number;
   isActive: boolean;
   acceptsOrders: boolean;
+  openingHours?: any;
   minimumOrderAmount?: number;
   products?: Product[];
 }
@@ -258,7 +260,11 @@ export default function ViewAllStores() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
         >
           {filteredShops.map((shop) => {
-            const isOpen = shop.isActive && shop.acceptsOrders;
+            const isOpen = getOperatingStatus({
+              openingHours: shop.openingHours,
+              isActive: shop.isActive,
+              acceptsOrders: shop.acceptsOrders,
+            }).isOpen;
             const displayAddress = `${shop.address?.trim() ?? "Location"}`;
 
             return (
