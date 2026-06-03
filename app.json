@@ -12,7 +12,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "32",
+      "buildNumber": "33",
       "bundleIdentifier": "com.darboedev.terango",
       "associatedDomains": [
         "applinks:terango.gm",
@@ -56,7 +56,7 @@
       "edgeToEdgeEnabled": true,
       "googleServicesFile": "./google-services.json",
       "package": "com.darboedev.terango",
-      "versionCode": 57,
+      "versionCode": 59,
       "intentFilters": [
         {
           "action": "VIEW",
