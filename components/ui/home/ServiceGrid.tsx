@@ -529,18 +529,10 @@ const MoreServicesSheet = ({
                     key={svc.id}
                     activeOpacity={0.7}
                     onPress={() => {
-                      if (isTeranPro) {
-                        closeSheetRef.current();
-                        router.push("/teranpro" as any);
-                      } else if (isFurniture) {
-                        closeSheetRef.current();
-                        router.push("/furniture" as any);
-                      } else {
-                        Alert.alert(
-                          "Coming Soon",
-                          `${svc.label} will be available soon. Stay tuned!`,
-                        );
-                      }
+                      Alert.alert(
+                        "Coming Soon",
+                        `${svc.label} will be available soon. Stay tuned!`,
+                      );
                     }}
                     style={{
                       flexDirection: "row",
@@ -585,7 +577,7 @@ const MoreServicesSheet = ({
                     </View>
 
                     {/* Badge */}
-                    {!isTeranPro && !isFurniture && (
+                    {
                       <View
                         style={{
                           backgroundColor: "#F0F0F0",
@@ -604,7 +596,7 @@ const MoreServicesSheet = ({
                           SOON
                         </Text>
                       </View>
-                    )}
+                    }
                   </TouchableOpacity>
                 );
               })}
@@ -678,7 +670,8 @@ const ServiceGrid = () => {
           label="KërSpace"
           image={require("@/assets/images/kerrspace_icon (2).png")}
           route="/kerspace"
-          tint="#FFF5EE"
+          // tint="#FFF5EE"
+          comingSoon
         />
         <SmallTile
           label="Express"

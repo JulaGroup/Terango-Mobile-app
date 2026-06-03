@@ -629,10 +629,10 @@ export default function HomeScreen() {
             refreshKey={refreshKey}
           />
 
-          <Divider />
+          {/* <Divider /> */}
 
           {/* ⑩ KërSpace Featured Properties */}
-          <KerSpaceFeaturedSection />
+          {/* <KerSpaceFeaturedSection /> */}
 
           <Divider />
 

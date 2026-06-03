@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Dimensions,
+  TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -16,7 +17,6 @@ import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 import { useCart } from "@/context/CartContext";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
-import SearchBar from "@/components/common/SearchBar";
 import { useMaintenance } from "@/context/MaintenanceContext";
 import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
@@ -264,19 +264,30 @@ export default function TeranGOPicksPage() {
       </View>
 
       {/* Search */}
-      <View
-        style={{
-          paddingVertical: 8,
-          paddingHorizontal: 16,
-          // backgroundColor: "#fff",
-        }}
-      >
-        <SearchBar
+      <View style={styles.searchContainer}>
+        <Ionicons
+          name="search"
+          size={18}
+          color="#999"
+          style={styles.searchIcon}
+        />
+        <TextInput
+          style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search TeranGO products..."
-          fullWidth
+          placeholderTextColor="#999"
+          returnKeyType="search"
+          clearButtonMode="while-editing"
         />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            onPress={() => setSearchQuery("")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="close-circle" size={18} color="#bbb" />
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Products Grid */}
@@ -475,5 +486,25 @@ const styles = StyleSheet.create({
     color: "#666",
     marginTop: 8,
     textAlign: "center",
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#eee",
+    paddingHorizontal: 12,
+    height: 44,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: "#1a1a1a",
   },
 });
