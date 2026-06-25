@@ -5,6 +5,7 @@
   useEffect,
   ReactNode,
 } from "react";
+import { Alert, Linking } from "react-native";
 import { SecureStorage } from "@/utils/secureStorage";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
@@ -77,19 +78,74 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
     loadPermissions();
   }, []);
 
-  // Show notification modal after app loads if needed (removed auto location modal)
-  // Wait until we've finished initializing (loaded storage and checked system perms)
+  // Every app load: request any missing permissions.
+  // If permanently denied, prompt user to open Settings.
   useEffect(() => {
     if (!initialized) return;
 
-    if (!hasShownPermissionModals) {
-      setTimeout(() => {
-        if (permissions.notifications === "not-asked") {
-          setShowNotificationModal(true);
+    setTimeout(async () => {
+      const locPerm = await Location.getForegroundPermissionsAsync();
+      const notifPerm = await Notifications.getPermissionsAsync();
+
+      const locDenied = !locPerm.granted && !locPerm.canAskAgain;
+      const notifDenied = !notifPerm.granted && !notifPerm.canAskAgain;
+
+      if (!locPerm.granted) {
+        if (locPerm.canAskAgain) {
+          setShowLocationModal(true);
+        } else {
+          // Permanently denied — direct to Settings
+          Alert.alert(
+            "Location Permission Required",
+            "TeranGO needs location access to find nearby vendors and estimate delivery. Please enable it in Settings.",
+            [
+              {
+                text: "Not Now",
+                style: "cancel",
+                onPress: () => {
+                  // After skipping location, check notifications
+                  if (!notifPerm.granted) {
+                    if (notifPerm.canAskAgain) {
+                      setTimeout(() => setShowNotificationModal(true), 500);
+                    } else {
+                      setTimeout(() => {
+                        Alert.alert(
+                          "Notifications Disabled",
+                          "Enable notifications in Settings to get order updates and delivery alerts.",
+                          [
+                            { text: "Not Now", style: "cancel" },
+                            {
+                              text: "Open Settings",
+                              onPress: () => Linking.openSettings(),
+                            },
+                          ],
+                        );
+                      }, 500);
+                    }
+                  }
+                },
+              },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
+          );
+          return;
         }
-      }, 1500); // Initial delay after home screen loads
-    }
-  }, [initialized, hasShownPermissionModals, permissions]);
+      } else if (!notifPerm.granted) {
+        if (notifPerm.canAskAgain) {
+          setShowNotificationModal(true);
+        } else {
+          Alert.alert(
+            "Notifications Disabled",
+            "Enable notifications in Settings to get order updates and delivery alerts.",
+            [
+              { text: "Not Now", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
+          );
+        }
+      }
+    }, 1500);
+  }, [initialized]);
   const checkCurrentPermissions = async () => {
     try {
       // Check location permission
@@ -119,7 +175,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
     try {
       await SecureStorage.setItem(
         PERMISSION_STORAGE_KEY,
-        JSON.stringify(newPermissions)
+        JSON.stringify(newPermissions),
       );
       setPermissions(newPermissions);
     } catch (error) {
@@ -129,6 +185,21 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
   const requestLocationPermission = async (): Promise<boolean> => {
     try {
+      // If permanently denied, open Settings instead of showing system dialog
+      const current = await Location.getForegroundPermissionsAsync();
+      if (!current.canAskAgain && !current.granted) {
+        setShowLocationModal(false);
+        Alert.alert(
+          "Location Permission Required",
+          "Location access was previously denied. Please enable it in Settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ],
+        );
+        return false;
+      }
+
       setPermissions((prev) => ({ ...prev, location: "pending" }));
 
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -142,9 +213,9 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
       await savePermissionState(newPermissions);
       setShowLocationModal(false);
 
-      // Show notification modal after location is handled
+      // Always show notification modal after location is handled if not yet granted
       if (permissions.notifications === "not-asked") {
-        setTimeout(() => setShowNotificationModal(true), 2000);
+        setTimeout(() => setShowNotificationModal(true), 1500);
       }
 
       return granted;
@@ -157,6 +228,21 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
   const requestNotificationPermission = async (): Promise<boolean> => {
     try {
+      // If permanently denied, open Settings instead of showing system dialog
+      const current = await Notifications.getPermissionsAsync();
+      if (!current.canAskAgain && !current.granted) {
+        setShowNotificationModal(false);
+        Alert.alert(
+          "Notifications Disabled",
+          "Notifications were previously denied. Please enable them in Settings to receive order updates.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ],
+        );
+        return false;
+      }
+
       setPermissions((prev) => ({ ...prev, notifications: "pending" }));
 
       const { status } = await Notifications.requestPermissionsAsync();
@@ -170,11 +256,7 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
       await savePermissionState(newPermissions);
       setShowNotificationModal(false);
 
-      // Mark that we've shown the permission modals
-      await SecureStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
-      setHasShownPermissionModals(true);
-
-      // Re-check system permissions to update state and prevent repeat modal
+      // Re-check system permissions to update state
       await checkCurrentPermissions();
 
       return granted;
@@ -187,18 +269,14 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
 
   const dismissLocationModal = () => {
     setShowLocationModal(false);
-    // Mark that we've shown the permission modals
-    SecureStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
-    setHasShownPermissionModals(true);
-    // Do NOT show notification modal again if modals have been marked as shown
-    // If you want to show notification modal only once, this prevents repeat popups
+    // After dismissing location modal, show notification modal if not yet granted
+    if (permissions.notifications === "not-asked") {
+      setTimeout(() => setShowNotificationModal(true), 1000);
+    }
   };
 
   const dismissNotificationModal = async () => {
     setShowNotificationModal(false);
-    // Mark that we've shown the permission modals
-    await SecureStorage.setItem(MODALS_SHOWN_KEY, JSON.stringify(true));
-    setHasShownPermissionModals(true);
   };
 
   // Check location access and show modal only when location is needed but not accessible
@@ -219,7 +297,15 @@ export const PermissionProvider: React.FC<{ children: ReactNode }> = ({
         return false;
       }
 
-      // Location permanently denied
+      // Location permanently denied — open Settings
+      Alert.alert(
+        "Location Permission Required",
+        "Location access was denied. Please enable it in Settings to use this feature.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ],
+      );
       return false;
     } catch (error) {
       console.error("Error checking location access:", error);

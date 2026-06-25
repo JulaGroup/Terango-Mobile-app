@@ -41,7 +41,9 @@ import {
   Alert,
   TextInput,
   Platform,
+  Linking,
 } from "react-native";
+import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { useLocation } from "@/hooks/useLocation";
@@ -208,6 +210,31 @@ const LocationModal = ({
 
   const handleUseCurrentLocation = async () => {
     try {
+      // Check permission first — if denied, open Settings
+      const perm = await Location.getForegroundPermissionsAsync();
+      if (!perm.granted) {
+        if (perm.canAskAgain) {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert(
+              "Location Required",
+              "Please allow location access so we can detect your address.",
+            );
+            return;
+          }
+        } else {
+          Alert.alert(
+            "Location Permission Denied",
+            "Location access was denied. Please enable it in Settings to use this feature.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ],
+          );
+          return;
+        }
+      }
+
       const currentLoc = await getCurrentLocation();
       if (!currentLoc) {
         Alert.alert(

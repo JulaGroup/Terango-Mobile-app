@@ -395,12 +395,12 @@ export default function ProfilePage() {
       subtitle: "Manage delivery addresses",
       onPress: () => setShowLocationModal(true),
     },
-    {
-      icon: "notifications-outline",
-      title: "Notifications",
-      subtitle: "Manage your notification preferences",
-      onPress: () => setShowNotificationModal(true),
-    },
+    // {
+    //   icon: "notifications-outline",
+    //   title: "Notifications",
+    //   subtitle: "Manage your notification preferences",
+    //   onPress: () => setShowNotificationModal(true),
+    // },
     {
       icon: "help-circle-outline",
       title: "Help & Support",

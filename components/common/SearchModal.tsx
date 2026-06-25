@@ -147,12 +147,13 @@ const SearchModal: React.FC<SearchModalProps> = ({
     // Map frontend tab names to API types
     const apiType = tabType === "meals" ? "menu_items" : tabType;
 
+    const limit = tabType === "all" ? 50 : 20;
     setLoading(true);
     try {
       const response = await fetch(
         `${API_URL}/api/search?q=${encodeURIComponent(
           searchQuery,
-        )}&type=${apiType}&page=${pageNum}&limit=20`,
+        )}&type=${apiType}&page=${pageNum}&limit=${limit}`,
       );
       const data = await response.json();
 
@@ -506,10 +507,14 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       price: menuItem.price,
                       discountedPrice: menuItem.discountedPrice,
                       imageUrl: menuItem.imageUrl || "",
-                      vendorId: menuItem.menu?.restaurantId || "",
-                      vendorName: "Restaurant",
+                      vendorId:
+                        menuItem.menu?.restaurantId ||
+                        menuItem.menu?.restaurant?.id ||
+                        "",
+                      vendorName:
+                        menuItem.menu?.restaurant?.name || "Restaurant",
                       description: menuItem.description || "",
-                      entityType: "menuItem",
+                      entityType: "restaurant",
                     };
                     addToCart(cartItem);
                   }}
@@ -519,8 +524,16 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     router.push(`/menuitem/${menuItem.id}`);
                   }}
                   vendor={{
-                    vendorId: menuItem.menu?.restaurantId,
+                    vendorId:
+                      menuItem.menu?.restaurantId ||
+                      menuItem.menu?.restaurant?.id,
                     vendorType: "restaurant",
+                    vendorName: menuItem.menu?.restaurant?.name,
+                    openingHours:
+                      menuItem.menu?.restaurant?.openingHours ?? null,
+                    isActive: menuItem.menu?.restaurant?.isActive ?? null,
+                    acceptsOrders:
+                      menuItem.menu?.restaurant?.acceptsOrders ?? null,
                   }}
                 />
               </View>
@@ -574,8 +587,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       price: product.price,
                       discountedPrice: product.discountedPrice,
                       imageUrl: product.imageUrl,
-                      vendorId: product.shopId || "",
-                      vendorName: "Shop",
+                      vendorId: product.shopId || product.shop?.id || "",
+                      vendorName: product.shop?.name || "Shop",
                       description: product.description || "",
                       entityType: "shop",
                     };
@@ -587,8 +600,12 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     router.push(`/product/${product.id}`);
                   }}
                   vendor={{
-                    vendorId: product.shopId,
+                    vendorId: product.shopId || product.shop?.id,
                     vendorType: "shop",
+                    vendorName: product.shop?.name,
+                    openingHours: product.shop?.openingHours ?? null,
+                    isActive: product.shop?.isActive ?? null,
+                    acceptsOrders: product.shop?.acceptsOrders ?? null,
                   }}
                 />
               </View>

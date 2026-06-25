@@ -16,7 +16,7 @@ interface UseLocationReturn {
   getCurrentLocation: () => Promise<LocationData | null>;
   getAddressFromCoords: (
     latitude: number,
-    longitude: number
+    longitude: number,
   ) => Promise<string>;
 }
 
@@ -40,9 +40,37 @@ export const useLocation = (): UseLocationReturn => {
           return null;
         }
 
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        let location: Location.LocationObject | null = null;
+
+        // Try high accuracy first (GPS fix)
+        try {
+          location = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.High,
+          });
+        } catch (highAccuracyError: any) {
+          console.warn(
+            "[useLocation] High accuracy failed, trying last known position:",
+            highAccuracyError.message,
+          );
+
+          // Fallback 1: last known position (instant, no GPS fix needed)
+          try {
+            location = await Location.getLastKnownPositionAsync({
+              maxAge: 5 * 60 * 1000, // accept positions up to 5 minutes old
+              requiredAccuracy: 200, // within 200 metres
+            });
+          } catch (_) {}
+
+          // Fallback 2: balanced accuracy (network/cell-based, less precise but more reliable indoors)
+          if (!location) {
+            console.warn(
+              "[useLocation] No last known position, retrying with Balanced accuracy",
+            );
+            location = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+            });
+          }
+        }
 
         const locationData: LocationData = {
           latitude: location.coords.latitude,
@@ -53,7 +81,7 @@ export const useLocation = (): UseLocationReturn => {
         try {
           const address = await getAddressFromCoords(
             locationData.latitude,
-            locationData.longitude
+            locationData.longitude,
           );
           locationData.address = address;
         } catch (addressError) {
@@ -74,13 +102,13 @@ export const useLocation = (): UseLocationReturn => {
 
   const getAddressFromCoords = async (
     latitude: number,
-    longitude: number
+    longitude: number,
   ): Promise<string> => {
     try {
       // Use AddressService with rate limiting instead of Expo's reverseGeocodeAsync
       const address = await AddressService.getAddressFromCoordinates(
         latitude,
-        longitude
+        longitude,
       );
       return address || "Location found";
     } catch (error) {
