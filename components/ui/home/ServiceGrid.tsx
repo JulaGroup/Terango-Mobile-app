@@ -10,7 +10,9 @@ import {
   Text,
   TouchableOpacity,
   View,
+  StyleSheet,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -68,119 +70,172 @@ const HeroCard = ({
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale }], width: HERO_W }}>
+    <Animated.View
+      style={[
+        heroStyles.shadow,
+        {
+          transform: [{ scale }],
+          width: HERO_W,
+          borderRadius: 18,
+          backgroundColor: bg,
+        },
+      ]}
+    >
       <TouchableOpacity
         onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         activeOpacity={1}
-        style={{
-          backgroundColor: bg,
-          borderRadius: 20,
-          height: 118,
-          overflow: "hidden",
-          position: "relative",
-        }}
+        style={[heroStyles.card, { backgroundColor: bg }]}
       >
-        {/* Illustration — top-right, large, slightly bleeding */}
+        {/* Large illustration — fills right side */}
         <Image
           source={image}
-          style={{
-            position: "absolute",
-            top: -8,
-            right: -8,
-            width: 110,
-            height: 110,
-            opacity: comingSoon ? 0.2 : 0.92,
-          }}
+          style={[heroStyles.illustration, { opacity: comingSoon ? 0.18 : 1 }]}
           contentFit="contain"
         />
 
-        {/* Subtle accent strip at top */}
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            backgroundColor: accentColor,
-            opacity: 0.6,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-          }}
+        {/* Left-to-right gradient so text stays readable over illustration */}
+        <LinearGradient
+          colors={[bg, bg, `${bg}CC`, `${bg}00`]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFillObject}
+          pointerEvents="none"
         />
 
-        {/* Badge */}
-        {badge && (
-          <View
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              backgroundColor: accentColor,
-              borderRadius: 8,
-              paddingHorizontal: 7,
-              paddingVertical: 3,
-            }}
-          >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 9,
-                fontWeight: "800",
-                letterSpacing: 0.5,
-              }}
-            >
-              {badge}
-            </Text>
-          </View>
-        )}
-        {comingSoon && (
-          <View
-            style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              backgroundColor: "#888",
-              borderRadius: 8,
-              paddingHorizontal: 7,
-              paddingVertical: 3,
-            }}
-          >
-            <Text
-              style={{
-                color: "#fff",
-                fontSize: 9,
-                fontWeight: "800",
-                letterSpacing: 0.5,
-              }}
-            >
-              SOON
-            </Text>
-          </View>
-        )}
+        {/* Top inner highlight line — glass feel */}
+        <View style={heroStyles.topHighlight} />
 
-        {/* Text — absolute bottom-left */}
-        <View style={{ position: "absolute", bottom: 11, left: 12 }}>
-          <Text
-            style={{
-              fontSize: 19,
-              fontWeight: "900",
-              color: DARK,
-              letterSpacing: -0.5,
-            }}
-          >
-            {label}
-          </Text>
-          <Text style={{ fontSize: 10.5, color: "#666", marginTop: 1 }}>
-            {subtitle}
-          </Text>
+        {/* ── Content ── */}
+        <View style={heroStyles.content}>
+          {/* Label + subtitle */}
+          <View>
+            {(badge || comingSoon) && (
+              <View
+                style={[
+                  heroStyles.badge,
+                  { backgroundColor: comingSoon ? "#A0A0A0" : accentColor },
+                ]}
+              >
+                <Text style={heroStyles.badgeText}>
+                  {comingSoon ? "SOON" : badge}
+                </Text>
+              </View>
+            )}
+            <Text style={heroStyles.label}>{label}</Text>
+            <Text style={heroStyles.subtitle}>{subtitle}</Text>
+          </View>
+
+          {/* CTA row */}
+          <View style={heroStyles.ctaRow}>
+            <Text
+              style={[
+                heroStyles.ctaText,
+                { color: comingSoon ? "#ABABAB" : accentColor },
+              ]}
+            >
+              {comingSoon ? "Coming soon" : "Order now"}
+            </Text>
+            <View
+              style={[
+                heroStyles.ctaChevron,
+                { backgroundColor: comingSoon ? "#D8D8D8" : accentColor },
+              ]}
+            >
+              <Ionicons name="chevron-forward" size={12} color="#fff" />
+            </View>
+          </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
   );
 };
+
+const heroStyles = StyleSheet.create({
+  shadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.13,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  card: {
+    borderRadius: 18,
+    height: 152,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(0,0,0,0.055)",
+  },
+  illustration: {
+    position: "absolute",
+    top: -4,
+    right: -10,
+    width: 148,
+    height: 148,
+  },
+  topHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.7)",
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    justifyContent: "space-between",
+    // cap width so content doesn't bleed under illustration
+    maxWidth: "62%",
+  },
+  badge: {
+    alignSelf: "flex-start",
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginBottom: 6,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+  label: {
+    fontSize: 21,
+    fontWeight: "900",
+    color: DARK,
+    letterSpacing: -0.6,
+    lineHeight: 24,
+  },
+  subtitle: {
+    fontSize: 11,
+    color: "#777",
+    marginTop: 3,
+    lineHeight: 14,
+  },
+  ctaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 8,
+  },
+  ctaText: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.1,
+  },
+  ctaChevron: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+});
 
 // ─── Small icon tile ─────────────────────────────────────────────────────────
 const TILE_W = (width - H_PAD * 2 - GAP * 3) / 4;

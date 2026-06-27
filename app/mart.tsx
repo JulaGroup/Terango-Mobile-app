@@ -579,7 +579,7 @@ export default function MartPage() {
             {/* <Divider /> */}
 
             {/* ── Promo banners (free delivery + launch offer) ── */}
-            <PromoBanner />
+            {/* <PromoBanner /> */}
 
             {/* ── Featured category banners (1-row horizontal slider) ─── */}
             <SectionHeader title="Shop By Type" />

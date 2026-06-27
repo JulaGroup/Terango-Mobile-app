@@ -899,6 +899,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "white",
     paddingTop: Platform.OS === "android" ? 20 : 0,
+    paddingBottom: 40,
   },
 
   // ── Orange Header ───────────────────────────────────────────────────────
