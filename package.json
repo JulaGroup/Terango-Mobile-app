@@ -64,7 +64,7 @@
     "react-native-get-random-values": "^1.11.0",
     "react-native-google-places-autocomplete": "^2.5.7",
     "react-native-international-phone-number": "^0.10.8",
-    "react-native-maps": "1.20.1",
+    "react-native-maps": "^1.20.1",
     "react-native-maps-directions": "^1.9.0",
     "react-native-otp-textinput": "^1.1.7",
     "react-native-reanimated": "~4.1.1",

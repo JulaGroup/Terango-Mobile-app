@@ -39,20 +39,18 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
-  TextInput,
-  Platform,
   Linking,
 } from "react-native";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
+import MapView, { Marker, Region, PROVIDER_GOOGLE } from "react-native-maps";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
-import { useLocation } from "@/hooks/useLocation";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService, Address } from "@/services/AddressService";
 import { GOOGLE_PLACES_API_KEY } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
-import { PrimaryColor } from "@/constants/Colors";
+
 
 const { height } = Dimensions.get("window");
 
@@ -90,7 +88,6 @@ const LocationModal = ({
   );
   const [showAddForm, setShowAddForm] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const { getCurrentLocation } = useLocation();
   const {
     addresses,
     loading,
@@ -100,13 +97,28 @@ const LocationModal = ({
     setDefaultAddress,
     setSelectedAddress,
   } = useAddress();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
+  const [locationPhase, setLocationPhase] = useState<"idle" | "gps" | "geocoding" | "done">("idle");
+  const [saving, setSaving] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  // Use a ref for region — avoids re-renders that cause the map to snap/jump
+  const mapRegionRef = useRef<Region>({
+    latitude: 13.4549,
+    longitude: -16.5790,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
+  const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [geocodingPin, setGeocodingPin] = useState(false);
+  const [pinAddress, setPinAddress] = useState<string>("");
+  const [pinAccuracy, setPinAccuracy] = useState<number | undefined>(undefined);
+  const mapRef = useRef<MapView>(null);
+  const geocodeDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [currentPreview, setCurrentPreview] = useState<{
     street: string;
     city?: string;
     latitude: number;
     longitude: number;
+    accuracy?: number;
   } | null>(null);
 
   const slideAnim = useRef(new Animated.Value(height)).current;
@@ -208,24 +220,54 @@ const LocationModal = ({
     }
   };
 
+  // Reverse geocode when the pin is dragged — debounced 600ms
+  const onPinDragEnd = (e: any) => {
+    const { latitude, longitude } = e.nativeEvent.coordinate;
+    setPinCoords({ latitude, longitude });
+
+    if (geocodeDebounce.current) clearTimeout(geocodeDebounce.current);
+    geocodeDebounce.current = setTimeout(async () => {
+      if (!isWithinGambia(latitude, longitude)) {
+        setPinAddress("Outside service area");
+        return;
+      }
+      setGeocodingPin(true);
+      try {
+        const addr = await AddressService.getAddressFromCoordinates(latitude, longitude);
+        setPinAddress(addr);
+      } catch {
+        setPinAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+      } finally {
+        setGeocodingPin(false);
+      }
+    }, 600);
+  };
+
+  const confirmMapPin = () => {
+    if (!pinCoords) return;
+    setCurrentPreview({
+      street: pinAddress || `${pinCoords.latitude.toFixed(5)}, ${pinCoords.longitude.toFixed(5)}`,
+      latitude: pinCoords.latitude,
+      longitude: pinCoords.longitude,
+      accuracy: pinAccuracy,
+    });
+    setShowMapPicker(false);
+  };
+
   const handleUseCurrentLocation = async () => {
     try {
-      // Check permission first — if denied, open Settings
       const perm = await Location.getForegroundPermissionsAsync();
       if (!perm.granted) {
         if (perm.canAskAgain) {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert(
-              "Location Required",
-              "Please allow location access so we can detect your address.",
-            );
+            Alert.alert("Location Required", "Please allow location access so we can detect your address.");
             return;
           }
         } else {
           Alert.alert(
             "Location Permission Denied",
-            "Location access was denied. Please enable it in Settings to use this feature.",
+            "Location access was denied. Please enable it in Settings.",
             [
               { text: "Cancel", style: "cancel" },
               { text: "Open Settings", onPress: () => Linking.openSettings() },
@@ -235,94 +277,71 @@ const LocationModal = ({
         }
       }
 
-      const currentLoc = await getCurrentLocation();
-      if (!currentLoc) {
-        Alert.alert(
-          "Location",
-          "Unable to get current location. Please check permissions and try again.",
-        );
-        return;
-      }
-      // ensure within Gambia bounds
-      if (!isWithinGambia(currentLoc.latitude, currentLoc.longitude)) {
-        Alert.alert(
-          "Out of bounds",
-          "Your device location appears outside The Gambia. Please move to a Gambian location.",
-        );
-        return;
-      }
-      // Reverse geocode to a human readable address (uses frontend service which calls Nominatim)
-      const displayAddress = await AddressService.getAddressFromCoordinates(
-        currentLoc.latitude,
-        currentLoc.longitude,
-      );
+      setLocationPhase("gps");
 
-      // Set preview so user can confirm and save
-      setCurrentPreview({
-        street: displayAddress,
-        city: currentLoc.address || "",
-        latitude: currentLoc.latitude,
-        longitude: currentLoc.longitude,
+      // Warm up GPS chip
+      try { await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }); } catch {}
+
+      // Stream to get best fix — same approach as driver tracking
+      const bestFix = await new Promise<Location.LocationObject | null>((resolve) => {
+        let best: Location.LocationObject | null = null;
+        let subscription: Location.LocationSubscription | null = null;
+
+        const finish = () => { subscription?.remove(); resolve(best); };
+        const timeout = setTimeout(finish, 8000);
+
+        Location.watchPositionAsync(
+          { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 500, distanceInterval: 0 },
+          (loc) => {
+            const acc = loc.coords.accuracy ?? Infinity;
+            if (!best || acc < (best.coords.accuracy ?? Infinity)) best = loc;
+            if (acc <= 15) { clearTimeout(timeout); finish(); }
+          },
+        ).then((sub) => { subscription = sub; });
       });
+
+      if (!bestFix) {
+        setLocationPhase("idle");
+        Alert.alert("Location unavailable", "Unable to get a GPS fix. Go outdoors and try again.");
+        return;
+      }
+
+      const { latitude, longitude, accuracy } = (bestFix as Location.LocationObject).coords;
+
+      if (!isWithinGambia(latitude, longitude)) {
+        setLocationPhase("idle");
+        Alert.alert("Out of service area", "Your location appears outside The Gambia.");
+        return;
+      }
+
+      // Phase 2: reverse geocode
+      setLocationPhase("geocoding");
+      const addr = await AddressService.getAddressFromCoordinates(latitude, longitude);
+
+      setLocationPhase("done");
+      setPinAccuracy(accuracy ?? undefined);
+      setPinCoords({ latitude, longitude });
+      setPinAddress(addr);
+      // Animate map to GPS fix imperatively — never set region as state
+      const newRegion: Region = { latitude, longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 };
+      mapRegionRef.current = newRegion;
+      setShowMapPicker(true);
+      // animateToRegion after MapView mounts (needs a tick)
+      setTimeout(() => mapRef.current?.animateToRegion(newRegion, 600), 150);
     } catch (error) {
+      setLocationPhase("idle");
       console.error("Error using current location:", error);
-      Alert.alert(
-        "Error",
-        "Failed to get current location. Please check your location permissions.",
-      );
-    }
-  };
-
-  // Search for an address string and set preview
-  const searchAddress = async () => {
-    if (!searchQuery || searchQuery.trim().length === 0) {
-      Alert.alert("Enter address", "Please type an address to search");
-      return;
-    }
-    setSearching(true);
-    try {
-      const coords =
-        await AddressService.getCoordinatesFromAddress(searchQuery);
-      if (!coords) {
-        Alert.alert("Not found", "Could not find that address");
-        return;
-      }
-
-      // enforce country bounds
-      if (!isWithinGambia(coords.latitude, coords.longitude)) {
-        Alert.alert(
-          "Out of bounds",
-          "Only addresses within The Gambia are allowed",
-        );
-        return;
-      }
-
-      const display = await AddressService.getAddressFromCoordinates(
-        coords.latitude,
-        coords.longitude,
-      );
-
-      setCurrentPreview({
-        street: display,
-        city: "",
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-      });
-    } catch (err) {
-      console.error("Search failed:", err);
-      Alert.alert("Error", "Address search failed. Try again.");
-    } finally {
-      setSearching(false);
+      Alert.alert("Error", "Failed to get current location. Please try again.");
     }
   };
 
   const saveCurrentPreview = async () => {
     if (!currentPreview) return;
-    // block non-Gambian previews
     if (!isWithinGambia(currentPreview.latitude, currentPreview.longitude)) {
       Alert.alert("Invalid location", "Address must be within The Gambia.");
       return;
     }
+    setSaving(true);
     try {
       const payload = {
         label: selectedTab || "Home",
@@ -334,15 +353,15 @@ const LocationModal = ({
       };
 
       await addAddress(payload);
-      // Refresh addresses in the modal and return to the address list
       await fetchAddresses();
-      Alert.alert("Success", "Address added successfully");
       setCurrentPreview(null);
-      // Close the add form but keep the modal open so user can continue managing addresses
+      setLocationPhase("idle");
       setShowAddForm(false);
     } catch (err) {
       console.error("Failed to save preview:", err);
       Alert.alert("Error", "Failed to save address. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -508,45 +527,137 @@ const LocationModal = ({
     </TouchableOpacity>
   );
 
-  const renderAddForm = () => {
-    // TODO: Enable Google Places API in the future (when API key is available)
-    // To enable: Set this to true and add your Google Places API key to config.ts
-    const isGooglePlacesAvailable = false;
+  const renderMapPicker = () => (
+    <View style={styles.mapPickerContainer}>
+      {/* Map */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider={PROVIDER_GOOGLE}
+        initialRegion={mapRegionRef.current}
+        onRegionChangeComplete={(r) => { mapRegionRef.current = r; }}
+        showsUserLocation
+        showsMyLocationButton={false}
+      >
+        {pinCoords && (
+          <Marker
+            coordinate={pinCoords}
+            draggable
+            onDragEnd={onPinDragEnd}
+          >
+            <View style={styles.pinContainer}>
+              <View style={styles.pin}>
+                <Ionicons name="location" size={28} color="#fff" />
+              </View>
+              <View style={styles.pinShadow} />
+            </View>
+          </Marker>
+        )}
+      </MapView>
 
-    // Future Google Places check (uncomment when ready):
-    // const isGooglePlacesAvailable =
-    //   GOOGLE_PLACES_API_KEY &&
-    //   typeof GOOGLE_PLACES_API_KEY === "string" &&
-    //   GOOGLE_PLACES_API_KEY !== "YOUR_GOOGLE_PLACES_API_KEY_HERE" &&
-    //   GOOGLE_PLACES_API_KEY !== "YOUR_ACTUAL_API_KEY_HERE" &&
-    //   GOOGLE_PLACES_API_KEY.length > 10;
+      {/* Top bar */}
+      <View style={styles.mapTopBar}>
+        <TouchableOpacity
+          style={styles.mapBackButton}
+          onPress={() => { setShowMapPicker(false); setLocationPhase("idle"); }}
+        >
+          <Ionicons name="arrow-back" size={20} color="#262626" />
+        </TouchableOpacity>
+        <Text style={styles.mapTopBarTitle}>Drag pin to your exact door</Text>
+      </View>
+
+      {/* My location button */}
+      <TouchableOpacity
+        style={styles.myLocationButton}
+        onPress={async () => {
+          if (!pinCoords) return;
+          mapRef.current?.animateToRegion({
+            ...pinCoords,
+            latitudeDelta: 0.003,
+            longitudeDelta: 0.003,
+          }, 400);
+        }}
+      >
+        <Ionicons name="locate" size={22} color="#ff6b00" />
+      </TouchableOpacity>
+
+      {/* Bottom confirm sheet */}
+      <View style={styles.mapBottomSheet}>
+        <View style={styles.mapAddressRow}>
+          <View style={styles.mapAddressIcon}>
+            <Ionicons name="location" size={20} color="#ff6b00" />
+          </View>
+          <View style={styles.mapAddressContent}>
+            {geocodingPin ? (
+              <View style={styles.geocodingRow}>
+                <ActivityIndicator size={14} color="#ff6b00" />
+                <Text style={styles.geocodingText}>Finding address...</Text>
+              </View>
+            ) : (
+              <Text style={styles.mapAddressText} numberOfLines={2}>
+                {pinAddress || "Drag the pin to your location"}
+              </Text>
+            )}
+            <Text style={styles.mapAddressHint}>
+              {pinCoords
+                ? `${pinCoords.latitude.toFixed(5)}, ${pinCoords.longitude.toFixed(5)}`
+                : "GPS coordinates will appear here"}
+            </Text>
+          </View>
+          {pinAccuracy !== undefined && (
+            <View style={[
+              styles.accuracyBadge,
+              pinAccuracy <= 20 ? styles.accuracyExcellent
+              : pinAccuracy <= 50 ? styles.accuracyGood
+              : styles.accuracyPoor,
+            ]}>
+              <Text style={[
+                styles.accuracyText,
+                pinAccuracy <= 20 ? styles.accuracyTextExcellent
+                : pinAccuracy <= 50 ? styles.accuracyTextGood
+                : styles.accuracyTextPoor,
+              ]}>
+                ±{Math.round(pinAccuracy)}m
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <Text style={styles.mapDragHint}>
+          📍 Drag the orange pin to your exact front door
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.confirmPinButton, (!pinCoords || geocodingPin) && styles.confirmPinButtonDisabled]}
+          onPress={confirmMapPin}
+          disabled={!pinCoords || geocodingPin}
+        >
+          <Ionicons name="checkmark-circle" size={20} color="#fff" />
+          <Text style={styles.confirmPinText}>Confirm this location</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderAddForm = () => {
+    const isGooglePlacesAvailable = false;
 
     return (
       <View style={styles.addForm}>
         <View style={styles.formHeader}>
           <Text style={styles.formTitle}>Add {selectedTab} Address</Text>
-          <TouchableOpacity onPress={() => setShowAddForm(false)}>
+          <TouchableOpacity onPress={() => { setShowAddForm(false); setCurrentPreview(null); setLocationPhase("idle"); }}>
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
         </View>
 
         <View style={styles.formContent}>
-          {/* <Text style={styles.inputLabel}>
-            {isGooglePlacesAvailable
-              ? "Search for a location"
-              : "Current options for adding addresses"}
-          </Text> */}
           {isGooglePlacesAvailable ? (
-            // Google Places Autocomplete (for future use)
             <View style={styles.googlePlacesContainer}>
               <GooglePlacesAutocomplete
                 placeholder="Type your address here..."
                 onPress={handlePlaceSelect}
-                query={{
-                  key: GOOGLE_PLACES_API_KEY,
-                  language: "en",
-                  components: "country:gm", // Restrict to The Gambia
-                }}
+                query={{ key: GOOGLE_PLACES_API_KEY, language: "en", components: "country:gm" }}
                 fetchDetails={true}
                 styles={{
                   container: styles.placesContainer,
@@ -556,17 +667,12 @@ const LocationModal = ({
                   row: styles.placesRow,
                   description: styles.placesDescription,
                 }}
-                textInputProps={{
-                  placeholderTextColor: "#999",
-                  returnKeyType: "search",
-                }}
+                textInputProps={{ placeholderTextColor: "#999", returnKeyType: "search" }}
                 debounce={300}
                 minLength={2}
                 enablePoweredByContainer={false}
                 nearbyPlacesAPI="GooglePlacesSearch"
-                GooglePlacesSearchQuery={{
-                  rankby: "distance",
-                }}
+                GooglePlacesSearchQuery={{ rankby: "distance" }}
                 renderLeftButton={() => (
                   <View style={styles.searchIconContainer}>
                     <Ionicons name="search" size={20} color="#999" />
@@ -576,75 +682,137 @@ const LocationModal = ({
             </View>
           ) : (
             <View style={styles.manualAddressContainer}>
-              {/* Instructional text to make the button more discoverable */}
-              <View style={styles.instructionContainer}>
-                <Text style={styles.instructionText}>
-                  Tap the big orange button below to automatically detect your
-                  current location. No typing or searching required.
-                </Text>
-              </View>
+              {/* GPS phase steps */}
+              {locationPhase !== "idle" && locationPhase !== "done" && (
+                <View style={styles.phaseContainer}>
+                  <View style={styles.phaseStep}>
+                    <View style={[styles.phaseIcon, locationPhase === "gps" && styles.phaseIconActive]}>
+                      {locationPhase === "gps"
+                        ? <ActivityIndicator size={14} color="#fff" />
+                        : <Ionicons name="checkmark" size={14} color="#fff" />}
+                    </View>
+                    <Text style={[styles.phaseLabel, locationPhase === "gps" && styles.phaseLabelActive]}>GPS fix</Text>
+                  </View>
+                  <View style={styles.phaseConnector} />
+                  <View style={styles.phaseStep}>
+                    <View style={[styles.phaseIcon, locationPhase === "geocoding" && styles.phaseIconActive, locationPhase === "gps" && styles.phaseIconPending]}>
+                      {locationPhase === "geocoding"
+                        ? <ActivityIndicator size={14} color="#fff" />
+                        : <Ionicons name="map" size={14} color="#fff" />}
+                    </View>
+                    <Text style={[styles.phaseLabel, locationPhase === "geocoding" && styles.phaseLabelActive]}>Address</Text>
+                  </View>
+                </View>
+              )}
 
-              {/* BIG FETCH LOCATION BUTTON - PRIMARY ACTION */}
+              {/* GPS button */}
               <TouchableOpacity
-                style={styles.bigFetchLocationButton}
+                style={[
+                  styles.bigFetchLocationButton,
+                  (locationPhase === "gps" || locationPhase === "geocoding") && styles.bigFetchLocationButtonLoading,
+                  currentPreview && styles.bigFetchLocationButtonRetry,
+                ]}
                 onPress={async () => {
-                  setSearching(true);
+                  if (locationPhase === "gps" || locationPhase === "geocoding") return;
+                  setCurrentPreview(null);
+                  setLocationPhase("idle");
                   await handleUseCurrentLocation();
-                  setSearching(false);
                 }}
                 activeOpacity={0.8}
+                disabled={locationPhase === "gps" || locationPhase === "geocoding"}
               >
-                {searching ? (
+                {locationPhase === "gps" ? (
                   <View style={styles.fetchLoadingContainer}>
-                    <ActivityIndicator size={32} color="#fff" />
-                    <Text style={styles.fetchLoadingText}>
-                      Finding your location...
-                    </Text>
+                    <ActivityIndicator size={28} color="#fff" />
+                    <Text style={styles.fetchLoadingText}>Locking GPS signal...</Text>
+                    <Text style={styles.fetchLoadingHint}>Go near a window for best results</Text>
+                  </View>
+                ) : locationPhase === "geocoding" ? (
+                  <View style={styles.fetchLoadingContainer}>
+                    <ActivityIndicator size={28} color="#fff" />
+                    <Text style={styles.fetchLoadingText}>Reading address...</Text>
+                  </View>
+                ) : currentPreview ? (
+                  <View style={styles.fetchContentContainer}>
+                    <Ionicons name="refresh" size={28} color="#fff" />
+                    <Text style={styles.fetchButtonTitle}>Re-scan Location</Text>
+                    <Text style={styles.fetchButtonSubtitle}>Open map to adjust pin</Text>
                   </View>
                 ) : (
                   <View style={styles.fetchContentContainer}>
                     <Ionicons name="locate" size={40} color="#fff" />
-                    <Text style={styles.fetchButtonTitle}>
-                      Find My Location
-                    </Text>
-                    <Text style={styles.fetchButtonSubtitle}>
-                      Use GPS to find your current address
-                    </Text>
+                    <Text style={styles.fetchButtonTitle}>Find My Location</Text>
+                    <Text style={styles.fetchButtonSubtitle}>GPS + drag pin to exact door</Text>
                   </View>
                 )}
               </TouchableOpacity>
 
+              {/* Confirmed preview card */}
               {currentPreview ? (
                 <View style={styles.previewCard}>
                   <View style={styles.previewHeader}>
-                    <Text style={styles.previewTitle}>Confirm address</Text>
-                    <Text style={styles.previewSubtitle}>{selectedTab}</Text>
+                    <View style={styles.previewTitleRow}>
+                      <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
+                      <Text style={styles.previewTitle}>Confirmed location</Text>
+                    </View>
+                    {currentPreview.accuracy !== undefined && (
+                      <View style={[
+                        styles.accuracyBadge,
+                        currentPreview.accuracy <= 20 ? styles.accuracyExcellent
+                        : currentPreview.accuracy <= 50 ? styles.accuracyGood
+                        : styles.accuracyPoor,
+                      ]}>
+                        <Ionicons
+                          name="radio-button-on"
+                          size={10}
+                          color={currentPreview.accuracy <= 20 ? "#15803d" : currentPreview.accuracy <= 50 ? "#854d0e" : "#991b1b"}
+                        />
+                        <Text style={[
+                          styles.accuracyText,
+                          currentPreview.accuracy <= 20 ? styles.accuracyTextExcellent
+                          : currentPreview.accuracy <= 50 ? styles.accuracyTextGood
+                          : styles.accuracyTextPoor,
+                        ]}>
+                          {currentPreview.accuracy <= 20 ? "Precise" : currentPreview.accuracy <= 50 ? "Good" : "Rough"} ±{Math.round(currentPreview.accuracy)}m
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <Text style={styles.previewStreet}>
-                    {currentPreview.street}
-                  </Text>
+                  <View style={styles.previewAddressRow}>
+                    <Ionicons name="location" size={16} color="#ff6b00" style={{ marginTop: 2 }} />
+                    <Text style={styles.previewStreet}>{currentPreview.street}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.editPinButton}
+                    onPress={() => setShowMapPicker(true)}
+                  >
+                    <Ionicons name="map" size={16} color="#ff6b00" />
+                    <Text style={styles.editPinText}>Adjust pin on map</Text>
+                  </TouchableOpacity>
                   <View style={styles.previewActions}>
                     <TouchableOpacity
                       style={styles.cancelPreviewButton}
-                      onPress={() => setCurrentPreview(null)}
+                      onPress={() => { setCurrentPreview(null); setLocationPhase("idle"); }}
                     >
                       <Text style={styles.cancelPreviewText}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.savePreviewButton}
-                      onPress={async () => {
-                        await saveCurrentPreview();
-                      }}
+                      style={[styles.savePreviewButton, saving && styles.savePreviewButtonDisabled]}
+                      onPress={saveCurrentPreview}
+                      disabled={saving}
                     >
-                      <Text style={styles.savePreviewText}>Save</Text>
+                      {saving
+                        ? <ActivityIndicator size={16} color="#fff" />
+                        : <Text style={styles.savePreviewText}>Save address</Text>
+                      }
                     </TouchableOpacity>
                   </View>
                 </View>
-              ) : (
+              ) : locationPhase === "idle" && (
                 <View style={styles.placeholderContainerSmall}>
+                  <Ionicons name="navigate-outline" size={28} color="#d1d5db" />
                   <Text style={styles.placeholderTextSmall}>
-                    Search for an address or tap the location button to use your
-                    current location.
+                    Tap the button above — GPS locks your position, then you drag the pin to your exact door
                   </Text>
                 </View>
               )}
@@ -652,14 +820,16 @@ const LocationModal = ({
           )}
         </View>
 
-        <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setShowAddForm(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
+        {!currentPreview && (
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => { setShowAddForm(false); setCurrentPreview(null); setLocationPhase("idle"); }}
+            >
+              <Text style={styles.cancelButtonText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     );
   };
@@ -790,6 +960,9 @@ const LocationModal = ({
     }
 
     if (showAddForm) {
+      if (showMapPicker) {
+        return renderMapPicker();
+      }
       return renderAddForm();
     }
 
@@ -828,7 +1001,7 @@ const LocationModal = ({
               transform: [{ translateY: slideAnim }],
             },
           ]}
-          {...panResponder.panHandlers}
+          {...(showMapPicker ? {} : panResponder.panHandlers)}
         >
           <View style={styles.handleBar} />
           <View style={styles.header}>
@@ -1291,13 +1464,235 @@ const styles = StyleSheet.create({
     alignItems: "center",
     display: "none", // Hide old locate button
   },
+  // MAP PICKER
+  mapPickerContainer: {
+    flex: 1,
+    position: "relative",
+  },
+  map: {
+    flex: 1,
+  },
+  mapTopBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    gap: 12,
+  },
+  mapBackButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#f3f4f6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mapTopBarTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#262626",
+    flex: 1,
+  },
+  myLocationButton: {
+    position: "absolute",
+    right: 16,
+    bottom: 230,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 6,
+  },
+  mapBottomSheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 32,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 10,
+  },
+  mapAddressRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 12,
+  },
+  mapAddressIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff5ee",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ffdab3",
+  },
+  mapAddressContent: {
+    flex: 1,
+  },
+  mapAddressText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#262626",
+    lineHeight: 20,
+  },
+  mapAddressHint: {
+    fontSize: 11,
+    color: "#9ca3af",
+    marginTop: 2,
+  },
+  geocodingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  geocodingText: {
+    fontSize: 13,
+    color: "#9ca3af",
+  },
+  mapDragHint: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+    marginBottom: 14,
+  },
+  confirmPinButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ff6b00",
+    borderRadius: 14,
+    paddingVertical: 16,
+    gap: 8,
+    shadowColor: "#ff6b00",
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  confirmPinButtonDisabled: {
+    backgroundColor: "#fb923c",
+    shadowOpacity: 0,
+  },
+  confirmPinText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  // Custom draggable pin
+  pinContainer: {
+    alignItems: "center",
+  },
+  pin: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#ff6b00",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#ff6b00",
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 8,
+  },
+  pinShadow: {
+    width: 12,
+    height: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    marginTop: 2,
+  },
+  // Edit pin link
+  editPinButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "#fff5ee",
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#ffdab3",
+  },
+  editPinText: {
+    fontSize: 13,
+    color: "#ff6b00",
+    fontWeight: "600",
+  },
+
+  // PHASE PROGRESS STEPS
+  phaseContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+    gap: 8,
+  },
+  phaseStep: {
+    alignItems: "center",
+    gap: 4,
+  },
+  phaseIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#22c55e",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  phaseIconActive: {
+    backgroundColor: "#ff6b00",
+  },
+  phaseIconPending: {
+    backgroundColor: "#d1d5db",
+  },
+  phaseConnector: {
+    width: 32,
+    height: 2,
+    backgroundColor: "#e5e7eb",
+    marginBottom: 18,
+  },
+  phaseLabel: {
+    fontSize: 11,
+    color: "#929292",
+    fontWeight: "500",
+  },
+  phaseLabelActive: {
+    color: "#ff6b00",
+    fontWeight: "700",
+  },
+
   // BIG FETCH LOCATION BUTTON STYLES
   bigFetchLocationButton: {
     backgroundColor: "#ff6b00",
     borderRadius: 20,
-    paddingVertical: 32,
+    paddingVertical: 28,
     paddingHorizontal: 24,
-    marginVertical: 20,
+    marginVertical: 16,
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#ff6b00",
@@ -1306,13 +1701,23 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
+  bigFetchLocationButtonLoading: {
+    backgroundColor: "#fb923c",
+    shadowOpacity: 0.1,
+  },
+  bigFetchLocationButtonRetry: {
+    backgroundColor: "#374151",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    paddingVertical: 18,
+  },
   fetchContentContainer: {
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   fetchLoadingContainer: {
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   fetchButtonTitle: {
     fontSize: 20,
@@ -1327,66 +1732,129 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   fetchLoadingText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
   },
+  fetchLoadingHint: {
+    fontSize: 12,
+    color: "#ffe6d0",
+    fontWeight: "400",
+  },
+
+  // PREVIEW CARD
   previewCard: {
     backgroundColor: "#fff",
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#e5e7eb",
+    marginTop: 4,
     shadowColor: "#000",
     shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowRadius: 8,
     elevation: 4,
   },
   previewHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  previewTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
   previewTitle: {
     fontWeight: "700",
+    fontSize: 15,
     color: "#262626",
   },
-  previewSubtitle: {
-    fontSize: 12,
-    color: "#929292",
+  previewAddressRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
   },
   previewStreet: {
-    color: "#444",
-    marginBottom: 12,
+    color: "#374151",
     fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
+
+  // ACCURACY BADGE
+  accuracyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  accuracyExcellent: { backgroundColor: "#dcfce7" },
+  accuracyGood: { backgroundColor: "#fef9c3" },
+  accuracyPoor: { backgroundColor: "#fee2e2" },
+  accuracyText: { fontSize: 11, fontWeight: "700" },
+  accuracyTextExcellent: { color: "#15803d" },
+  accuracyTextGood: { color: "#854d0e" },
+  accuracyTextPoor: { color: "#991b1b" },
+
+  // ACCURACY WARNING
+  accuracyWarning: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#fef3c7",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  accuracyWarningText: {
+    fontSize: 12,
+    color: "#92400e",
+    flex: 1,
+    lineHeight: 17,
+  },
+
   previewActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 12,
+    gap: 10,
+    marginTop: 4,
   },
   cancelPreviewButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
     borderRadius: 10,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
-  cancelPreviewText: { color: "#666" },
+  cancelPreviewText: { color: "#374151", fontWeight: "600", fontSize: 14 },
   savePreviewButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    flex: 1,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
     borderRadius: 10,
     backgroundColor: "#ff6b00",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  savePreviewText: { color: "#fff", fontWeight: "700" },
+  savePreviewButtonDisabled: {
+    backgroundColor: "#fb923c",
+  },
+  savePreviewText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
   placeholderContainerSmall: {
     alignItems: "center",
-    padding: 12,
-    marginTop: 12,
+    padding: 24,
+    marginTop: 4,
+    gap: 10,
   },
-  placeholderTextSmall: { color: "#666", textAlign: "center" },
+  placeholderTextSmall: { color: "#9ca3af", textAlign: "center", fontSize: 14, lineHeight: 20 },
   placeholderText: {
     fontSize: 14,
     color: "#ff6b00",
@@ -1395,20 +1863,10 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   instructionContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#FFF5EE",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ff6b00",
-    marginBottom: 16,
+    display: "none", // replaced by phase steps
   },
   instructionText: {
-    fontSize: 15,
-    color: "#262626",
-    textAlign: "center",
-    lineHeight: 20,
-    fontWeight: "600",
+    display: "none",
   },
   buttonRow: {
     paddingTop: 20,

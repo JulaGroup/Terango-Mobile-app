@@ -788,13 +788,33 @@ export default function Checkout() {
       setLoadingDeliveryFee(true);
       setDeliveryFeeError(false);
       try {
-        // Step 1: Geocode address to get coordinates
-        console.log("📍 Geocoding address:", address);
-        const coords = await AddressService.getCoordinatesFromAddress(address);
+        // Step 1: Use saved address coordinates if available, otherwise geocode
+        let coords: { latitude: number; longitude: number } | null = null;
+
+        // 🔴 CRITICAL FIX: If user selected a saved address, USE ITS COORDINATES directly
+        // Don't geocode them again — saved addresses already have the correct lat/lng
+        if (currentAddress && currentAddress.latitude && currentAddress.longitude) {
+          console.log(
+            "✅ Using saved address coordinates:",
+            {
+              latitude: currentAddress.latitude,
+              longitude: currentAddress.longitude,
+              label: currentAddress.label,
+            },
+          );
+          coords = {
+            latitude: currentAddress.latitude,
+            longitude: currentAddress.longitude,
+          };
+        } else {
+          // Only geocode if there's no saved address (fallback for manual entry)
+          console.log("📍 Geocoding manual address entry:", address);
+          coords = await AddressService.getCoordinatesFromAddress(address);
+        }
 
         if (!coords) {
           console.warn(
-            "⚠️ Could not geocode address, using default delivery fee",
+            "⚠️ Could not get coordinates for address, using default delivery fee",
           );
           setDeliveryEstimate(null);
           setCustomerCoordinates(null);
@@ -928,6 +948,7 @@ export default function Checkout() {
   );
 
   // Call estimation when address changes
+  // 🔴 CRITICAL: Added currentAddress to dependencies to re-estimate when saved address is selected
   useEffect(() => {
     // Debounce address changes to avoid infinite loop
     const debounceTimeout = setTimeout(() => {
@@ -940,7 +961,7 @@ export default function Checkout() {
     }, 400); // 400ms debounce
     return () => clearTimeout(debounceTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.address, form.orderType, form.isGiftOrder]);
+  }, [form.address, form.orderType, form.isGiftOrder, currentAddress]);
 
   useEffect(() => {
     Animated.parallel([

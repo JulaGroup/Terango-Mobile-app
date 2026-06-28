@@ -42,32 +42,35 @@ export const useLocation = (): UseLocationReturn => {
 
         let location: Location.LocationObject | null = null;
 
-        // Try high accuracy first (GPS fix)
+        // Use Highest accuracy for precise GPS fix
         try {
           location = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High,
+            accuracy: Location.Accuracy.Highest,
           });
         } catch (highAccuracyError: any) {
           console.warn(
-            "[useLocation] High accuracy failed, trying last known position:",
+            "[useLocation] Highest accuracy failed, trying recent last known position:",
             highAccuracyError.message,
           );
 
-          // Fallback 1: last known position (instant, no GPS fix needed)
+          // Fallback 1: only accept a very recent, accurate cached position
           try {
             location = await Location.getLastKnownPositionAsync({
-              maxAge: 5 * 60 * 1000, // accept positions up to 5 minutes old
-              requiredAccuracy: 200, // within 200 metres
+              maxAge: 30 * 1000,    // max 30 seconds old
+              requiredAccuracy: 50, // within 50 metres only
             });
+            if (location) {
+              console.log("[useLocation] Using recent cached GPS position");
+            }
           } catch (_) {}
 
-          // Fallback 2: balanced accuracy (network/cell-based, less precise but more reliable indoors)
+          // Fallback 2: High accuracy (still GPS, slightly less strict than Highest)
           if (!location) {
             console.warn(
-              "[useLocation] No last known position, retrying with Balanced accuracy",
+              "[useLocation] No recent cached position, retrying with High accuracy",
             );
             location = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Balanced,
+              accuracy: Location.Accuracy.High,
             });
           }
         }

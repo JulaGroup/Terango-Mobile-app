@@ -281,9 +281,11 @@ export default function OrderDetailsPage() {
       if (!data?.orderId || String(data.orderId) !== String(orderId)) return;
       const newStatus = data.status || data.newStatus;
       if (newStatus) {
+        console.log(`[Socket] Applying status patch: ${newStatus} (was ${order?.status})`);
         setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
       }
       // Also do a background refetch to get the full updated order
+      console.log("[Socket] Fetching full order details after status patch");
       fetchOrderDetails(true);
     };
 
@@ -300,7 +302,9 @@ export default function OrderDetailsPage() {
 
     const onPaymentSuccess = (data: any) => {
       console.log("[Socket] paymentSuccess in order-details", data);
-      if (data?.orderId === orderId) {
+      // Normalize both to strings to handle number/string mismatch from server
+      if (String(data?.orderId) === String(orderId)) {
+        console.log("[Socket] Payment success for this order - refetching details");
         fetchOrderDetails(true);
         setTimeout(() => {
           router.replace("/(tabs)/orders");
