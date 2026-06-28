@@ -793,15 +793,16 @@ export default function Checkout() {
 
         // 🔴 CRITICAL FIX: If user selected a saved address, USE ITS COORDINATES directly
         // Don't geocode them again — saved addresses already have the correct lat/lng
-        if (currentAddress && currentAddress.latitude && currentAddress.longitude) {
-          console.log(
-            "✅ Using saved address coordinates:",
-            {
-              latitude: currentAddress.latitude,
-              longitude: currentAddress.longitude,
-              label: currentAddress.label,
-            },
-          );
+        if (
+          currentAddress &&
+          currentAddress.latitude &&
+          currentAddress.longitude
+        ) {
+          console.log("✅ Using saved address coordinates:", {
+            latitude: currentAddress.latitude,
+            longitude: currentAddress.longitude,
+            label: currentAddress.label,
+          });
           coords = {
             latitude: currentAddress.latitude,
             longitude: currentAddress.longitude,

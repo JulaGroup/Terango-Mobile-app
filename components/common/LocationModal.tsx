@@ -51,7 +51,6 @@ import { GOOGLE_PLACES_API_KEY } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
 
-
 const { height } = Dimensions.get("window");
 
 interface LocationModalProps {
@@ -97,17 +96,22 @@ const LocationModal = ({
     setDefaultAddress,
     setSelectedAddress,
   } = useAddress();
-  const [locationPhase, setLocationPhase] = useState<"idle" | "gps" | "geocoding" | "done">("idle");
+  const [locationPhase, setLocationPhase] = useState<
+    "idle" | "gps" | "geocoding" | "done"
+  >("idle");
   const [saving, setSaving] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
   // Use a ref for region — avoids re-renders that cause the map to snap/jump
   const mapRegionRef = useRef<Region>({
     latitude: 13.4549,
-    longitude: -16.5790,
+    longitude: -16.579,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
-  const [pinCoords, setPinCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [pinCoords, setPinCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [geocodingPin, setGeocodingPin] = useState(false);
   const [pinAddress, setPinAddress] = useState<string>("");
   const [pinAccuracy, setPinAccuracy] = useState<number | undefined>(undefined);
@@ -233,7 +237,10 @@ const LocationModal = ({
       }
       setGeocodingPin(true);
       try {
-        const addr = await AddressService.getAddressFromCoordinates(latitude, longitude);
+        const addr = await AddressService.getAddressFromCoordinates(
+          latitude,
+          longitude,
+        );
         setPinAddress(addr);
       } catch {
         setPinAddress(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
@@ -246,7 +253,9 @@ const LocationModal = ({
   const confirmMapPin = () => {
     if (!pinCoords) return;
     setCurrentPreview({
-      street: pinAddress || `${pinCoords.latitude.toFixed(5)}, ${pinCoords.longitude.toFixed(5)}`,
+      street:
+        pinAddress ||
+        `${pinCoords.latitude.toFixed(5)}, ${pinCoords.longitude.toFixed(5)}`,
       latitude: pinCoords.latitude,
       longitude: pinCoords.longitude,
       accuracy: pinAccuracy,
@@ -261,7 +270,10 @@ const LocationModal = ({
         if (perm.canAskAgain) {
           const { status } = await Location.requestForegroundPermissionsAsync();
           if (status !== "granted") {
-            Alert.alert("Location Required", "Please allow location access so we can detect your address.");
+            Alert.alert(
+              "Location Required",
+              "Please allow location access so we can detect your address.",
+            );
             return;
           }
         } else {
@@ -280,50 +292,84 @@ const LocationModal = ({
       setLocationPhase("gps");
 
       // Warm up GPS chip
-      try { await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }); } catch {}
+      try {
+        await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+      } catch {}
 
       // Stream to get best fix — same approach as driver tracking
-      const bestFix = await new Promise<Location.LocationObject | null>((resolve) => {
-        let best: Location.LocationObject | null = null;
-        let subscription: Location.LocationSubscription | null = null;
+      const bestFix = await new Promise<Location.LocationObject | null>(
+        (resolve) => {
+          let best: Location.LocationObject | null = null;
+          let subscription: Location.LocationSubscription | null = null;
 
-        const finish = () => { subscription?.remove(); resolve(best); };
-        const timeout = setTimeout(finish, 8000);
+          const finish = () => {
+            subscription?.remove();
+            resolve(best);
+          };
+          const timeout = setTimeout(finish, 8000);
 
-        Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 500, distanceInterval: 0 },
-          (loc) => {
-            const acc = loc.coords.accuracy ?? Infinity;
-            if (!best || acc < (best.coords.accuracy ?? Infinity)) best = loc;
-            if (acc <= 15) { clearTimeout(timeout); finish(); }
-          },
-        ).then((sub) => { subscription = sub; });
-      });
+          Location.watchPositionAsync(
+            {
+              accuracy: Location.Accuracy.BestForNavigation,
+              timeInterval: 500,
+              distanceInterval: 0,
+            },
+            (loc) => {
+              const acc = loc.coords.accuracy ?? Infinity;
+              if (!best || acc < (best.coords.accuracy ?? Infinity)) best = loc;
+              if (acc <= 15) {
+                clearTimeout(timeout);
+                finish();
+              }
+            },
+          ).then((sub) => {
+            subscription = sub;
+          });
+        },
+      );
 
       if (!bestFix) {
         setLocationPhase("idle");
-        Alert.alert("Location unavailable", "Unable to get a GPS fix. Go outdoors and try again.");
+        Alert.alert(
+          "Location unavailable",
+          "Unable to get a GPS fix. Go outdoors and try again.",
+        );
         return;
       }
 
-      const { latitude, longitude, accuracy } = (bestFix as Location.LocationObject).coords;
+      const { latitude, longitude, accuracy } = (
+        bestFix as Location.LocationObject
+      ).coords;
 
       if (!isWithinGambia(latitude, longitude)) {
         setLocationPhase("idle");
-        Alert.alert("Out of service area", "Your location appears outside The Gambia.");
+        Alert.alert(
+          "Out of service area",
+          "Your location appears outside The Gambia.",
+        );
         return;
       }
 
       // Phase 2: reverse geocode
       setLocationPhase("geocoding");
-      const addr = await AddressService.getAddressFromCoordinates(latitude, longitude);
+      const addr = await AddressService.getAddressFromCoordinates(
+        latitude,
+        longitude,
+      );
 
       setLocationPhase("done");
       setPinAccuracy(accuracy ?? undefined);
       setPinCoords({ latitude, longitude });
       setPinAddress(addr);
       // Animate map to GPS fix imperatively — never set region as state
-      const newRegion: Region = { latitude, longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 };
+      const newRegion: Region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.003,
+        longitudeDelta: 0.003,
+      };
       mapRegionRef.current = newRegion;
       setShowMapPicker(true);
       // animateToRegion after MapView mounts (needs a tick)
@@ -535,16 +581,14 @@ const LocationModal = ({
         style={styles.map}
         provider={PROVIDER_GOOGLE}
         initialRegion={mapRegionRef.current}
-        onRegionChangeComplete={(r) => { mapRegionRef.current = r; }}
+        onRegionChangeComplete={(r) => {
+          mapRegionRef.current = r;
+        }}
         showsUserLocation
         showsMyLocationButton={false}
       >
         {pinCoords && (
-          <Marker
-            coordinate={pinCoords}
-            draggable
-            onDragEnd={onPinDragEnd}
-          >
+          <Marker coordinate={pinCoords} draggable onDragEnd={onPinDragEnd}>
             <View style={styles.pinContainer}>
               <View style={styles.pin}>
                 <Ionicons name="location" size={28} color="#fff" />
@@ -559,7 +603,10 @@ const LocationModal = ({
       <View style={styles.mapTopBar}>
         <TouchableOpacity
           style={styles.mapBackButton}
-          onPress={() => { setShowMapPicker(false); setLocationPhase("idle"); }}
+          onPress={() => {
+            setShowMapPicker(false);
+            setLocationPhase("idle");
+          }}
         >
           <Ionicons name="arrow-back" size={20} color="#262626" />
         </TouchableOpacity>
@@ -571,11 +618,14 @@ const LocationModal = ({
         style={styles.myLocationButton}
         onPress={async () => {
           if (!pinCoords) return;
-          mapRef.current?.animateToRegion({
-            ...pinCoords,
-            latitudeDelta: 0.003,
-            longitudeDelta: 0.003,
-          }, 400);
+          mapRef.current?.animateToRegion(
+            {
+              ...pinCoords,
+              latitudeDelta: 0.003,
+              longitudeDelta: 0.003,
+            },
+            400,
+          );
         }}
       >
         <Ionicons name="locate" size={22} color="#ff6b00" />
@@ -605,18 +655,26 @@ const LocationModal = ({
             </Text>
           </View>
           {pinAccuracy !== undefined && (
-            <View style={[
-              styles.accuracyBadge,
-              pinAccuracy <= 20 ? styles.accuracyExcellent
-              : pinAccuracy <= 50 ? styles.accuracyGood
-              : styles.accuracyPoor,
-            ]}>
-              <Text style={[
-                styles.accuracyText,
-                pinAccuracy <= 20 ? styles.accuracyTextExcellent
-                : pinAccuracy <= 50 ? styles.accuracyTextGood
-                : styles.accuracyTextPoor,
-              ]}>
+            <View
+              style={[
+                styles.accuracyBadge,
+                pinAccuracy <= 20
+                  ? styles.accuracyExcellent
+                  : pinAccuracy <= 50
+                    ? styles.accuracyGood
+                    : styles.accuracyPoor,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.accuracyText,
+                  pinAccuracy <= 20
+                    ? styles.accuracyTextExcellent
+                    : pinAccuracy <= 50
+                      ? styles.accuracyTextGood
+                      : styles.accuracyTextPoor,
+                ]}
+              >
                 ±{Math.round(pinAccuracy)}m
               </Text>
             </View>
@@ -628,7 +686,10 @@ const LocationModal = ({
         </Text>
 
         <TouchableOpacity
-          style={[styles.confirmPinButton, (!pinCoords || geocodingPin) && styles.confirmPinButtonDisabled]}
+          style={[
+            styles.confirmPinButton,
+            (!pinCoords || geocodingPin) && styles.confirmPinButtonDisabled,
+          ]}
           onPress={confirmMapPin}
           disabled={!pinCoords || geocodingPin}
         >
@@ -646,7 +707,13 @@ const LocationModal = ({
       <View style={styles.addForm}>
         <View style={styles.formHeader}>
           <Text style={styles.formTitle}>Add {selectedTab} Address</Text>
-          <TouchableOpacity onPress={() => { setShowAddForm(false); setCurrentPreview(null); setLocationPhase("idle"); }}>
+          <TouchableOpacity
+            onPress={() => {
+              setShowAddForm(false);
+              setCurrentPreview(null);
+              setLocationPhase("idle");
+            }}
+          >
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
         </View>
@@ -657,7 +724,11 @@ const LocationModal = ({
               <GooglePlacesAutocomplete
                 placeholder="Type your address here..."
                 onPress={handlePlaceSelect}
-                query={{ key: GOOGLE_PLACES_API_KEY, language: "en", components: "country:gm" }}
+                query={{
+                  key: GOOGLE_PLACES_API_KEY,
+                  language: "en",
+                  components: "country:gm",
+                }}
                 fetchDetails={true}
                 styles={{
                   container: styles.placesContainer,
@@ -667,7 +738,10 @@ const LocationModal = ({
                   row: styles.placesRow,
                   description: styles.placesDescription,
                 }}
-                textInputProps={{ placeholderTextColor: "#999", returnKeyType: "search" }}
+                textInputProps={{
+                  placeholderTextColor: "#999",
+                  returnKeyType: "search",
+                }}
                 debounce={300}
                 minLength={2}
                 enablePoweredByContainer={false}
@@ -686,21 +760,51 @@ const LocationModal = ({
               {locationPhase !== "idle" && locationPhase !== "done" && (
                 <View style={styles.phaseContainer}>
                   <View style={styles.phaseStep}>
-                    <View style={[styles.phaseIcon, locationPhase === "gps" && styles.phaseIconActive]}>
-                      {locationPhase === "gps"
-                        ? <ActivityIndicator size={14} color="#fff" />
-                        : <Ionicons name="checkmark" size={14} color="#fff" />}
+                    <View
+                      style={[
+                        styles.phaseIcon,
+                        locationPhase === "gps" && styles.phaseIconActive,
+                      ]}
+                    >
+                      {locationPhase === "gps" ? (
+                        <ActivityIndicator size={14} color="#fff" />
+                      ) : (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
                     </View>
-                    <Text style={[styles.phaseLabel, locationPhase === "gps" && styles.phaseLabelActive]}>GPS fix</Text>
+                    <Text
+                      style={[
+                        styles.phaseLabel,
+                        locationPhase === "gps" && styles.phaseLabelActive,
+                      ]}
+                    >
+                      GPS fix
+                    </Text>
                   </View>
                   <View style={styles.phaseConnector} />
                   <View style={styles.phaseStep}>
-                    <View style={[styles.phaseIcon, locationPhase === "geocoding" && styles.phaseIconActive, locationPhase === "gps" && styles.phaseIconPending]}>
-                      {locationPhase === "geocoding"
-                        ? <ActivityIndicator size={14} color="#fff" />
-                        : <Ionicons name="map" size={14} color="#fff" />}
+                    <View
+                      style={[
+                        styles.phaseIcon,
+                        locationPhase === "geocoding" && styles.phaseIconActive,
+                        locationPhase === "gps" && styles.phaseIconPending,
+                      ]}
+                    >
+                      {locationPhase === "geocoding" ? (
+                        <ActivityIndicator size={14} color="#fff" />
+                      ) : (
+                        <Ionicons name="map" size={14} color="#fff" />
+                      )}
                     </View>
-                    <Text style={[styles.phaseLabel, locationPhase === "geocoding" && styles.phaseLabelActive]}>Address</Text>
+                    <Text
+                      style={[
+                        styles.phaseLabel,
+                        locationPhase === "geocoding" &&
+                          styles.phaseLabelActive,
+                      ]}
+                    >
+                      Address
+                    </Text>
                   </View>
                 </View>
               )}
@@ -709,40 +813,58 @@ const LocationModal = ({
               <TouchableOpacity
                 style={[
                   styles.bigFetchLocationButton,
-                  (locationPhase === "gps" || locationPhase === "geocoding") && styles.bigFetchLocationButtonLoading,
+                  (locationPhase === "gps" || locationPhase === "geocoding") &&
+                    styles.bigFetchLocationButtonLoading,
                   currentPreview && styles.bigFetchLocationButtonRetry,
                 ]}
                 onPress={async () => {
-                  if (locationPhase === "gps" || locationPhase === "geocoding") return;
+                  if (locationPhase === "gps" || locationPhase === "geocoding")
+                    return;
                   setCurrentPreview(null);
                   setLocationPhase("idle");
                   await handleUseCurrentLocation();
                 }}
                 activeOpacity={0.8}
-                disabled={locationPhase === "gps" || locationPhase === "geocoding"}
+                disabled={
+                  locationPhase === "gps" || locationPhase === "geocoding"
+                }
               >
                 {locationPhase === "gps" ? (
                   <View style={styles.fetchLoadingContainer}>
                     <ActivityIndicator size={28} color="#fff" />
-                    <Text style={styles.fetchLoadingText}>Locking GPS signal...</Text>
-                    <Text style={styles.fetchLoadingHint}>Go near a window for best results</Text>
+                    <Text style={styles.fetchLoadingText}>
+                      Locking GPS signal...
+                    </Text>
+                    <Text style={styles.fetchLoadingHint}>
+                      Go near a window for best results
+                    </Text>
                   </View>
                 ) : locationPhase === "geocoding" ? (
                   <View style={styles.fetchLoadingContainer}>
                     <ActivityIndicator size={28} color="#fff" />
-                    <Text style={styles.fetchLoadingText}>Reading address...</Text>
+                    <Text style={styles.fetchLoadingText}>
+                      Reading address...
+                    </Text>
                   </View>
                 ) : currentPreview ? (
                   <View style={styles.fetchContentContainer}>
                     <Ionicons name="refresh" size={28} color="#fff" />
-                    <Text style={styles.fetchButtonTitle}>Re-scan Location</Text>
-                    <Text style={styles.fetchButtonSubtitle}>Open map to adjust pin</Text>
+                    <Text style={styles.fetchButtonTitle}>
+                      Re-scan Location
+                    </Text>
+                    <Text style={styles.fetchButtonSubtitle}>
+                      Open map to adjust pin
+                    </Text>
                   </View>
                 ) : (
                   <View style={styles.fetchContentContainer}>
                     <Ionicons name="locate" size={40} color="#fff" />
-                    <Text style={styles.fetchButtonTitle}>Find My Location</Text>
-                    <Text style={styles.fetchButtonSubtitle}>GPS + drag pin to exact door</Text>
+                    <Text style={styles.fetchButtonTitle}>
+                      Find My Location
+                    </Text>
+                    <Text style={styles.fetchButtonSubtitle}>
+                      GPS + drag pin to exact door
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -752,35 +874,67 @@ const LocationModal = ({
                 <View style={styles.previewCard}>
                   <View style={styles.previewHeader}>
                     <View style={styles.previewTitleRow}>
-                      <Ionicons name="checkmark-circle" size={18} color="#22c55e" />
-                      <Text style={styles.previewTitle}>Confirmed location</Text>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={18}
+                        color="#22c55e"
+                      />
+                      <Text style={styles.previewTitle}>
+                        Confirmed location
+                      </Text>
                     </View>
                     {currentPreview.accuracy !== undefined && (
-                      <View style={[
-                        styles.accuracyBadge,
-                        currentPreview.accuracy <= 20 ? styles.accuracyExcellent
-                        : currentPreview.accuracy <= 50 ? styles.accuracyGood
-                        : styles.accuracyPoor,
-                      ]}>
+                      <View
+                        style={[
+                          styles.accuracyBadge,
+                          currentPreview.accuracy <= 20
+                            ? styles.accuracyExcellent
+                            : currentPreview.accuracy <= 50
+                              ? styles.accuracyGood
+                              : styles.accuracyPoor,
+                        ]}
+                      >
                         <Ionicons
                           name="radio-button-on"
                           size={10}
-                          color={currentPreview.accuracy <= 20 ? "#15803d" : currentPreview.accuracy <= 50 ? "#854d0e" : "#991b1b"}
+                          color={
+                            currentPreview.accuracy <= 20
+                              ? "#15803d"
+                              : currentPreview.accuracy <= 50
+                                ? "#854d0e"
+                                : "#991b1b"
+                          }
                         />
-                        <Text style={[
-                          styles.accuracyText,
-                          currentPreview.accuracy <= 20 ? styles.accuracyTextExcellent
-                          : currentPreview.accuracy <= 50 ? styles.accuracyTextGood
-                          : styles.accuracyTextPoor,
-                        ]}>
-                          {currentPreview.accuracy <= 20 ? "Precise" : currentPreview.accuracy <= 50 ? "Good" : "Rough"} ±{Math.round(currentPreview.accuracy)}m
+                        <Text
+                          style={[
+                            styles.accuracyText,
+                            currentPreview.accuracy <= 20
+                              ? styles.accuracyTextExcellent
+                              : currentPreview.accuracy <= 50
+                                ? styles.accuracyTextGood
+                                : styles.accuracyTextPoor,
+                          ]}
+                        >
+                          {currentPreview.accuracy <= 20
+                            ? "Precise"
+                            : currentPreview.accuracy <= 50
+                              ? "Good"
+                              : "Rough"}{" "}
+                          ±{Math.round(currentPreview.accuracy)}m
                         </Text>
                       </View>
                     )}
                   </View>
                   <View style={styles.previewAddressRow}>
-                    <Ionicons name="location" size={16} color="#ff6b00" style={{ marginTop: 2 }} />
-                    <Text style={styles.previewStreet}>{currentPreview.street}</Text>
+                    <Ionicons
+                      name="location"
+                      size={16}
+                      color="#ff6b00"
+                      style={{ marginTop: 2 }}
+                    />
+                    <Text style={styles.previewStreet}>
+                      {currentPreview.street}
+                    </Text>
                   </View>
                   <TouchableOpacity
                     style={styles.editPinButton}
@@ -792,29 +946,43 @@ const LocationModal = ({
                   <View style={styles.previewActions}>
                     <TouchableOpacity
                       style={styles.cancelPreviewButton}
-                      onPress={() => { setCurrentPreview(null); setLocationPhase("idle"); }}
+                      onPress={() => {
+                        setCurrentPreview(null);
+                        setLocationPhase("idle");
+                      }}
                     >
                       <Text style={styles.cancelPreviewText}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.savePreviewButton, saving && styles.savePreviewButtonDisabled]}
+                      style={[
+                        styles.savePreviewButton,
+                        saving && styles.savePreviewButtonDisabled,
+                      ]}
                       onPress={saveCurrentPreview}
                       disabled={saving}
                     >
-                      {saving
-                        ? <ActivityIndicator size={16} color="#fff" />
-                        : <Text style={styles.savePreviewText}>Save address</Text>
-                      }
+                      {saving ? (
+                        <ActivityIndicator size={16} color="#fff" />
+                      ) : (
+                        <Text style={styles.savePreviewText}>Save address</Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
-              ) : locationPhase === "idle" && (
-                <View style={styles.placeholderContainerSmall}>
-                  <Ionicons name="navigate-outline" size={28} color="#d1d5db" />
-                  <Text style={styles.placeholderTextSmall}>
-                    Tap the button above — GPS locks your position, then you drag the pin to your exact door
-                  </Text>
-                </View>
+              ) : (
+                locationPhase === "idle" && (
+                  <View style={styles.placeholderContainerSmall}>
+                    <Ionicons
+                      name="navigate-outline"
+                      size={28}
+                      color="#d1d5db"
+                    />
+                    <Text style={styles.placeholderTextSmall}>
+                      Tap the button above — GPS locks your position, then you
+                      drag the pin to your exact door
+                    </Text>
+                  </View>
+                )
               )}
             </View>
           )}
@@ -824,7 +992,11 @@ const LocationModal = ({
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => { setShowAddForm(false); setCurrentPreview(null); setLocationPhase("idle"); }}
+              onPress={() => {
+                setShowAddForm(false);
+                setCurrentPreview(null);
+                setLocationPhase("idle");
+              }}
             >
               <Text style={styles.cancelButtonText}>Back</Text>
             </TouchableOpacity>
@@ -1854,7 +2026,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
     gap: 10,
   },
-  placeholderTextSmall: { color: "#9ca3af", textAlign: "center", fontSize: 14, lineHeight: 20 },
+  placeholderTextSmall: {
+    color: "#9ca3af",
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+  },
   placeholderText: {
     fontSize: 14,
     color: "#ff6b00",
