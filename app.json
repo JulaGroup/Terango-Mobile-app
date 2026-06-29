@@ -2,7 +2,7 @@
   "expo": {
     "name": "TeranGO",
     "slug": "terango",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "orientation": "portrait",
     "backgroundColor": "#ffffff",
     "icon": "./assets/App-Icon.png",
@@ -12,7 +12,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "41",
+      "buildNumber": "42",
       "bundleIdentifier": "com.darboedev.terango",
       "associatedDomains": [
         "applinks:terango.gm",
@@ -61,7 +61,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 67,
+      "versionCode": 69,
       "intentFilters": [
         {
           "action": "VIEW",
