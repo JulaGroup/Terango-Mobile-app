@@ -12,8 +12,11 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "42",
+      "buildNumber": "43",
       "bundleIdentifier": "com.darboedev.terango",
+      "config": {
+        "googleMapsApiKey": "AIzaSyC2bQ45Sr7oW5VgwGA0W7biEOJDkQoi5U4"
+      },
       "associatedDomains": [
         "applinks:terango.gm",
         "applinks:monkfish-app-korrv.ondigitalocean.app"
@@ -61,7 +64,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 69,
+      "versionCode": 71,
       "intentFilters": [
         {
           "action": "VIEW",
