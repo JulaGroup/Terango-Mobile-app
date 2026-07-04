@@ -7,13 +7,14 @@
     "backgroundColor": "#ffffff",
     "icon": "./assets/App-Icon.png",
     "userInterfaceStyle": "light",
-    "scheme": [
-      "teranggo"
-    ],
+    "scheme": ["teranggo"],
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "42",
+      "buildNumber": "43",
       "bundleIdentifier": "com.darboedev.terango",
+      "config": {
+        "googleMapsApiKey": "AIzaSyC2bQ45Sr7oW5VgwGA0W7biEOJDkQoi5U4"
+      },
       "associatedDomains": [
         "applinks:terango.gm",
         "applinks:monkfish-app-korrv.ondigitalocean.app"
@@ -25,17 +26,11 @@
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Allow TeranGO to use your location to find nearby vendors and provide accurate delivery estimates.",
         "CFBundleURLTypes": [
           {
-            "CFBundleURLSchemes": [
-              "teranggo"
-            ],
+            "CFBundleURLSchemes": ["teranggo"],
             "CFBundleURLName": "com.darboedev.terango"
           }
         ],
-        "LSApplicationQueriesSchemes": [
-          "wave",
-          "teranggo",
-          "https"
-        ]
+        "LSApplicationQueriesSchemes": ["wave", "teranggo", "https"]
       }
     },
     "splash": {
@@ -61,7 +56,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 69,
+      "versionCode": 70,
       "intentFilters": [
         {
           "action": "VIEW",
@@ -101,10 +96,7 @@
               "scheme": "teranggo"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "permissions": [
@@ -115,14 +107,8 @@
         "android.permission.POST_NOTIFICATIONS"
       ],
       "queries": {
-        "schemes": [
-          "wave",
-          "https",
-          "teranggo"
-        ],
-        "packages": [
-          "com.wave.personal"
-        ]
+        "schemes": ["wave", "https", "teranggo"],
+        "packages": ["com.wave.personal"]
       },
       "privacyPolicy": "https://terango.gm/privacy-policy.html"
     },
@@ -144,9 +130,7 @@
         {
           "icon": "./assets/App-Icon.png",
           "color": "#FF6B00",
-          "sounds": [
-            "./assets/sounds/notification.mp3"
-          ]
+          "sounds": ["./assets/sounds/notification.mp3"]
         }
       ],
       "expo-font",
