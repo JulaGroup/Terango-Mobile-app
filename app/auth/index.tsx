@@ -18,6 +18,8 @@ import {
   FlatList,
   Keyboard,
   TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  ScrollView,
 } from "react-native";
 
 interface Country {
@@ -131,12 +133,21 @@ export default function AuthScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback
-      onPress={() => Keyboard.dismiss()}
-      accessible={false}
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#fff" }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.container}>
-        <StatusBar translucent backgroundColor="transparent" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <TouchableWithoutFeedback
+          onPress={() => Keyboard.dismiss()}
+          accessible={false}
+        >
+          <View style={styles.container}>
+            <StatusBar translucent backgroundColor="transparent" />
         <View
           style={{
             marginBottom: 40,
@@ -310,12 +321,17 @@ export default function AuthScreen() {
           retryAfter={rateLimitInfo.retryAfter}
           message={rateLimitInfo.message}
         />
-      </View>
-    </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollContent: {
+    flexGrow: 1,
+  },
   container: {
     flex: 1,
     paddingTop: 80,

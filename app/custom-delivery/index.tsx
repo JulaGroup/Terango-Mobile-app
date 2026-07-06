@@ -389,6 +389,23 @@ export default function CustomDeliveryScreen() {
   const [dropoffLatitude, setDropoffLatitude] = useState<number | null>(null);
   const [dropoffLongitude, setDropoffLongitude] = useState<number | null>(null);
 
+  // Exactly two valid flows:
+  //  - "pickupSaved": pickup is one of your saved addresses, dropoff is a
+  //    location/town you choose.
+  //  - "dropoffSaved": pickup is a location/town you choose (with a
+  //    landmark description), dropoff is one of your saved addresses.
+  const [flowDirection, setFlowDirection] = useState<
+    "pickupSaved" | "dropoffSaved"
+  >("pickupSaved");
+  const pickupMode = flowDirection === "pickupSaved" ? "saved" : "town";
+  const dropoffMode = flowDirection === "pickupSaved" ? "town" : "saved";
+  const [selectedDropoffAddress, setSelectedDropoffAddress] =
+    useState<Address | null>(null);
+  const [showDropoffAddressModal, setShowDropoffAddressModal] = useState(false);
+  // Required when pickup is a chosen location (not a saved address) so the
+  // driver can actually find the pickup spot.
+  const [pickupLandmark, setPickupLandmark] = useState("");
+
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
   const [receiverName, setReceiverName] = useState("");
@@ -588,8 +605,24 @@ export default function CustomDeliveryScreen() {
     fetchDeliveries();
   }, [fetchDeliveries]);
 
+  // Load delivery towns once on mount so pickup/dropoff matching works immediately
   useEffect(() => {
-    if (!selectedAddress) return;
+    let isMounted = true;
+    fetchDeliveryTowns()
+      .then((res) => {
+        const towns = Array.isArray(res?.data) ? res.data : [];
+        if (isMounted) setDeliveryTowns(towns);
+      })
+      .catch((error) => {
+        console.error("Could not fetch delivery towns:", error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!selectedAddress || pickupMode !== "saved") return;
     const nearestTown = findNearestTown(
       selectedAddress.latitude,
       selectedAddress.longitude,
@@ -601,7 +634,7 @@ export default function CustomDeliveryScreen() {
     setPickupAddressLabel(
       selectedAddress.addressLine || nearestTown?.name || "Pickup location",
     );
-  }, [selectedAddress]);
+  }, [selectedAddress, pickupMode]);
 
   // Fetch addresses when component mounts
   useEffect(() => {
@@ -665,19 +698,74 @@ export default function CustomDeliveryScreen() {
   };
 
   const handleSavedPickupAddressSelect = async (address: Address) => {
+    // Ensure delivery towns are available (fetch on-demand if mount fetch hasn't resolved yet)
+    let towns = deliveryTowns;
+    if (towns.length === 0) {
+      try {
+        const townsResponse = await fetchDeliveryTowns();
+        towns = Array.isArray(townsResponse?.data) ? townsResponse.data : [];
+        setDeliveryTowns(towns);
+      } catch (error) {
+        console.error("Could not fetch delivery towns:", error);
+        Alert.alert(
+          "Error",
+          "Could not load delivery areas. Please check your connection and try again.",
+        );
+        return; // Stop execution if towns can't be loaded
+      }
+    }
+
+    if (towns.length > 0) {
+      const nearestTown = findNearestTown(
+        address.latitude,
+        address.longitude,
+        towns,
+      );
+      if (nearestTown) setPickupTown(nearestTown);
+    }
+
+    // Now, set the rest of the address details
     await setSelectedAddress(address);
-    const nearestTown = findNearestTown(
-      address.latitude,
-      address.longitude,
-      deliveryTowns,
-    );
-    if (nearestTown) setPickupTown(nearestTown);
     setPickupLatitude(address.latitude);
     setPickupLongitude(address.longitude);
-    setPickupAddressLabel(
-      address.addressLine || nearestTown?.name || "Pickup location",
-    );
+    setPickupAddressLabel(address.addressLine || "Pickup location");
     setShowPickupAddressModal(false);
+  };
+
+  const handleSavedDropoffAddressSelect = (address: Address) => {
+    setSelectedDropoffAddress(address);
+    setDropoffLatitude(address.latitude);
+    setDropoffLongitude(address.longitude);
+    setDropoffAddressLabel(address.addressLine || "Delivery location");
+    // Build a town-like object so existing step/price/payload logic keeps working.
+    setDropoffTown({
+      id: address.id,
+      name: address.addressLine || "Saved location",
+      area: address.city || "",
+      latitude: address.latitude,
+      longitude: address.longitude,
+      deliveryZone: "zone1",
+    });
+    setShowDropoffAddressModal(false);
+  };
+
+  const handleFlowDirectionChange = (
+    direction: "pickupSaved" | "dropoffSaved",
+  ) => {
+    if (direction === flowDirection) return;
+    setFlowDirection(direction);
+    // Clear both pickup and dropoff so stale state from the previous flow
+    // doesn't leak into the new one.
+    setPickupTown(null);
+    setPickupAddressLabel("");
+    setPickupLatitude(null);
+    setPickupLongitude(null);
+    setPickupLandmark("");
+    setDropoffTown(null);
+    setDropoffAddressLabel("");
+    setDropoffLatitude(null);
+    setDropoffLongitude(null);
+    setSelectedDropoffAddress(null);
   };
 
   const handleCreateDelivery = async () => {
@@ -690,11 +778,21 @@ export default function CustomDeliveryScreen() {
       );
     if (!receiverName.trim() || !receiverPhone.trim())
       return Alert.alert("Receiver required", "Add receiver contact info.");
+    if (!pickupLandmark.trim())
+      return Alert.alert(
+        "Pickup directions required",
+        "Describe a landmark or directions so the driver can find the pickup location.",
+      );
 
     setIsSubmitting(true);
     try {
+      const pickupAddressWithLandmark =
+        pickupLandmark.trim()
+          ? `${pickupAddressLabel || pickupTown.name} — ${pickupLandmark.trim()}`
+          : pickupAddressLabel || pickupTown.name;
+
       const payload = {
-        pickupAddress: pickupAddressLabel || pickupTown.name,
+        pickupAddress: pickupAddressWithLandmark,
         pickupCity: pickupTown.area,
         pickupLatitude: pickupLatitude ?? undefined,
         pickupLongitude: pickupLongitude ?? undefined,
@@ -741,6 +839,9 @@ export default function CustomDeliveryScreen() {
       setDropoffLongitude(null);
       setPickupAddressLabel("");
       setDropoffAddressLabel("");
+      setSelectedDropoffAddress(null);
+      setFlowDirection("pickupSaved");
+      setPickupLandmark("");
       if (selectedAddress) {
         const t = findNearestTown(
           selectedAddress.latitude,
@@ -853,9 +954,18 @@ export default function CustomDeliveryScreen() {
   };
 
   // Progress steps
-  const step1Done = !!(pickupTown && dropoffTown);
+  const step1Done = !!(
+    pickupTown &&
+    dropoffTown &&
+    pickupLandmark.trim().length > 0
+  );
   const step2Done = !!(selectedVehicle && selectedWeight);
-  const step3Done = !!(receiverName.trim() && receiverPhone.trim());
+  const step3Done = !!(
+    senderName.trim() &&
+    senderPhone.trim() &&
+    receiverName.trim() &&
+    receiverPhone.trim().replace(/\s/g, "").length === 7
+  );
 
   const canSubmit =
     step1Done &&
@@ -924,13 +1034,13 @@ export default function CustomDeliveryScreen() {
           </View>
 
           {/* Stats bar */}
-          <View style={s.statsBar}>
+          {/* <View style={s.statsBar}>
             <QuickStat icon="flash-outline" val="~30m" label="Avg Delivery" />
             <View style={s.statsDivider} />
             <QuickStat icon="time-outline" val="~30min" label="Delivery Time" />
             <View style={s.statsDivider} />
             <QuickStat icon="star-outline" val="4.9★" label="Driver Rating" />
-          </View>
+          </View> */}
         </View>
 
         {/* ── Body ─────────────────────────────────────── */}
@@ -983,178 +1093,215 @@ export default function CustomDeliveryScreen() {
               subtitle="Pickup & dropoff locations"
             />
             <View style={s.card}>
-              {/* Pickup Location Dropdown */}
-              <View style={{ marginBottom: 20 }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "700",
-                    color: "#111827",
-                    marginBottom: 10,
-                    letterSpacing: 0.1,
-                  }}
+              {/* Flow direction: exactly two supported flows */}
+              <View style={s.flowToggle}>
+                <TouchableOpacity
+                  style={[
+                    s.flowToggleOption,
+                    flowDirection === "pickupSaved" && s.flowToggleOptionActive,
+                  ]}
+                  onPress={() => handleFlowDirectionChange("pickupSaved")}
+                  activeOpacity={0.7}
                 >
-                  Pickup From
-                </Text>
-
-                {addresses && addresses.length > 0 ? (
-                  <SavedLocationDropdown
-                    selectedAddress={selectedAddress}
-                    onSelectAddress={handleSavedPickupAddressSelect}
-                    addresses={addresses}
-                    onAddNew={() => setShowPickupAddressModal(true)}
-                    label="Pickup From"
-                    placeholder="Choose from your saved locations"
+                  <Ionicons
+                    name="home-outline"
+                    size={14}
+                    color={flowDirection === "pickupSaved" ? "#fff" : "#6B7280"}
                   />
-                ) : (
-                  <TouchableOpacity
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      backgroundColor: "#FFFFFF",
-                      borderWidth: 1.5,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 12,
-                      padding: 16,
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.05,
-                      shadowRadius: 2,
-                      elevation: 1,
-                    }}
-                    onPress={() => setShowPickupAddressModal(true)}
-                    activeOpacity={0.7}
+                  <Text
+                    style={[
+                      s.flowToggleText,
+                      flowDirection === "pickupSaved" && s.flowToggleTextActive,
+                    ]}
                   >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        flex: 1,
-                        gap: 12,
-                      }}
+                    From My Address
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    s.flowToggleOption,
+                    flowDirection === "dropoffSaved" &&
+                      s.flowToggleOptionActive,
+                  ]}
+                  onPress={() => handleFlowDirectionChange("dropoffSaved")}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="home-outline"
+                    size={14}
+                    color={
+                      flowDirection === "dropoffSaved" ? "#fff" : "#6B7280"
+                    }
+                  />
+                  <Text
+                    style={[
+                      s.flowToggleText,
+                      flowDirection === "dropoffSaved" &&
+                        s.flowToggleTextActive,
+                    ]}
+                  >
+                    To My Address
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Pickup Location Dropdown */}
+              {pickupMode === "saved" && (
+                <View style={s.savedLocationBlock}>
+                  <Text style={s.savedLocationLabel}>Pickup From</Text>
+
+                  {addresses && addresses.length > 0 ? (
+                    <SavedLocationDropdown
+                      selectedAddress={selectedAddress}
+                      onSelectAddress={handleSavedPickupAddressSelect}
+                      addresses={addresses}
+                      onAddNew={() => setShowPickupAddressModal(true)}
+                      label="Pickup From"
+                      placeholder="Select from your saved locations"
+                      hideLabel
+                    />
+                  ) : (
+                    <TouchableOpacity
+                      style={s.savedLocationEmpty}
+                      onPress={() => setShowPickupAddressModal(true)}
+                      activeOpacity={0.7}
                     >
+                      <View style={s.savedLocationEmptyLeft}>
+                        <View style={s.savedLocationIconWrap}>
+                          <Ionicons
+                            name="location-outline"
+                            size={16}
+                            color={T.textTertiary}
+                          />
+                        </View>
+                        <Text
+                          style={s.savedLocationEmptyText}
+                          numberOfLines={1}
+                        >
+                          {addresses?.length === 0
+                            ? "Add your first saved location"
+                            : "Loading saved locations…"}
+                        </Text>
+                      </View>
                       <Ionicons
-                        name="location-outline"
-                        size={20}
-                        color="#6B7280"
+                        name="chevron-down"
+                        size={18}
+                        color={T.textTertiary}
+                      />
+                    </TouchableOpacity>
+                  )}
+
+                  {selectedAddress && (
+                    <View style={{ marginTop: 16 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#111827",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Pickup Landmark / Directions *
+                      </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          borderWidth: 1.5,
+                          borderColor: "#E5E7EB",
+                          borderRadius: 16,
+                          padding: 14,
+                          fontSize: 14,
+                          color: "#111827",
+                          minHeight: 72,
+                          textAlignVertical: "top",
+                        }}
+                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
+                        placeholderTextColor="#9CA3AF"
+                        value={pickupLandmark}
+                        onChangeText={setPickupLandmark}
+                        multiline
+                        numberOfLines={3}
                       />
                       <Text
                         style={{
-                          fontSize: 15,
+                          fontSize: 11,
                           color: "#9CA3AF",
+                          marginTop: 6,
                         }}
                       >
-                        {addresses?.length === 0
-                          ? "Add your first saved location"
-                          : "Loading saved locations..."}
+                        Describe landmarks or clear directions so the driver can find your pickup address. This is compulsory.
                       </Text>
                     </View>
-                    <Ionicons name="chevron-down" size={20} color="#6B7280" />
-                  </TouchableOpacity>
-                )}
-              </View>
-
-              {/* Sender Contact - Read Only, when pickup is selected */}
-              {selectedAddress && (
-                <View
-                  style={{
-                    paddingTop: 16,
-                    paddingBottom: 16,
-                    borderTopWidth: 1,
-                    borderTopColor: "#F3F4F6",
-                    marginBottom: 16,
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: "700",
-                      color: "#374151",
-                      marginBottom: 10,
-                      letterSpacing: 0.2,
-                    }}
-                  >
-                    Sender Details (You)
-                  </Text>
-                  <View style={{ flexDirection: "column", gap: 10 }}>
-                    <View style={{ width: "100%" }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          backgroundColor: "#F3F4F6",
-                          borderRadius: 12,
-                          borderWidth: 1.5,
-                          borderColor: "#E5E7EB",
-                          paddingHorizontal: 14,
-                          paddingVertical: 14,
-                          gap: 10,
-                        }}
-                      >
-                        <Ionicons
-                          name="person-outline"
-                          size={16}
-                          color="#6B7280"
-                        />
-                        <Text
-                          style={{
-                            fontSize: 15,
-                            color: "#374151",
-                            fontWeight: "600",
-                            flex: 1,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {senderName || "Loading..."}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ width: "100%" }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          backgroundColor: "#F3F4F6",
-                          borderRadius: 12,
-                          borderWidth: 1.5,
-                          borderColor: "#E5E7EB",
-                          paddingHorizontal: 14,
-                          paddingVertical: 14,
-                          gap: 10,
-                        }}
-                      >
-                        <Ionicons
-                          name="call-outline"
-                          size={16}
-                          color="#6B7280"
-                        />
-                        <Text
-                          style={{
-                            fontSize: 15,
-                            color: "#374151",
-                            fontWeight: "600",
-                            flex: 1,
-                          }}
-                          numberOfLines={1}
-                        >
-                          {senderPhone || "Loading..."}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
+                  )}
                 </View>
               )}
+
+              {pickupMode === "town" && (
+                <View style={{ marginBottom: 20 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontWeight: "700",
+                      color: "#111827",
+                      marginBottom: 8,
+                    }}
+                  >
+                    Pickup Landmark / Directions *
+                  </Text>
+                  <TextInput
+                    style={{
+                      backgroundColor: "#F9FAFB",
+                      borderWidth: 1.5,
+                      borderColor: "#E5E7EB",
+                      borderRadius: 16,
+                      padding: 14,
+                      fontSize: 14,
+                      color: "#111827",
+                      minHeight: 72,
+                      textAlignVertical: "top",
+                    }}
+                    placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
+                    placeholderTextColor="#9CA3AF"
+                    value={pickupLandmark}
+                    onChangeText={setPickupLandmark}
+                    multiline
+                    numberOfLines={3}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      color: "#9CA3AF",
+                      marginTop: 6,
+                    }}
+                  >
+                    Describe landmarks or clear directions so the driver can
+                    find the pickup location
+                  </Text>
+                </View>
+              )}
+
+              {selectedAddress && senderName && pickupMode === "saved" ? (
+                <View style={s.senderChip}>
+                  <Ionicons name="person-circle" size={16} color={T.brand} />
+                  <Text style={s.senderChipText} numberOfLines={1}>
+                    Sending as {senderName}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={s.stepDivider} />
 
               <UnifiedLocationSection
                 pickupTown={pickupTown}
                 dropoffTown={dropoffTown}
                 pickupAddressDisplay={
-                  pickupAddressLabel || selectedAddress?.addressLine || ""
+                  pickupMode === "saved"
+                    ? pickupAddressLabel || selectedAddress?.addressLine || ""
+                    : pickupAddressLabel
                 }
                 dropoffAddressDisplay={dropoffAddressLabel || ""}
                 useSavedPickupAddress={false}
-                hidePickupSection={true}
+                hidePickupSection={pickupMode === "saved"}
                 onPickupSelect={handlePickupTownSelect}
                 onDropoffSelect={handleDropoffTownSelect}
                 onPickupGPS={handlePickupGPSLocation}
@@ -1168,6 +1315,12 @@ export default function CustomDeliveryScreen() {
                 onReceiverNameChange={setReceiverName}
                 onReceiverPhoneChange={setReceiverPhone}
                 onSenderDataLoaded={handleSenderDataLoaded}
+                towns={deliveryTowns}
+                dropoffMode={dropoffMode}
+                savedAddresses={addresses}
+                selectedDropoffAddress={selectedDropoffAddress}
+                onSelectSavedDropoffAddress={handleSavedDropoffAddressSelect}
+                onAddNewDropoffAddress={() => setShowDropoffAddressModal(true)}
               />
             </View>
           </View>
@@ -1333,13 +1486,9 @@ export default function CustomDeliveryScreen() {
                     />
                   </View>
                   <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
-                    {!step1Done || !step2Done || !step3Done
-                      ? "Complete all steps to book"
-                      : loadingQuotes
-                        ? "Calculating price..."
-                        : estimatedPrice
-                          ? `Book Now · D${estimatedPrice.toFixed(0)}`
-                          : "Price unavailable"}
+                    {canSubmit
+                      ? `Continue · D${estimatedPrice?.toFixed(0)}`
+                      : "Complete all steps"}
                   </Text>
                 </View>
                 <View style={[s.bookArrow, !canSubmit && s.bookArrowOff]}>
@@ -1357,7 +1506,7 @@ export default function CustomDeliveryScreen() {
           <View style={s.trustRow}>
             {[
               { icon: "location-outline", text: "Real-time tracking" },
-              { icon: "cash-outline", text: "Pay on delivery" },
+              // { icon: "cash-outline", text: "Pay with wave" },
               { icon: "people-outline", text: "Trusted drivers" },
             ].map((t) => (
               <View style={s.trustItem} key={t.text}>
@@ -1381,7 +1530,10 @@ export default function CustomDeliveryScreen() {
                 )}
               </View>
               {recentDeliveries.length > 0 && (
-                <TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push("/(tabs)/orders")}
+                  activeOpacity={0.7}
+                >
                   <Text style={s.seeAll}>See all</Text>
                 </TouchableOpacity>
               )}
@@ -1421,6 +1573,13 @@ export default function CustomDeliveryScreen() {
         onClose={() => setShowPickupAddressModal(false)}
         onSelectAddress={handleSavedPickupAddressSelect}
         currentAddress={pickupAddressLabel || selectedAddress?.addressLine}
+      />
+
+      <LocationModal
+        visible={showDropoffAddressModal}
+        onClose={() => setShowDropoffAddressModal(false)}
+        onSelectAddress={handleSavedDropoffAddressSelect}
+        currentAddress={dropoffAddressLabel}
       />
     </SafeAreaView>
   );
@@ -1617,7 +1776,7 @@ const s = StyleSheet.create({
   card: {
     backgroundColor: T.surface,
     borderRadius: 18,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: T.border,
     ...Platform.select({
@@ -1630,9 +1789,66 @@ const s = StyleSheet.create({
       android: { elevation: 2 },
     }),
   },
+  stepDivider: {
+    height: 1,
+    backgroundColor: T.border,
+    marginBottom: 20,
+  },
 
   hScroll: { marginHorizontal: -18 },
   hScrollContent: { paddingHorizontal: 18, gap: 10 },
+
+  senderChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: T.brandSoft,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  senderChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: T.brandDark,
+  },
+
+  locationLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  flowToggle: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 16,
+    padding: 4,
+    marginBottom: 20,
+    gap: 4,
+  },
+  flowToggleOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  flowToggleOptionActive: {
+    backgroundColor: T.brand,
+  },
+  flowToggleText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  flowToggleTextActive: {
+    color: "#FFFFFF",
+  },
 
   // ── Price card ─────────────────────────────────────────
   priceCard: {
@@ -1894,5 +2110,41 @@ const s = StyleSheet.create({
     backgroundColor: T.brandFaint,
     alignItems: "center",
     justifyContent: "center",
+  },
+  savedLocationBlock: { marginBottom: 20 },
+  savedLocationLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: T.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  savedLocationEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: T.surface,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  savedLocationEmptyLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 10,
+  },
+  savedLocationIconWrap: {
+    width: 24,
+    alignItems: "center",
+  },
+  savedLocationEmptyText: {
+    fontSize: 15,
+    color: T.textTertiary,
+    fontWeight: "500",
+    flexShrink: 1,
   },
 });

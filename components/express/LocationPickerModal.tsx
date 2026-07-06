@@ -47,6 +47,9 @@ interface LocationPickerModalProps {
   groupByZone?: boolean;
   showLocationMeta?: boolean;
   onGPSLocation?: (lat: number, lon: number, address: string) => void;
+  // Optional dynamic towns list (e.g. fetched from the admin panel).
+  // Falls back to the static GAMBIAN_TOWNS list when not provided.
+  towns?: GambianTown[];
 }
 
 const GAMBIA_BOUNDS = {
@@ -68,11 +71,12 @@ const isWithinGambia = (lat: number, lng: number) => {
 const findNearestTown = (
   latitude: number,
   longitude: number,
+  towns: GambianTown[],
 ): GambianTown | null => {
   let nearestTown: GambianTown | null = null;
   let minDistance = Infinity;
 
-  GAMBIAN_TOWNS.forEach((town) => {
+  towns.forEach((town) => {
     const distance = Math.sqrt(
       Math.pow(town.latitude - latitude, 2) +
         Math.pow(town.longitude - longitude, 2),
@@ -97,9 +101,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   groupByZone = false,
   showLocationMeta = true,
   onGPSLocation,
+  towns = GAMBIAN_TOWNS,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [loadingGPS, setLoadingGPS] = useState(false);
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
   const [backdropOpacity] = useState(new Animated.Value(0));
   // Google Places temporarily disabled: use built-in Gambian towns only.
@@ -142,7 +146,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const normalizedSearchQuery =
     typeof searchQuery === "string" ? searchQuery.toLowerCase() : "";
 
-  const filteredTowns = GAMBIAN_TOWNS.filter((town) => {
+  const filteredTowns = towns.filter((town) => {
     const townName = typeof town?.name === "string" ? town.name : "";
     const townArea = typeof town?.area === "string" ? town.area : "";
     return (
@@ -179,83 +183,6 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     onSelect(town);
     setSearchQuery("");
     onClose();
-  };
-
-  const handleUseCurrentLocation = async () => {
-    if (!onGPSLocation) return;
-
-    try {
-      setLoadingGPS(true);
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Location Access Required",
-          "Please enable location services to use your current location.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Open Settings",
-              onPress: () => Location.requestForegroundPermissionsAsync(),
-            },
-          ],
-        );
-        return;
-      }
-
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      if (
-        !isWithinGambia(position.coords.latitude, position.coords.longitude)
-      ) {
-        Alert.alert(
-          "Service Area Restriction",
-          "TeranGO Express is currently available within The Gambia only. Please select a location within our service area.",
-        );
-        return;
-      }
-
-      const nearestTown = findNearestTown(
-        position.coords.latitude,
-        position.coords.longitude,
-      );
-
-      const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      });
-
-      const reverseAddress = reverseGeocode[0]
-        ? [
-            reverseGeocode[0].name,
-            reverseGeocode[0].street,
-            reverseGeocode[0].district,
-            reverseGeocode[0].city,
-          ]
-            .filter(Boolean)
-            .join(", ")
-        : "";
-
-      if (nearestTown) {
-        onSelect(nearestTown);
-        onGPSLocation(
-          position.coords.latitude,
-          position.coords.longitude,
-          reverseAddress || `Near ${nearestTown.name}`,
-        );
-        onClose();
-      }
-    } catch (error: any) {
-      console.error("Failed to get current location", error);
-      Alert.alert(
-        "Location Error",
-        "Unable to access your location. Please check your settings and try again.",
-      );
-    } finally {
-      setLoadingGPS(false);
-    }
   };
 
   const handleClose = () => {
@@ -353,7 +280,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                     return;
                   }
 
-                  const nearestTown = findNearestTown(latitude, longitude);
+                  const nearestTown = findNearestTown(
+                    latitude,
+                    longitude,
+                    towns,
+                  );
                   if (!nearestTown) {
                     return;
                   }
@@ -386,29 +317,6 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 }}
               />
             </View>
-          )}
-
-          {/* GPS Button */}
-          {allowGPS && onGPSLocation && (
-            <TouchableOpacity
-              style={styles.gpsButton}
-              onPress={handleUseCurrentLocation}
-              disabled={loadingGPS}
-              activeOpacity={0.7}
-            >
-              <View style={styles.gpsButtonContent}>
-                {loadingGPS ? (
-                  <ActivityIndicator size="small" color={PRIMARY} />
-                ) : (
-                  <Ionicons name="navigate" size={20} color={PRIMARY} />
-                )}
-                <Text style={styles.gpsButtonText}>
-                  {loadingGPS
-                    ? "Getting location..."
-                    : "Use my current location"}
-                </Text>
-              </View>
-            </TouchableOpacity>
           )}
 
           {/* Locations List */}
@@ -616,27 +524,6 @@ const styles = StyleSheet.create({
   },
   clearButton: {
     padding: 4,
-  },
-  gpsButton: {
-    marginHorizontal: 20,
-    marginBottom: 16,
-    backgroundColor: "rgba(255,107,0,0.08)",
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,107,0,0.2)",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-  },
-  gpsButtonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  gpsButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: PRIMARY,
   },
   locationsList: {
     flex: 1,

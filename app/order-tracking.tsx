@@ -38,13 +38,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { fetchDeliveryTowns, getTownById as getDynamicTownById, DeliveryTown } from "@/services/deliveryTowns.service";
 
 // Conditionally import MapView only for native platforms
-let MapView: any, Marker: any, PROVIDER_DEFAULT: any, Polyline: any;
+let MapView: any, Marker: any, PROVIDER_GOOGLE: any, Polyline: any;
 if (Platform.OS !== "web") {
   try {
     const Maps = require("react-native-maps");
     MapView = Maps.default;
     Marker = Maps.Marker;
-    PROVIDER_DEFAULT = Maps.PROVIDER_DEFAULT;
+    PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
     Polyline = Maps.Polyline;
   } catch (e) {
     console.warn("Maps not available on web");
@@ -632,6 +632,7 @@ export default function OrderTrackingPage() {
       (vendorLocation || driverLocation || deliveryLocation) ? (
         <MapView
           ref={mapRef}
+          provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFillObject}
           initialRegion={{
             latitude:

@@ -32,6 +32,50 @@ interface EditProfileModalProps {
   onProfileUpdated: (updatedUser: User) => void;
 }
 
+function InputField({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  error,
+  keyboardType = "default",
+  editable = true,
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  error?: string;
+  keyboardType?: any;
+  editable?: boolean;
+  multiline?: boolean;
+}) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <TextInput
+        style={[
+          styles.textInput,
+          error && styles.inputError,
+          !editable && styles.disabledInput,
+          multiline && styles.textArea,
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#9CA3AF"
+        keyboardType={keyboardType}
+        editable={editable}
+        multiline={multiline}
+        numberOfLines={multiline ? 3 : 1}
+        textAlignVertical={multiline ? "top" : "center"}
+      />
+      {error && <Text style={styles.errorText}>{error}</Text>}
+    </View>
+  );
+}
+
 export default function EditProfileModal({
   visible,
   onClose,
@@ -139,48 +183,6 @@ export default function EditProfileModal({
     }
   };
 
-  const InputField = ({
-    label,
-    value,
-    onChangeText,
-    placeholder,
-    error,
-    keyboardType = "default",
-    editable = true,
-    multiline = false,
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    error?: string;
-    keyboardType?: any;
-    editable?: boolean;
-    multiline?: boolean;
-  }) => (
-    <View style={styles.inputGroup}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <TextInput
-        style={[
-          styles.textInput,
-          error && styles.inputError,
-          !editable && styles.disabledInput,
-          multiline && styles.textArea,
-        ]}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9CA3AF"
-        keyboardType={keyboardType}
-        editable={editable}
-        multiline={multiline}
-        numberOfLines={multiline ? 3 : 1}
-        textAlignVertical={multiline ? "top" : "center"}
-      />
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
-
   return (
     <Modal
       visible={visible}
@@ -260,36 +262,6 @@ export default function EditProfileModal({
                     {user?.role
                       ?.toLowerCase()
                       .replace(/^\w/, (c) => c.toUpperCase()) || "User"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Verification Status</Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    user?.isVerified
-                      ? styles.verifiedBadge
-                      : styles.unverifiedBadge,
-                  ]}
-                >
-                  <Ionicons
-                    name={
-                      user?.isVerified ? "checkmark-circle" : "time-outline"
-                    }
-                    size={14}
-                    color={user?.isVerified ? "#10B981" : "#F59E0B"}
-                  />
-                  <Text
-                    style={[
-                      styles.statusText,
-                      user?.isVerified
-                        ? styles.verifiedText
-                        : styles.unverifiedText,
-                    ]}
-                  >
-                    {user?.isVerified ? "Verified" : "Pending"}
                   </Text>
                 </View>
               </View>

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -17,6 +17,13 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+// Express feature launched on this date — NEW badge shows for 2 days from here
+const EXPRESS_LAUNCH_DATE = new Date("2026-07-04T00:00:00.000Z");
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+const isExpressNew = () =>
+  Date.now() - EXPRESS_LAUNCH_DATE.getTime() < TWO_DAYS_MS;
 
 const { width } = Dimensions.get("window");
 const ORANGE = "#ff6b00";
@@ -248,6 +255,7 @@ const SmallTile = ({
   comingSoon,
   tint,
   onPress,
+  isNew,
 }: {
   label: string;
   image?: number;
@@ -256,6 +264,7 @@ const SmallTile = ({
   comingSoon?: boolean;
   tint?: string;
   onPress?: () => void;
+  isNew?: boolean;
 }) => {
   const router = useRouter();
   const scale = useRef(new Animated.Value(1)).current;
@@ -343,6 +352,30 @@ const SmallTile = ({
                 }}
               >
                 SOON
+              </Text>
+            </View>
+          )}
+          {isNew && (
+            <View
+              style={{
+                position: "absolute",
+                top: 5,
+                right: 5,
+                backgroundColor: ORANGE,
+                borderRadius: 8,
+                paddingHorizontal: 5,
+                paddingVertical: 2,
+              }}
+            >
+              <Text
+                style={{
+                  color: "#fff",
+                  fontSize: 7,
+                  fontWeight: "800",
+                  letterSpacing: 0.5,
+                }}
+              >
+                NEW
               </Text>
             </View>
           )}
@@ -680,8 +713,55 @@ const MoreServicesSheet = ({
 };
 
 // ─── Main Grid ────────────────────────────────────────────────────────────────
+const PROMO_KEY = "terango_express_promo_seen_v1";
+
 const ServiceGrid = () => {
   const [showMore, setShowMore] = useState(false);
+  const [showExpressPromo, setShowExpressPromo] = useState(false);
+  const router = useRouter();
+  const promoScale = useRef(new Animated.Value(0.88)).current;
+  const promoOpacity = useRef(new Animated.Value(0)).current;
+
+  // Show popup once if within the 2-day launch window and not seen before
+  useEffect(() => {
+    if (!isExpressNew()) return;
+    AsyncStorage.getItem(PROMO_KEY).then((val) => {
+      if (!val) setShowExpressPromo(true);
+    });
+  }, []);
+
+  // Animate in when visible
+  useEffect(() => {
+    if (showExpressPromo) {
+      Animated.parallel([
+        Animated.spring(promoScale, {
+          toValue: 1,
+          damping: 18,
+          stiffness: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(promoOpacity, {
+          toValue: 1,
+          duration: 240,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showExpressPromo]);
+
+  const dismissPromo = async () => {
+    await AsyncStorage.setItem(PROMO_KEY, "1");
+    Animated.parallel([
+      Animated.timing(promoScale, { toValue: 0.9, duration: 160, useNativeDriver: true }),
+      Animated.timing(promoOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
+    ]).start(() => setShowExpressPromo(false));
+  };
+
+  const bookExpress = async () => {
+    await AsyncStorage.setItem(PROMO_KEY, "1");
+    setShowExpressPromo(false);
+    router.push("/custom-delivery" as any);
+  };
 
   return (
     <View
@@ -693,6 +773,87 @@ const ServiceGrid = () => {
         gap: 12,
       }}
     >
+      {/* ── Express feature pop-up ── */}
+      <Modal
+        visible={showExpressPromo}
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={dismissPromo}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}
+          onPress={dismissPromo}
+        >
+          <Animated.View
+            style={{ width: "100%", transform: [{ scale: promoScale }], opacity: promoOpacity }}
+          >
+            <Pressable onPress={() => {}}>
+              <LinearGradient
+                colors={["#0a0a0a", "#181818", "#0a0a0a"]}
+                style={ep.card}
+              >
+                {/* Glow */}
+                <View style={ep.glow} />
+
+                {/* Dismiss X */}
+                <TouchableOpacity style={ep.closeBtn} onPress={dismissPromo} activeOpacity={0.7}>
+                  <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                </TouchableOpacity>
+
+                {/* NEW badge */}
+                <View style={ep.newBadge}>
+                  <View style={ep.newDot} />
+                  <Text style={ep.newText}>NEW FEATURE</Text>
+                </View>
+
+                {/* Headline */}
+                <Text style={ep.headline}>
+                  TeranGO{" "}
+                  <Text style={{ color: ORANGE }}>Express</Text>
+                </Text>
+                <Text style={ep.tagline}>
+                  Send anything, anywhere in Gambia — tracked live.
+                </Text>
+
+                {/* Feature list */}
+                <View style={ep.features}>
+                  {[
+                    { icon: "navigate" as const, text: "Live driver tracking on a map" },
+                    { icon: "flash" as const, text: "Fast local drivers ready to go" },
+                    { icon: "card" as const, text: "Pay securely with Wave" },
+                    { icon: "shield-checkmark" as const, text: "Admin confirms every delivery" },
+                  ].map((f) => (
+                    <View key={f.text} style={ep.featureRow}>
+                      <View style={ep.featureIcon}>
+                        <Ionicons name={f.icon} size={14} color={ORANGE} />
+                      </View>
+                      <Text style={ep.featureText}>{f.text}</Text>
+                    </View>
+                  ))}
+                </View>
+
+                {/* CTAs */}
+                <TouchableOpacity style={ep.bookBtn} onPress={bookExpress} activeOpacity={0.88}>
+                  <LinearGradient
+                    colors={[ORANGE, "#e55a00"]}
+                    style={ep.bookBtnGradient}
+                  >
+                    <Ionicons name="flash" size={16} color="#fff" />
+                    <Text style={ep.bookBtnText}>Book a Delivery</Text>
+                    <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={dismissPromo} style={ep.laterBtn} activeOpacity={0.7}>
+                  <Text style={ep.laterText}>Maybe later</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
+
       {/* Row 1 — Hero cards */}
       <View style={{ flexDirection: "row", gap: GAP }}>
         <HeroCard
@@ -722,23 +883,25 @@ const ServiceGrid = () => {
         }}
       >
         <SmallTile
-          label="KërSpace"
-          image={require("@/assets/images/kerrspace_icon (2).png")}
-          route="/kerspace"
-          // tint="#FFF5EE"
-          comingSoon
-        />
-        <SmallTile
           label="Express"
           image={require("@/assets/images/express_icon.png")}
           route="/custom-delivery"
-          comingSoon
+          isNew={isExpressNew()}
+          // comingSoon
         />
         <SmallTile
           label="YoBu"
           image={require("@/assets/images/yobu_icon.png")}
           comingSoon
         />
+        <SmallTile
+          label="KërSpace"
+          image={require("@/assets/images/kerrspace_icon (2).png")}
+          route="/kerspace"
+          // tint="#FFF5EE"
+          comingSoon
+        />
+
         <SmallTile
           label="More"
           iconName="grid-outline"
@@ -756,3 +919,90 @@ const ServiceGrid = () => {
 };
 
 export default ServiceGrid;
+
+// ─── Express pop-up modal styles ─────────────────────────────────────────────
+const ep = StyleSheet.create({
+  card: {
+    borderRadius: 24,
+    padding: 24,
+    overflow: "hidden",
+    position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255,107,0,0.2)",
+  },
+  glow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: "rgba(255,107,0,0.12)",
+    top: -80,
+    right: -60,
+  },
+  closeBtn: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  newBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    backgroundColor: "rgba(255,107,0,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,107,0,0.35)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 16,
+  },
+  newDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE },
+  newText: { fontSize: 10, fontWeight: "800", color: ORANGE, letterSpacing: 1.2 },
+  headline: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#fff",
+    letterSpacing: -0.5,
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.55)",
+    fontWeight: "500",
+    lineHeight: 20,
+    marginBottom: 22,
+  },
+  features: { gap: 12, marginBottom: 24 },
+  featureRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  featureIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,107,0,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,107,0,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  featureText: { fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: "500", flex: 1 },
+  bookBtn: { borderRadius: 16, overflow: "hidden", marginBottom: 12 },
+  bookBtnGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  bookBtnText: { fontSize: 16, fontWeight: "800", color: "#fff", flex: 1, textAlign: "center" },
+  laterBtn: { alignItems: "center", paddingVertical: 8 },
+  laterText: { fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: "500" },
+});

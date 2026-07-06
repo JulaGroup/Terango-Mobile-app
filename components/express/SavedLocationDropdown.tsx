@@ -13,7 +13,6 @@ import {
   Typography,
   Spacing,
   Radius,
-  Shadows,
   ComponentSizes,
 } from "@/constants/DesignTokens";
 import { ModernBottomSheet } from "../common/ModernBottomSheet";
@@ -28,6 +27,9 @@ interface SavedLocationDropdownProps {
   onAddNew: () => void;
   label: string;
   placeholder?: string;
+  // Hide the internal label when the parent already renders its own
+  // heading above this component (avoids a duplicate label).
+  hideLabel?: boolean;
 }
 
 export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
@@ -37,6 +39,7 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
   onAddNew,
   label,
   placeholder = "Select location",
+  hideLabel = false,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<{
@@ -174,35 +177,40 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      {!hideLabel && <Text style={styles.label}>{label}</Text>}
 
       <TouchableOpacity
-        style={styles.selector}
+        style={[styles.selector, selectedAddress && styles.selectorFilled]}
         onPress={() => setShowPicker(true)}
         activeOpacity={0.7}
       >
-        <View style={styles.selectorContent}>
+        <View
+          style={[
+            styles.selectorIconWrapper,
+            selectedAddress && styles.selectorIconWrapperFilled,
+          ]}
+        >
           <Ionicons
             name={getAddressTypeIcon(selectedAddress?.label)}
             size={20}
-            color={selectedAddress ? Colors.primary : Colors.inkLight}
+            color={selectedAddress ? "#FF6B00" : "#6B7280"}
           />
-          <View style={styles.selectorText}>
-            {selectedAddress ? (
-              <>
-                <Text style={styles.selectedLabel}>
-                  {selectedAddress.label || "Location"}
-                </Text>
-                <Text style={styles.selectedAddress} numberOfLines={2}>
-                  {selectedAddress.addressLine}
-                </Text>
-              </>
-            ) : (
-              <Text style={styles.placeholder}>{placeholder}</Text>
-            )}
-          </View>
         </View>
-        <Ionicons name="chevron-down" size={20} color={Colors.inkLight} />
+        <View style={styles.selectorText}>
+          {selectedAddress ? (
+            <>
+              <Text style={styles.selectedLabel} numberOfLines={1}>
+                {selectedAddress.label || "Location"}
+              </Text>
+              <Text style={styles.selectedAddress} numberOfLines={1}>
+                {selectedAddress.addressLine}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.placeholder}>{placeholder}</Text>
+          )}
+        </View>
+        <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
       </TouchableOpacity>
 
       <ModernBottomSheet
@@ -257,16 +265,36 @@ const styles = StyleSheet.create({
     color: Colors.ink,
     marginBottom: Spacing.sm,
   },
+
+  // ── Trigger (restyled to match locationButton pattern) ──
   selector: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.divider,
-    borderRadius: Radius.md,
-    padding: Spacing.base,
-    ...Shadows.sm,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  selectorFilled: {
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primaryGlow,
+  },
+  selectorIconWrapper: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Colors.bg,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: Colors.divider,
+  },
+  selectorIconWrapperFilled: {
+    backgroundColor: Colors.primaryGlow,
+    borderColor: Colors.primaryGlow,
   },
   selectorContent: {
     flexDirection: "row",
@@ -278,18 +306,24 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedLabel: {
-    ...Typography.captionMedium,
-    color: Colors.inkLight,
-    marginBottom: 2,
+    fontSize: 17,
+    fontWeight: "700",
+    color: Colors.ink,
+    lineHeight: 22,
+    marginBottom: 3,
   },
   selectedAddress: {
     ...Typography.footnote,
-    color: Colors.ink,
+    color: Colors.inkMid,
   },
   placeholder: {
-    ...Typography.body,
+    fontSize: 12,
     color: Colors.inkLight,
+    fontWeight: "500",
+    lineHeight: 16,
   },
+
+  // ── Bottom sheet content (unchanged) ──
   sheetContent: {
     flex: 1,
   },

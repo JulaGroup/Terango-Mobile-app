@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { GambianTown } from "@/constants/gambianTowns";
 import { LocationPickerModal } from "./LocationPickerModal";
+import { SavedLocationDropdown } from "./SavedLocationDropdown";
+import { Address } from "@/services/AddressService";
 import { UserCacheManager } from "@/utils/userCache";
 
 const PRIMARY = "#FF6B00";
@@ -36,6 +38,21 @@ interface UnifiedLocationSectionProps {
   onReceiverNameChange?: (text: string) => void;
   onReceiverPhoneChange?: (text: string) => void;
   onSenderDataLoaded?: (name: string, phone: string) => void;
+  // Optional dynamic towns list (e.g. fetched from the admin panel).
+  // Falls back to the static GAMBIAN_TOWNS list when not provided.
+  towns?: GambianTown[];
+  // Dropoff source mode: pick a location on the map/town list, or use one
+  // of the user's own saved addresses (e.g. "deliver to my home").
+  dropoffMode?: "town" | "saved";
+  onDropoffModeChange?: (mode: "town" | "saved") => void;
+  savedAddresses?: Address[];
+  selectedDropoffAddress?: Address | null;
+  onSelectSavedDropoffAddress?: (address: Address) => void;
+  onAddNewDropoffAddress?: () => void;
+  // When true, the dropoff "Choose" (town/GPS) option is disabled because
+  // pickup is already in "choose a location" mode — one side must always
+  // be a known saved address.
+  dropoffTownDisabled?: boolean;
 }
 
 export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
@@ -59,6 +76,14 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
   onReceiverNameChange,
   onReceiverPhoneChange,
   onSenderDataLoaded,
+  towns,
+  dropoffMode,
+  onDropoffModeChange,
+  savedAddresses,
+  selectedDropoffAddress,
+  onSelectSavedDropoffAddress,
+  onAddNewDropoffAddress,
+  dropoffTownDisabled = false,
 }) => {
   const [swapAnimation] = useState(new Animated.Value(0));
   const [isSwapping, setIsSwapping] = useState(false);
@@ -66,20 +91,27 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
   const [senderPhone, setSenderPhone] = useState(propSenderPhone);
   const [pickupModalVisible, setPickupModalVisible] = useState(false);
   const [dropoffModalVisible, setDropoffModalVisible] = useState(false);
+  // Store user's cached data for "saved" mode (receiving to their address)
+  const [userCachedName, setUserCachedName] = useState("");
+  const [userCachedPhone, setUserCachedPhone] = useState("");
 
   // Load sender details from user cache using same method as checkout
+  // BUT: only load if NOT in "saved" mode (To My Address flow)
   useEffect(() => {
     const loadSenderData = async () => {
       try {
-        const { cached } = await UserCacheManager.smartLoadUserData();
-        if (cached) {
-          const name = cached.fullName || "";
-          const phone = cached.phone || "";
-          setSenderName(name);
-          setSenderPhone(phone);
-          onSenderDataLoaded?.(name, phone);
-          onSenderNameChange?.(name);
-          onSenderPhoneChange?.(phone);
+        // In normal mode, load user's data as the sender
+        if (dropoffMode !== "saved") {
+          const { cached } = await UserCacheManager.smartLoadUserData();
+          if (cached) {
+            const name = cached.fullName || "";
+            const phone = cached.phone || "";
+            setSenderName(name);
+            setSenderPhone(phone);
+            onSenderDataLoaded?.(name, phone);
+            onSenderNameChange?.(name);
+            onSenderPhoneChange?.(phone);
+          }
         }
       } catch (error) {
         console.log("Could not load sender data from cache:", error);
@@ -87,7 +119,36 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
     };
 
     loadSenderData();
-  }, [onSenderDataLoaded, onSenderNameChange, onSenderPhoneChange]);
+  }, [dropoffMode, onSenderDataLoaded, onSenderNameChange, onSenderPhoneChange]);
+
+  // Initialize empty sender fields when entering "saved" mode
+  useEffect(() => {
+    if (dropoffMode === "saved") {
+      setSenderName("");
+      setSenderPhone("");
+    }
+  }, [dropoffMode]);
+
+  // Load user's cached data when in "saved" mode so we can display it as the receiver
+  useEffect(() => {
+    if (dropoffMode !== "saved") return;
+
+    const loadUserCachedData = async () => {
+      try {
+        const { cached } = await UserCacheManager.smartLoadUserData();
+        if (cached) {
+          const name = cached.fullName || "";
+          const phone = cached.phone || "";
+          setUserCachedName(name);
+          setUserCachedPhone(phone);
+        }
+      } catch (error) {
+        console.log("Could not load user cached data:", error);
+      }
+    };
+
+    loadUserCachedData();
+  }, [dropoffMode]);
 
   const handleSwapLocations = () => {
     if (isSwapping) return;
@@ -143,14 +204,6 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
 
   return (
     <View style={styles.container}>
-      {/* Section Header */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Delivery Details</Text>
-        <Text style={styles.sectionSubtitle}>
-          Where should we pick up and deliver?
-        </Text>
-      </View>
-
       {/* Location Container */}
       <View style={styles.locationContainer}>
         {/* Pickup Location - only show if not hidden */}
@@ -215,13 +268,18 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         </Text>
                       )}
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#9CA3AF"
+                    />
                   </View>
                 </TouchableOpacity>
               </View>
 
-              {/* Sender Contact - Read Only, stacked vertically */}
-              {pickupTown && (
+              {/* Sender Contact - In "saved" mode, show as editable (unknown sender). 
+                  In normal mode, show as read-only (user is the sender) */}
+              {pickupTown && dropoffMode !== "saved" && (
                 <View style={styles.contactSection}>
                   <Text style={styles.contactLabel}>Sender Details (You)</Text>
                   <View style={styles.contactStack}>
@@ -242,7 +300,11 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                     </View>
                     <View style={styles.contactFieldFull}>
                       <View style={styles.readOnlyContactContainer}>
-                        <Ionicons name="call-outline" size={16} color="#6B7280" />
+                        <Ionicons
+                          name="call-outline"
+                          size={16}
+                          color="#6B7280"
+                        />
                         <Text
                           style={styles.readOnlyContactText}
                           numberOfLines={1}
@@ -254,27 +316,86 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                   </View>
                 </View>
               )}
+
+              {/* In "saved" mode: Show EMPTY sender fields (editable) */}
+              {dropoffMode === "saved" && selectedDropoffAddress && (
+                <View style={styles.contactSection}>
+                  <Text style={styles.contactLabel}>Sender Details *</Text>
+                  <View style={styles.contactStack}>
+                    <View style={styles.contactFieldFull}>
+                      <View style={styles.contactInputWrapper}>
+                        <Ionicons
+                          name="person-outline"
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                        <TextInput
+                          style={styles.contactInput}
+                          placeholder="Full name"
+                          placeholderTextColor="#9CA3AF"
+                          value={senderName}
+                          onChangeText={(text) => {
+                            setSenderName(text);
+                            onSenderNameChange?.(text);
+                          }}
+                          autoCapitalize="words"
+                          autoCorrect={false}
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.contactFieldFull}>
+                      <View style={styles.contactInputWrapper}>
+                        <Ionicons
+                          name="call-outline"
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                        <Text style={styles.phonePrefix}>+220</Text>
+                        <TextInput
+                          style={styles.contactInput}
+                          placeholder="7 digit number"
+                          placeholderTextColor="#9CA3AF"
+                          value={senderPhone}
+                          onChangeText={(text) => {
+                            const digitsOnly = text
+                              .replace(/[^0-9]/g, "")
+                              .slice(0, 7);
+                            setSenderPhone(digitsOnly);
+                            onSenderPhoneChange?.(digitsOnly);
+                          }}
+                          keyboardType="phone-pad"
+                          maxLength={7}
+                          autoCorrect={false}
+                        />
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
         )}
 
         {/* Swap Button */}
-        {!hidePickupSection && pickupTown && dropoffTown && (
-          <View style={styles.swapButtonContainer}>
-            <TouchableOpacity
-              style={styles.swapButton}
-              onPress={handleSwapLocations}
-              disabled={isSwapping}
-              activeOpacity={0.7}
-            >
-              <Animated.View
-                style={{ transform: [{ rotate: rotateInterpolate }] }}
+        {!hidePickupSection &&
+          pickupTown &&
+          dropoffTown &&
+          dropoffMode !== "saved" && (
+            <View style={styles.swapButtonContainer}>
+              <TouchableOpacity
+                style={styles.swapButton}
+                onPress={handleSwapLocations}
+                disabled={isSwapping}
+                activeOpacity={0.7}
               >
-                <Ionicons name="swap-vertical" size={20} color={PRIMARY} />
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-        )}
+                <Animated.View
+                  style={{ transform: [{ rotate: rotateInterpolate }] }}
+                >
+                  <Ionicons name="swap-vertical" size={20} color={PRIMARY} />
+                </Animated.View>
+              </TouchableOpacity>
+            </View>
+          )}
 
         {/* Dropoff Location */}
         <View style={styles.locationRow}>
@@ -284,91 +405,244 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
 
           <View style={styles.locationContent}>
             <View style={styles.locationInputSection}>
-              <Text style={styles.locationLabel}>Deliver to</Text>
-              <TouchableOpacity
-                style={[
-                  styles.locationButton,
-                  dropoffSelectedText && styles.locationButtonFilled,
-                ]}
-                onPress={() => setDropoffModalVisible(true)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.locationButtonContent}>
-                  <View
-                    style={[
-                      styles.locationIconWrapper,
-                      dropoffTown && styles.locationIconWrapperFilled,
-                    ]}
+              <View style={styles.locationLabelRow}>
+                <Text style={styles.locationLabel}>Deliver to</Text>
+                {onDropoffModeChange && (
+                  <View style={styles.modeToggle}>
+                    <TouchableOpacity
+                      style={[
+                        styles.modeToggleOption,
+                        (dropoffMode ?? "town") === "town" &&
+                          styles.modeToggleOptionActive,
+                        dropoffTownDisabled && styles.modeToggleOptionDisabled,
+                      ]}
+                      onPress={() => {
+                        if (dropoffTownDisabled) return;
+                        onDropoffModeChange("town");
+                      }}
+                      disabled={dropoffTownDisabled}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.modeToggleText,
+                          (dropoffMode ?? "town") === "town" &&
+                            styles.modeToggleTextActive,
+                        ]}
+                      >
+                        Choose
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.modeToggleOption,
+                        dropoffMode === "saved" &&
+                          styles.modeToggleOptionActive,
+                      ]}
+                      onPress={() => onDropoffModeChange("saved")}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.modeToggleText,
+                          dropoffMode === "saved" &&
+                            styles.modeToggleTextActive,
+                        ]}
+                      >
+                        My Address
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+              {dropoffTownDisabled && (
+                <Text style={styles.modeHintText}>
+                  Pickup is a chosen location, so delivery must be to one of
+                  your saved addresses.
+                </Text>
+              )}
+              {dropoffMode === "saved" ? (
+                savedAddresses && savedAddresses.length > 0 ? (
+                  <SavedLocationDropdown
+                    selectedAddress={selectedDropoffAddress ?? null}
+                    onSelectAddress={(address) =>
+                      onSelectSavedDropoffAddress?.(address)
+                    }
+                    addresses={savedAddresses}
+                    onAddNew={() => onAddNewDropoffAddress?.()}
+                    label="Deliver to"
+                    placeholder="Select from your saved locations"
+                    hideLabel
+                  />
+                ) : (
+                  <TouchableOpacity
+                    style={styles.savedLocationEmpty}
+                    onPress={() => onAddNewDropoffAddress?.()}
+                    activeOpacity={0.7}
                   >
+                    <View style={styles.savedLocationEmptyLeft}>
+                      <View style={styles.savedLocationIconWrap}>
+                        <Ionicons
+                          name="location-outline"
+                          size={16}
+                          color="#9CA3AF"
+                        />
+                      </View>
+                      <Text
+                        style={styles.savedLocationEmptyText}
+                        numberOfLines={1}
+                      >
+                        Add your first saved location
+                      </Text>
+                    </View>
+                    <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+                  </TouchableOpacity>
+                )
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.locationButton,
+                    dropoffSelectedText && styles.locationButtonFilled,
+                  ]}
+                  onPress={() => setDropoffModalVisible(true)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.locationButtonContent}>
+                    <View
+                      style={[
+                        styles.locationIconWrapper,
+                        dropoffTown && styles.locationIconWrapperFilled,
+                      ]}
+                    >
+                      <Ionicons
+                        name="arrow-forward-circle"
+                        size={20}
+                        color={dropoffSelectedText ? PRIMARY : "#6B7280"}
+                      />
+                    </View>
+                    <View style={styles.locationTextWrapper}>
+                      {dropoffSelectedText ? (
+                        <>
+                          <Text style={styles.locationSelectedText}>
+                            {dropoffSelectedText}
+                          </Text>
+                          {dropoffTown?.area ? (
+                            <Text style={styles.locationAreaText}>
+                              {dropoffTown.area}
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : (
+                        <Text style={styles.locationPlaceholder}>
+                          Select recipient delivery city
+                        </Text>
+                      )}
+                    </View>
                     <Ionicons
-                      name="arrow-down-circle"
+                      name="chevron-forward"
                       size={20}
-                      color={dropoffSelectedText ? PRIMARY : "#6B7280"}
+                      color="#9CA3AF"
                     />
                   </View>
-                  <View style={styles.locationTextWrapper}>
-                    {dropoffSelectedText ? (
-                      <>
-                        <Text style={styles.locationSelectedText}>
-                          {dropoffSelectedText}
-                        </Text>
-                        {dropoffTown?.area ? (
-                          <Text style={styles.locationAreaText}>
-                            {dropoffTown.area}
-                          </Text>
-                        ) : null}
-                      </>
-                    ) : (
-                      <Text style={styles.locationPlaceholder}>
-                        Select recipient delivery city
-                      </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Receiver Contact - editable, stacked vertically */}
-            {dropoffTown && onReceiverNameChange && onReceiverPhoneChange && (
-              <View style={styles.contactSection}>
-                <Text style={styles.contactLabel}>Receiver Details *</Text>
-                <View style={styles.contactStack}>
-                  <View style={styles.contactFieldFull}>
-                    <View style={styles.contactInputWrapper}>
-                      <Ionicons
-                        name="person-outline"
-                        size={16}
-                        color="#9CA3AF"
-                      />
-                      <TextInput
-                        style={styles.contactInput}
-                        placeholder="Full name"
-                        placeholderTextColor="#9CA3AF"
-                        value={receiverName}
-                        onChangeText={onReceiverNameChange}
-                        autoCapitalize="words"
-                        autoCorrect={false}
-                      />
+            {/* Receiver Contact - editable in normal mode, or pre-filled with user info in "saved" mode */}
+            {(dropoffTown ||
+              (dropoffMode === "saved" && selectedDropoffAddress)) &&
+              onReceiverNameChange &&
+              onReceiverPhoneChange && (
+                <View style={styles.contactSection}>
+                  <Text style={styles.contactLabel}>
+                    {dropoffMode === "saved"
+                      ? "Receiving to (You)"
+                      : "Receiver Details *"}
+                  </Text>
+                  <View style={styles.contactStack}>
+                    <View style={styles.contactFieldFull}>
+                      {dropoffMode === "saved" ? (
+                        /* In "saved" mode: show user's cached name as read-only */
+                        <View style={styles.readOnlyContactContainer}>
+                          <Ionicons
+                            name="person-outline"
+                            size={16}
+                            color="#6B7280"
+                          />
+                          <Text
+                            style={styles.readOnlyContactText}
+                            numberOfLines={1}
+                          >
+                            {userCachedName || "Loading..."}
+                          </Text>
+                        </View>
+                      ) : (
+                        /* In normal mode: editable receiver name */
+                        <View style={styles.contactInputWrapper}>
+                          <Ionicons
+                            name="person-outline"
+                            size={16}
+                            color="#9CA3AF"
+                          />
+                          <TextInput
+                            style={styles.contactInput}
+                            placeholder="Full name"
+                            placeholderTextColor="#9CA3AF"
+                            value={receiverName}
+                            onChangeText={onReceiverNameChange}
+                            autoCapitalize="words"
+                            autoCorrect={false}
+                          />
+                        </View>
+                      )}
                     </View>
-                  </View>
-                  <View style={styles.contactFieldFull}>
-                    <View style={styles.contactInputWrapper}>
-                      <Ionicons name="call-outline" size={16} color="#9CA3AF" />
-                      <TextInput
-                        style={styles.contactInput}
-                        placeholder="Phone number"
-                        placeholderTextColor="#9CA3AF"
-                        value={receiverPhone}
-                        onChangeText={onReceiverPhoneChange}
-                        keyboardType="phone-pad"
-                        autoCorrect={false}
-                      />
+                    <View style={styles.contactFieldFull}>
+                      {dropoffMode === "saved" ? (
+                        /* In "saved" mode: show user's cached phone as read-only */
+                        <View style={styles.readOnlyContactContainer}>
+                          <Ionicons
+                            name="call-outline"
+                            size={16}
+                            color="#6B7280"
+                          />
+                          <Text style={styles.phonePrefix}>+220</Text>
+                          <Text
+                            style={styles.readOnlyContactText}
+                            numberOfLines={1}
+                          >
+                            {userCachedPhone || "Loading..."}
+                          </Text>
+                        </View>
+                      ) : (
+                        /* In normal mode: editable receiver phone */
+                        <View style={styles.contactInputWrapper}>
+                          <Ionicons
+                            name="call-outline"
+                            size={16}
+                            color="#9CA3AF"
+                          />
+                          <Text style={styles.phonePrefix}>+220</Text>
+                          <TextInput
+                            style={styles.contactInput}
+                            placeholder="7 digit number"
+                            placeholderTextColor="#9CA3AF"
+                            value={receiverPhone}
+                            onChangeText={(text) => {
+                              const digitsOnly = text
+                                .replace(/[^0-9]/g, "")
+                                .slice(0, 7);
+                              onReceiverPhoneChange?.(digitsOnly);
+                            }}
+                            keyboardType="phone-pad"
+                            maxLength={7}
+                            autoCorrect={false}
+                          />
+                        </View>
+                      )}
                     </View>
                   </View>
                 </View>
-              </View>
-            )}
+              )}
           </View>
         </View>
       </View>
@@ -401,6 +675,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
           allowGPS={true}
           allowGooglePlaces={false}
           onGPSLocation={onPickupGPS}
+          towns={towns}
         />
       )}
 
@@ -420,6 +695,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
         groupByZone={true}
         showLocationMeta={false}
         onGPSLocation={onDropoffGPS}
+        towns={towns}
       />
     </View>
   );
@@ -445,20 +721,14 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   locationContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
+    // Flat wrapper — this component is always rendered inside an outer
+    // card in the booking form, so it should not have its own
+    // background/shadow/border (that created a "card on card" look).
   },
   locationRow: {
     flexDirection: "row",
     alignItems: "flex-start",
+    marginBottom: 4,
   },
   locationIndicator: {
     alignItems: "center",
@@ -499,6 +769,43 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 10,
     letterSpacing: 0.1,
+  },
+  locationLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  modeToggle: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 20,
+    padding: 3,
+  },
+  modeToggleOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 17,
+  },
+  modeToggleOptionActive: {
+    backgroundColor: PRIMARY,
+  },
+  modeToggleOptionDisabled: {
+    opacity: 0.4,
+  },
+  modeToggleText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  modeToggleTextActive: {
+    color: "#FFFFFF",
+  },
+  modeHintText: {
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontStyle: "italic",
+    marginBottom: 10,
   },
   locationButton: {
     backgroundColor: "#F9FAFB",
@@ -593,6 +900,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     padding: 0,
   },
+  phonePrefix: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
   // Read-only sender fields — same sizing as editable ones
   readOnlyContactContainer: {
     flexDirection: "row",
@@ -657,5 +969,32 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     fontWeight: "600",
     lineHeight: 18,
+  },
+  savedLocationEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  savedLocationEmptyLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    gap: 10,
+  },
+  savedLocationIconWrap: {
+    width: 24,
+    alignItems: "center",
+  },
+  savedLocationEmptyText: {
+    fontSize: 15,
+    color: "#9CA3AF",
+    fontWeight: "500",
+    flexShrink: 1,
   },
 });

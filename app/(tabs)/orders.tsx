@@ -111,10 +111,19 @@ const isExpressDelivery = (delivery: DeliveryActivity): boolean => {
   return priority === "EXPRESS" || priority === "URGENT";
 };
 
+// Order-level express check (mirrors isExpressDelivery, but reads from Order).
+// Uses `as any` so this compiles safely even if isExpress/priorityLevel
+// aren't declared on the Order type yet. If regular orders can never be
+// "express" in your data model, this will simply always return false.
+const isExpressOrder = (order: Order): boolean => {
+  const anyOrder = order as any;
+  if (anyOrder.isExpress === true) return true;
+  const priority = String(anyOrder.priorityLevel ?? "").toUpperCase();
+  return priority === "EXPRESS" || priority === "URGENT";
+};
+
 const isDeliveryVisibleInActivities = (delivery: DeliveryActivity) => {
-  if (!isExpressDelivery(delivery)) return true;
-  if (delivery.paymentStatus === "PAID") return true;
-  return PAST_STATUSES.includes(delivery.status);
+  return true;
 };
 
 export default function Orders() {
@@ -265,16 +274,12 @@ export default function Orders() {
     }
   }, [fetchOrders, refreshLiveCount]);
 
-  // Check for successful order on page load
-
   const handleNavigateToOrder = useCallback(
     (orderId: string) => {
       console.log("[Orders] Navigating to order:", orderId);
       if (orderId && orderId.trim()) {
-        // Navigate to order details page with the orderId
         router.push(`/order-details?orderId=${orderId}`);
       } else {
-        // If no orderId provided, just refresh the orders list
         fetchOrders();
       }
     },
@@ -283,9 +288,7 @@ export default function Orders() {
 
   useEffect(() => {
     checkAuthentication();
-    // Register callback to refresh orders on push notification
     setOrdersRefreshCallback(fetchOrders);
-    // Register callback to navigate to order on notification tap
     setNavigateToOrderCallback(handleNavigateToOrder);
     return () => {
       setOrdersRefreshCallback(() => {});
@@ -293,10 +296,6 @@ export default function Orders() {
     };
   }, [checkAuthentication, fetchOrders, handleNavigateToOrder]);
 
-  // Check for successful order after authentication is complete
-
-  // Refresh orders when page comes into focus (e.g., returning from payment)
-  // Also re-checks auth so logging out on profile tab is reflected immediately
   useFocusEffect(
     useCallback(() => {
       checkAuthentication();
@@ -567,257 +566,335 @@ export default function Orders() {
     return orderCount + deliveryCount;
   };
 
-  const renderOrderCard = (order: Order) => (
-    <TouchableOpacity
-      key={order.id}
-      style={{
-        backgroundColor: "#fff",
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
-        borderLeftWidth: 4,
-        borderLeftColor: statusColors[order.status],
-      }}
-      activeOpacity={0.8}
-      onPress={() =>
-        router.push({
-          pathname: "/order-details",
-          params: { orderId: order.id },
-        })
-      }
-    >
-      {/* Header */}
-      <View
+  const renderOrderCard = (order: Order) => {
+    const expressOrder = isExpressOrder(order);
+
+    return (
+      <TouchableOpacity
+        key={order.id}
         style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 4,
+          borderLeftWidth: 4,
+          borderLeftColor: statusColors[order.status],
         }}
+        activeOpacity={0.6}
+        onPress={() =>
+          router.push({
+            pathname: "/order-details",
+            params: { orderId: order.id },
+          })
+        }
       >
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
-            Order TG{order.id.slice(-4).toUpperCase()}
-          </Text>
-          {/* 🎁 Gift Order Badge */}
-          {order.isGiftOrder && (
-            <View
-              style={{
-                backgroundColor: "#FFF5EE",
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 8,
-                borderWidth: 1,
-                borderColor: "#FFD4A3",
-              }}
-            >
-              <Ionicons name="gift" size={12} color="#ff6b00" />
-            </View>
-          )}
-        </View>
+        {/* Header */}
         <View
           style={{
-            backgroundColor: statusColors[order.status],
-            paddingHorizontal: 12,
-            paddingVertical: 6,
-            borderRadius: 20,
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginBottom: 12,
+          }}
+        >
+          {/* Left: title + gift/express tags stacked so they never collide with the status pill */}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+            >
+              <Text
+                style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}
+                numberOfLines={1}
+              >
+                Order TG{order.id.slice(-4).toUpperCase()}
+              </Text>
+              {/* 🎁 Gift Order Badge */}
+              {order.isGiftOrder && (
+                <View
+                  style={{
+                    backgroundColor: "#FFF5EE",
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: "#FFD4A3",
+                  }}
+                >
+                  <Ionicons name="gift" size={12} color="#ff6b00" />
+                </View>
+              )}
+            </View>
+
+            {/* Express tag — black/orange, own row under the title */}
+            {expressOrder && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: "#000",
+                  alignSelf: "flex-start",
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                  marginTop: 6,
+                }}
+              >
+                <Ionicons name="flash" size={10} color="#FF7A00" />
+                <Text
+                  style={{
+                    color: "#FF7A00",
+                    fontSize: 10,
+                    fontWeight: "800",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  EXPRESS
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Right: status pill, own space, never touches the express tag */}
+          <View
+            style={{
+              backgroundColor: statusColors[order.status],
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Ionicons
+              name={statusIcons[order.status] as any}
+              size={12}
+              color="#fff"
+            />
+            <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
+              {order.status}
+            </Text>
+          </View>
+        </View>
+
+        {/* Restaurant */}
+        <View
+          style={{
             flexDirection: "row",
             alignItems: "center",
-            gap: 4,
+            marginBottom: 8,
           }}
         >
           <Ionicons
-            name={statusIcons[order.status] as any}
-            size={12}
-            color="#fff"
+            name={
+              order.restaurant
+                ? "restaurant-outline"
+                : order["shop"]
+                  ? "cart-outline"
+                  : order["pharmacy"]
+                    ? "medkit-outline"
+                    : "storefront-outline"
+            }
+            size={16}
+            color="#666"
           />
-          <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>
-            {order.status}
+          <Text
+            style={{
+              marginLeft: 8,
+              color: "#666",
+              flex: 1,
+              fontWeight: "500",
+            }}
+            numberOfLines={1}
+          >
+            {order.restaurant?.name ||
+              order["shop"]?.name ||
+              order["pharmacy"]?.name ||
+              "Vendor"}
           </Text>
         </View>
-      </View>
 
-      {/* Restaurant */}
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
-      >
-        <Ionicons
-          name={
-            order.restaurant
-              ? "restaurant-outline"
-              : order["shop"]
-                ? "cart-outline"
-                : order["pharmacy"]
-                  ? "medkit-outline"
-                  : "storefront-outline"
-          }
-          size={16}
-          color="#666"
-        />
-        <Text
-          style={{ marginLeft: 8, color: "#666", flex: 1, fontWeight: "500" }}
-          numberOfLines={1}
-        >
-          {order.restaurant?.name ||
-            order["shop"]?.name ||
-            order["pharmacy"]?.name ||
-            "Vendor"}
-        </Text>
-      </View>
-
-      {/* Address / Pickup info */}
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
-      >
-        <Ionicons name="location-outline" size={16} color="#666" />
-        <Text
-          style={{ marginLeft: 8, color: "#666", flex: 1 }}
-          numberOfLines={2}
-        >
-          {order.orderType === "PICKUP"
-            ? order.pickupInstructions ||
-              order.address ||
-              order.deliveryAddress ||
-              "Pickup"
-            : order.deliveryAddress ||
-              order.address ||
-              "Delivery address not set"}
-        </Text>
-      </View>
-
-      {/* Items Preview */}
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 8 }}
-      >
-        <Ionicons name="fast-food-outline" size={16} color="#666" />
-        <Text
-          style={{ marginLeft: 8, color: "#666", flex: 1 }}
-          numberOfLines={1}
-        >
-          {order.items.length} item{order.items.length > 1 ? "s" : ""} •{" "}
-          {order.items
-            .slice(0, 2)
-            .map(
-              (item) =>
-                item.menuItem?.name ||
-                item.product?.name ||
-                item.medicine?.name ||
-                "Item",
-            )
-            .join(", ")}
-          {order.items.length > 2 ? ` +${order.items.length - 2} more` : null}
-        </Text>
-      </View>
-
-      {/* Amount */}
-      <View
-        style={{ flexDirection: "row", alignItems: "center", marginBottom: 12 }}
-      >
-        <Ionicons name="wallet-outline" size={16} color="#666" />
-        <Text
+        {/* Address / Pickup info */}
+        <View
           style={{
-            marginLeft: 8,
-            fontSize: 18,
-            fontWeight: "bold",
-            color: PrimaryColor,
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 8,
           }}
         >
-          {formatAmount(order.totalAmount)}
-        </Text>
-      </View>
-
-      {/* Footer */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-          paddingTop: 12,
-          borderTopWidth: 1,
-          borderTopColor: "#F3F4F6",
-        }}
-      >
-        <Text style={{ fontSize: 12, color: "#999" }}>
-          {formatDate(order.createdAt)}
-        </Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
-            <TouchableOpacity
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: "#FEF2F2",
-                borderWidth: 1,
-                borderColor: "#FEE2E2",
-              }}
-              onPress={() => handleCancelOrder(order.id)}
-            >
-              <Text
-                style={{ fontSize: 12, color: "#EF4444", fontWeight: "600" }}
-              >
-                Cancel
-              </Text>
-            </TouchableOpacity>
-          )}
-          {/* Pay button for accepted + unpaid orders */}
-          {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" ? (
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: PrimaryColor,
-                borderWidth: 1,
-                borderColor: PrimaryColor,
-              }}
-              onPress={() => handlePayFromList(order.id, order.totalAmount)}
-            >
-              <Text style={{ fontSize: 12, color: "#fff", fontWeight: "700" }}>
-                Pay
-              </Text>
-              <Ionicons name="card-outline" size={12} color="#fff" />
-            </TouchableOpacity>
-          ) : !["DELIVERED", "CANCELLED"].includes(order.status) ? (
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 4,
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8,
-                backgroundColor: "#F0F9FF",
-                borderWidth: 1,
-                borderColor: "#E0F2FE",
-              }}
-              onPress={() =>
-                router.push({
-                  pathname: "/order-tracking",
-                  params: { orderId: order?.id },
-                })
-              }
-            >
-              <Text
-                style={{ fontSize: 12, color: PrimaryColor, fontWeight: "600" }}
-              >
-                Track
-              </Text>
-              <Ionicons name="chevron-forward" size={12} color={PrimaryColor} />
-            </TouchableOpacity>
-          ) : null}
+          <Ionicons name="location-outline" size={16} color="#666" />
+          <Text
+            style={{ marginLeft: 8, color: "#666", flex: 1 }}
+            numberOfLines={2}
+          >
+            {order.orderType === "PICKUP"
+              ? order.pickupInstructions ||
+                order.address ||
+                order.deliveryAddress ||
+                "Pickup"
+              : order.deliveryAddress ||
+                order.address ||
+                "Delivery address not set"}
+          </Text>
         </View>
-      </View>
-    </TouchableOpacity>
-  );
+
+        {/* Items Preview */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 8,
+          }}
+        >
+          <Ionicons name="fast-food-outline" size={16} color="#666" />
+          <Text
+            style={{ marginLeft: 8, color: "#666", flex: 1 }}
+            numberOfLines={1}
+          >
+            {order.items.length} item{order.items.length > 1 ? "s" : ""} •{" "}
+            {order.items
+              .slice(0, 2)
+              .map(
+                (item) =>
+                  item.menuItem?.name ||
+                  item.product?.name ||
+                  item.medicine?.name ||
+                  "Item",
+              )
+              .join(", ")}
+            {order.items.length > 2 ? ` +${order.items.length - 2} more` : null}
+          </Text>
+        </View>
+
+        {/* Amount */}
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Ionicons name="wallet-outline" size={16} color="#666" />
+          <Text
+            style={{
+              marginLeft: 8,
+              fontSize: 18,
+              fontWeight: "bold",
+              color: PrimaryColor,
+            }}
+          >
+            {formatAmount(order.totalAmount)}
+          </Text>
+        </View>
+
+        {/* Footer */}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingTop: 12,
+            borderTopWidth: 1,
+            borderTopColor: "#F3F4F6",
+          }}
+        >
+          {/* Date + chevron: signals the whole card is tappable */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={{ fontSize: 12, color: "#999" }}>
+              {formatDate(order.createdAt)}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#C4C4C4" />
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
+              <TouchableOpacity
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: "#FEF2F2",
+                  borderWidth: 1,
+                  borderColor: "#FEE2E2",
+                }}
+                onPress={() => handleCancelOrder(order.id)}
+              >
+                <Text
+                  style={{ fontSize: 12, color: "#EF4444", fontWeight: "600" }}
+                >
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+            )}
+            {/* Pay button for accepted + unpaid orders */}
+            {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: PrimaryColor,
+                  borderWidth: 1,
+                  borderColor: PrimaryColor,
+                }}
+                onPress={() => handlePayFromList(order.id, order.totalAmount)}
+              >
+                <Text
+                  style={{ fontSize: 12, color: "#fff", fontWeight: "700" }}
+                >
+                  Pay
+                </Text>
+                <Ionicons name="card-outline" size={12} color="#fff" />
+              </TouchableOpacity>
+            ) : !["DELIVERED", "CANCELLED"].includes(order.status) ? (
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8,
+                  backgroundColor: "#F0F9FF",
+                  borderWidth: 1,
+                  borderColor: "#E0F2FE",
+                }}
+                onPress={() =>
+                  router.push({
+                    pathname: "/order-tracking",
+                    params: { orderId: order?.id },
+                  })
+                }
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: PrimaryColor,
+                    fontWeight: "600",
+                  }}
+                >
+                  Track
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={12}
+                  color={PrimaryColor}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderDeliveryCard = (delivery: DeliveryActivity) => {
     const expressDelivery = isExpressDelivery(delivery);
@@ -848,7 +925,7 @@ export default function Orders() {
           borderLeftWidth: 4,
           borderLeftColor: statusColor,
         }}
-        activeOpacity={0.8}
+        activeOpacity={0.6}
         onPress={() =>
           router.push({
             pathname: "/custom-delivery/[deliveryId]",
@@ -856,36 +933,47 @@ export default function Orders() {
           })
         }
       >
+        {/* Header */}
         <View
           style={{
             flexDirection: "row",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: "flex-start",
             marginBottom: 12,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <Text style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}>
+          {/* Left: title + express tag stacked so they never collide with the status pill */}
+          <View style={{ flex: 1, marginRight: 8 }}>
+            <Text
+              style={{ fontSize: 16, fontWeight: "bold", color: "#333" }}
+              numberOfLines={1}
+            >
               {expressDelivery
                 ? `TeranGO Express ${formatExpressDeliveryId(delivery.id)}`
                 : `Delivery TG${delivery.id.slice(-4).toUpperCase()}`}
             </Text>
+
             {expressDelivery && (
               <View
                 style={{
-                  backgroundColor: "#FFF5EE",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: "#000",
+                  alignSelf: "flex-start",
                   paddingHorizontal: 8,
                   paddingVertical: 4,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: "#FFD4A3",
+                  borderRadius: 6,
+                  marginTop: 6,
                 }}
               >
+                <Ionicons name="flash" size={10} color="#FF7A00" />
                 <Text
                   style={{
-                    color: PrimaryColor,
-                    fontSize: 11,
-                    fontWeight: "700",
+                    color: "#FF7A00",
+                    fontSize: 10,
+                    fontWeight: "800",
+                    letterSpacing: 0.5,
                   }}
                 >
                   EXPRESS
@@ -893,6 +981,8 @@ export default function Orders() {
               </View>
             )}
           </View>
+
+          {/* Right: status pill, own space, never touches the express tag */}
           <View
             style={{
               backgroundColor: statusColor,
@@ -978,9 +1068,13 @@ export default function Orders() {
             borderTopColor: "#F3F4F6",
           }}
         >
-          <Text style={{ fontSize: 12, color: "#999" }}>
-            {formatDate(delivery.createdAt)}
-          </Text>
+          {/* Date + chevron: signals the whole card is tappable */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+            <Text style={{ fontSize: 12, color: "#999" }}>
+              {formatDate(delivery.createdAt)}
+            </Text>
+            <Ionicons name="chevron-forward" size={14} color="#C4C4C4" />
+          </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             {canPay ? (
               <TouchableOpacity
