@@ -20,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { customDeliveryApi } from "@/lib/api";
+import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
 import { apiCall } from "@/lib/apiClient";
 import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 import { TrackingTimeline } from "@/components/express/TrackingTimeline";
@@ -118,6 +118,14 @@ const STATUS_MAP: Record<
     dot: T.brand,
     icon: "navigate-outline",
     heroMsg: "Your package is on the move",
+  },
+  ARRIVED: {
+    label: "Driver Arrived",
+    color: T.success,
+    bg: T.successSoft,
+    dot: T.success,
+    icon: "location-outline",
+    heroMsg: "Driver has arrived — confirming delivery",
   },
   DELIVERED: {
     label: "Delivered ✓",
@@ -647,14 +655,6 @@ function PaymentSheet({
               <Text style={ps.breakdownLabel}>Transport fee</Text>
               <Text style={ps.breakdownVal}>D{transportFee.toFixed(0)}</Text>
             </View>
-            {(delivery.expressFeesApplied ?? 0) > 0 && (
-              <View style={ps.breakdownRow}>
-                <Text style={ps.breakdownLabel}>Express surcharge</Text>
-                <Text style={[ps.breakdownVal, { color: T.amber }]}>
-                  +D{(delivery.expressFeesApplied || 0).toFixed(0)}
-                </Text>
-              </View>
-            )}
             {(delivery.serviceFee ?? 0) > 0 && (
               <View style={ps.breakdownRow}>
                 <Text style={ps.breakdownLabel}>
@@ -1252,6 +1252,36 @@ export default function DeliveryTrackingPage() {
     setRefreshing(false);
   }, [fetchDelivery]);
 
+  const handleCancelDelivery = useCallback(() => {
+    if (!deliveryId) return;
+    Alert.alert(
+      "Cancel Delivery",
+      "Are you sure you want to cancel this delivery request?",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Cancel Delivery",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await expressDeliveryApi.cancelExpressDelivery(deliveryId);
+              Alert.alert(
+                "Cancelled",
+                "Your delivery request has been cancelled.",
+              );
+              fetchDelivery();
+            } catch (error) {
+              Alert.alert(
+                "Error",
+                (error as any)?.message || "Failed to cancel delivery",
+              );
+            }
+          },
+        },
+      ],
+    );
+  }, [deliveryId, fetchDelivery]);
+
   useEffect(() => {
     fetchDelivery();
   }, [fetchDelivery]);
@@ -1514,6 +1544,8 @@ export default function DeliveryTrackingPage() {
   const isCancelled = normalizedStatus === "CANCELLED";
 
   const showPayNow =
+    !isDelivered &&
+    !isCancelled &&
     delivery.paymentStatus === "UNPAID" &&
     delivery.trackingUpdates?.some(
       (u) =>
@@ -1843,6 +1875,24 @@ export default function DeliveryTrackingPage() {
               )}
             </SectionCard>
 
+            {/* Cancel — only while awaiting admin review/payment, before a driver is assigned */}
+            {normalizedStatus === "PENDING" && (
+              <TouchableOpacity
+                style={s.cancelDeliveryBtn}
+                onPress={handleCancelDelivery}
+                activeOpacity={0.75}
+              >
+                <View style={s.cancelDeliveryIconWrap}>
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={16}
+                    color={T.red}
+                  />
+                </View>
+                <Text style={s.cancelDeliveryText}>Cancel Delivery</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Driver */}
             {delivery.driver && (
               <SectionCard title="Your Driver" icon="person-circle-outline">
@@ -1971,10 +2021,10 @@ export default function DeliveryTrackingPage() {
                 )}
 
                 {/* Payment method badge */}
-                <View style={s.paymentBadge}>
+                {/* <View style={s.paymentBadge}>
                   <Ionicons name="cash-outline" size={12} color={T.success} />
                   <Text style={s.paymentBadgeText}>Pay on delivery</Text>
-                </View>
+                </View> */}
               </SectionCard>
             )}
 
@@ -2042,6 +2092,28 @@ export default function DeliveryTrackingPage() {
 }
 
 const s = StyleSheet.create({
+  cancelDeliveryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    alignSelf: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginBottom: 14,
+    backgroundColor: T.redSoft,
+    borderWidth: 1.5,
+    borderColor: "rgba(220,53,69,0.25)",
+    borderRadius: 16,
+  },
+  cancelDeliveryIconWrap: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelDeliveryText: { fontSize: 13.5, fontWeight: "800", color: T.red },
   safe: { flex: 1, backgroundColor: T.heroBase },
   scroll: { flex: 1, backgroundColor: T.heroBase },
   scrollContent: { paddingBottom: 48 },

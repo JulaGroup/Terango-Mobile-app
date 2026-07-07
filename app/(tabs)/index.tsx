@@ -24,7 +24,6 @@ import ServiceGrid from "@/components/ui/home/ServiceGrid";
 import HubDealBanners from "@/components/ui/home/HubDealBanners";
 
 // Existing reusable components
-import SearchModal from "@/components/common/SearchModal";
 import SearchBar from "@/components/common/SearchBar";
 import PermissionHandler from "@/components/common/PermissionHandler";
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
@@ -509,10 +508,9 @@ const QuickActions = () => {
 
 // ─── Main Hub Screen ─────────────────────────────────────────────────────────
 export default function HomeScreen() {
-  const [searchText] = useState("");
+  const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const showStickySearch = scrollY.interpolate({
@@ -520,6 +518,23 @@ export default function HomeScreen() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
+
+  // The sticky search bar overlay sits on top of the header (location button,
+  // notif bell, etc.) with zIndex 1000. It was previously given
+  // `pointerEvents: "auto"` at ALL times (even while fully transparent before
+  // scrolling), so on Android/iOS it silently swallowed every tap in that top
+  // strip — including taps meant for the location button — and routed them to
+  // "/search" instead. Track the real visibility in state (driven by the same
+  // scroll offset) so we only let it capture touches once it has actually
+  // faded in.
+  const [stickySearchVisible, setStickySearchVisible] = useState(false);
+  useEffect(() => {
+    const id = scrollY.addListener(({ value }) => {
+      const visible = value >= 100;
+      setStickySearchVisible((prev) => (prev === visible ? prev : visible));
+    });
+    return () => scrollY.removeListener(id);
+  }, [scrollY]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -547,13 +562,15 @@ export default function HomeScreen() {
           backgroundColor: "#ff6b00",
           paddingHorizontal: 16,
           paddingVertical: 10,
-          pointerEvents: Platform.OS === "web" ? "none" : "auto",
         }}
+        pointerEvents={
+          Platform.OS === "web" ? "none" : stickySearchVisible ? "auto" : "none"
+        }
       >
         <SearchBar
           value=""
           onChangeText={() => {}}
-          onPress={() => setSearchModalVisible(true)}
+          onPress={() => router.push("/search")}
           editable={false}
           fullWidth
         />
@@ -587,7 +604,7 @@ export default function HomeScreen() {
             <SearchBar
               value=""
               onChangeText={() => {}}
-              onPress={() => setSearchModalVisible(true)}
+              onPress={() => router.push("/search")}
               editable={false}
             />
           </View>
@@ -643,13 +660,6 @@ export default function HomeScreen() {
 
       {/* Permission Modals */}
       <PermissionHandler />
-
-      {/* Search Modal */}
-      <SearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-        initialQuery={searchText}
-      />
     </SafeAreaView>
   );
 }

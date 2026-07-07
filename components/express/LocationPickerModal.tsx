@@ -21,9 +21,10 @@ import {
   GambianTown,
   DELIVERY_ZONES,
 } from "@/constants/gambianTowns";
+import { Colors, Radius, Shadows } from "@/constants/DesignTokens";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
-const PRIMARY = "#FF6B00";
+const PRIMARY = Colors.primary;
 const GOOGLE_PLACES_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || FALLBACK_GOOGLE_PLACES_API_KEY;
 
@@ -225,7 +226,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                 onPress={handleClose}
                 activeOpacity={0.7}
               >
-                <Ionicons name="close" size={24} color="#6B7280" />
+                <Ionicons name="close" size={24} color={Colors.inkMid} />
               </TouchableOpacity>
             </View>
           </View>
@@ -233,11 +234,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           {/* Search */}
           <View style={styles.searchSection}>
             <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color="#9CA3AF" />
+              <Ionicons name="search" size={20} color={Colors.inkLighter} />
               <TextInput
                 style={styles.searchInput}
                 placeholder="Search locations..."
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={Colors.inkLighter}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
@@ -249,7 +250,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   onPress={() => setSearchQuery("")}
                   activeOpacity={0.6}
                 >
-                  <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+                  <Ionicons name="close-circle" size={20} color={Colors.inkLighter} />
                 </TouchableOpacity>
               )}
             </View>
@@ -304,7 +305,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   components: "country:gm",
                 }}
                 textInputProps={{
-                  placeholderTextColor: "#9CA3AF",
+                  placeholderTextColor: Colors.inkLighter,
                 }}
                 enablePoweredByContainer={false}
                 styles={{
@@ -355,7 +356,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                             <Ionicons
                               name="location"
                               size={20}
-                              color={isSelected ? PRIMARY : "#6B7280"}
+                              color={isSelected ? PRIMARY : Colors.inkMid}
                             />
                           </View>
 
@@ -394,7 +395,7 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             ) : (
               <View style={styles.emptyState}>
                 <View style={styles.emptyIconContainer}>
-                  <Ionicons name="search" size={64} color="#E5E7EB" />
+                  <Ionicons name="search" size={64} color={Colors.divider} />
                 </View>
                 <Text style={styles.emptyTitle}>No locations found</Text>
                 <Text style={styles.emptyText}>
@@ -416,30 +417,26 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#000",
+    backgroundColor: Colors.black,
   },
   modalContainer: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xxl,
+    borderTopRightRadius: Radius.xxl,
     height: SCREEN_HEIGHT * 0.85,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 12,
+    ...Shadows.xl,
   },
   modalHeader: {
     paddingTop: 12,
     paddingBottom: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
+    borderBottomColor: Colors.bg,
   },
   dragHandle: {
     width: 40,
     height: 4,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: Colors.divider,
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
@@ -452,7 +449,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: "800",
-    color: "#111827",
+    color: Colors.ink,
     letterSpacing: 0.3,
   },
   closeButton: {
@@ -461,28 +458,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 20,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: Colors.bg,
   },
   searchSection: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
   },
   searchInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.surfaceRaised,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     paddingHorizontal: 16,
     gap: 12,
+    ...Shadows.sm,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 14,
     fontSize: 16,
-    color: "#111827",
+    color: Colors.ink,
     fontWeight: "500",
   },
   autocompleteSection: {
@@ -498,20 +496,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   autocompleteInput: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.surfaceRaised,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     paddingHorizontal: 14,
     height: 48,
     fontSize: 15,
-    color: "#111827",
+    color: Colors.ink,
   },
   autocompleteList: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     marginTop: 6,
   },
   autocompleteRow: {
@@ -519,7 +517,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   autocompleteDescription: {
-    color: "#111827",
+    color: Colors.ink,
     fontSize: 14,
   },
   clearButton: {
@@ -538,22 +536,24 @@ const styles = StyleSheet.create({
   areaSectionTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#6B7280",
+    color: Colors.inkMid,
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 12,
     paddingLeft: 4,
   },
   locationItem: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.surfaceRaised,
     borderRadius: 14,
     marginBottom: 10,
     borderWidth: 1.5,
-    borderColor: "#F3F4F6",
+    borderColor: Colors.bg,
+    ...Shadows.sm,
   },
   locationItemSelected: {
-    backgroundColor: "rgba(255,107,0,0.06)",
-    borderColor: "rgba(255,107,0,0.3)",
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primaryGlow,
+    ...Shadows.md,
   },
   locationItemContent: {
     flexDirection: "row",
@@ -566,15 +566,15 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
   },
   locationIconContainerSelected: {
-    backgroundColor: "rgba(255,107,0,0.1)",
-    borderColor: "rgba(255,107,0,0.3)",
+    backgroundColor: Colors.primaryGlow,
+    borderColor: Colors.primaryGlow,
   },
   locationTextContainer: {
     flex: 1,
@@ -582,7 +582,7 @@ const styles = StyleSheet.create({
   locationName: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.ink,
     lineHeight: 22,
     marginBottom: 4,
   },
@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   },
   locationArea: {
     fontSize: 14,
-    color: "#6B7280",
+    color: Colors.inkMid,
     fontWeight: "500",
     lineHeight: 18,
   },
@@ -609,12 +609,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.ink,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 15,
-    color: "#6B7280",
+    color: Colors.inkMid,
     textAlign: "center",
     lineHeight: 22,
     paddingHorizontal: 32,

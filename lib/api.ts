@@ -854,6 +854,7 @@ export const orderApi = {
   getOrderStatusCounts: async (): Promise<{
     byStatus: Record<string, number>;
     acceptedUnpaid: number;
+    live: number;
   }> => {
     return apiCall(`/api/orders/status-counts`);
   },
@@ -1322,6 +1323,13 @@ export const expressDeliveryApi = {
 
   getExpressDeliveryTimeline: async (deliveryId: string) => {
     return apiCall(`/api/express-delivery/${deliveryId}/timeline`);
+  },
+
+  cancelExpressDelivery: async (deliveryId: string, reason?: string) => {
+    return apiCall(`/api/express-delivery/${deliveryId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    });
   },
 
   generateExpressQR: async (deliveryId: string, options?: {

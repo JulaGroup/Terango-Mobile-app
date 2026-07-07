@@ -28,6 +28,7 @@ import {
   useBrowserNotifications,
 } from "@/services/NotificationService";
 import OrderSuccessModal from "@/components/OrderSuccessModal";
+import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { useEffect, useRef, useState } from "react";
 import { safeGetItem } from "@/actions/auth.ts/action";
 import * as Linking from "expo-linking";
@@ -411,6 +412,7 @@ export default function RootLayout() {
 
   useRegisterPushToken(userId ?? "");
   useBrowserNotifications();
+  useAutoUpdate();
 
   // Handle notification taps → navigate to order-details
   useEffect(() => {
@@ -559,6 +561,13 @@ export default function RootLayout() {
                               <Stack.Screen
                                 name="(tabs)"
                                 options={{ headerShown: false }}
+                              />
+                              <Stack.Screen
+                                name="search"
+                                options={{
+                                  headerShown: false,
+                                  animation: "fade_from_bottom",
+                                }}
                               />
                               <Stack.Screen
                                 name="CategoryDetailsPage"

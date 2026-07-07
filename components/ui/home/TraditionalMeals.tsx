@@ -60,7 +60,7 @@ export default function TraditionalMeals() {
   };
 
   const renderProductCard = ({ item }: { item: any }) => (
-    <View style={{ marginRight: 16 }}>
+    <View>
       <MealItemCard
         product={toUniversalMeal(item)}
         cartQuantity={getQuantity(String(item.id))}
@@ -181,7 +181,7 @@ export default function TraditionalMeals() {
         contentContainerStyle={{
           paddingHorizontal: 16,
         }}
-        ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
+        ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
       />
     </View>
   );

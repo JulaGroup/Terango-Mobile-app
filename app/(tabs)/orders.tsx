@@ -906,6 +906,7 @@ export default function Orders() {
     const canTrack = !PAST_STATUSES.includes(delivery.status);
     const canPay =
       expressDelivery &&
+      !PAST_STATUSES.includes(delivery.status) &&
       delivery.paymentStatus !== "PAID" &&
       delivery.adminApprovedForPayment === true;
 

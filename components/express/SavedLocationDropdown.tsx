@@ -14,6 +14,7 @@ import {
   Spacing,
   Radius,
   ComponentSizes,
+  Shadows,
 } from "@/constants/DesignTokens";
 import { ModernBottomSheet } from "../common/ModernBottomSheet";
 import { Address } from "@/services/AddressService";
@@ -193,7 +194,7 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
           <Ionicons
             name={getAddressTypeIcon(selectedAddress?.label)}
             size={20}
-            color={selectedAddress ? "#FF6B00" : "#6B7280"}
+            color={selectedAddress ? Colors.primary : Colors.inkMid}
           />
         </View>
         <View style={styles.selectorText}>
@@ -210,7 +211,7 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
             <Text style={styles.placeholder}>{placeholder}</Text>
           )}
         </View>
-        <Ionicons name="chevron-down" size={20} color="#9CA3AF" />
+        <Ionicons name="chevron-down" size={20} color={Colors.inkLighter} />
       </TouchableOpacity>
 
       <ModernBottomSheet
@@ -273,14 +274,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.divider,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.base,
+    gap: Spacing.md,
+    ...Shadows.sm,
   },
   selectorFilled: {
     backgroundColor: Colors.primaryFaint,
     borderColor: Colors.primaryGlow,
+    ...Shadows.md,
   },
   selectorIconWrapper: {
     width: 40,

@@ -24,6 +24,7 @@ interface ProductCardProps {
   orderingDisabled?: boolean;
   disabledReason?: string;
   onAddDisabledPress?: () => void;
+  vendorName?: string; // Shop/restaurant name shown under the product name
 }
 
 const ProductCard = ({
@@ -36,6 +37,7 @@ const ProductCard = ({
   orderingDisabled,
   disabledReason,
   onAddDisabledPress,
+  vendorName,
 }: ProductCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -223,6 +225,14 @@ const ProductCard = ({
         <Text style={styles.name} numberOfLines={1}>
           {product.name}
         </Text>
+        {vendorName ? (
+          <View style={styles.vendorRow}>
+            <Ionicons name="storefront-outline" size={10} color="#6B7280" />
+            <Text style={styles.vendorName} numberOfLines={1}>
+              {vendorName}
+            </Text>
+          </View>
+        ) : null}
         {product.description && (
           <Text style={styles.desc} numberOfLines={1}>
             {product.description}
@@ -418,6 +428,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 4,
     lineHeight: 12,
+  },
+  vendorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginBottom: 2,
+  },
+  vendorName: {
+    color: "#6B7280",
+    fontSize: 10,
+    fontWeight: "500",
+    flexShrink: 1,
   },
   productPriceRow: {
     flexDirection: "row",

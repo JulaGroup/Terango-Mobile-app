@@ -23,6 +23,7 @@ interface MealItemCardProps {
   orderingDisabled?: boolean;
   disabledReason?: string;
   onAddDisabledPress?: () => void;
+  vendorName?: string; // Restaurant name shown under the meal name
 }
 
 const MealItemCard = ({
@@ -34,6 +35,7 @@ const MealItemCard = ({
   orderingDisabled,
   disabledReason,
   onAddDisabledPress,
+  vendorName,
 }: MealItemCardProps) => {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -103,6 +105,15 @@ const MealItemCard = ({
         <Text style={styles.name} numberOfLines={2}>
           {product.name}
         </Text>
+
+        {vendorName ? (
+          <View style={styles.vendorRow}>
+            <Ionicons name="storefront-outline" size={11} color="#6B7280" />
+            <Text style={styles.vendorName} numberOfLines={1}>
+              {vendorName}
+            </Text>
+          </View>
+        ) : null}
 
         {product.description && (
           <Text style={styles.description} numberOfLines={2}>
@@ -295,6 +306,18 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     lineHeight: 18,
     marginBottom: 8,
+  },
+  vendorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 4,
+  },
+  vendorName: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "500",
+    flexShrink: 1,
   },
   bottomRow: {
     flexDirection: "row",

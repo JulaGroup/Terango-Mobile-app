@@ -53,6 +53,7 @@ const VendorAwareProductCard: React.FC<VendorAwareProductCardProps> = ({
       orderingDisabled={orderingDisabled}
       disabledReason={disabledReason}
       onAddDisabledPress={handleDisabledPress}
+      vendorName={vendor.vendorName ?? undefined}
     />
   );
 };

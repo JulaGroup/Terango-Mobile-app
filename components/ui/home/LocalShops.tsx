@@ -75,7 +75,6 @@ const ShopCard = React.memo(
           width: 280,
           backgroundColor: "#fff",
           borderRadius: 16,
-          marginRight: 16,
           elevation: 12,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: 8 },
@@ -365,7 +364,6 @@ export default function LocalShops({
         width: 280,
         backgroundColor: "#fff",
         borderRadius: 16,
-        marginRight: 16,
         padding: 16,
         elevation: 2,
         shadowColor: "#000",
@@ -601,6 +599,7 @@ export default function LocalShops({
           contentContainerStyle={{
             paddingHorizontal: 16,
           }}
+          ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
           keyExtractor={(item, index) => index.toString()}
         />
       ) : shops.length > 0 ? (
@@ -614,6 +613,7 @@ export default function LocalShops({
             marginTop: 8,
             marginBottom: 30,
           }}
+          ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
           keyExtractor={(item) => item.id}
         />
       ) : (

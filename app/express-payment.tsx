@@ -247,14 +247,8 @@ export default function ExpressPaymentScreen() {
             <Text style={styles.expressBannerTitle}>Express Delivery</Text>
           </View>
           <Text style={styles.expressBannerSubtitle}>
-            Guaranteed delivery within 1 hour
+            Fast, prioritized delivery
           </Text>
-          {delivery?.guaranteedDeliveryTime && (
-            <Text style={styles.guaranteedTime}>
-              Guaranteed by:{" "}
-              {new Date(delivery.guaranteedDeliveryTime).toLocaleString()}
-            </Text>
-          )}
         </LinearGradient>
 
         {delivery && !delivery.adminApprovedForPayment && (
@@ -313,15 +307,6 @@ export default function ExpressPaymentScreen() {
                   (delivery.subtotalFee || delivery.estimatedFee || 0) -
                     (delivery.bookingFee || 0),
                 ).toLocaleString()}
-              </Text>
-            </View>
-
-            <View style={styles.priceRow}>
-              <Text style={styles.priceLabel}>
-                Express surcharge ({delivery.priorityLevel})
-              </Text>
-              <Text style={[styles.priceValue, { color: "#D97706" }]}>
-                +D{delivery.expressFeesApplied?.toLocaleString() || "0"}
               </Text>
             </View>
 
@@ -423,7 +408,7 @@ export default function ExpressPaymentScreen() {
         </View>
 
         {/* QR Code Info */}
-        {delivery?.qrCode && (
+        {/* {delivery?.qrCode && (
           <View style={styles.qrSection}>
             <View style={styles.qrInfo}>
               <Ionicons name="qr-code" size={20} color="#059669" />
@@ -432,7 +417,7 @@ export default function ExpressPaymentScreen() {
               </Text>
             </View>
           </View>
-        )}
+        )} */}
       </ScrollView>
 
       {/* Pay Button */}

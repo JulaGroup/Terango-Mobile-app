@@ -31,6 +31,12 @@ interface SearchModalProps {
   visible: boolean;
   onClose: () => void;
   initialQuery?: string;
+  /**
+   * When true, renders as a plain screen (no native Modal wrapper) so it can
+   * live in the navigation stack — pushed detail screens appear on top and
+   * the back button returns here with query/results intact.
+   */
+  asScreen?: boolean;
 }
 
 interface SearchResults {
@@ -52,6 +58,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
   visible,
   onClose,
   initialQuery = "",
+  asScreen = false,
 }) => {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState(initialQuery);
@@ -239,6 +246,15 @@ const SearchModal: React.FC<SearchModalProps> = ({
     onClose();
   };
 
+  // When navigating to a detail screen: close the modal variant so it doesn't
+  // cover the pushed screen; as a stack screen we stay mounted so the user's
+  // back button returns to these results.
+  const closeBeforeNavigate = () => {
+    if (!asScreen) {
+      onClose();
+    }
+  };
+
   // Render restaurant items - matching SubCategoryView structure
   const renderRestaurants = () => {
     if (results.restaurants.length === 0) return null;
@@ -257,7 +273,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
             key={restaurant.id}
             style={styles.modernRestaurantCard}
             onPress={() => {
-              onClose();
+              closeBeforeNavigate();
               router.push({
                 pathname: "/restaurant-details",
                 params: { restaurantId: restaurant.id },
@@ -365,7 +381,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
               key={shop.id}
               style={styles.modernCard}
               onPress={() => {
-                onClose();
+                closeBeforeNavigate();
                 router.push({
                   pathname: "/shop-details",
                   params: { shopId: shop.id },
@@ -520,7 +536,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   }}
                   onRemoveFromCart={() => removeFromCart(String(menuItem.id))}
                   onPress={() => {
-                    onClose();
+                    closeBeforeNavigate();
                     router.push(`/menuitem/${menuItem.id}`);
                   }}
                   vendor={{
@@ -596,7 +612,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   }}
                   onRemoveFromCart={() => removeFromCart(String(product.id))}
                   onPress={() => {
-                    onClose();
+                    closeBeforeNavigate();
                     router.push(`/product/${product.id}`);
                   }}
                   vendor={{
@@ -649,12 +665,8 @@ const SearchModal: React.FC<SearchModalProps> = ({
     </TouchableOpacity>
   );
 
-  return (
-    <Modal
-      visible={visible}
-      animationType="none"
-      presentationStyle="overFullScreen"
-    >
+  const content = (
+    <>
       <StatusBar backgroundColor="rgba(0,0,0,0.5)" barStyle="light-content" />
       <View style={styles.overlay}>
         <Animated.View
@@ -883,6 +895,22 @@ const SearchModal: React.FC<SearchModalProps> = ({
           </View>
         </Animated.View>
       </View>
+    </>
+  );
+
+  // As a stack screen: no native Modal wrapper, so pushed detail screens can
+  // render on top and back returns here with state intact.
+  if (asScreen) {
+    return content;
+  }
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="none"
+      presentationStyle="overFullScreen"
+    >
+      {content}
     </Modal>
   );
 };

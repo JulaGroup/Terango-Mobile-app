@@ -13,6 +13,7 @@ import React, {
 import {
   Animated,
   Dimensions,
+  FlatList,
   Platform,
   RefreshControl,
   ScrollView,
@@ -30,7 +31,6 @@ import { useCart } from "@/context/CartContext";
 import { useAddress } from "@/context/AddressContext";
 import Cart from "@/components/common/Cart";
 import SearchBar from "@/components/common/SearchBar";
-import SearchModal from "@/components/common/SearchModal";
 import LocationModal from "@/components/common/LocationModal";
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
@@ -237,7 +237,6 @@ export default function FoodPage() {
   const { flags } = useMaintenance();
   const router = useRouter();
   const { selectedAddress, setSelectedAddress } = useAddress();
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [categories, setCategories] = useState<FoodCategory[]>([]);
@@ -257,12 +256,12 @@ export default function FoodPage() {
     const full = parts.join(", ");
     return full.length > 28 ? `${full.substring(0, 28)}\u2026` : full;
   }, [selectedAddress]);
-  const categoryRows = useMemo(() => {
-    const rows: FoodCategory[][] = [];
-    for (let i = 0; i < categories.length; i += 4) {
-      rows.push(categories.slice(i, i + 4));
+  const categoryPairs = useMemo(() => {
+    const pairs: FoodCategory[][] = [];
+    for (let i = 0; i < categories.length; i += 2) {
+      pairs.push(categories.slice(i, i + 2));
     }
-    return rows;
+    return pairs;
   }, [categories]);
 
   const fetchCategories = useCallback(async () => {
@@ -441,7 +440,7 @@ export default function FoodPage() {
         <SearchBar
           value=""
           onChangeText={() => {}}
-          onPress={() => setSearchModalVisible(true)}
+          onPress={() => router.push("/search")}
           editable={false}
           fullWidth
         />
@@ -545,41 +544,49 @@ export default function FoodPage() {
             <Divider />
 
             {/* ── Promo banners (free delivery + launch offer) ── */}
-            <PromoBanner />
+            {/* <PromoBanner /> */}
 
             {/* ── Category grid (3-col) ──── */}
             <SectionHeader title="Categories" />
             {catLoading ? (
-              <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
-                {[0, 1].map((ri) => (
-                  <View key={ri} style={{ flexDirection: "row", gap: 8 }}>
-                    {[0, 1, 2, 3].map((ci) => (
-                      <Skeleton key={ci} w={CAT_W} h={CAT_H} radius={14} />
-                    ))}
+              <FlatList
+                horizontal
+                data={[1, 2, 3, 4, 5, 6]}
+                keyExtractor={(i) => `cat-sk-${i}`}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}
+                renderItem={() => (
+                  <View style={{ gap: 8, marginRight: 8 }}>
+                    <Skeleton w={CAT_W} h={CAT_H} radius={14} />
+                    <Skeleton w={CAT_W} h={CAT_H} radius={14} />
                   </View>
-                ))}
-              </View>
+                )}
+              />
             ) : (
-              <View style={{ paddingHorizontal: 16, gap: 8, marginBottom: 12 }}>
-                {categoryRows.map((row, ri) => (
-                  <View
-                    key={`row-${ri}`}
-                    style={{ flexDirection: "row", gap: 8 }}
-                  >
-                    {row.map((cat) => (
+              <FlatList
+                horizontal
+                data={categoryPairs}
+                keyExtractor={(_, i) => `cat-col-${i}`}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                }}
+                renderItem={({ item: pair }) => (
+                  <View style={{ gap: 8, marginRight: 8 }}>
+                    {pair.map((cat) => (
                       <CategoryCard3Col
                         key={cat.id}
                         item={cat}
                         onPress={handleCategoryPress}
                       />
                     ))}
-                    {row.length < 4 &&
-                      Array.from({ length: 4 - row.length }).map((_, j) => (
-                        <View key={`empty-${j}`} style={{ width: CAT_W }} />
-                      ))}
                   </View>
-                ))}
-              </View>
+                )}
+              />
             )}
 
             <Divider />
@@ -678,13 +685,6 @@ export default function FoodPage() {
 
       {/* Live order tracker — visible only when there are active orders */}
       <ActiveOrderBanner />
-
-      {/* Search Modal */}
-      <SearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-        initialQuery=""
-      />
 
       {/* Location Modal */}
       <LocationModal

@@ -1,33 +1,42 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
+  Animated,
   Dimensions,
-  FlatList,
   StyleSheet,
   View,
   TouchableOpacity,
   Linking,
-  ActivityIndicator,
   Text,
 } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import Carousel, { Pagination } from "react-native-reanimated-carousel";
+import { useSharedValue } from "react-native-reanimated";
 import { API_URL } from "@/constants/config";
 import { PrimaryColor } from "@/constants/Colors";
 
 // Fallback local ads (used when API fails or no ads in DB)
-const FALLBACK_ADS = [
+const FALLBACK_ADS: Advertisement[] = [
   {
     id: "local-1",
+    title: "",
+    imageUrl: "",
     image: require("../../../assets/images/adverts/advert1.jpg"),
     isLocal: true,
   },
   {
     id: "local-2",
+    title: "",
+    imageUrl: "",
     image: require("../../../assets/images/adverts/advert2.jpg"),
     isLocal: true,
   },
   {
     id: "local-3",
+    title: "",
+    imageUrl: "",
     image: require("../../../assets/images/adverts/advert3.jpg"),
     isLocal: true,
   },
@@ -40,25 +49,30 @@ interface Advertisement {
   imageUrl: string;
   link?: string;
   orientation?: "PORTRAIT" | "LANDSCAPE"; // Ad orientation type
+  vendorId?: string | null;
+  vendorType?: string | null; // "SHOP" | "RESTAURANT" | "PHARMACY"
   isLocal?: boolean;
   image?: any; // For local images
 }
 
 const { width } = Dimensions.get("window");
 
-// Card dimensions based on orientation
+// Card dimensions based on orientation. Cards are intentionally narrower
+// than the screen — react-native-reanimated-carousel's "parallax" mode
+// scales/translates neighboring cards so they peek in symmetrically on
+// both sides instead of colliding with the screen edges.
 const getCardDimensions = (
   orientation: "PORTRAIT" | "LANDSCAPE" = "LANDSCAPE",
 ) => {
   if (orientation === "PORTRAIT") {
     return {
-      width: width * 0.6, // 50% of screen width
+      width: width * 0.6,
       height: 320, // Taller for portrait
     };
   }
   // LANDSCAPE (default)
   return {
-    width: width - 40, // Full width minus padding
+    width: width - 16,
     height: 180, // Standard height for landscape
   };
 };
@@ -76,11 +90,12 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
   position = "HOME_TOP",
   refreshKey = 0,
 }) => {
-  const flatListRef = useRef<FlatList>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const router = useRouter();
+  const progress = useSharedValue(0);
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const skeletonPulse = useRef(new Animated.Value(0.4)).current;
 
   // Fetch advertisements from API
   const fetchAdvertisements = useCallback(async () => {
@@ -144,12 +159,38 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     }
   };
 
+  // Does this ad deep-link to an in-app vendor storefront?
+  const hasVendorLink = (ad: Advertisement) =>
+    Boolean(ad.vendorId && ad.vendorType);
+
+  // Navigate to the linked vendor's storefront inside the app
+  const goToVendor = (ad: Advertisement) => {
+    if (!ad.vendorId || !ad.vendorType) return;
+    const type = ad.vendorType.toUpperCase();
+    switch (type) {
+      case "RESTAURANT":
+        router.push(`/restaurant-details?restaurantId=${ad.vendorId}` as any);
+        break;
+      case "SHOP":
+      case "PHARMACY":
+      default:
+        router.push(`/shop-details?shopId=${ad.vendorId}` as any);
+        break;
+    }
+  };
+
   // Handle ad press
   const handleAdPress = async (ad: Advertisement) => {
     // Track the click
     await trackClick(ad.id);
 
-    // Open link if available
+    // Prefer in-app vendor deep-link over external URL
+    if (hasVendorLink(ad)) {
+      goToVendor(ad);
+      return;
+    }
+
+    // Open external link if available
     if (ad.link) {
       try {
         const canOpen = await Linking.canOpenURL(ad.link);
@@ -166,51 +207,53 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     fetchAdvertisements();
   }, [fetchAdvertisements, refreshKey]);
 
-  // Auto-scroll effect - 4 seconds interval
+  // Gentle shimmer pulse for the loading skeleton
   useEffect(() => {
-    if (advertisements.length <= 1) return;
+    if (!loading) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(skeletonPulse, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(skeletonPulse, {
+          toValue: 0.4,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [loading, skeletonPulse]);
 
-    const interval = setInterval(() => {
-      const nextIndex = (currentIndex + 1) % advertisements.length;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentIndex(nextIndex);
-    }, 4000); // 4 seconds
+  // Card height for the carousel "slot". Derived from the carousel's
+  // dominant orientation (a position is virtually always all LANDSCAPE or
+  // all PORTRAIT) since react-native-reanimated-carousel needs one fixed
+  // height for the whole track.
+  const activeOrientation: "PORTRAIT" | "LANDSCAPE" =
+    advertisements[0]?.orientation === "PORTRAIT" ? "PORTRAIT" : "LANDSCAPE";
+  const activeDimensions = getCardDimensions(activeOrientation);
 
-    return () => clearInterval(interval);
-  }, [currentIndex, advertisements.length]);
-
-  const onScroll = (event: any) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const cardWidth = width - 40; // Standard card width with padding
-    const newIndex = Math.round(offsetX / cardWidth);
-    if (
-      newIndex !== currentIndex &&
-      newIndex >= 0 &&
-      newIndex < advertisements.length
-    ) {
-      setCurrentIndex(newIndex);
-    }
-  };
-
-  // Loading skeleton
+  // Loading skeleton — subtle shimmer pulse instead of a plain spinner
   if (loading) {
     // Use default landscape dimensions for skeleton
     const skeletonDimensions = getCardDimensions("LANDSCAPE");
     return (
       <View style={styles.container}>
         <View style={styles.cardWrapper}>
-          <View
+          <Animated.View
             style={[
               styles.card,
               styles.skeletonCard,
               {
                 width: skeletonDimensions.width,
                 height: skeletonDimensions.height,
+                opacity: skeletonPulse,
               },
             ]}
-          >
-            <ActivityIndicator size="small" color={PrimaryColor} />
-          </View>
+          />
         </View>
       </View>
     );
@@ -220,31 +263,35 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
     return null;
   }
 
-  // Carousel layout - works for all orientations with side-by-side scrolling
+  // Carousel layout - works for all orientations with side-by-side scrolling.
+  // Sliding/centering/peeking/autoplay/looping is all handled by
+  // react-native-reanimated-carousel (parallax mode) instead of a hand-rolled
+  // FlatList + manual scroll-offset math, which is far more reliable.
   return (
     <View style={styles.container}>
-      <FlatList
-        ref={flatListRef}
+      <Carousel
+        width={width}
+        height={activeDimensions.height}
         data={advertisements}
-        keyExtractor={(item) => item.id}
-        horizontal
-        pagingEnabled={false}
-        scrollEventThrottle={16}
-        showsHorizontalScrollIndicator={false}
-        onScroll={onScroll}
-        snapToInterval={width - 40 + 20} // Card width + gap
-        snapToAlignment="start"
-        decelerationRate="fast"
-        contentContainerStyle={{ paddingHorizontal: 20, gap: 20 }}
+        loop={advertisements.length > 1}
+        autoPlay={advertisements.length > 1}
+        autoPlayInterval={4000}
+        scrollAnimationDuration={700}
+        onProgressChange={progress}
+        mode="parallax"
+        modeConfig={{
+          parallaxScrollingScale: 0.9,
+          parallaxScrollingOffset: 55,
+        }}
         renderItem={({ item }) => {
           const dimensions = getCardDimensions(item.orientation || "LANDSCAPE");
+          const isPressable = Boolean(item.link) || hasVendorLink(item);
+
           return (
-            <TouchableOpacity
-              activeOpacity={item.link ? 0.9 : 1}
-              onPress={() => item.link && handleAdPress(item)}
-              style={{ marginRight: 0 }}
-            >
-              <View
+            <View style={styles.slideWrapper}>
+              <TouchableOpacity
+                activeOpacity={isPressable ? 0.92 : 1}
+                onPress={() => isPressable && handleAdPress(item)}
                 style={[
                   styles.card,
                   { width: dimensions.width, height: dimensions.height },
@@ -258,42 +305,56 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
                   cachePolicy="memory-disk"
                 />
 
-                {/* Gradient overlay for better text visibility */}
-                {item.link && <View style={styles.gradientOverlay} />}
+                {/* Bottom gradient for legible CTA text over any image */}
+                {isPressable && (
+                  <LinearGradient
+                    colors={["transparent", "rgba(0,0,0,0.55)"]}
+                    style={styles.gradientOverlay}
+                    pointerEvents="none"
+                  />
+                )}
 
-                {/* "See More" button for ads with links */}
-                {item.link && (
+                {/* CTA: "Visit Shop" for vendor-linked ads, else "See more" for external links */}
+                {isPressable && (
                   <View style={styles.ctaContainer}>
                     <TouchableOpacity
                       style={styles.ctaButton}
                       onPress={() => handleAdPress(item)}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.ctaText}>See more</Text>
-                      <Ionicons name="arrow-forward" size={16} color="#fff" />
+                      <Text style={styles.ctaText}>
+                        {hasVendorLink(item) ? "Visit Shop" : "See more"}
+                      </Text>
+                      <Ionicons
+                        name={
+                          hasVendorLink(item)
+                            ? "storefront-outline"
+                            : "arrow-forward"
+                        }
+                        size={16}
+                        color="#fff"
+                      />
                     </TouchableOpacity>
                   </View>
                 )}
-              </View>
-
-              {/* Dots indicator below card */}
-              {advertisements.length > 1 && (
-                <View style={styles.dotsContainerBottom}>
-                  {advertisements.map((_, dotIndex) => (
-                    <View
-                      key={dotIndex}
-                      style={[
-                        styles.dot,
-                        currentIndex === dotIndex && styles.activeDot,
-                      ]}
-                    />
-                  ))}
-                </View>
-              )}
-            </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
           );
         }}
       />
+
+      {/* Dots indicator below carousel — driven by the carousel's own
+          progress value, so it always matches exactly what's on screen */}
+      {advertisements.length > 1 && (
+        <Pagination.Basic
+          progress={progress}
+          data={advertisements}
+          size={8}
+          dotStyle={styles.dot}
+          activeDotStyle={styles.activeDot}
+          containerStyle={styles.dotsContainerBottom}
+        />
+      )}
     </View>
   );
 };
@@ -308,20 +369,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  slideWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   card: {
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: "hidden",
     position: "relative",
+    backgroundColor: "#f0f0f0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
   },
   skeletonCard: {
-    backgroundColor: "#f0f0f0",
+    backgroundColor: "#e9e9e9",
     justifyContent: "center",
     alignItems: "center",
   },
   image: {
     width: "100%",
     height: "100%",
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: "#f0f0f0",
   },
   gradientOverlay: {
@@ -329,8 +401,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: "0%",
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    height: "55%",
   },
   ctaContainer: {
     position: "absolute",
@@ -366,22 +437,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   dotsContainerBottom: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
     marginTop: 12,
-    gap: 4,
+    gap: 6,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
-    marginHorizontal: 3,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
   },
   activeDot: {
     backgroundColor: PrimaryColor,
-    width: 20,
   },
 });
 

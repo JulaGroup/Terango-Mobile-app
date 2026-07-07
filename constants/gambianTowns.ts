@@ -25,17 +25,17 @@ export interface GambianTown {
 // These are used when the API is unavailable
 export const DELIVERY_ZONES = {
   zone1: {
-    name: "Central",
+    name: "Zone 1",
     baseFee: 35,
     description: "Serrekunda, Kanifing, Pipeline",
   },
   zone2: {
-    name: "Greater Banjul",
+    name: "Zone 2",
     baseFee: 50,
     description: "Bakau, Fajara, Kotu, Kololi, Kairaba Avenue, Bijilo",
   },
   zone3: {
-    name: "West Coast",
+    name: "Zone 3",
     baseFee: 75,
     description: "Brusubi, Brufut, Sukuta",
   },

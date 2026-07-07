@@ -53,6 +53,7 @@ const VendorAwareMealItemCard: React.FC<VendorAwareMealItemCardProps> = ({
       orderingDisabled={orderingDisabled}
       disabledReason={disabledReason}
       onAddDisabledPress={handleDisabledPress}
+      vendorName={vendor.vendorName ?? undefined}
     />
   );
 };

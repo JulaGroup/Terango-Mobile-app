@@ -30,7 +30,6 @@ import { useCart } from "@/context/CartContext";
 import { useAddress } from "@/context/AddressContext";
 import Cart from "@/components/common/Cart";
 import SearchBar from "@/components/common/SearchBar";
-import SearchModal from "@/components/common/SearchModal";
 import LocationModal from "@/components/common/LocationModal";
 import LocalShops from "@/components/ui/home/LocalShops";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
@@ -300,7 +299,6 @@ export default function MartPage() {
     const full = parts.join(", ");
     return full.length > 28 ? `${full.substring(0, 28)}\u2026` : full;
   }, [selectedAddress]);
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [locationModalVisible, setLocationModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState("all");
   const [categories, setCategories] = useState<MartCategory[]>([]);
@@ -477,7 +475,7 @@ export default function MartPage() {
         <SearchBar
           value=""
           onChangeText={() => {}}
-          onPress={() => setSearchModalVisible(true)}
+          onPress={() => router.push("/search")}
           editable={false}
           fullWidth
         />
@@ -582,7 +580,7 @@ export default function MartPage() {
             {/* <PromoBanner /> */}
 
             {/* ── Featured category banners (1-row horizontal slider) ─── */}
-            <SectionHeader title="Shop By Type" />
+            {/* <SectionHeader title="Shop By Type" />
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -620,9 +618,9 @@ export default function MartPage() {
                 color="#333"
                 onPress={() => router.push("/AllCategoriesPage" as any)}
               />
-            </ScrollView>
+            </ScrollView> */}
 
-            <Divider />
+            {/* <Divider /> */}
 
             {/* ── Browse all categories ─────── */}
             <SectionHeader title="All Categories" />
@@ -768,13 +766,6 @@ export default function MartPage() {
 
       {/* Live order tracker — visible only when there are active orders */}
       <ActiveOrderBanner />
-
-      {/* Search Modal */}
-      <SearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-        initialQuery=""
-      />
 
       {/* Location Modal */}
       <LocationModal

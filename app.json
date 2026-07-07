@@ -10,6 +10,14 @@
     "scheme": [
       "teranggo"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/507d12d6-9a8c-4115-a413-86c6c9901d3d",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": false,
       "buildNumber": "45",
@@ -78,12 +86,12 @@
             {
               "scheme": "https",
               "host": "monkfish-app-korrv.ondigitalocean.app",
-              "pathPrefix": "api/redirect/payment-success"
+              "pathPrefix": "/api/redirect/payment-success"
             },
             {
               "scheme": "https",
               "host": "monkfish-app-korrv.ondigitalocean.app",
-              "pathPrefix": "api/redirect/payment-cancel"
+              "pathPrefix": "/api/redirect/payment-cancel"
             },
             {
               "scheme": "https",

@@ -20,46 +20,52 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { vendorPendingOrders } = useVendor();
   const insets = useSafeAreaInsets();
-  // Accepted orders that still need payment (badge on Orders tab)
-  const [acceptedPaymentCount, setAcceptedPaymentCount] =
-    React.useState<number>(0);
+  // Live orders (anything not delivered/cancelled) — badge on Activities tab
+  const [liveOrderCount, setLiveOrderCount] = React.useState<number>(0);
 
-  const refreshAcceptedCount = React.useCallback(async () => {
+  const refreshLiveCount = React.useCallback(async () => {
     try {
       const loggedIn = await SecureStorage.getItem("isLoggedIn");
       if (loggedIn !== "true") {
-        setAcceptedPaymentCount(0);
+        setLiveOrderCount(0);
         return;
       }
 
       // Use lightweight server endpoint that returns grouped counts
       const res = await orderApi.getOrderStatusCounts();
-      const count = res?.acceptedUnpaid || 0;
-      setAcceptedPaymentCount(count);
+      // Prefer the server-computed live total; fall back to summing statuses
+      const live =
+        res?.live ??
+        Object.entries(res?.byStatus || {}).reduce(
+          (sum, [status, count]) =>
+            status === "DELIVERED" || status === "CANCELLED"
+              ? sum
+              : sum + (count || 0),
+          0,
+        );
+      setLiveOrderCount(live);
     } catch (err) {
-      console.warn("Failed to refresh accepted-orders badge:", err);
+      console.warn("Failed to refresh live-orders badge:", err);
     }
   }, []);
 
   // Initial load + subscribe to NotificationService and socket events
   React.useEffect(() => {
-    refreshAcceptedCount();
+    refreshLiveCount();
 
-    const listener = () => refreshAcceptedCount();
+    const listener = () => refreshLiveCount();
     addOrdersRefreshListener(listener);
 
     const socketStatusHandler = (data: any) => {
-      // If an order becomes ACCEPTED or payment changes, refresh the badge
+      // Any status/payment change can affect the live-order count
       if (!data) return;
-      if (data.status === "ACCEPTED" || data.paymentStatus || data.orderId) {
-        refreshAcceptedCount();
-      }
+      refreshLiveCount();
     };
 
     try {
       socketOn("orderStatusUpdate", socketStatusHandler);
-      socketOn("paymentSuccess", refreshAcceptedCount);
-      socketOn("orderCreated", refreshAcceptedCount);
+      socketOn("paymentSuccess", refreshLiveCount);
+      socketOn("orderCreated", refreshLiveCount);
     } catch (e) {
       // socket might not be initialised yet — NotificationService listener covers most cases
     }
@@ -68,13 +74,13 @@ export default function TabLayout() {
       removeOrdersRefreshListener(listener);
       try {
         socketOff("orderStatusUpdate", socketStatusHandler);
-        socketOff("paymentSuccess", refreshAcceptedCount);
-        socketOff("orderCreated", refreshAcceptedCount);
+        socketOff("paymentSuccess", refreshLiveCount);
+        socketOff("orderCreated", refreshLiveCount);
       } catch (e) {
         /* ignore */
       }
     };
-  }, [refreshAcceptedCount]);
+  }, [refreshLiveCount]);
 
   return (
     <Tabs
@@ -142,8 +148,7 @@ export default function TabLayout() {
         name="orders"
         options={{
           title: "Activities",
-          tabBarBadge:
-            acceptedPaymentCount > 0 ? acceptedPaymentCount : undefined,
+          tabBarBadge: liveOrderCount > 0 ? liveOrderCount : undefined,
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="list.bullet.rectangle" color={color} />
           ),

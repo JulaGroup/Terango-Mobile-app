@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
 import {
   fetchDeliveryTowns,
@@ -374,8 +374,7 @@ const qs = StyleSheet.create({
 export default function CustomDeliveryScreen() {
   const { flags } = useMaintenance();
   const router = useRouter();
-  const { selectedAddress, setSelectedAddress, addresses, fetchAddresses } =
-    useAddress();
+  const { addresses, fetchAddresses } = useAddress();
 
   // 🏙️ Dynamic delivery towns from API
   const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
@@ -399,6 +398,11 @@ export default function CustomDeliveryScreen() {
   >("pickupSaved");
   const pickupMode = flowDirection === "pickupSaved" ? "saved" : "town";
   const dropoffMode = flowDirection === "pickupSaved" ? "town" : "saved";
+  // Pickup saved-address selection is LOCAL to this booking — deliberately
+  // not the app-wide default address, so nothing appears pre-selected until
+  // the user explicitly picks a location.
+  const [selectedPickupAddress, setSelectedPickupAddress] =
+    useState<Address | null>(null);
   const [selectedDropoffAddress, setSelectedDropoffAddress] =
     useState<Address | null>(null);
   const [showDropoffAddressModal, setShowDropoffAddressModal] = useState(false);
@@ -605,6 +609,14 @@ export default function CustomDeliveryScreen() {
     fetchDeliveries();
   }, [fetchDeliveries]);
 
+  // Refetch whenever the screen regains focus (e.g. returning after a cancel
+  // on the detail screen) so recent-delivery cards never show stale status
+  useFocusEffect(
+    useCallback(() => {
+      fetchDeliveries();
+    }, [fetchDeliveries]),
+  );
+
   // Load delivery towns once on mount so pickup/dropoff matching works immediately
   useEffect(() => {
     let isMounted = true;
@@ -622,19 +634,21 @@ export default function CustomDeliveryScreen() {
   }, []);
 
   useEffect(() => {
-    if (!selectedAddress || pickupMode !== "saved") return;
+    if (!selectedPickupAddress || pickupMode !== "saved") return;
     const nearestTown = findNearestTown(
-      selectedAddress.latitude,
-      selectedAddress.longitude,
+      selectedPickupAddress.latitude,
+      selectedPickupAddress.longitude,
       deliveryTowns,
     );
     if (nearestTown) setPickupTown(nearestTown);
-    setPickupLatitude(selectedAddress.latitude);
-    setPickupLongitude(selectedAddress.longitude);
+    setPickupLatitude(selectedPickupAddress.latitude);
+    setPickupLongitude(selectedPickupAddress.longitude);
     setPickupAddressLabel(
-      selectedAddress.addressLine || nearestTown?.name || "Pickup location",
+      selectedPickupAddress.addressLine ||
+        nearestTown?.name ||
+        "Pickup location",
     );
-  }, [selectedAddress, pickupMode]);
+  }, [selectedPickupAddress, pickupMode]);
 
   // Fetch addresses when component mounts
   useEffect(() => {
@@ -724,8 +738,8 @@ export default function CustomDeliveryScreen() {
       if (nearestTown) setPickupTown(nearestTown);
     }
 
-    // Now, set the rest of the address details
-    await setSelectedAddress(address);
+    // Now, set the rest of the address details (local to this booking only)
+    setSelectedPickupAddress(address);
     setPickupLatitude(address.latitude);
     setPickupLongitude(address.longitude);
     setPickupAddressLabel(address.addressLine || "Pickup location");
@@ -786,10 +800,9 @@ export default function CustomDeliveryScreen() {
 
     setIsSubmitting(true);
     try {
-      const pickupAddressWithLandmark =
-        pickupLandmark.trim()
-          ? `${pickupAddressLabel || pickupTown.name} — ${pickupLandmark.trim()}`
-          : pickupAddressLabel || pickupTown.name;
+      const pickupAddressWithLandmark = pickupLandmark.trim()
+        ? `${pickupAddressLabel || pickupTown.name} — ${pickupLandmark.trim()}`
+        : pickupAddressLabel || pickupTown.name;
 
       const payload = {
         pickupAddress: pickupAddressWithLandmark,
@@ -840,21 +853,9 @@ export default function CustomDeliveryScreen() {
       setPickupAddressLabel("");
       setDropoffAddressLabel("");
       setSelectedDropoffAddress(null);
+      setSelectedPickupAddress(null);
       setFlowDirection("pickupSaved");
       setPickupLandmark("");
-      if (selectedAddress) {
-        const t = findNearestTown(
-          selectedAddress.latitude,
-          selectedAddress.longitude,
-          deliveryTowns,
-        );
-        if (t) setPickupTown(t);
-        setPickupLatitude(selectedAddress.latitude);
-        setPickupLongitude(selectedAddress.longitude);
-        setPickupAddressLabel(
-          selectedAddress.addressLine || t?.name || "Pickup location",
-        );
-      }
       setReceiverName("");
       setReceiverPhone("");
       setPackageDescription("");
@@ -876,8 +877,11 @@ export default function CustomDeliveryScreen() {
     // Determine status to display
     let displayStatus = item.status;
 
-    // Check if it's ready for payment (admin approved but not paid)
+    // Check if it's ready for payment (admin approved but not paid).
+    // Terminal states always win — a cancelled/delivered order is never payable.
     if (
+      item.status !== "CANCELLED" &&
+      item.status !== "DELIVERED" &&
       item.paymentStatus === "UNPAID" &&
       item.trackingUpdates?.some(
         (update) =>
@@ -1152,7 +1156,7 @@ export default function CustomDeliveryScreen() {
 
                   {addresses && addresses.length > 0 ? (
                     <SavedLocationDropdown
-                      selectedAddress={selectedAddress}
+                      selectedAddress={selectedPickupAddress}
                       onSelectAddress={handleSavedPickupAddressSelect}
                       addresses={addresses}
                       onAddNew={() => setShowPickupAddressModal(true)}
@@ -1191,7 +1195,7 @@ export default function CustomDeliveryScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {selectedAddress && (
+                  {selectedPickupAddress && (
                     <View style={{ marginTop: 16 }}>
                       <Text
                         style={{
@@ -1229,58 +1233,15 @@ export default function CustomDeliveryScreen() {
                           marginTop: 6,
                         }}
                       >
-                        Describe landmarks or clear directions so the driver can find your pickup address. This is compulsory.
+                        Describe landmarks or clear directions so the driver can
+                        find your pickup address. This is compulsory.
                       </Text>
                     </View>
                   )}
                 </View>
               )}
 
-              {pickupMode === "town" && (
-                <View style={{ marginBottom: 20 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: "#111827",
-                      marginBottom: 8,
-                    }}
-                  >
-                    Pickup Landmark / Directions *
-                  </Text>
-                  <TextInput
-                    style={{
-                      backgroundColor: "#F9FAFB",
-                      borderWidth: 1.5,
-                      borderColor: "#E5E7EB",
-                      borderRadius: 16,
-                      padding: 14,
-                      fontSize: 14,
-                      color: "#111827",
-                      minHeight: 72,
-                      textAlignVertical: "top",
-                    }}
-                    placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
-                    placeholderTextColor="#9CA3AF"
-                    value={pickupLandmark}
-                    onChangeText={setPickupLandmark}
-                    multiline
-                    numberOfLines={3}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: "#9CA3AF",
-                      marginTop: 6,
-                    }}
-                  >
-                    Describe landmarks or clear directions so the driver can
-                    find the pickup location
-                  </Text>
-                </View>
-              )}
-
-              {selectedAddress && senderName && pickupMode === "saved" ? (
+              {selectedPickupAddress && senderName && pickupMode === "saved" ? (
                 <View style={s.senderChip}>
                   <Ionicons name="person-circle" size={16} color={T.brand} />
                   <Text style={s.senderChipText} numberOfLines={1}>
@@ -1296,7 +1257,9 @@ export default function CustomDeliveryScreen() {
                 dropoffTown={dropoffTown}
                 pickupAddressDisplay={
                   pickupMode === "saved"
-                    ? pickupAddressLabel || selectedAddress?.addressLine || ""
+                    ? pickupAddressLabel ||
+                      selectedPickupAddress?.addressLine ||
+                      ""
                     : pickupAddressLabel
                 }
                 dropoffAddressDisplay={dropoffAddressLabel || ""}
@@ -1321,6 +1284,51 @@ export default function CustomDeliveryScreen() {
                 selectedDropoffAddress={selectedDropoffAddress}
                 onSelectSavedDropoffAddress={handleSavedDropoffAddressSelect}
                 onAddNewDropoffAddress={() => setShowDropoffAddressModal(true)}
+                pickupExtraContent={
+                  pickupMode === "town" ? (
+                    <View style={{ marginBottom: 20 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#111827",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Pickup Landmark / Directions *
+                      </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          borderWidth: 1.5,
+                          borderColor: "#E5E7EB",
+                          borderRadius: 16,
+                          padding: 14,
+                          fontSize: 14,
+                          color: "#111827",
+                          minHeight: 72,
+                          textAlignVertical: "top",
+                        }}
+                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
+                        placeholderTextColor="#9CA3AF"
+                        value={pickupLandmark}
+                        onChangeText={setPickupLandmark}
+                        multiline
+                        numberOfLines={3}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: "#9CA3AF",
+                          marginTop: 6,
+                        }}
+                      >
+                        Describe landmarks or clear directions so the driver can
+                        find the pickup location
+                      </Text>
+                    </View>
+                  ) : undefined
+                }
               />
             </View>
           </View>
@@ -1572,7 +1580,9 @@ export default function CustomDeliveryScreen() {
         visible={showPickupAddressModal}
         onClose={() => setShowPickupAddressModal(false)}
         onSelectAddress={handleSavedPickupAddressSelect}
-        currentAddress={pickupAddressLabel || selectedAddress?.addressLine}
+        currentAddress={
+          pickupAddressLabel || selectedPickupAddress?.addressLine
+        }
       />
 
       <LocationModal

@@ -11,7 +11,7 @@ import {
   StyleSheet,
   Dimensions,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { customDeliveryApi } from "@/lib/api";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -154,6 +154,10 @@ const statusFilterConfig: Record<StatusFilter, StatusFilterEntry> = {
 
 // ── Helper Functions ─────────────────────────────────────
 const getDisplayStatus = (delivery: DeliverySummary): string => {
+  // Terminal states always win — a cancelled/delivered order is never payable
+  if (delivery.status === "CANCELLED" || delivery.status === "DELIVERED") {
+    return delivery.status;
+  }
   if (
     delivery.paymentStatus === "UNPAID" &&
     delivery.trackingUpdates?.some(
@@ -207,6 +211,13 @@ export default function AllDeliveriesScreen() {
   useEffect(() => {
     fetchAllDeliveries();
   }, [fetchAllDeliveries]);
+
+  // Refetch on focus so returning from a cancel/pay never shows stale status
+  useFocusEffect(
+    useCallback(() => {
+      fetchAllDeliveries();
+    }, [fetchAllDeliveries]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

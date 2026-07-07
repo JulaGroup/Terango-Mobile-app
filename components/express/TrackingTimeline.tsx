@@ -48,6 +48,7 @@ const STATUS_CONFIG: Record<
   ACCEPTED: { icon: "checkmark-circle", color: Colors.info, label: "Accepted" },
   PICKED_UP: { icon: "cube", color: Colors.info, label: "Package Picked Up" },
   IN_TRANSIT: { icon: "bicycle", color: Colors.info, label: "On the Way" },
+  ARRIVED: { icon: "location", color: Colors.success, label: "Driver Arrived" },
   DELIVERED: { icon: "checkmark-done-circle", color: Colors.success, label: "Delivered" },
   CANCELLED: { icon: "close-circle", color: Colors.error, label: "Cancelled" },
 };

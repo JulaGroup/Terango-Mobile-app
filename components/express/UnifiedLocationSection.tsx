@@ -14,8 +14,16 @@ import { LocationPickerModal } from "./LocationPickerModal";
 import { SavedLocationDropdown } from "./SavedLocationDropdown";
 import { Address } from "@/services/AddressService";
 import { UserCacheManager } from "@/utils/userCache";
+import {
+  Colors,
+  Typography,
+  Spacing,
+  Radius,
+  Shadows,
+  Animation,
+} from "@/constants/DesignTokens";
 
-const PRIMARY = "#FF6B00";
+const PRIMARY = Colors.primary;
 
 interface UnifiedLocationSectionProps {
   pickupTown: GambianTown | null;
@@ -53,6 +61,10 @@ interface UnifiedLocationSectionProps {
   // pickup is already in "choose a location" mode — one side must always
   // be a known saved address.
   dropoffTownDisabled?: boolean;
+  // Optional extra content (e.g. a landmark/directions input) rendered
+  // directly under the pickup location selector, before the sender
+  // contact details.
+  pickupExtraContent?: React.ReactNode;
 }
 
 export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
@@ -84,8 +96,10 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
   onSelectSavedDropoffAddress,
   onAddNewDropoffAddress,
   dropoffTownDisabled = false,
+  pickupExtraContent,
 }) => {
   const [swapAnimation] = useState(new Animated.Value(0));
+  const [swapScale] = useState(new Animated.Value(1));
   const [isSwapping, setIsSwapping] = useState(false);
   const [senderName, setSenderName] = useState(propSenderName);
   const [senderPhone, setSenderPhone] = useState(propSenderPhone);
@@ -119,7 +133,12 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
     };
 
     loadSenderData();
-  }, [dropoffMode, onSenderDataLoaded, onSenderNameChange, onSenderPhoneChange]);
+  }, [
+    dropoffMode,
+    onSenderDataLoaded,
+    onSenderNameChange,
+    onSenderPhoneChange,
+  ]);
 
   // Initialize empty sender fields when entering "saved" mode
   useEffect(() => {
@@ -157,12 +176,25 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
 
     Animated.timing(swapAnimation, {
       toValue: 1,
-      duration: 300,
+      duration: Animation.slow,
       useNativeDriver: true,
     }).start(() => {
       swapAnimation.setValue(0);
       setIsSwapping(false);
     });
+
+    Animated.sequence([
+      Animated.timing(swapScale, {
+        toValue: 1.12,
+        duration: Animation.fast,
+        useNativeDriver: true,
+      }),
+      Animated.timing(swapScale, {
+        toValue: 1,
+        duration: Animation.normal,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     const tempPickup = pickupTown;
     const tempDropoff = dropoffTown;
@@ -241,7 +273,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                       <Ionicons
                         name="arrow-up-circle"
                         size={20}
-                        color={pickupSelectedText ? PRIMARY : "#6B7280"}
+                        color={pickupSelectedText ? PRIMARY : Colors.inkMid}
                       />
                     </View>
                     <View style={styles.locationTextWrapper}>
@@ -271,11 +303,13 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                     <Ionicons
                       name="chevron-forward"
                       size={20}
-                      color="#9CA3AF"
+                      color={Colors.inkLighter}
                     />
                   </View>
                 </TouchableOpacity>
               </View>
+
+              {pickupExtraContent}
 
               {/* Sender Contact - In "saved" mode, show as editable (unknown sender). 
                   In normal mode, show as read-only (user is the sender) */}
@@ -288,7 +322,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Ionicons
                           name="person-outline"
                           size={16}
-                          color="#6B7280"
+                          color={Colors.inkMid}
                         />
                         <Text
                           style={styles.readOnlyContactText}
@@ -303,7 +337,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Ionicons
                           name="call-outline"
                           size={16}
-                          color="#6B7280"
+                          color={Colors.inkMid}
                         />
                         <Text
                           style={styles.readOnlyContactText}
@@ -327,12 +361,12 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Ionicons
                           name="person-outline"
                           size={16}
-                          color="#9CA3AF"
+                          color={Colors.inkLighter}
                         />
                         <TextInput
                           style={styles.contactInput}
                           placeholder="Full name"
-                          placeholderTextColor="#9CA3AF"
+                          placeholderTextColor={Colors.inkLighter}
                           value={senderName}
                           onChangeText={(text) => {
                             setSenderName(text);
@@ -348,13 +382,13 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Ionicons
                           name="call-outline"
                           size={16}
-                          color="#9CA3AF"
+                          color={Colors.inkLighter}
                         />
                         <Text style={styles.phonePrefix}>+220</Text>
                         <TextInput
                           style={styles.contactInput}
                           placeholder="7 digit number"
-                          placeholderTextColor="#9CA3AF"
+                          placeholderTextColor={Colors.inkLighter}
                           value={senderPhone}
                           onChangeText={(text) => {
                             const digitsOnly = text
@@ -389,7 +423,12 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                 activeOpacity={0.7}
               >
                 <Animated.View
-                  style={{ transform: [{ rotate: rotateInterpolate }] }}
+                  style={{
+                    transform: [
+                      { rotate: rotateInterpolate },
+                      { scale: swapScale },
+                    ],
+                  }}
                 >
                   <Ionicons name="swap-vertical" size={20} color={PRIMARY} />
                 </Animated.View>
@@ -485,7 +524,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Ionicons
                           name="location-outline"
                           size={16}
-                          color="#9CA3AF"
+                          color={Colors.inkLighter}
                         />
                       </View>
                       <Text
@@ -495,7 +534,11 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         Add your first saved location
                       </Text>
                     </View>
-                    <Ionicons name="chevron-down" size={18} color="#9CA3AF" />
+                    <Ionicons
+                      name="chevron-down"
+                      size={18}
+                      color={Colors.inkLighter}
+                    />
                   </TouchableOpacity>
                 )
               ) : (
@@ -517,7 +560,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                       <Ionicons
                         name="arrow-forward-circle"
                         size={20}
-                        color={dropoffSelectedText ? PRIMARY : "#6B7280"}
+                        color={dropoffSelectedText ? PRIMARY : Colors.inkMid}
                       />
                     </View>
                     <View style={styles.locationTextWrapper}>
@@ -541,7 +584,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                     <Ionicons
                       name="chevron-forward"
                       size={20}
-                      color="#9CA3AF"
+                      color={Colors.inkLighter}
                     />
                   </View>
                 </TouchableOpacity>
@@ -567,7 +610,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Ionicons
                             name="person-outline"
                             size={16}
-                            color="#6B7280"
+                            color={Colors.inkMid}
                           />
                           <Text
                             style={styles.readOnlyContactText}
@@ -582,12 +625,12 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Ionicons
                             name="person-outline"
                             size={16}
-                            color="#9CA3AF"
+                            color={Colors.inkLighter}
                           />
                           <TextInput
                             style={styles.contactInput}
                             placeholder="Full name"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor={Colors.inkLighter}
                             value={receiverName}
                             onChangeText={onReceiverNameChange}
                             autoCapitalize="words"
@@ -603,7 +646,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Ionicons
                             name="call-outline"
                             size={16}
-                            color="#6B7280"
+                            color={Colors.inkMid}
                           />
                           <Text style={styles.phonePrefix}>+220</Text>
                           <Text
@@ -619,13 +662,13 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Ionicons
                             name="call-outline"
                             size={16}
-                            color="#9CA3AF"
+                            color={Colors.inkLighter}
                           />
                           <Text style={styles.phonePrefix}>+220</Text>
                           <TextInput
                             style={styles.contactInput}
                             placeholder="7 digit number"
-                            placeholderTextColor="#9CA3AF"
+                            placeholderTextColor={Colors.inkLighter}
                             value={receiverPhone}
                             onChangeText={(text) => {
                               const digitsOnly = text
@@ -674,6 +717,8 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
           title="Select Pickup Location"
           allowGPS={true}
           allowGooglePlaces={false}
+          groupByZone={true}
+          showLocationMeta={false}
           onGPSLocation={onPickupGPS}
           towns={towns}
         />
@@ -711,13 +756,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: "800",
-    color: "#111827",
+    color: Colors.ink,
     marginBottom: 4,
     letterSpacing: 0.3,
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: "#6B7280",
+    color: Colors.inkMid,
     lineHeight: 18,
   },
   locationContainer: {
@@ -746,7 +791,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   pickupDot: {
-    backgroundColor: "#10B981",
+    backgroundColor: Colors.success,
   },
   dropoffDot: {
     backgroundColor: PRIMARY,
@@ -754,7 +799,7 @@ const styles = StyleSheet.create({
   indicatorLine: {
     width: 2,
     height: 40,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: Colors.divider,
     marginVertical: 4,
   },
   locationContent: {
@@ -766,7 +811,7 @@ const styles = StyleSheet.create({
   locationLabel: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.ink,
     marginBottom: 10,
     letterSpacing: 0.1,
   },
@@ -778,7 +823,7 @@ const styles = StyleSheet.create({
   },
   modeToggle: {
     flexDirection: "row",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: Colors.bg,
     borderRadius: 20,
     padding: 3,
   },
@@ -796,27 +841,28 @@ const styles = StyleSheet.create({
   modeToggleText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#6B7280",
+    color: Colors.inkMid,
   },
   modeToggleTextActive: {
-    color: "#FFFFFF",
+    color: Colors.surface,
   },
   modeHintText: {
     fontSize: 12,
-    color: "#9CA3AF",
+    color: Colors.inkLighter,
     fontStyle: "italic",
     marginBottom: 10,
   },
   locationButton: {
-    backgroundColor: "#F9FAFB",
-    borderRadius: 16,
+    backgroundColor: Colors.surfaceRaised,
+    borderRadius: Radius.lg,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    overflow: "hidden",
+    borderColor: Colors.divider,
+    ...Shadows.sm,
   },
   locationButtonFilled: {
-    backgroundColor: "rgba(255,107,0,0.04)",
-    borderColor: "rgba(255,107,0,0.2)",
+    backgroundColor: Colors.primaryFaint,
+    borderColor: Colors.primaryGlow,
+    ...Shadows.md,
   },
   locationButtonContent: {
     flexDirection: "row",
@@ -829,15 +875,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
   },
   locationIconWrapperFilled: {
-    backgroundColor: "rgba(255,107,0,0.1)",
-    borderColor: "rgba(255,107,0,0.3)",
+    backgroundColor: Colors.primaryGlow,
+    borderColor: Colors.primaryGlow,
   },
   locationTextWrapper: {
     flex: 1,
@@ -845,31 +891,31 @@ const styles = StyleSheet.create({
   locationSelectedText: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#111827",
+    color: Colors.ink,
     lineHeight: 22,
     marginBottom: 3,
   },
   locationAreaText: {
     fontSize: 14,
-    color: "#6B7280",
+    color: Colors.inkMid,
     fontWeight: "500",
   },
   locationPlaceholder: {
     fontSize: 12,
-    color: "#9CA3AF",
+    color: Colors.inkLighter,
     fontWeight: "500",
     lineHeight: 16,
   },
   contactSection: {
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+    borderTopColor: Colors.bg,
     marginBottom: 8,
   },
   contactLabel: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#374151",
+    color: Colors.inkMid,
     marginBottom: 10,
     letterSpacing: 0.2,
   },
@@ -885,10 +931,10 @@ const styles = StyleSheet.create({
   contactInputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: Colors.surfaceRaised,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 10,
@@ -896,30 +942,30 @@ const styles = StyleSheet.create({
   contactInput: {
     flex: 1,
     fontSize: 15,
-    color: "#111827",
+    color: Colors.ink,
     fontWeight: "600",
     padding: 0,
   },
   phonePrefix: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#6B7280",
+    color: Colors.inkMid,
   },
   // Read-only sender fields — same sizing as editable ones
   readOnlyContactContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: Colors.bg,
     borderRadius: 12,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 10,
   },
   readOnlyContactText: {
     fontSize: 15,
-    color: "#374151",
+    color: Colors.inkMid,
     fontWeight: "600",
     flex: 1,
   },
@@ -932,16 +978,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 2,
-    borderColor: "rgba(255,107,0,0.3)",
+    borderColor: Colors.primaryGlow,
     alignItems: "center",
     justifyContent: "center",
+    ...Shadows.lg,
     shadowColor: PRIMARY,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
   distanceInfo: {
     flexDirection: "row",
@@ -949,24 +992,24 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "rgba(255,107,0,0.06)",
-    borderRadius: 12,
+    backgroundColor: Colors.primaryFaint,
+    borderRadius: Radius.md,
     borderWidth: 1,
-    borderColor: "rgba(255,107,0,0.15)",
+    borderColor: Colors.primaryGlow,
     gap: 10,
   },
   distanceIconWrapper: {
     width: 28,
     height: 28,
     borderRadius: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },
   distanceText: {
     flex: 1,
     fontSize: 13,
-    color: "#6B7280",
+    color: Colors.inkMid,
     fontWeight: "600",
     lineHeight: 18,
   },
@@ -974,9 +1017,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.surface,
     borderWidth: 1.5,
-    borderColor: "#E5E7EB",
+    borderColor: Colors.divider,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -993,7 +1036,7 @@ const styles = StyleSheet.create({
   },
   savedLocationEmptyText: {
     fontSize: 15,
-    color: "#9CA3AF",
+    color: Colors.inkLighter,
     fontWeight: "500",
     flexShrink: 1,
   },

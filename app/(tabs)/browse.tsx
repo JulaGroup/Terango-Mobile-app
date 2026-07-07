@@ -22,7 +22,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Cart from "@/components/common/Cart";
-import SearchModal from "@/components/common/SearchModal";
 import { UniversalProduct } from "@/components/common/ProductCard";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import SkeletonLoader from "@/components/ui/browse/SkeletonLoader";
@@ -204,7 +203,6 @@ const FILTER_TABS = [
 const BrowseScreen: React.FC = () => {
   const { addToCart, removeFromCart, updateQuantity, getQuantity } = useCart();
 
-  const [searchModalVisible, setSearchModalVisible] = useState(false);
   const [subcategories, setSubcategories] = useState<SubCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -666,7 +664,7 @@ const BrowseScreen: React.FC = () => {
         {/* Search touchable */}
         <TouchableOpacity
           style={styles.searchBar}
-          onPress={() => setSearchModalVisible(true)}
+          onPress={() => router.push("/search")}
           activeOpacity={0.85}
         >
           <Ionicons name="search-outline" size={17} color="#aaa" />
@@ -883,10 +881,6 @@ const BrowseScreen: React.FC = () => {
         </View>
       </ScrollView>
 
-      <SearchModal
-        visible={searchModalVisible}
-        onClose={() => setSearchModalVisible(false)}
-      />
     </SafeAreaView>
   );
 };

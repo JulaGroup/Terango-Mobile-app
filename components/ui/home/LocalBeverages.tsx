@@ -60,7 +60,7 @@ export default function LocalBeverages() {
   };
 
   const renderProductCard = ({ item }: { item: any }) => (
-    <View style={{ marginRight: 16 }}>
+    <View>
       <ProductCard
         product={toUniversalProduct(item)}
         cartQuantity={getQuantity(String(item.id))}
@@ -183,7 +183,7 @@ export default function LocalBeverages() {
         contentContainerStyle={{
           paddingHorizontal: 16,
         }}
-        ItemSeparatorComponent={() => <View style={{ width: 0 }} />}
+        ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
       />
     </View>
   );
