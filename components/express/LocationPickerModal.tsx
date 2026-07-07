@@ -250,7 +250,11 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
                   onPress={() => setSearchQuery("")}
                   activeOpacity={0.6}
                 >
-                  <Ionicons name="close-circle" size={20} color={Colors.inkLighter} />
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={Colors.inkLighter}
+                  />
                 </TouchableOpacity>
               )}
             </View>
