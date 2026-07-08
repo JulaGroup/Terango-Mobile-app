@@ -372,9 +372,16 @@ const qs = StyleSheet.create({
 
 // ── Main Screen ────────────────────────────────────────────
 export default function CustomDeliveryScreen() {
-  const { flags } = useMaintenance();
+  const { flags, refetch: refetchMaintenanceFlags } = useMaintenance();
   const router = useRouter();
   const { addresses, fetchAddresses } = useAddress();
+
+  // Re-check maintenance flags every time this screen opens so an admin
+  // toggle takes effect immediately (flags are otherwise only fetched at
+  // app launch / foreground resume)
+  useEffect(() => {
+    refetchMaintenanceFlags();
+  }, [refetchMaintenanceFlags]);
 
   // 🏙️ Dynamic delivery towns from API
   const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
@@ -981,6 +988,24 @@ export default function CustomDeliveryScreen() {
 
   if (flags.expressDeliveryMaintenance) {
     return <MaintenanceScreen serviceName="Express Delivery" />;
+  }
+
+  if (flags.noDriversWindow?.active) {
+    const formatHour = (hour: number) => {
+      const period = hour < 12 ? "AM" : "PM";
+      const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+      return `${displayHour}:00 ${period}`;
+    };
+    return (
+      <MaintenanceScreen
+        serviceName="Express Delivery"
+        message={`No drivers are available right now (${formatHour(
+          flags.noDriversWindow.startHour,
+        )} - ${formatHour(
+          flags.noDriversWindow.endHour,
+        )}). Please check back later.`}
+      />
+    );
   }
 
   return (

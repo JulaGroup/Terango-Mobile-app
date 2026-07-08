@@ -34,7 +34,6 @@ import { safeGetItem } from "@/actions/auth.ts/action";
 import * as Linking from "expo-linking";
 import { API_URL } from "@/constants/config";
 import { orderApi } from "@/lib/api";
-import { customDeliveryApi } from "@/lib/api";
 import { initSocket } from "@/services/SocketService";
 import * as Notifications from "expo-notifications";
 import { View, Text, StatusBar, Platform } from "react-native";
@@ -259,17 +258,12 @@ export default function RootLayout() {
               deliveryId,
             );
 
-            // Confirm express delivery payment in background
-            customDeliveryApi
-              .updateDeliveryStatus(deliveryId, {
-                status: "PAID",
-              })
-              .catch((e: unknown) =>
-                console.warn(
-                  "[DeepLink] Express payment confirm failed (non-fatal):",
-                  e,
-                ),
-              );
+            // Note: payment confirmation (marking paymentStatus PAID) happens
+            // server-side via the Wave webhook, with the /api/redirect/payment-success
+            // route acting as a verified fallback. The customer app has no
+            // endpoint to do this itself (the status-update route requires a
+            // driver token), so we just navigate and let polling pick up the
+            // confirmed state below.
 
             // Navigate to tracking page with refresh flag
             router.replace({

@@ -33,6 +33,9 @@ interface TeranGOProduct {
     name: string;
     imageUrl?: string;
     vendorId: string;
+    isActive?: boolean;
+    acceptsOrders?: boolean;
+    openingHours?: any;
   };
 }
 
@@ -175,11 +178,12 @@ export default function TeranGOPicks({
         onPress={() => handleProductPress(String(item.product.id))}
         cardWidth={CARD_WIDTH}
         vendor={{
-          vendorId: "terango-official",
+          vendorId: item.raw.shop?.vendorId || "terango-official",
           vendorType: "shop",
-          vendorName: "TeranGO Official Store",
-          isActive: true,
-          acceptsOrders: true,
+          vendorName: item.raw.shop?.name || "TeranGO Official Store",
+          isActive: item.raw.shop?.isActive ?? true,
+          acceptsOrders: item.raw.shop?.acceptsOrders ?? true,
+          openingHours: item.raw.shop?.openingHours ?? null,
         }}
       />
     </View>

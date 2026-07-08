@@ -16,7 +16,10 @@ interface UseRealTimeOptions {
 
 export function useRealTime(options: UseRealTimeOptions = {}) {
   const {
-    enablePushNotifications = true,
+    // TEMPORARILY DISABLED by default: push token registration was
+    // retrying repeatedly on poor connections and slowing the app down.
+    // WebSocket (real-time order updates) is unaffected.
+    enablePushNotifications = false,
     enableWebSocket = true,
     enablePolling = true,
     pollingInterval = 30000,

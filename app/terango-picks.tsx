@@ -40,6 +40,9 @@ interface TeranGOProduct {
     name: string;
     imageUrl?: string;
     vendorId: string;
+    isActive?: boolean;
+    acceptsOrders?: boolean;
+    openingHours?: any;
   };
 }
 
@@ -186,8 +189,9 @@ export default function TeranGOPicksPage() {
           vendorId: item.shop?.vendorId,
           vendorType: "shop",
           vendorName: item.shop?.name || "TeranGO Official Store",
-          isActive: true,
-          acceptsOrders: true,
+          isActive: item.shop?.isActive ?? true,
+          acceptsOrders: item.shop?.acceptsOrders ?? true,
+          openingHours: item.shop?.openingHours ?? null,
         }}
       />
       {/* TeranGO Badge */}

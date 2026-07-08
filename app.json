@@ -2,7 +2,7 @@
   "expo": {
     "name": "TeranGO",
     "slug": "terango",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "orientation": "portrait",
     "backgroundColor": "#ffffff",
     "icon": "./assets/App-Icon.png",
@@ -10,9 +10,7 @@
     "scheme": [
       "teranggo"
     ],
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.10",
     "updates": {
       "url": "https://u.expo.dev/507d12d6-9a8c-4115-a413-86c6c9901d3d",
       "checkAutomatically": "ON_LOAD",
@@ -20,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "45",
+      "buildNumber": "47",
       "bundleIdentifier": "com.darboedev.terango",
       "config": {
         "googleMapsApiKey": "AIzaSyC2bQ45Sr7oW5VgwGA0W7biEOJDkQoi5U4"
@@ -72,7 +70,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 72,
+      "versionCode": 74,
       "intentFilters": [
         {
           "action": "VIEW",

@@ -1553,9 +1553,17 @@ export default function DeliveryTrackingPage() {
         u.message?.startsWith("[ADMIN_APPROVED_FOR_PAYMENT]"),
     );
 
+  // PENDING + PAID means payment succeeded but a driver hasn't been matched
+  // yet (auto-assign found none available) — distinct from PENDING + UNPAID,
+  // which is still awaiting admin approval/payment.
+  const isPaidAwaitingDriver =
+    normalizedStatus === "PENDING" && delivery.paymentStatus === "PAID";
+
   const previewMessage = showPayNow
     ? "Payment approved — tap below to pay"
-    : statusCfg.heroMsg;
+    : isPaidAwaitingDriver
+      ? "Payment confirmed — matching you with a driver"
+      : statusCfg.heroMsg;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>

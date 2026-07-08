@@ -9,6 +9,9 @@ import {
   off as socketOff,
 } from "@/services/SocketService";
 
+// Kill switch for push token registration — flip to true to re-enable.
+const PUSH_NOTIFICATIONS_ENABLED = false;
+
 // Configure notification behavior
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -481,7 +484,10 @@ export function useRegisterPushToken(userId: string) {
     }
 
     // Only register push token if user is authenticated
-    if (userId) {
+    // TEMPORARILY DISABLED: push token registration was retrying repeatedly
+    // on poor connections (3 attempts w/ backoff) and slowing the app down.
+    // Socket connection (real-time order/tracking updates) is unaffected.
+    if (userId && PUSH_NOTIFICATIONS_ENABLED) {
       console.log(
         "[NotificationService] 🔔 User authenticated, registering push token...",
       );

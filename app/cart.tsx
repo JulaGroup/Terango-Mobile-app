@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,29 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
 import { VendorType } from "@/utils/vendorOrdering";
 
+// Renders nothing — just reports a vendor's live ordering status up to the
+// cart so "Proceed to Checkout" can be blocked when any vendor is closed.
+const VendorStatusProbe = ({
+  vendorId,
+  vendorType,
+  onStatus,
+}: {
+  vendorId: string;
+  vendorType: VendorType;
+  onStatus: (vendorId: string, closed: boolean, reason?: string) => void;
+}) => {
+  const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
+    vendorId,
+    vendorType,
+  });
+
+  useEffect(() => {
+    onStatus(vendorId, orderingDisabled, disabledReason);
+  }, [vendorId, orderingDisabled, disabledReason, onStatus]);
+
+  return null;
+};
+
 export default function Cart() {
   const router = useRouter();
   const {
@@ -31,6 +54,27 @@ export default function Cart() {
     getCartByVendor,
     clearCart,
   } = useCart();
+
+  // Tracks whether each vendor in the cart is currently closed/not accepting
+  // orders, so "Proceed to Checkout" can be disabled if any of them are.
+  const [closedVendors, setClosedVendors] = useState<
+    Record<string, string | undefined>
+  >({});
+  const handleVendorStatus = useCallback(
+    (vendorId: string, closed: boolean, reason?: string) => {
+      setClosedVendors((prev) => {
+        if (!closed) {
+          if (!(vendorId in prev)) return prev;
+          const next = { ...prev };
+          delete next[vendorId];
+          return next;
+        }
+        if (prev[vendorId] === reason) return prev;
+        return { ...prev, [vendorId]: reason };
+      });
+    },
+    [],
+  );
 
   // Enhanced animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,6 +110,26 @@ export default function Cart() {
 
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
+
+  const vendorEntries = useMemo(
+    () =>
+      restaurantIds.map((vendorId) => ({
+        vendorId,
+        vendorType: (restaurantCarts[vendorId]?.[0]?.entityType === "menuItem"
+          ? "restaurant"
+          : "shop") as VendorType,
+      })),
+    [restaurantIds, restaurantCarts],
+  );
+
+  // Filter to vendors still actually in the cart — a probe for a vendor whose
+  // items were all removed stops rendering (and reporting), so its stale
+  // "closed" entry must not linger and block checkout indefinitely.
+  const activeClosedVendors = restaurantIds.filter((id) => id in closedVendors);
+  const anyVendorClosed = activeClosedVendors.length > 0;
+  const closedVendorReason = activeClosedVendors
+    .map((id) => closedVendors[id])
+    .find(Boolean);
 
   const handleClearCart = () => {
     Alert.alert(
@@ -386,6 +450,15 @@ export default function Cart() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
 
+      {vendorEntries.map(({ vendorId, vendorType }) => (
+        <VendorStatusProbe
+          key={vendorId}
+          vendorId={vendorId}
+          vendorType={vendorType}
+          onStatus={handleVendorStatus}
+        />
+      ))}
+
       <Animated.View
         style={[
           styles.header,
@@ -502,6 +575,35 @@ export default function Cart() {
             </View>
           )}
 
+          {meetsMinimum && anyVendorClosed && (
+            <View
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 10,
+                backgroundColor: "#FEE2E2",
+                borderLeftWidth: 3,
+                borderLeftColor: "#EF4444",
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <Ionicons name="alert-circle-outline" size={18} color="#DC2626" />
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={{ fontSize: 13, fontWeight: "700", color: "#991B1B" }}
+                >
+                  Can&apos;t checkout right now
+                </Text>
+                <Text style={{ fontSize: 12, color: "#B91C1C", marginTop: 2 }}>
+                  {closedVendorReason ||
+                    "A shop or restaurant in your cart is closed. Remove those items to continue."}
+                </Text>
+              </View>
+            </View>
+          )}
+
           <Text style={styles.deliveryNote}>
             💡 Delivery fee will be added based on your address
           </Text>
@@ -528,24 +630,39 @@ export default function Cart() {
         ]}
       >
         <TouchableOpacity
-          style={[styles.checkoutButton, !meetsMinimum && { opacity: 0.5 }]}
+          style={[
+            styles.checkoutButton,
+            (!meetsMinimum || anyVendorClosed) && { opacity: 0.5 },
+          ]}
           onPress={() => {
             if (!meetsMinimum) return;
+            if (anyVendorClosed) {
+              Alert.alert(
+                "Can't checkout right now",
+                closedVendorReason ||
+                  "A shop or restaurant in your cart is closed. Remove those items to continue.",
+              );
+              return;
+            }
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push("/checkout");
           }}
-          activeOpacity={meetsMinimum ? 0.8 : 1}
+          activeOpacity={meetsMinimum && !anyVendorClosed ? 0.8 : 1}
         >
           <LinearGradient
             colors={
-              meetsMinimum ? ["#FF6B35", "#FF8F65"] : ["#9CA3AF", "#6B7280"]
+              meetsMinimum && !anyVendorClosed
+                ? ["#FF6B35", "#FF8F65"]
+                : ["#9CA3AF", "#6B7280"]
             }
             style={styles.checkoutButtonGradient}
           >
             <Text style={styles.checkoutText}>
-              {meetsMinimum
-                ? "Proceed to Checkout"
-                : `Add D${remaining.toFixed(2)} more`}
+              {!meetsMinimum
+                ? `Add D${remaining.toFixed(2)} more`
+                : anyVendorClosed
+                  ? "Shop Closed"
+                  : "Proceed to Checkout"}
             </Text>
             <View style={styles.checkoutPriceContainer}>
               <Text style={styles.checkoutPrice}>D{subtotal.toFixed(2)}</Text>

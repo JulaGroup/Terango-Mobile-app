@@ -306,6 +306,19 @@ export default function Checkout() {
     deliveryFee = 0;
   }
 
+  // ❌ A delivery order must always have a delivery fee unless a free-delivery
+  // promo is applied. A fee of 0 means the estimate failed — block checkout.
+  const hasInvalidDeliveryFee =
+    form.orderType === "DELIVERY" &&
+    !appliedPromo?.freeDelivery &&
+    !loadingDeliveryFee &&
+    deliveryFee <= 0 &&
+    (form.isGiftOrder
+      ? !!form.recipientTown
+      : // For regular delivery only flag it once the estimate has actually
+        // failed — not in the brief gap before the calculation starts
+        !!form.address.trim() && deliveryFeeError && !deliveryEstimate);
+
   const discountAmount = appliedPromo?.discountAmount || 0;
   // 💰 SERVICE FEE: 5% of subtotal, rounded to nearest whole number, minimum GMD 1 (Wave only accepts whole numbers)
   const serviceFee = Math.max(1, Math.round(subtotal * 0.05));
@@ -332,7 +345,9 @@ export default function Checkout() {
         !form.recipientTown)) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
     // ❌ Block order if below vendor's minimum order amount
-    isBelowMinimumOrder;
+    isBelowMinimumOrder ||
+    // ❌ Block order if delivery fee is zero without a free-delivery promo
+    hasInvalidDeliveryFee;
 
   // Auto-open location modal (logged-in users only) when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
@@ -951,6 +966,11 @@ export default function Checkout() {
   // Call estimation when address changes
   // 🔴 CRITICAL: Added currentAddress to dependencies to re-estimate when saved address is selected
   useEffect(() => {
+    // Mark as loading immediately so the UI doesn't briefly treat the fee as
+    // "unavailable" (deliveryFee=0) during the debounce window below.
+    if (form.address && form.orderType === "DELIVERY") {
+      setLoadingDeliveryFee(true);
+    }
     // Debounce address changes to avoid infinite loop
     const debounceTimeout = setTimeout(() => {
       if (form.address && form.orderType === "DELIVERY") {
@@ -1065,6 +1085,16 @@ export default function Checkout() {
       Alert.alert(
         "Minimum Order Not Met",
         `This vendor requires a minimum order of D${Math.ceil(minimumOrderAmount)}. Your current subtotal is D${Math.ceil(subtotal)}.`,
+      );
+      return;
+    }
+
+    // Delivery orders must have a valid (non-zero) delivery fee unless a
+    // free-delivery promo is applied
+    if (hasInvalidDeliveryFee) {
+      Alert.alert(
+        "Delivery Fee Unavailable",
+        "We couldn't calculate a delivery fee for your address. Please re-select your delivery location and try again.",
       );
       return;
     }
@@ -2386,7 +2416,9 @@ export default function Checkout() {
                   {deliveryFeeError &&
                     !loadingDeliveryFee &&
                     !deliveryEstimate && (
-                      <View
+                      <TouchableOpacity
+                        onPress={() => estimateDeliveryFee(form.address)}
+                        activeOpacity={0.7}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -2403,10 +2435,11 @@ export default function Checkout() {
                         <Text
                           style={{ fontSize: 12, color: "#F97316", flex: 1 }}
                         >
-                          Could not calculate exact fee. An estimate will be
-                          used — the driver will confirm on arrival.
+                          Could not calculate delivery fee. Check your
+                          connection and tap here to retry.
                         </Text>
-                      </View>
+                        <Ionicons name="refresh" size={14} color="#F97316" />
+                      </TouchableOpacity>
                     )}
 
                   {/* Delivery breakdown card — full width below the fee row */}
@@ -2505,32 +2538,6 @@ export default function Checkout() {
                     </View>
                   )}
 
-                  {/* Show free delivery promotion hint */}
-                  {deliveryEstimate?.freeDeliveryPromotion?.available &&
-                    !deliveryEstimate.isFreeDelivery && (
-                      <View
-                        style={{
-                          backgroundColor: "#FEF3C7",
-                          padding: 10,
-                          borderRadius: 8,
-                          marginTop: 8,
-                          flexDirection: "row",
-                          alignItems: "center",
-                        }}
-                      >
-                        <Ionicons
-                          name="gift"
-                          size={16}
-                          color="#F59E0B"
-                          style={{ marginRight: 6 }}
-                        />
-                        <Text
-                          style={{ fontSize: 12, color: "#92400E", flex: 1 }}
-                        >
-                          {deliveryEstimate.freeDeliveryPromotion.message}
-                        </Text>
-                      </View>
-                    )}
                 </>
               )}
 
@@ -3041,6 +3048,31 @@ export default function Checkout() {
           </View>
         )}
 
+        {/* Delivery Fee Missing Warning */}
+        {hasInvalidDeliveryFee && (
+          <View
+            style={{
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FCA5A5",
+              borderRadius: 10,
+              padding: 12,
+              marginHorizontal: 16,
+              marginBottom: 8,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="alert-circle" size={18} color="#EF4444" />
+            <Text
+              style={{ color: "#B91C1C", fontSize: 13, marginLeft: 8, flex: 1 }}
+            >
+              We couldn't calculate a delivery fee for your address. Please
+              re-select your delivery location to continue.
+            </Text>
+          </View>
+        )}
+
         {/* Place Order Button */}
         <Animated.View
           style={[
@@ -3094,7 +3126,9 @@ export default function Checkout() {
                       ? "Calculating Delivery Fee..."
                       : isBelowMinimumOrder
                         ? "Minimum Order Not Met"
-                        : "Place Order"}
+                        : hasInvalidDeliveryFee
+                          ? "Delivery Fee Unavailable"
+                          : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>
