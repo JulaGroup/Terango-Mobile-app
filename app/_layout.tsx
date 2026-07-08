@@ -299,18 +299,11 @@ export default function RootLayout() {
           "error",
         );
 
-        if (deliveryId) {
-          router.replace({
-            pathname: "/custom-delivery/[deliveryId]" as any,
-            params: { deliveryId },
-          });
-          return;
-        }
-
         router.replace({
           pathname: target,
           params: {
             orderId: orderId ?? "",
+            deliveryId: deliveryId ?? "",
             paymentId: paymentId ?? "",
             reason: reason ?? "",
             status: status ?? "",

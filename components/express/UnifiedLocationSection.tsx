@@ -65,6 +65,9 @@ interface UnifiedLocationSectionProps {
   // directly under the pickup location selector, before the sender
   // contact details.
   pickupExtraContent?: React.ReactNode;
+  // Same, but rendered under the dropoff location selector, before the
+  // receiver contact details.
+  dropoffExtraContent?: React.ReactNode;
 }
 
 export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
@@ -97,6 +100,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
   onAddNewDropoffAddress,
   dropoffTownDisabled = false,
   pickupExtraContent,
+  dropoffExtraContent,
 }) => {
   const [swapAnimation] = useState(new Animated.Value(0));
   const [swapScale] = useState(new Animated.Value(1));
@@ -589,6 +593,8 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                   </View>
                 </TouchableOpacity>
               )}
+
+              {dropoffMode !== "saved" && dropoffExtraContent}
             </View>
 
             {/* Receiver Contact - editable in normal mode, or pre-filled with user info in "saved" mode */}

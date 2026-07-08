@@ -4,23 +4,34 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 
 export default function PaymentCancelledScreen() {
   const router = useRouter();
-  const { orderId, paymentId } = useLocalSearchParams();
+  const { orderId, deliveryId, paymentId } = useLocalSearchParams();
+
+  const goBack = () => {
+    if (deliveryId) {
+      router.replace({
+        pathname: "/custom-delivery/[deliveryId]" as any,
+        params: { deliveryId: String(deliveryId) },
+      });
+    } else if (orderId) {
+      router.replace(`/order-details?orderId=${orderId}`);
+    } else {
+      router.replace("/(tabs)/orders");
+    }
+  };
+
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
-    // Countdown and redirect to order details
+    // Countdown and redirect back
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          if (orderId) {
-            router.replace(`/order-details?orderId=${orderId}`);
-          } else {
-            router.replace("/(tabs)/orders");
-          }
+          goBack();
           return 0;
         }
         return prev - 1;
@@ -28,14 +39,11 @@ export default function PaymentCancelledScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [orderId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, deliveryId, router]);
 
   const handleTryAgain = () => {
-    if (orderId) {
-      router.replace(`/order-details?orderId=${orderId}`);
-    } else {
-      router.replace("/(tabs)/orders");
-    }
+    goBack();
   };
 
   return (
@@ -56,6 +64,11 @@ export default function PaymentCancelledScreen() {
             Order TG{String(orderId).slice(-4).toUpperCase()}
           </Text>
         )}
+        {deliveryId && (
+          <Text style={styles.orderId}>
+            {formatExpressDeliveryId(String(deliveryId))}
+          </Text>
+        )}
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity
@@ -67,9 +80,15 @@ export default function PaymentCancelledScreen() {
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => router.replace("/(tabs)/orders")}
+            onPress={() =>
+              deliveryId
+                ? router.replace("/custom-delivery" as any)
+                : router.replace("/(tabs)/orders")
+            }
           >
-            <Text style={styles.secondaryButtonText}>View Orders</Text>
+            <Text style={styles.secondaryButtonText}>
+              {deliveryId ? "View Deliveries" : "View Orders"}
+            </Text>
           </TouchableOpacity>
         </View>
 

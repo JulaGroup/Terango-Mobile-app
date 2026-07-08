@@ -4,23 +4,33 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 
 export default function PaymentFailedScreen() {
   const router = useRouter();
-  const { orderId, paymentId, reason } = useLocalSearchParams();
+  const { orderId, deliveryId, paymentId, reason } = useLocalSearchParams();
   const [countdown, setCountdown] = useState(5);
 
+  const goBack = () => {
+    if (deliveryId) {
+      router.replace({
+        pathname: "/custom-delivery/[deliveryId]" as any,
+        params: { deliveryId: String(deliveryId) },
+      });
+    } else if (orderId) {
+      router.replace(`/order-details?orderId=${orderId}`);
+    } else {
+      router.replace("/(tabs)/orders");
+    }
+  };
+
   useEffect(() => {
-    // Countdown and redirect to order details
+    // Countdown and redirect back
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          if (orderId) {
-            router.replace(`/order-details?orderId=${orderId}`);
-          } else {
-            router.replace("/(tabs)/orders");
-          }
+          goBack();
           return 0;
         }
         return prev - 1;
@@ -28,14 +38,11 @@ export default function PaymentFailedScreen() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [orderId, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, deliveryId, router]);
 
   const handleRetryNow = () => {
-    if (orderId) {
-      router.replace(`/order-details?orderId=${orderId}`);
-    } else {
-      router.replace("/(tabs)/orders");
-    }
+    goBack();
   };
 
   return (
@@ -53,6 +60,11 @@ export default function PaymentFailedScreen() {
         {orderId && (
           <Text style={styles.orderId}>
             Order TG{String(orderId).slice(-4).toUpperCase()}
+          </Text>
+        )}
+        {deliveryId && (
+          <Text style={styles.orderId}>
+            {formatExpressDeliveryId(String(deliveryId))}
           </Text>
         )}
 

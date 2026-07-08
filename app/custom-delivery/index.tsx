@@ -416,6 +416,9 @@ export default function CustomDeliveryScreen() {
   // Required when pickup is a chosen location (not a saved address) so the
   // driver can actually find the pickup spot.
   const [pickupLandmark, setPickupLandmark] = useState("");
+  // Same, but for dropoff — required when dropoff is a chosen location
+  // (not a saved address) so the driver can find where to deliver.
+  const [dropoffLandmark, setDropoffLandmark] = useState("");
 
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
@@ -786,6 +789,7 @@ export default function CustomDeliveryScreen() {
     setDropoffAddressLabel("");
     setDropoffLatitude(null);
     setDropoffLongitude(null);
+    setDropoffLandmark("");
     setSelectedDropoffAddress(null);
   };
 
@@ -804,19 +808,27 @@ export default function CustomDeliveryScreen() {
         "Pickup directions required",
         "Describe a landmark or directions so the driver can find the pickup location.",
       );
+    if (dropoffMode === "town" && !dropoffLandmark.trim())
+      return Alert.alert(
+        "Delivery directions required",
+        "Describe a landmark or directions so the driver can find the delivery location.",
+      );
 
     setIsSubmitting(true);
     try {
       const pickupAddressWithLandmark = pickupLandmark.trim()
         ? `${pickupAddressLabel || pickupTown.name} — ${pickupLandmark.trim()}`
         : pickupAddressLabel || pickupTown.name;
+      const dropoffAddressWithLandmark = dropoffLandmark.trim()
+        ? `${dropoffAddressLabel || dropoffTown.name} — ${dropoffLandmark.trim()}`
+        : dropoffAddressLabel || dropoffTown.name;
 
       const payload = {
         pickupAddress: pickupAddressWithLandmark,
         pickupCity: pickupTown.area,
         pickupLatitude: pickupLatitude ?? undefined,
         pickupLongitude: pickupLongitude ?? undefined,
-        dropoffAddress: dropoffAddressLabel || dropoffTown.name,
+        dropoffAddress: dropoffAddressWithLandmark,
         dropoffCity: dropoffTown.area,
         dropoffLatitude: dropoffLatitude ?? undefined,
         dropoffLongitude: dropoffLongitude ?? undefined,
@@ -968,7 +980,8 @@ export default function CustomDeliveryScreen() {
   const step1Done = !!(
     pickupTown &&
     dropoffTown &&
-    pickupLandmark.trim().length > 0
+    pickupLandmark.trim().length > 0 &&
+    (dropoffMode !== "town" || dropoffLandmark.trim().length > 0)
   );
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
@@ -1350,6 +1363,51 @@ export default function CustomDeliveryScreen() {
                       >
                         Describe landmarks or clear directions so the driver can
                         find the pickup location
+                      </Text>
+                    </View>
+                  ) : undefined
+                }
+                dropoffExtraContent={
+                  dropoffMode === "town" ? (
+                    <View style={{ marginBottom: 20 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#111827",
+                          marginBottom: 8,
+                        }}
+                      >
+                        Delivery Landmark / Directions *
+                      </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "#F9FAFB",
+                          borderWidth: 1.5,
+                          borderColor: "#E5E7EB",
+                          borderRadius: 16,
+                          padding: 14,
+                          fontSize: 14,
+                          color: "#111827",
+                          minHeight: 72,
+                          textAlignVertical: "top",
+                        }}
+                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
+                        placeholderTextColor="#9CA3AF"
+                        value={dropoffLandmark}
+                        onChangeText={setDropoffLandmark}
+                        multiline
+                        numberOfLines={3}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: "#9CA3AF",
+                          marginTop: 6,
+                        }}
+                      >
+                        Describe landmarks or clear directions so the driver can
+                        find the delivery location
                       </Text>
                     </View>
                   ) : undefined
