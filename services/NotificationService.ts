@@ -9,8 +9,7 @@ import {
   off as socketOff,
 } from "@/services/SocketService";
 
-// Kill switch for push token registration — flip to true to re-enable.
-const PUSH_NOTIFICATIONS_ENABLED = false;
+const PUSH_NOTIFICATIONS_ENABLED = true;
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -253,7 +252,7 @@ export function useRegisterPushToken(userId: string) {
       ? String(API_URL).replace(/\/api\/?(.*)?$/, "")
       : null;
     let socketInitialized = false;
-    const maxRetries = 3;
+    const maxRetries = 1;
 
     const paymentSuccessHandler = async (data: any) => {
       console.log("[Socket] paymentSuccess", data);
@@ -483,10 +482,6 @@ export function useRegisterPushToken(userId: string) {
       }
     }
 
-    // Only register push token if user is authenticated
-    // TEMPORARILY DISABLED: push token registration was retrying repeatedly
-    // on poor connections (3 attempts w/ backoff) and slowing the app down.
-    // Socket connection (real-time order/tracking updates) is unaffected.
     if (userId && PUSH_NOTIFICATIONS_ENABLED) {
       console.log(
         "[NotificationService] 🔔 User authenticated, registering push token...",
