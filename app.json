@@ -2,7 +2,7 @@
   "expo": {
     "name": "TeranGO",
     "slug": "terango",
-    "version": "1.0.10",
+    "version": "1.1.0",
     "orientation": "portrait",
     "backgroundColor": "#ffffff",
     "icon": "./assets/App-Icon.png",
@@ -10,7 +10,7 @@
     "scheme": [
       "teranggo"
     ],
-    "runtimeVersion": "1.0.10",
+    "runtimeVersion": "1.1.0",
     "updates": {
       "url": "https://u.expo.dev/507d12d6-9a8c-4115-a413-86c6c9901d3d",
       "checkAutomatically": "ON_LOAD",
@@ -70,7 +70,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 74,
+      "versionCode": 76,
       "intentFilters": [
         {
           "action": "VIEW",

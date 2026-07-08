@@ -25,6 +25,7 @@ import { UserCacheManager } from "@/utils/userCache";
 // WebBrowser was used by legacy hosted-payment flow; instant checkout removed it
 import { on as socketOn, off as socketOff } from "@/services/SocketService";
 import { useAddress } from "@/context/AddressContext";
+import { useMaintenance } from "@/context/MaintenanceContext";
 import LocationModal from "@/components/common/LocationModal";
 import {
   storeSuccessfulOrder,
@@ -58,6 +59,12 @@ let LinearGradient: any = ({ children, colors, style }: any) => (
     {children}
   </View>
 );
+
+const formatWindowHour = (hour: number): string => {
+  const period = hour < 12 ? "AM" : "PM";
+  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
+  return `${displayHour}:00 ${period}`;
+};
 
 // Helper functions for vehicle display
 const getVehicleEmoji = (vehicleType: string): string => {
@@ -218,6 +225,7 @@ export default function Checkout() {
   // Address context for selecting delivery address
   const { addresses, selectedAddress, setSelectedAddress, fetchAddresses } =
     useAddress();
+  const { flags: maintenanceFlags } = useMaintenance();
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [addressPickerVisible, setAddressPickerVisible] = useState(false);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
@@ -319,6 +327,11 @@ export default function Checkout() {
         // failed — not in the brief gap before the calculation starts
         !!form.address.trim() && deliveryFeeError && !deliveryEstimate);
 
+  // ❌ No drivers available overnight (admin-configurable window). Pickup
+  // orders don't need a driver, so they're unaffected.
+  const isNoDriversWindow =
+    form.orderType === "DELIVERY" && !!maintenanceFlags.noDriversWindow?.active;
+
   const discountAmount = appliedPromo?.discountAmount || 0;
   // 💰 SERVICE FEE: 5% of subtotal, rounded to nearest whole number, minimum GMD 1 (Wave only accepts whole numbers)
   const serviceFee = Math.max(1, Math.round(subtotal * 0.05));
@@ -347,7 +360,9 @@ export default function Checkout() {
     // ❌ Block order if below vendor's minimum order amount
     isBelowMinimumOrder ||
     // ❌ Block order if delivery fee is zero without a free-delivery promo
-    hasInvalidDeliveryFee;
+    hasInvalidDeliveryFee ||
+    // ❌ Block delivery orders during the no-drivers overnight window
+    isNoDriversWindow;
 
   // Auto-open location modal (logged-in users only) when user selects DELIVERY and they have no saved addresses
   useEffect(() => {
@@ -1095,6 +1110,19 @@ export default function Checkout() {
       Alert.alert(
         "Delivery Fee Unavailable",
         "We couldn't calculate a delivery fee for your address. Please re-select your delivery location and try again.",
+      );
+      return;
+    }
+
+    // No drivers available overnight (admin-configurable window)
+    if (isNoDriversWindow) {
+      Alert.alert(
+        "No Drivers Available",
+        `No drivers are available right now (${formatWindowHour(
+          maintenanceFlags.noDriversWindow.startHour,
+        )} - ${formatWindowHour(
+          maintenanceFlags.noDriversWindow.endHour,
+        )}). Please try again later, or switch to pickup.`,
       );
       return;
     }
@@ -3073,6 +3101,33 @@ export default function Checkout() {
           </View>
         )}
 
+        {/* No Drivers Available Warning */}
+        {isNoDriversWindow && (
+          <View
+            style={{
+              backgroundColor: "#FEF2F2",
+              borderWidth: 1,
+              borderColor: "#FCA5A5",
+              borderRadius: 10,
+              padding: 12,
+              marginHorizontal: 16,
+              marginBottom: 8,
+              flexDirection: "row",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="moon" size={18} color="#EF4444" />
+            <Text
+              style={{ color: "#B91C1C", fontSize: 13, marginLeft: 8, flex: 1 }}
+            >
+              No drivers are available right now (
+              {formatWindowHour(maintenanceFlags.noDriversWindow.startHour)} -{" "}
+              {formatWindowHour(maintenanceFlags.noDriversWindow.endHour)}).
+              Switch to pickup or try again later.
+            </Text>
+          </View>
+        )}
+
         {/* Place Order Button */}
         <Animated.View
           style={[
@@ -3128,7 +3183,9 @@ export default function Checkout() {
                         ? "Minimum Order Not Met"
                         : hasInvalidDeliveryFee
                           ? "Delivery Fee Unavailable"
-                          : "Place Order"}
+                          : isNoDriversWindow
+                            ? "No Drivers Available"
+                            : "Place Order"}
                 </Text>
                 <View style={styles.orderTotal}>
                   <Text style={styles.orderTotalText}>
