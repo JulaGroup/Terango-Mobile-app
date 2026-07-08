@@ -58,6 +58,10 @@ export default function VendorOrdersEnhanced() {
   >(null);
   const [scanned, setScanned] = useState(false);
   const [CameraComponent, setCameraComponent] = useState<any>(null);
+  const [cancelReasonModal, setCancelReasonModal] = useState<{
+    visible: boolean;
+    orderId: string;
+  }>({ visible: false, orderId: "" });
   const scanLineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -349,6 +353,7 @@ export default function VendorOrdersEnhanced() {
       | "DISPATCHED"
       | "DELIVERED"
       | "CANCELLED",
+    cancelReason?: string,
   ) => {
     console.log("🔄 Updating order status:", {
       orderId: orderId.substring(0, 8),
@@ -367,7 +372,7 @@ export default function VendorOrdersEnhanced() {
         });
       }
 
-      const response = await orderApi.updateOrderStatus(orderId, newStatus);
+      const response = await orderApi.updateOrderStatus(orderId, newStatus, undefined, cancelReason);
       console.log("✅ Update response:", response);
 
       await fetchOrders();
@@ -640,18 +645,22 @@ export default function VendorOrdersEnhanced() {
                       : styles.actionButtonSecondary,
                   ]}
                   onPress={() => {
-                    Alert.alert(
-                      "Update Order",
-                      `${action.label} order TG${item.id.slice(-4).toUpperCase()}?`,
-                      [
-                        { text: "Cancel", style: "cancel" },
-                        {
-                          text: "Confirm",
-                          onPress: () =>
-                            handleUpdateStatus(item.id, action.status),
-                        },
-                      ],
-                    );
+                    if (action.status === "CANCELLED") {
+                      setCancelReasonModal({ visible: true, orderId: item.id });
+                    } else {
+                      Alert.alert(
+                        "Update Order",
+                        `${action.label} order TG${item.id.slice(-4).toUpperCase()}?`,
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          {
+                            text: "Confirm",
+                            onPress: () =>
+                              handleUpdateStatus(item.id, action.status),
+                          },
+                        ],
+                      );
+                    }
                   }}
                 >
                   <Text
@@ -844,6 +853,52 @@ export default function VendorOrdersEnhanced() {
           )}
         </View>
       )}
+
+      {/* Cancel Reason Picker */}
+      <Modal
+        visible={cancelReasonModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setCancelReasonModal({ visible: false, orderId: "" })}
+      >
+        <View style={styles.cancelOverlay}>
+          <View style={styles.cancelSheet}>
+            <View style={styles.cancelHandle} />
+            <Text style={styles.cancelTitle}>Why are you declining?</Text>
+            <Text style={styles.cancelSubtitle}>
+              This reason will be sent to the customer and admin.
+            </Text>
+            {[
+              "Store temporarily unavailable",
+              "Item out of stock",
+              "Store is closed",
+              "Too busy right now",
+              "Delivery area not covered",
+              "Other",
+            ].map((reason) => (
+              <TouchableOpacity
+                key={reason}
+                style={styles.cancelReasonBtn}
+                activeOpacity={0.75}
+                onPress={() => {
+                  const orderId = cancelReasonModal.orderId;
+                  setCancelReasonModal({ visible: false, orderId: "" });
+                  handleUpdateStatus(orderId, "CANCELLED", reason);
+                }}
+              >
+                <Text style={styles.cancelReasonText}>{reason}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#999" />
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={styles.cancelDismissBtn}
+              onPress={() => setCancelReasonModal({ visible: false, orderId: "" })}
+            >
+              <Text style={styles.cancelDismissText}>Go back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Order Details — full screen */}
       <Modal
@@ -1073,10 +1128,17 @@ export default function VendorOrdersEnhanced() {
                           : styles.detailActionBtnSecondary,
                       ]}
                       onPress={() => {
-                        setDetailsModalVisible(false);
-                        setTimeout(() => {
-                          handleUpdateStatus(selectedOrder.id, action.status);
-                        }, 300);
+                        if (action.status === "CANCELLED") {
+                          setDetailsModalVisible(false);
+                          setTimeout(() => {
+                            setCancelReasonModal({ visible: true, orderId: selectedOrder.id });
+                          }, 300);
+                        } else {
+                          setDetailsModalVisible(false);
+                          setTimeout(() => {
+                            handleUpdateStatus(selectedOrder.id, action.status);
+                          }, 300);
+                        }
                       }}
                     >
                       <Text
@@ -1948,5 +2010,64 @@ const styles = StyleSheet.create({
     color: "#BBB",
     textAlign: "center",
     marginBottom: 8,
+  },
+
+  // ── Cancel Reason Modal ──────────────────────────────────
+  cancelOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    justifyContent: "flex-end",
+  },
+  cancelSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 12,
+  },
+  cancelHandle: {
+    width: 38,
+    height: 4,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  cancelTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1A1A1A",
+    marginBottom: 4,
+  },
+  cancelSubtitle: {
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 18,
+  },
+  cancelReasonBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    backgroundColor: "#F7F7F7",
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  cancelReasonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1A1A1A",
+  },
+  cancelDismissBtn: {
+    marginTop: 4,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  cancelDismissText: {
+    fontSize: 14,
+    color: "#999",
+    fontWeight: "500",
   },
 });

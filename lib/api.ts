@@ -874,10 +874,11 @@ export const orderApi = {
     orderId: string,
     status: Order["status"],
     estimatedDeliveryTime?: string,
+    cancelReason?: string,
   ): Promise<Order> => {
     return apiCall(`/api/orders/${orderId}/status`, {
       method: "PATCH",
-      body: JSON.stringify({ status, estimatedDeliveryTime }),
+      body: JSON.stringify({ status, estimatedDeliveryTime, cancelReason }),
     });
   },
 
