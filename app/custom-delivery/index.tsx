@@ -803,7 +803,7 @@ export default function CustomDeliveryScreen() {
       );
     if (!receiverName.trim() || !receiverPhone.trim())
       return Alert.alert("Receiver required", "Add receiver contact info.");
-    if (!pickupLandmark.trim())
+    if (pickupMode !== "saved" && !pickupLandmark.trim())
       return Alert.alert(
         "Pickup directions required",
         "Describe a landmark or directions so the driver can find the pickup location.",
@@ -1233,49 +1233,6 @@ export default function CustomDeliveryScreen() {
                     </TouchableOpacity>
                   )}
 
-                  {selectedPickupAddress && (
-                    <View style={{ marginTop: 16 }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: "#111827",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Pickup Landmark / Directions *
-                      </Text>
-                      <TextInput
-                        style={{
-                          backgroundColor: "#F9FAFB",
-                          borderWidth: 1.5,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 16,
-                          padding: 14,
-                          fontSize: 14,
-                          color: "#111827",
-                          minHeight: 72,
-                          textAlignVertical: "top",
-                        }}
-                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
-                        placeholderTextColor="#9CA3AF"
-                        value={pickupLandmark}
-                        onChangeText={setPickupLandmark}
-                        multiline
-                        numberOfLines={3}
-                      />
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color: "#9CA3AF",
-                          marginTop: 6,
-                        }}
-                      >
-                        Describe landmarks or clear directions so the driver can
-                        find your pickup address. This is compulsory.
-                      </Text>
-                    </View>
-                  )}
                 </View>
               )}
 
