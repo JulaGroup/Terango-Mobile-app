@@ -1635,7 +1635,7 @@ export default function DeliveryTrackingPage() {
         <MapView
           ref={mapRef}
           style={StyleSheet.absoluteFillObject}
-          provider={PROVIDER_GOOGLE}
+          provider={Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined}
           onPanDrag={() => setUserMovedMap(true)}
           initialRegion={{
             latitude:
