@@ -1922,11 +1922,35 @@ export default function DeliveryTrackingPage() {
                 <View style={s.routeDetails}>
                   <View style={s.routeBlock}>
                     <Text style={s.routeTag}>FROM</Text>
-                    <Text style={s.routeAddr}>{delivery.pickupAddress}</Text>
+                    <Text style={s.routeAddr}>
+                      {delivery.pickupAddress.includes(" — ")
+                        ? delivery.pickupAddress.split(" — ")[0]
+                        : delivery.pickupAddress}
+                    </Text>
+                    {delivery.pickupAddress.includes(" — ") && (
+                      <View style={s.landmarkRow}>
+                        <Ionicons name="location-outline" size={12} color={T.brand} />
+                        <Text style={s.landmarkText}>
+                          {delivery.pickupAddress.split(" — ").slice(1).join(" — ")}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <View style={s.routeBlock}>
                     <Text style={s.routeTag}>TO</Text>
-                    <Text style={s.routeAddr}>{delivery.dropoffAddress}</Text>
+                    <Text style={s.routeAddr}>
+                      {delivery.dropoffAddress.includes(" — ")
+                        ? delivery.dropoffAddress.split(" — ")[0]
+                        : delivery.dropoffAddress}
+                    </Text>
+                    {delivery.dropoffAddress.includes(" — ") && (
+                      <View style={s.landmarkRow}>
+                        <Ionicons name="location-outline" size={12} color={T.success} />
+                        <Text style={s.landmarkText}>
+                          {delivery.dropoffAddress.split(" — ").slice(1).join(" — ")}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </View>
@@ -2730,6 +2754,19 @@ const s = StyleSheet.create({
     fontWeight: "700",
     color: T.textPrimary,
     lineHeight: 20,
+  },
+  landmarkRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 4,
+    marginTop: 4,
+  },
+  landmarkText: {
+    flex: 1,
+    fontSize: 12,
+    color: T.textSecondary,
+    lineHeight: 17,
+    fontStyle: "italic",
   },
   distancePill: {
     flexDirection: "row",
