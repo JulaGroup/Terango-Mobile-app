@@ -533,12 +533,12 @@ function PaymentSheet({
           "Cannot open Wave app. Please ensure Wave is installed.",
         );
 
+      // No alert here — regular orders don't show one either, and an Alert
+      // fired while the app is backgrounding just sits there stale when the
+      // user returns from Wave. The AppState/polling effects on the tracking
+      // screen pick up the confirmed payment automatically.
       await Linking.openURL(launchUrl);
       closeSheet();
-      Alert.alert(
-        "Wave Opened",
-        "Complete your payment in the Wave app. Your order status will update automatically.",
-      );
     } catch (error) {
       Alert.alert(
         "Payment Error",
@@ -1299,6 +1299,14 @@ export default function DeliveryTrackingPage() {
 
     const pollForUpdate = async () => {
       try {
+        // Ask the server to verify the payment with Wave right now — same
+        // self-healing regular orders get via /confirm-payment. This works
+        // even when Wave returned us app-to-app without ever firing the
+        // browser redirect (the case where the status used to stay stuck).
+        await apiCall(`/api/payments/express-delivery/${deliveryId}/confirm`, {
+          method: "POST",
+        }).catch(() => {});
+
         const res = await customDeliveryApi.getDeliveryById(deliveryId);
         const latest = normalizePayload(res);
         if (latest) setDelivery(latest);
@@ -1323,11 +1331,12 @@ export default function DeliveryTrackingPage() {
     };
   }, [fromPayment, deliveryId]);
 
-  // Wave's hosted checkout page doesn't always redirect back to the app on
-  // cancel (some cancellations just close the browser/Wave app with no
-  // callback at all), so the payment-cancel deep link can't be relied on.
-  // As a safety net, refresh whenever the app comes back to the foreground
-  // while this screen is unpaid, so the UI doesn't stay stuck.
+  // Wave doesn't always send the user back through the browser redirect —
+  // paying inside the Wave app can return here app-to-app with no callback
+  // at all. Whenever the app comes back to the foreground while this screen
+  // is unpaid, ask the server to verify the payment with Wave directly
+  // (mirrors the /confirm-payment self-heal regular orders have), then
+  // refresh. Covers successful payments AND cancellations.
   useEffect(() => {
     if (!deliveryId) return;
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -1336,7 +1345,11 @@ export default function DeliveryTrackingPage() {
         delivery?.paymentStatus &&
         delivery.paymentStatus !== "PAID"
       ) {
-        fetchDelivery();
+        apiCall(`/api/payments/express-delivery/${deliveryId}/confirm`, {
+          method: "POST",
+        })
+          .catch(() => {})
+          .finally(() => fetchDelivery());
       }
     });
     return () => subscription.remove();
