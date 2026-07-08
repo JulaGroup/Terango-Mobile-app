@@ -10,6 +10,7 @@ import {
   RefreshControl,
   Linking,
   Platform,
+  AppState,
   Dimensions,
   Modal,
   Animated,
@@ -1286,17 +1287,60 @@ export default function DeliveryTrackingPage() {
     fetchDelivery();
   }, [fetchDelivery]);
 
-  // Refresh delivery data when returning from payment
+  // Refresh delivery data when returning from payment. Wave's webhook (or the
+  // /api/redirect/payment-success fallback) can take a few seconds to mark the
+  // delivery PAID, so a single refresh right after landing back on this screen
+  // can still show stale UNPAID/PENDING — poll like order-details.tsx does
+  // until paymentStatus flips, instead of only checking once.
   useEffect(() => {
-    if (fromPayment === "true") {
-      console.log("[DeliveryTracking] Returned from payment, refreshing...");
-      // Wait a moment for backend to process, then refresh
-      const timer = setTimeout(() => {
+    if (fromPayment !== "true" || !deliveryId) return;
+    let cancelled = false;
+    let attempts = 0;
+
+    const pollForUpdate = async () => {
+      try {
+        const res = await customDeliveryApi.getDeliveryById(deliveryId);
+        const latest = normalizePayload(res);
+        if (latest) setDelivery(latest);
+        if (latest?.paymentStatus === "PAID") {
+          return; // updated — stop polling
+        }
+      } catch {
+        // ignore and retry
+      }
+
+      attempts += 1;
+      if (!cancelled && attempts < 10) {
+        setTimeout(pollForUpdate, 2000);
+      }
+    };
+
+    console.log("[DeliveryTracking] Returned from payment, polling for update...");
+    const timer = setTimeout(pollForUpdate, 1000);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [fromPayment, deliveryId]);
+
+  // Wave's hosted checkout page doesn't always redirect back to the app on
+  // cancel (some cancellations just close the browser/Wave app with no
+  // callback at all), so the payment-cancel deep link can't be relied on.
+  // As a safety net, refresh whenever the app comes back to the foreground
+  // while this screen is unpaid, so the UI doesn't stay stuck.
+  useEffect(() => {
+    if (!deliveryId) return;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (
+        nextState === "active" &&
+        delivery?.paymentStatus &&
+        delivery.paymentStatus !== "PAID"
+      ) {
         fetchDelivery();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [fromPayment, fetchDelivery]);
+      }
+    });
+    return () => subscription.remove();
+  }, [deliveryId, delivery?.paymentStatus, fetchDelivery]);
 
   useEffect(() => {
     if (delivery?.status === "DELIVERED" || delivery?.status === "CANCELLED")
