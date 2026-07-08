@@ -18,12 +18,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SecureStorage } from "@/utils/secureStorage";
 
-// Express feature launched on this date — NEW badge shows for 2 days from here
-const EXPRESS_LAUNCH_DATE = new Date("2026-07-04T00:00:00.000Z");
-const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-const isExpressNew = () =>
-  Date.now() - EXPRESS_LAUNCH_DATE.getTime() < TWO_DAYS_MS;
+const EXPRESS_FIRST_SEEN_KEY = "express_first_seen_v1";
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const { width } = Dimensions.get("window");
 const ORANGE = "#ff6b00";
@@ -718,17 +716,37 @@ const PROMO_KEY = "terango_express_promo_seen_v1";
 const ServiceGrid = () => {
   const [showMore, setShowMore] = useState(false);
   const [showExpressPromo, setShowExpressPromo] = useState(false);
+  const [expressIsNew, setExpressIsNew] = useState(false);
   const router = useRouter();
   const promoScale = useRef(new Animated.Value(0.88)).current;
   const promoOpacity = useRef(new Animated.Value(0)).current;
 
-  // Show popup once if within the 2-day launch window and not seen before
+  // Per-device 7-day NEW badge: record first time this device sees Express,
+  // show badge for 7 days from that moment.
   useEffect(() => {
-    if (!isExpressNew()) return;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(EXPRESS_FIRST_SEEN_KEY);
+        if (raw) {
+          const firstSeen = parseInt(raw, 10);
+          setExpressIsNew(Date.now() - firstSeen < SEVEN_DAYS_MS);
+        } else {
+          await AsyncStorage.setItem(EXPRESS_FIRST_SEEN_KEY, String(Date.now()));
+          setExpressIsNew(true);
+        }
+      } catch {
+        // ignore storage errors
+      }
+    })();
+  }, []);
+
+  // Show promo popup once per device if within the NEW window and not yet seen
+  useEffect(() => {
+    if (!expressIsNew) return;
     AsyncStorage.getItem(PROMO_KEY).then((val) => {
       if (!val) setShowExpressPromo(true);
     });
-  }, []);
+  }, [expressIsNew]);
 
   // Animate in when visible
   useEffect(() => {
@@ -757,10 +775,26 @@ const ServiceGrid = () => {
     ]).start(() => setShowExpressPromo(false));
   };
 
+  const openExpress = async () => {
+    const token = await SecureStorage.getItem("token");
+    if (!token) {
+      Alert.alert(
+        "Sign in required",
+        "You need to be logged in to book an Express delivery.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Sign In", onPress: () => router.push("/auth" as any) },
+        ],
+      );
+      return;
+    }
+    router.push("/custom-delivery" as any);
+  };
+
   const bookExpress = async () => {
     await AsyncStorage.setItem(PROMO_KEY, "1");
     setShowExpressPromo(false);
-    router.push("/custom-delivery" as any);
+    await openExpress();
   };
 
   return (
@@ -885,8 +919,8 @@ const ServiceGrid = () => {
         <SmallTile
           label="Express"
           image={require("@/assets/images/express_icon.png")}
-          route="/custom-delivery"
-          isNew={isExpressNew()}
+          onPress={openExpress}
+          isNew={expressIsNew}
           // comingSoon
         />
         <SmallTile
