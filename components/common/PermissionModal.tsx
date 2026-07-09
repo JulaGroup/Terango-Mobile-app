@@ -19,9 +19,9 @@ interface PermissionModalProps {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   primaryButtonText: string;
-  secondaryButtonText: string;
+  secondaryButtonText?: string;
   onPrimaryPress: () => void;
-  onSecondaryPress: () => void;
+  onSecondaryPress?: () => void;
   loading?: boolean;
 }
 
@@ -81,16 +81,18 @@ const PermissionModal: React.FC<PermissionModalProps> = ({
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={onSecondaryPress}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.secondaryButtonText}>
-                {secondaryButtonText}
-              </Text>
-            </TouchableOpacity>
+            {secondaryButtonText && onSecondaryPress && (
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={onSecondaryPress}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  {secondaryButtonText}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </Animated.View>
       </View>

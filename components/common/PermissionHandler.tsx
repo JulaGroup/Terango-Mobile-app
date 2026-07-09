@@ -30,10 +30,8 @@ const PermissionHandler: React.FC = () => {
         description="To find nearby vendors and provide accurate delivery estimates, we need access to your location."
         icon="location"
         iconColor="#FF6B35"
-        primaryButtonText="Allow Location"
-        secondaryButtonText="Maybe Later"
+        primaryButtonText="Continue"
         onPrimaryPress={requestLocationPermission}
-        onSecondaryPress={dismissLocationModal}
         loading={permissions.location === "pending"}
       />
 
