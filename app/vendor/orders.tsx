@@ -306,11 +306,11 @@ export default function VendorOrdersEnhanced() {
       });
       actions.push({ label: "Decline", status: "CANCELLED", color: "#1A1A1A" });
     }
-    // ACCEPTED: Shows "Waiting for Payment" - no action button, automatic transition after payment
-    // Payment happens on customer side, then automatically becomes PREPARING
+    // ACCEPTED: Waiting for customer payment. The system auto-updates to
+    // PREPARING once paid, but the vendor can still cancel while unpaid
+    // (e.g. the customer never completes payment).
     else if (order.status === "ACCEPTED") {
-      // No actions - waiting for customer payment
-      // The system will auto-update to PREPARING once paid
+      actions.push({ label: "Cancel", status: "CANCELLED", color: "#1A1A1A" });
     }
     // PROCESSING: Vendor can start preparing (explicit step)
     else if (order.status === "PROCESSING") {

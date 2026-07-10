@@ -40,7 +40,7 @@ const MealItemCard = ({
   const [imageLoadError, setImageLoadError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [timer, setTimer] = useState<ReturnType<typeof setTimeout> | null>(
-    null
+    null,
   );
   const isOrderingDisabled = orderingDisabled === true;
   const disabledLabel = (disabledReason || "").trim() || "Ordering unavailable";
@@ -88,7 +88,7 @@ const MealItemCard = ({
   const discountPercentage =
     product.discountedPrice && product.discountedPrice < product.price
       ? Math.round(
-          ((product.price - product.discountedPrice) / product.price) * 100
+          ((product.price - product.discountedPrice) / product.price) * 100,
         )
       : 0;
 
@@ -160,9 +160,7 @@ const MealItemCard = ({
         {product.image && !imageLoadError ? (
           <Image
             source={
-              typeof product.image === "string"
-                ? product.image
-                : product.image
+              typeof product.image === "string" ? product.image : product.image
             }
             style={styles.image}
             contentFit="cover"

@@ -1227,8 +1227,9 @@ export const customDeliveryApi = {
       body: JSON.stringify(payload),
     });
   },
-  listDeliveries: async () => {
-    return apiCall("/api/custom-deliveries");
+  listDeliveries: async (opts?: { limit?: number }) => {
+    const qs = opts?.limit ? `?limit=${opts.limit}` : "";
+    return apiCall(`/api/custom-deliveries${qs}`);
   },
   getDeliveryById: async (deliveryId: string) => {
     return apiCall(`/api/custom-deliveries/${deliveryId}`);

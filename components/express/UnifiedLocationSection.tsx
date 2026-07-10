@@ -268,30 +268,27 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                   activeOpacity={0.7}
                 >
                   <View style={styles.locationButtonContent}>
-                    <View
-                      style={[
-                        styles.locationIconWrapper,
-                        pickupTown && styles.locationIconWrapperFilled,
-                      ]}
-                    >
-                      <Ionicons
-                        name="arrow-up-circle"
-                        size={20}
-                        color={pickupSelectedText ? PRIMARY : Colors.inkMid}
-                      />
-                    </View>
                     <View style={styles.locationTextWrapper}>
                       {pickupSelectedText ? (
                         <>
-                          <Text style={styles.locationSelectedText}>
+                          <Text
+                            style={styles.locationSelectedText}
+                            numberOfLines={1}
+                          >
                             {pickupSelectedText}
                           </Text>
                           {useSavedPickupAddress ? (
-                            <Text style={styles.locationAreaText}>
+                            <Text
+                              style={styles.locationAreaText}
+                              numberOfLines={1}
+                            >
                               From your saved locations
                             </Text>
                           ) : pickupTown?.area ? (
-                            <Text style={styles.locationAreaText}>
+                            <Text
+                              style={styles.locationAreaText}
+                              numberOfLines={1}
+                            >
                               {pickupTown.area}
                             </Text>
                           ) : null}
@@ -306,7 +303,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                     </View>
                     <Ionicons
                       name="chevron-forward"
-                      size={20}
+                      size={18}
                       color={Colors.inkLighter}
                     />
                   </View>
@@ -555,26 +552,20 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                   activeOpacity={0.7}
                 >
                   <View style={styles.locationButtonContent}>
-                    <View
-                      style={[
-                        styles.locationIconWrapper,
-                        dropoffTown && styles.locationIconWrapperFilled,
-                      ]}
-                    >
-                      <Ionicons
-                        name="arrow-forward-circle"
-                        size={20}
-                        color={dropoffSelectedText ? PRIMARY : Colors.inkMid}
-                      />
-                    </View>
                     <View style={styles.locationTextWrapper}>
                       {dropoffSelectedText ? (
                         <>
-                          <Text style={styles.locationSelectedText}>
+                          <Text
+                            style={styles.locationSelectedText}
+                            numberOfLines={1}
+                          >
                             {dropoffSelectedText}
                           </Text>
                           {dropoffTown?.area ? (
-                            <Text style={styles.locationAreaText}>
+                            <Text
+                              style={styles.locationAreaText}
+                              numberOfLines={1}
+                            >
                               {dropoffTown.area}
                             </Text>
                           ) : null}
@@ -587,7 +578,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                     </View>
                     <Ionicons
                       name="chevron-forward"
-                      size={20}
+                      size={18}
                       color={Colors.inkLighter}
                     />
                   </View>
@@ -783,8 +774,8 @@ const styles = StyleSheet.create({
   },
   locationIndicator: {
     alignItems: "center",
-    marginRight: 16,
-    paddingTop: 32,
+    marginRight: 14,
+    paddingTop: 28,
   },
   indicatorDot: {
     width: 12,
@@ -804,7 +795,7 @@ const styles = StyleSheet.create({
   },
   indicatorLine: {
     width: 2,
-    height: 40,
+    height: 30,
     backgroundColor: Colors.divider,
     marginVertical: 4,
   },
@@ -812,14 +803,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationInputSection: {
-    marginBottom: 16,
+    marginBottom: 12,
   },
   locationLabel: {
-    fontSize: 16,
+    fontSize: 11,
     fontWeight: "700",
-    color: Colors.ink,
-    marginBottom: 10,
-    letterSpacing: 0.1,
+    color: Colors.inkMid,
+    marginBottom: 7,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   locationLabelRow: {
     flexDirection: "row",
@@ -859,23 +851,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   locationButton: {
-    backgroundColor: Colors.surfaceRaised,
-    borderRadius: Radius.lg,
-    borderWidth: 1.5,
+    backgroundColor: Colors.bg,
+    borderRadius: 14,
+    borderWidth: 1,
     borderColor: Colors.divider,
-    ...Shadows.sm,
   },
   locationButtonFilled: {
-    backgroundColor: Colors.primaryFaint,
+    backgroundColor: Colors.surface,
     borderColor: Colors.primaryGlow,
-    ...Shadows.md,
   },
   locationButtonContent: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 10,
   },
   locationIconWrapper: {
     width: 40,
@@ -895,22 +885,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   locationSelectedText: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: Colors.ink,
-    lineHeight: 22,
-    marginBottom: 3,
+    lineHeight: 20,
+    marginBottom: 1,
   },
   locationAreaText: {
-    fontSize: 14,
+    fontSize: 12,
     color: Colors.inkMid,
     fontWeight: "500",
   },
   locationPlaceholder: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.inkLighter,
     fontWeight: "500",
-    lineHeight: 16,
+    lineHeight: 18,
   },
   contactSection: {
     paddingTop: 16,

@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   FlatList,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,10 +13,10 @@ import {
   TouchableOpacity,
   View,
   Platform,
-  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useFocusEffect } from "expo-router";
 import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
 import {
@@ -42,51 +44,24 @@ import {
 } from "@/components/express/ExpressWeightClassCard";
 import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
 
-const { width: SCREEN_W } = Dimensions.get("window");
-
-// ── Design System ─────────────────────────────────────────
+// ── Brand palette (unchanged) ─────────────────────────────
 const T = {
-  // Brand - Orange
-  brand: "#FF6B00", // Primary orange
+  brand: "#FF6B00",
   brandDark: "#E55A00",
-  brandDeep: "#CC4E00",
-  brandSoft: "rgba(255,107,0,0.12)",
-  brandGlow: "rgba(255,107,0,0.20)",
-  brandFaint: "rgba(255,107,0,0.06)",
-
-  // Accent
-  accent: "#FF8C42", // Lighter orange for highlights
-  accentSoft: "rgba(255,140,66,0.10)",
-
-  // Neutrals – black theme hero, white body
-  heroBase: "#000000",
-  heroCard: "rgba(255,255,255,0.06)",
-  heroBorder: "rgba(255,255,255,0.10)",
-  heroText: "#FFFFFF",
-  heroTextDim: "rgba(255,255,255,0.70)",
-  heroTextFaint: "rgba(255,255,255,0.40)",
-
-  // White body
+  brandSoft: "rgba(255,107,0,0.10)",
   bg: "#FFFFFF",
   surface: "#FFFFFF",
-  surfaceHover: "#F8F9FA",
-  border: "#E9ECEF",
-  borderFocus: "#FF6B00",
-
-  // Text - Black based
-  textPrimary: "#000000",
-  textSecondary: "#495057",
-  textTertiary: "#6C757D",
-
-  // Status
-  blue: "#007BFF",
-  blueSoft: "rgba(0,123,255,0.10)",
-  amber: "#FF6B00", // Use brand orange for amber
-  amberSoft: "rgba(255,107,0,0.10)",
-  red: "#DC3545",
-  redSoft: "rgba(220,53,69,0.08)",
-  success: "#28A745",
-  successSoft: "rgba(40,167,69,0.10)",
+  pageBg: "#F7F8FA",
+  border: "#EBEBEB",
+  textPrimary: "#111111",
+  textSecondary: "#555555",
+  textTertiary: "#9CA3AF",
+  success: "#10B981",
+  successSoft: "rgba(16,185,129,0.10)",
+  red: "#EF4444",
+  redSoft: "rgba(239,68,68,0.08)",
+  blue: "#3B82F6",
+  blueSoft: "rgba(59,130,246,0.10)",
 };
 
 // ── Types ─────────────────────────────────────────────────
@@ -137,17 +112,12 @@ const STATUS_MAP: Record<
   string,
   { label: string; bg: string; color: string; dot: string }
 > = {
-  PENDING: {
-    label: "Pending",
-    bg: T.accentSoft,
-    color: T.accent,
-    dot: T.accent,
-  },
+  PENDING: { label: "Pending", bg: T.brandSoft, color: T.brand, dot: T.brand },
   READY_FOR_PAYMENT: {
-    label: "Ready for Payment",
-    bg: T.brandSoft,
-    color: T.brand,
-    dot: T.brand,
+    label: "Ready to Pay",
+    bg: T.successSoft,
+    color: T.success,
+    dot: T.success,
   },
   DRIVER_ASSIGNED: {
     label: "Driver Assigned",
@@ -163,9 +133,9 @@ const STATUS_MAP: Record<
   },
   IN_TRANSIT: {
     label: "In Transit",
-    bg: T.amberSoft,
-    color: T.amber,
-    dot: T.amber,
+    bg: T.brandSoft,
+    color: T.brand,
+    dot: T.brand,
   },
   DELIVERED: {
     label: "Delivered",
@@ -186,189 +156,19 @@ const fmtDate = (iso: string) =>
     minute: "2-digit",
   });
 
-// ── Field Input ───────────────────────────────────────────
-interface FieldInputProps {
-  icon: string;
-  placeholder: string;
-  value: string;
-  onChangeText: (t: string) => void;
-  keyboardType?: "default" | "phone-pad" | "email-address";
-  maxLength?: number;
-  multiline?: boolean;
-  label?: string;
-}
-
-function FieldInput({
-  icon,
-  placeholder,
-  value,
-  onChangeText,
-  keyboardType = "default",
-  maxLength,
-  multiline,
-  label,
-}: FieldInputProps) {
-  const [focused, setFocused] = useState(false);
+// ── Gradient step badge ────────────────────────────────────
+function StepBadge({ n }: { n: number }) {
   return (
-    <View style={fi.outer}>
-      {label && <Text style={fi.label}>{label}</Text>}
-      <View style={[fi.wrap, focused && fi.wrapFocused]}>
-        <View style={fi.iconBox}>
-          <Ionicons
-            name={icon as any}
-            size={16}
-            color={focused ? T.brand : T.textTertiary}
-          />
-        </View>
-        <TextInput
-          style={[fi.text, multiline && fi.multiText]}
-          placeholder={placeholder}
-          placeholderTextColor={T.textTertiary}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType={keyboardType}
-          maxLength={maxLength}
-          multiline={multiline}
-          numberOfLines={multiline ? 3 : 1}
-          textAlignVertical={multiline ? "top" : "center"}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
-      </View>
-    </View>
+    <LinearGradient
+      colors={[T.brand, T.brandDark]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={s.stepBadge}
+    >
+      <Text style={s.stepBadgeText}>{n}</Text>
+    </LinearGradient>
   );
 }
-
-const fi = StyleSheet.create({
-  outer: { marginBottom: 10 },
-  label: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: T.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 5,
-    textTransform: "uppercase",
-  },
-  wrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: T.surface,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: T.border,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  wrapFocused: { borderColor: T.brand, backgroundColor: "#FAFFFE" },
-  iconBox: { width: 24, alignItems: "center", marginRight: 10 },
-  text: { flex: 1, fontSize: 15, color: T.textPrimary, fontWeight: "500" },
-  multiText: { minHeight: 72, paddingTop: 2 },
-});
-
-// ── Section Header ────────────────────────────────────────
-function SectionHeader({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: string;
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <View style={sh.row}>
-      <View style={sh.pill}>
-        <Ionicons name={icon as any} size={14} color={T.brand} />
-      </View>
-      <View>
-        <Text style={sh.title}>{title}</Text>
-        {subtitle && <Text style={sh.sub}>{subtitle}</Text>}
-      </View>
-    </View>
-  );
-}
-
-const sh = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 10,
-  },
-  pill: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: T.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: T.textPrimary,
-    letterSpacing: -0.2,
-  },
-  sub: { fontSize: 11, color: T.textTertiary, fontWeight: "500", marginTop: 1 },
-});
-
-// ── Step Badge ────────────────────────────────────────────
-function StepBadge({ n, active }: { n: number; active: boolean }) {
-  return (
-    <View style={[sb.base, active ? sb.active : sb.idle]}>
-      <Text style={[sb.num, active ? sb.numActive : sb.numIdle]}>{n}</Text>
-    </View>
-  );
-}
-const sb = StyleSheet.create({
-  base: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  active: { backgroundColor: T.brand },
-  idle: { backgroundColor: T.border },
-  num: { fontSize: 11, fontWeight: "800" },
-  numActive: { color: "#fff" },
-  numIdle: { color: T.textTertiary },
-});
-
-// ── Quick Stat Chip ───────────────────────────────────────
-function QuickStat({
-  icon,
-  val,
-  label,
-}: {
-  icon: string;
-  val: string;
-  label: string;
-}) {
-  return (
-    <View style={qs.cell}>
-      <View style={qs.icon}>
-        <Ionicons name={icon as any} size={15} color={T.brand} />
-      </View>
-      <Text style={qs.val}>{val}</Text>
-      <Text style={qs.lbl}>{label}</Text>
-    </View>
-  );
-}
-const qs = StyleSheet.create({
-  cell: { flex: 1, alignItems: "center", paddingVertical: 14 },
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: T.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 6,
-  },
-  val: { fontSize: 13, fontWeight: "800", color: "#fff", marginBottom: 2 },
-  lbl: { fontSize: 10, color: "rgba(255,255,255,0.45)", fontWeight: "600" },
-});
 
 // ── Main Screen ────────────────────────────────────────────
 export default function CustomDeliveryScreen() {
@@ -376,16 +176,36 @@ export default function CustomDeliveryScreen() {
   const router = useRouter();
   const { addresses, fetchAddresses } = useAddress();
 
-  // Re-check maintenance flags every time this screen opens so an admin
-  // toggle takes effect immediately (flags are otherwise only fetched at
-  // app launch / foreground resume)
   useEffect(() => {
     refetchMaintenanceFlags();
   }, [refetchMaintenanceFlags]);
 
-  // 🏙️ Dynamic delivery towns from API
-  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
+  // Gentle floating animation for the hero rider
+  const bikeFloat = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(bikeFloat, {
+          toValue: 1,
+          duration: 1600,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bikeFloat, {
+          toValue: 0,
+          duration: 1600,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [bikeFloat]);
+  const bikeTranslateY = bikeFloat.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
 
+  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
   const [pickupTown, setPickupTown] = useState<GambianTown | null>(null);
   const [dropoffTown, setDropoffTown] = useState<GambianTown | null>(null);
   const [pickupAddressLabel, setPickupAddressLabel] = useState("");
@@ -395,29 +215,18 @@ export default function CustomDeliveryScreen() {
   const [dropoffLatitude, setDropoffLatitude] = useState<number | null>(null);
   const [dropoffLongitude, setDropoffLongitude] = useState<number | null>(null);
 
-  // Exactly two valid flows:
-  //  - "pickupSaved": pickup is one of your saved addresses, dropoff is a
-  //    location/town you choose.
-  //  - "dropoffSaved": pickup is a location/town you choose (with a
-  //    landmark description), dropoff is one of your saved addresses.
   const [flowDirection, setFlowDirection] = useState<
     "pickupSaved" | "dropoffSaved"
   >("pickupSaved");
   const pickupMode = flowDirection === "pickupSaved" ? "saved" : "town";
   const dropoffMode = flowDirection === "pickupSaved" ? "town" : "saved";
-  // Pickup saved-address selection is LOCAL to this booking — deliberately
-  // not the app-wide default address, so nothing appears pre-selected until
-  // the user explicitly picks a location.
+
   const [selectedPickupAddress, setSelectedPickupAddress] =
     useState<Address | null>(null);
   const [selectedDropoffAddress, setSelectedDropoffAddress] =
     useState<Address | null>(null);
   const [showDropoffAddressModal, setShowDropoffAddressModal] = useState(false);
-  // Required when pickup is a chosen location (not a saved address) so the
-  // driver can actually find the pickup spot.
   const [pickupLandmark, setPickupLandmark] = useState("");
-  // Same, but for dropoff — required when dropoff is a chosen location
-  // (not a saved address) so the driver can find where to deliver.
   const [dropoffLandmark, setDropoffLandmark] = useState("");
 
   const [senderName, setSenderName] = useState("");
@@ -449,23 +258,21 @@ export default function CustomDeliveryScreen() {
   const [loadingDeliveries, setLoadingDeliveries] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Filter vehicles based on selected weight class
   const availableVehicleTypes = selectedWeight
     ? getAvailableVehicles(selectedWeight)
     : (["BIKE", "KEKE_CARGO", "CAR", "VAN", "LORRY"] as VehicleType[]);
 
   const vehicleOptions: VehicleOption[] = availableVehicleTypes.map((key) => {
     const vehicleQuote = quotesByVehicle[key];
-    const vehiclePrice = vehicleQuote?.estimatedPrice ?? null;
-    const vehicleTime = vehicleQuote?.estimatedTimeMinutes ?? null;
-
     return {
       key,
       label: VEHICLE_CONFIG[key].label,
       description: VEHICLE_CONFIG[key].description,
       iconName: VEHICLE_CONFIG[key].iconName,
-      estimatedPrice: vehiclePrice,
-      estimatedTime: vehicleTime ? `${vehicleTime} min` : undefined,
+      estimatedPrice: vehicleQuote?.estimatedPrice ?? null,
+      estimatedTime: vehicleQuote?.estimatedTimeMinutes
+        ? `${vehicleQuote.estimatedTimeMinutes} min`
+        : undefined,
     };
   });
 
@@ -478,7 +285,6 @@ export default function CustomDeliveryScreen() {
     iconName: WEIGHT_CONFIG[key].iconName,
   }));
 
-  // Clear selected vehicle if it's not compatible with new weight selection
   useEffect(() => {
     if (selectedWeight && selectedVehicle) {
       const availableVehicles = getAvailableVehicles(selectedWeight);
@@ -494,7 +300,6 @@ export default function CustomDeliveryScreen() {
 
   useEffect(() => {
     let isCancelled = false;
-
     if (
       selectedWeight &&
       pickupLatitude != null &&
@@ -504,7 +309,6 @@ export default function CustomDeliveryScreen() {
     ) {
       const fetchQuotes = async () => {
         setLoadingQuotes(true);
-
         try {
           const vehicles = getAvailableVehicles(selectedWeight);
           const quoteEntries = await Promise.all(
@@ -519,7 +323,6 @@ export default function CustomDeliveryScreen() {
                 isExpress: true,
                 priorityLevel: "EXPRESS",
               });
-
               const payload = response?.data ?? response;
               const pricing = payload?.pricing ?? {};
               const quote: DeliveryQuote = {
@@ -531,15 +334,10 @@ export default function CustomDeliveryScreen() {
                 ),
                 distanceKm: Number(payload?.distanceKm ?? NaN),
               };
-
               return [vehicleType, quote] as const;
             }),
           );
-
-          if (isCancelled) {
-            return;
-          }
-
+          if (isCancelled) return;
           const nextQuotes: Partial<Record<VehicleType, DeliveryQuote>> = {};
           quoteEntries.forEach(([vehicleType, quote]) => {
             if (
@@ -551,20 +349,14 @@ export default function CustomDeliveryScreen() {
               nextQuotes[vehicleType] = quote;
             }
           });
-
           setQuotesByVehicle(nextQuotes);
         } catch (error) {
           console.error("Failed to fetch express quotes", error);
-          if (!isCancelled) {
-            setQuotesByVehicle({});
-          }
+          if (!isCancelled) setQuotesByVehicle({});
         } finally {
-          if (!isCancelled) {
-            setLoadingQuotes(false);
-          }
+          if (!isCancelled) setLoadingQuotes(false);
         }
       };
-
       fetchQuotes();
     } else {
       setQuotesByVehicle({});
@@ -572,7 +364,6 @@ export default function CustomDeliveryScreen() {
       setEstimatedTime(null);
       setDistanceKm(null);
     }
-
     return () => {
       isCancelled = true;
     };
@@ -591,7 +382,6 @@ export default function CustomDeliveryScreen() {
       setDistanceKm(null);
       return;
     }
-
     const quote = quotesByVehicle[selectedVehicle];
     setEstimatedPrice(quote?.estimatedPrice ?? null);
     setEstimatedTime(quote?.estimatedTimeMinutes ?? null);
@@ -601,7 +391,7 @@ export default function CustomDeliveryScreen() {
   const fetchDeliveries = useCallback(async () => {
     try {
       setLoadingDeliveries(true);
-      const response = await customDeliveryApi.listDeliveries();
+      const response = await customDeliveryApi.listDeliveries({ limit: 5 });
       const deliveries = Array.isArray(response)
         ? response
         : Array.isArray(response?.data)
@@ -619,15 +409,12 @@ export default function CustomDeliveryScreen() {
     fetchDeliveries();
   }, [fetchDeliveries]);
 
-  // Refetch whenever the screen regains focus (e.g. returning after a cancel
-  // on the detail screen) so recent-delivery cards never show stale status
   useFocusEffect(
     useCallback(() => {
       fetchDeliveries();
     }, [fetchDeliveries]),
   );
 
-  // Load delivery towns once on mount so pickup/dropoff matching works immediately
   useEffect(() => {
     let isMounted = true;
     fetchDeliveryTowns()
@@ -635,9 +422,9 @@ export default function CustomDeliveryScreen() {
         const towns = Array.isArray(res?.data) ? res.data : [];
         if (isMounted) setDeliveryTowns(towns);
       })
-      .catch((error) => {
-        console.error("Could not fetch delivery towns:", error);
-      });
+      .catch((error) =>
+        console.error("Could not fetch delivery towns:", error),
+      );
     return () => {
       isMounted = false;
     };
@@ -660,25 +447,9 @@ export default function CustomDeliveryScreen() {
     );
   }, [selectedPickupAddress, pickupMode]);
 
-  // Fetch addresses when component mounts
   useEffect(() => {
-    console.log("Custom delivery: fetching addresses...");
-    fetchAddresses().then(() => {
-      console.log(
-        "Custom delivery: addresses fetched, count:",
-        addresses?.length || 0,
-      );
-    });
+    fetchAddresses();
   }, [fetchAddresses]);
-
-  // Debug log for addresses
-  useEffect(() => {
-    console.log(
-      "Custom delivery: addresses updated:",
-      addresses?.length || 0,
-      addresses,
-    );
-  }, [addresses]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -722,7 +493,6 @@ export default function CustomDeliveryScreen() {
   };
 
   const handleSavedPickupAddressSelect = async (address: Address) => {
-    // Ensure delivery towns are available (fetch on-demand if mount fetch hasn't resolved yet)
     let towns = deliveryTowns;
     if (towns.length === 0) {
       try {
@@ -730,15 +500,13 @@ export default function CustomDeliveryScreen() {
         towns = Array.isArray(townsResponse?.data) ? townsResponse.data : [];
         setDeliveryTowns(towns);
       } catch (error) {
-        console.error("Could not fetch delivery towns:", error);
         Alert.alert(
           "Error",
           "Could not load delivery areas. Please check your connection and try again.",
         );
-        return; // Stop execution if towns can't be loaded
+        return;
       }
     }
-
     if (towns.length > 0) {
       const nearestTown = findNearestTown(
         address.latitude,
@@ -747,8 +515,6 @@ export default function CustomDeliveryScreen() {
       );
       if (nearestTown) setPickupTown(nearestTown);
     }
-
-    // Now, set the rest of the address details (local to this booking only)
     setSelectedPickupAddress(address);
     setPickupLatitude(address.latitude);
     setPickupLongitude(address.longitude);
@@ -761,7 +527,6 @@ export default function CustomDeliveryScreen() {
     setDropoffLatitude(address.latitude);
     setDropoffLongitude(address.longitude);
     setDropoffAddressLabel(address.addressLine || "Delivery location");
-    // Build a town-like object so existing step/price/payload logic keeps working.
     setDropoffTown({
       id: address.id,
       name: address.addressLine || "Saved location",
@@ -778,8 +543,6 @@ export default function CustomDeliveryScreen() {
   ) => {
     if (direction === flowDirection) return;
     setFlowDirection(direction);
-    // Clear both pickup and dropoff so stale state from the previous flow
-    // doesn't leak into the new one.
     setPickupTown(null);
     setPickupAddressLabel("");
     setPickupLatitude(null);
@@ -806,12 +569,12 @@ export default function CustomDeliveryScreen() {
     if (pickupMode !== "saved" && !pickupLandmark.trim())
       return Alert.alert(
         "Pickup directions required",
-        "Describe a landmark or directions so the driver can find the pickup location.",
+        "Describe a landmark so the driver can find the pickup.",
       );
     if (dropoffMode === "town" && !dropoffLandmark.trim())
       return Alert.alert(
         "Delivery directions required",
-        "Describe a landmark or directions so the driver can find the delivery location.",
+        "Describe a landmark so the driver can find the delivery.",
       );
 
     setIsSubmitting(true);
@@ -843,15 +606,17 @@ export default function CustomDeliveryScreen() {
         priorityLevel: "EXPRESS" as const,
         expressDeadlineMinutes: 60,
       };
+
       const result = await expressDeliveryApi.createExpressDelivery(payload);
       const deliveryId = result?.data?.id ?? result?.id;
+
       if (deliveryId) {
         Alert.alert(
-          "🎉 Request Sent!",
-          "Your booking is waiting for admin confirmation. You can pay after admin approves.",
+          "Request Sent!",
+          "Your booking is with our team. We'll notify you once confirmed and ready for payment.",
           [
             {
-              text: "Track Request",
+              text: "Track It",
               onPress: () =>
                 router.push({
                   pathname: "/custom-delivery/[deliveryId]",
@@ -862,7 +627,8 @@ export default function CustomDeliveryScreen() {
           ],
         );
       }
-      // Reset
+
+      // Reset form
       setPickupTown(null);
       setDropoffTown(null);
       setPickupLatitude(null);
@@ -892,30 +658,49 @@ export default function CustomDeliveryScreen() {
     }
   };
 
-  const renderDeliveryCard = ({ item }: { item: DeliverySummary }) => {
-    // Determine status to display
-    let displayStatus = item.status;
+  // ── Progress ──────────────────────────────────────────────
+  const step1Done = !!(
+    pickupTown &&
+    dropoffTown &&
+    (pickupMode === "saved" || pickupLandmark.trim().length > 0) &&
+    (dropoffMode !== "town" || dropoffLandmark.trim().length > 0)
+  );
+  const step2Done = !!(selectedVehicle && selectedWeight);
+  const step3Done = !!(
+    senderName.trim() &&
+    senderPhone.trim() &&
+    receiverName.trim() &&
+    receiverPhone.trim().replace(/\s/g, "").length === 7
+  );
+  const canSubmit =
+    step1Done &&
+    step2Done &&
+    step3Done &&
+    estimatedPrice != null &&
+    !loadingQuotes &&
+    !isSubmitting;
 
-    // Check if it's ready for payment (admin approved but not paid).
-    // Terminal states always win — a cancelled/delivered order is never payable.
+  // ── Render delivery card ───────────────────────────────────
+  const renderDeliveryCard = ({ item }: { item: DeliverySummary }) => {
+    let displayStatus = item.status;
     if (
       item.status !== "CANCELLED" &&
       item.status !== "DELIVERED" &&
       item.paymentStatus === "UNPAID" &&
       item.trackingUpdates?.some(
-        (update) =>
-          update.message?.includes("Order Approved") ||
-          update.message?.startsWith("[ADMIN_APPROVED_FOR_PAYMENT]"),
+        (u) =>
+          u.message?.includes("Order Approved") ||
+          u.message?.startsWith("[ADMIN_APPROVED_FOR_PAYMENT]"),
       )
     ) {
       displayStatus = "READY_FOR_PAYMENT";
     }
-
     const chip = STATUS_MAP[displayStatus] ?? STATUS_MAP.PENDING;
+
     return (
       <TouchableOpacity
         style={s.deliveryCard}
-        activeOpacity={0.75}
+        activeOpacity={0.7}
         onPress={() =>
           router.push({
             pathname: "/custom-delivery/[deliveryId]",
@@ -923,24 +708,21 @@ export default function CustomDeliveryScreen() {
           })
         }
       >
-        {/* Route line */}
-        <View style={s.routeRow}>
-          <View style={s.routeLine}>
-            <View style={[s.routeDotTop, { backgroundColor: T.brand }]} />
-            <View style={s.routeConnector} />
-            <View style={[s.routeDotBot, { backgroundColor: T.accent }]} />
+        {/* Route */}
+        <View style={s.cardRoute}>
+          <View style={s.cardRouteLine}>
+            <View style={[s.cardDot, { backgroundColor: T.brand }]} />
+            <View style={s.cardConnector} />
+            <View style={[s.cardDot, { backgroundColor: T.success }]} />
           </View>
-          <View style={s.routeAddresses}>
-            <View style={s.routeAddrRow}>
-              <Text style={s.routeFrom} numberOfLines={1}>
-                {item.pickupAddress}
-              </Text>
-            </View>
-            <View style={[s.routeAddrRow, { marginTop: 10 }]}>
-              <Text style={s.routeTo} numberOfLines={1}>
-                {item.dropoffAddress}
-              </Text>
-            </View>
+          <View style={s.cardAddresses}>
+            <Text style={s.cardFrom} numberOfLines={1}>
+              {item.pickupAddress}
+            </Text>
+            <View style={{ height: 14 }} />
+            <Text style={s.cardTo} numberOfLines={1}>
+              {item.dropoffAddress}
+            </Text>
           </View>
           <View style={[s.statusChip, { backgroundColor: chip.bg }]}>
             <View style={[s.statusDot, { backgroundColor: chip.dot }]} />
@@ -954,73 +736,36 @@ export default function CustomDeliveryScreen() {
 
         {/* Footer */}
         <View style={s.cardFooter}>
-          <View style={s.cardMeta}>
-            <Ionicons name="car-outline" size={11} color={T.textTertiary} />
-            <Text style={s.cardMetaText}>
-              {item.vehicleType.replace("_", " ")}
-            </Text>
-            <View style={s.metaDot} />
-            <Text style={s.cardMetaText}>{item.weightClass}</Text>
-          </View>
+          <Text style={s.cardMeta}>
+            {item.vehicleType.replace("_", " ")} · {item.weightClass}
+          </Text>
           <View style={s.cardRight}>
             {item.estimatedFee != null && (
               <Text style={s.cardFee}>{fmtCurrency(item.estimatedFee)}</Text>
             )}
             <Text style={s.cardDate}>{fmtDate(item.createdAt)}</Text>
-            <View style={s.cardArrow}>
-              <Ionicons name="chevron-forward" size={12} color={T.brand} />
-            </View>
+            <Ionicons name="chevron-forward" size={14} color={T.textTertiary} />
           </View>
         </View>
       </TouchableOpacity>
     );
   };
 
-  // Progress steps
-  const step1Done = !!(
-    pickupTown &&
-    dropoffTown &&
-    pickupLandmark.trim().length > 0 &&
-    (dropoffMode !== "town" || dropoffLandmark.trim().length > 0)
-  );
-  const step2Done = !!(selectedVehicle && selectedWeight);
-  const step3Done = !!(
-    senderName.trim() &&
-    senderPhone.trim() &&
-    receiverName.trim() &&
-    receiverPhone.trim().replace(/\s/g, "").length === 7
-  );
-
-  const canSubmit =
-    step1Done &&
-    step2Done &&
-    step3Done &&
-    estimatedPrice != null &&
-    !loadingQuotes &&
-    !isSubmitting;
-
+  // ── Maintenance gates ──────────────────────────────────────
   if (flags.expressDeliveryMaintenance) {
     return <MaintenanceScreen serviceName="Express Delivery" />;
   }
-
   if (flags.noDriversWindow?.active) {
-    const formatHour = (hour: number) => {
-      const period = hour < 12 ? "AM" : "PM";
-      const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-      return `${displayHour}:00 ${period}`;
-    };
+    const fmt = (h: number) => `${h % 12 || 12}:00 ${h < 12 ? "AM" : "PM"}`;
     return (
       <MaintenanceScreen
         serviceName="Express Delivery"
-        message={`No drivers are available right now (${formatHour(
-          flags.noDriversWindow.startHour,
-        )} - ${formatHour(
-          flags.noDriversWindow.endHour,
-        )}). Please check back later.`}
+        message={`No drivers available (${fmt(flags.noDriversWindow.startHour)} – ${fmt(flags.noDriversWindow.endHour)}). Please check back later.`}
       />
     );
   }
 
+  // ── Render ─────────────────────────────────────────────────
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
       <ScrollView
@@ -1035,486 +780,373 @@ export default function CustomDeliveryScreen() {
           />
         }
       >
-        {/* ── Hero ─────────────────────────────────────── */}
+        {/* ── Hero ── */}
         <View style={s.hero}>
-          {/* Decorative circles */}
-          <View style={s.heroDeco1} />
-          <View style={s.heroDeco2} />
+          <LinearGradient
+            colors={["#1B1714", "#2A211A", "#171310"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Ambient orange glow */}
+          <View style={s.heroGlowTop} />
 
           {/* Top bar */}
-          <View style={s.topBar}>
+          <View style={s.heroTopBar}>
             <TouchableOpacity
-              style={s.backBtn}
+              style={s.heroIconBtn}
               onPress={() => router.back()}
               activeOpacity={0.8}
             >
-              <Ionicons name="arrow-back" size={18} color="#fff" />
+              <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
-            <View style={s.brandRow}>
-              <View style={s.brandDot} />
-              <Text style={s.brandName}>
-                TeranGO <Text style={s.brandTag}>Express</Text>
-              </Text>
-            </View>
-            <TouchableOpacity style={s.helpBtn} activeOpacity={0.8}>
+            <Text style={s.heroBrand}>
+              TeranGO <Text style={s.heroBrandAccent}>Express</Text>
+            </Text>
+            <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.8}>
               <Ionicons
                 name="help-circle-outline"
-                size={22}
-                color="rgba(255,255,255,0.5)"
+                size={20}
+                color="rgba(255,255,255,0.55)"
               />
             </TouchableOpacity>
           </View>
 
           {/* Headline */}
           <View style={s.heroContent}>
-            <View style={s.liveBadge}>
-              <View style={s.liveDot} />
-              <Text style={s.liveTxt}>LIVE TRACKING</Text>
+            <View style={s.heroPill}>
+              <View style={s.heroPillDot} />
+              <Text style={s.heroPillText}>LIVE TRACKING</Text>
             </View>
-            <Text style={s.heroH1}>Send it fast.{"\n"}Track it live.</Text>
-            <Text style={s.heroSub}>Local drivers · Instant confirmation</Text>
+            <Text style={s.heroHeadline}>Send it now.{"\n"}Track it live.</Text>
+            <Text style={s.heroSub}>Fast local riders, anywhere in Gambia</Text>
           </View>
 
-          {/* Stats bar */}
-          {/* <View style={s.statsBar}>
-            <QuickStat icon="flash-outline" val="~30m" label="Avg Delivery" />
-            <View style={s.statsDivider} />
-            <QuickStat icon="time-outline" val="~30min" label="Delivery Time" />
-            <View style={s.statsDivider} />
-            <QuickStat icon="star-outline" val="4.9★" label="Driver Rating" />
-          </View> */}
+          {/* Driver graphic */}
+          <View style={s.heroImageWrap} pointerEvents="none">
+            <View style={s.heroImageGlow} />
+            <View style={[s.speedLine, { top: 52, width: 26, opacity: 0.4 }]} />
+            <View style={[s.speedLine, { top: 70, width: 42, opacity: 0.6 }]} />
+            <View
+              style={[s.speedLine, { top: 88, width: 20, opacity: 0.35 }]}
+            />
+            <Animated.Image
+              source={require("@/assets/images/motorbike.png")}
+              style={[
+                s.heroImage,
+                { transform: [{ translateY: bikeTranslateY }] },
+              ]}
+              resizeMode="contain"
+            />
+          </View>
         </View>
 
-        {/* ── Body ─────────────────────────────────────── */}
-        <View style={s.body}>
-          {/* Progress bar */}
-          <View style={s.progressRow}>
-            {[
-              { n: 1, label: "Route", done: step1Done },
-              { n: 2, label: "Vehicle", done: step2Done },
-              { n: 3, label: "Details", done: step3Done },
-            ].map((step, i, arr) => (
-              <React.Fragment key={step.n}>
-                <View style={s.progressStep}>
-                  <View
-                    style={[s.progressBadge, step.done && s.progressBadgeDone]}
-                  >
-                    {step.done ? (
-                      <Ionicons name="checkmark" size={12} color="#fff" />
-                    ) : (
-                      <Text
-                        style={[
-                          s.progressNum,
-                          step.n === 1 && s.progressNumActive,
-                        ]}
-                      >
-                        {step.n}
-                      </Text>
-                    )}
-                  </View>
-                  <Text
-                    style={[s.progressLabel, step.done && s.progressLabelDone]}
-                  >
-                    {step.label}
-                  </Text>
-                </View>
-                {i < arr.length - 1 && (
-                  <View
-                    style={[s.progressLine, step.done && s.progressLineDone]}
-                  />
-                )}
-              </React.Fragment>
-            ))}
-          </View>
-
-          {/* ── STEP 1: Route ── */}
-          <View style={s.section}>
-            <SectionHeader
-              icon="navigate-outline"
-              title="Step 1 · Route"
-              subtitle="Pickup & dropoff locations"
+        {/* ── Role Toggle: I'm Sending / I'm Receiving ── */}
+        <View style={s.roleWrap}>
+          <TouchableOpacity
+            style={[
+              s.roleBtn,
+              flowDirection === "pickupSaved" && s.roleBtnActive,
+            ]}
+            onPress={() => handleFlowDirectionChange("pickupSaved")}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="arrow-up-circle-outline"
+              size={18}
+              color={flowDirection === "pickupSaved" ? "#fff" : T.textTertiary}
             />
-            <View style={s.card}>
-              {/* Flow direction: exactly two supported flows */}
-              <View style={s.flowToggle}>
-                <TouchableOpacity
-                  style={[
-                    s.flowToggleOption,
-                    flowDirection === "pickupSaved" && s.flowToggleOptionActive,
-                  ]}
-                  onPress={() => handleFlowDirectionChange("pickupSaved")}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="home-outline"
-                    size={14}
-                    color={flowDirection === "pickupSaved" ? "#fff" : "#6B7280"}
-                  />
-                  <Text
-                    style={[
-                      s.flowToggleText,
-                      flowDirection === "pickupSaved" && s.flowToggleTextActive,
-                    ]}
-                  >
-                    From My Address
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    s.flowToggleOption,
-                    flowDirection === "dropoffSaved" &&
-                      s.flowToggleOptionActive,
-                  ]}
-                  onPress={() => handleFlowDirectionChange("dropoffSaved")}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="home-outline"
-                    size={14}
-                    color={
-                      flowDirection === "dropoffSaved" ? "#fff" : "#6B7280"
-                    }
-                  />
-                  <Text
-                    style={[
-                      s.flowToggleText,
-                      flowDirection === "dropoffSaved" &&
-                        s.flowToggleTextActive,
-                    ]}
-                  >
-                    To My Address
-                  </Text>
-                </TouchableOpacity>
-              </View>
+            <Text
+              style={[
+                s.roleBtnText,
+                flowDirection === "pickupSaved" && s.roleBtnTextActive,
+              ]}
+            >
+              I'm Sending
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              s.roleBtn,
+              flowDirection === "dropoffSaved" && s.roleBtnActive,
+            ]}
+            onPress={() => handleFlowDirectionChange("dropoffSaved")}
+            activeOpacity={0.8}
+          >
+            <Ionicons
+              name="arrow-down-circle-outline"
+              size={18}
+              color={flowDirection === "dropoffSaved" ? "#fff" : T.textTertiary}
+            />
+            <Text
+              style={[
+                s.roleBtnText,
+                flowDirection === "dropoffSaved" && s.roleBtnTextActive,
+              ]}
+            >
+              I'm Receiving
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-              {/* Pickup Location Dropdown */}
-              {pickupMode === "saved" && (
-                <View style={s.savedLocationBlock}>
-                  <Text style={s.savedLocationLabel}>Pickup From</Text>
-
-                  {addresses && addresses.length > 0 ? (
-                    <SavedLocationDropdown
-                      selectedAddress={selectedPickupAddress}
-                      onSelectAddress={handleSavedPickupAddressSelect}
-                      addresses={addresses}
-                      onAddNew={() => setShowPickupAddressModal(true)}
-                      label="Pickup From"
-                      placeholder="Select from your saved locations"
-                      hideLabel
-                    />
-                  ) : (
-                    <TouchableOpacity
-                      style={s.savedLocationEmpty}
-                      onPress={() => setShowPickupAddressModal(true)}
-                      activeOpacity={0.7}
-                    >
-                      <View style={s.savedLocationEmptyLeft}>
-                        <View style={s.savedLocationIconWrap}>
-                          <Ionicons
-                            name="location-outline"
-                            size={16}
-                            color={T.textTertiary}
-                          />
-                        </View>
-                        <Text
-                          style={s.savedLocationEmptyText}
-                          numberOfLines={1}
-                        >
-                          {addresses?.length === 0
-                            ? "Add your first saved location"
-                            : "Loading saved locations…"}
-                        </Text>
-                      </View>
-                      <Ionicons
-                        name="chevron-down"
-                        size={18}
-                        color={T.textTertiary}
-                      />
-                    </TouchableOpacity>
-                  )}
-
-                </View>
-              )}
-
-              {selectedPickupAddress && senderName && pickupMode === "saved" ? (
-                <View style={s.senderChip}>
-                  <Ionicons name="person-circle" size={16} color={T.brand} />
-                  <Text style={s.senderChipText} numberOfLines={1}>
-                    Sending as {senderName}
-                  </Text>
-                </View>
-              ) : null}
-
-              <View style={s.stepDivider} />
-
-              <UnifiedLocationSection
-                pickupTown={pickupTown}
-                dropoffTown={dropoffTown}
-                pickupAddressDisplay={
-                  pickupMode === "saved"
-                    ? pickupAddressLabel ||
-                      selectedPickupAddress?.addressLine ||
-                      ""
-                    : pickupAddressLabel
-                }
-                dropoffAddressDisplay={dropoffAddressLabel || ""}
-                useSavedPickupAddress={false}
-                hidePickupSection={pickupMode === "saved"}
-                onPickupSelect={handlePickupTownSelect}
-                onDropoffSelect={handleDropoffTownSelect}
-                onPickupGPS={handlePickupGPSLocation}
-                onDropoffGPS={handleDropoffGPSLocation}
-                senderName={senderName}
-                senderPhone={senderPhone}
-                receiverName={receiverName}
-                receiverPhone={receiverPhone}
-                onSenderNameChange={setSenderName}
-                onSenderPhoneChange={setSenderPhone}
-                onReceiverNameChange={setReceiverName}
-                onReceiverPhoneChange={setReceiverPhone}
-                onSenderDataLoaded={handleSenderDataLoaded}
-                towns={deliveryTowns}
-                dropoffMode={dropoffMode}
-                savedAddresses={addresses}
-                selectedDropoffAddress={selectedDropoffAddress}
-                onSelectSavedDropoffAddress={handleSavedDropoffAddressSelect}
-                onAddNewDropoffAddress={() => setShowDropoffAddressModal(true)}
-                pickupExtraContent={
-                  pickupMode === "town" ? (
-                    <View style={{ marginBottom: 20 }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: "#111827",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Pickup Landmark / Directions *
-                      </Text>
-                      <TextInput
-                        style={{
-                          backgroundColor: "#F9FAFB",
-                          borderWidth: 1.5,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 16,
-                          padding: 14,
-                          fontSize: 14,
-                          color: "#111827",
-                          minHeight: 72,
-                          textAlignVertical: "top",
-                        }}
-                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
-                        placeholderTextColor="#9CA3AF"
-                        value={pickupLandmark}
-                        onChangeText={setPickupLandmark}
-                        multiline
-                        numberOfLines={3}
-                      />
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color: "#9CA3AF",
-                          marginTop: 6,
-                        }}
-                      >
-                        Describe landmarks or clear directions so the driver can
-                        find the pickup location
-                      </Text>
-                    </View>
-                  ) : undefined
-                }
-                dropoffExtraContent={
-                  dropoffMode === "town" ? (
-                    <View style={{ marginBottom: 20, paddingTop: 20 }}>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: "#111827",
-                          marginBottom: 8,
-                        }}
-                      >
-                        Delivery Landmark / Directions *
-                      </Text>
-                      <TextInput
-                        style={{
-                          backgroundColor: "#F9FAFB",
-                          borderWidth: 1.5,
-                          borderColor: "#E5E7EB",
-                          borderRadius: 16,
-                          padding: 14,
-                          fontSize: 14,
-                          color: "#111827",
-                          minHeight: 72,
-                          textAlignVertical: "top",
-                        }}
-                        placeholder="e.g., Near the big mango tree, opposite the mosque, 3rd house on the left..."
-                        placeholderTextColor="#9CA3AF"
-                        value={dropoffLandmark}
-                        onChangeText={setDropoffLandmark}
-                        multiline
-                        numberOfLines={3}
-                      />
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          color: "#9CA3AF",
-                          marginTop: 6,
-                        }}
-                      >
-                        Describe landmarks or clear directions so the driver can
-                        find the delivery location
-                      </Text>
-                    </View>
-                  ) : undefined
-                }
+        {/* ── Step 1: Location ── */}
+        <View style={s.block}>
+          <View style={s.blockHeader}>
+            <StepBadge n={1} />
+            <Text style={s.blockTitle}>Route</Text>
+            {step1Done && (
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={T.success}
+                style={{ marginLeft: "auto" }}
               />
-            </View>
+            )}
           </View>
 
-          {/* ── STEP 2a: Weight ── */}
-          {step1Done && (
-            <View style={s.section}>
-              <SectionHeader
-                icon="scale-outline"
-                title="Step 2 · Package Weight"
-                subtitle="How heavy is the item?"
-              />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.hScrollContent}
-                style={s.hScroll}
-              >
-                {weightOptions.map((w) => (
-                  <ExpressWeightClassCard
-                    key={w.key}
-                    weightClass={w}
-                    selected={selectedWeight === w.key}
-                    onPress={() => setSelectedWeight(w.key)}
+          {/* Pickup — your saved address (only shown in "I'm Sending" mode;
+              in "I'm Receiving" mode the pickup town selector is rendered by
+              UnifiedLocationSection below). */}
+          {pickupMode === "saved" && (
+            <View style={s.pickupRow}>
+              <View style={s.pickupDotCol}>
+                <View style={[s.locDot, { backgroundColor: T.success }]} />
+                <View style={s.pickupDotLine} />
+              </View>
+              <View style={s.pickupBody}>
+                <Text style={s.fieldLabel}>Pickup · your location</Text>
+                {addresses && addresses.length > 0 ? (
+                  <SavedLocationDropdown
+                    selectedAddress={selectedPickupAddress}
+                    onSelectAddress={handleSavedPickupAddressSelect}
+                    addresses={addresses}
+                    onAddNew={() => setShowPickupAddressModal(true)}
+                    label="Pickup From"
+                    placeholder="Select your saved location"
+                    hideLabel
                   />
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* ── STEP 2b: Vehicle with Prices ── */}
-          {step1Done && selectedWeight && (
-            <View style={s.section}>
-              <SectionHeader
-                icon="car-sport-outline"
-                title="Choose Vehicle"
-                subtitle="Prices vary by vehicle type"
-              />
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.hScrollContent}
-                style={s.hScroll}
-              >
-                {vehicleOptions.map((v) => (
-                  <ExpressVehicleCard
-                    key={v.key}
-                    vehicle={v}
-                    selected={selectedVehicle === v.key}
-                    onPress={() => setSelectedVehicle(v.key)}
-                    showPrice
-                  />
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* ── STEP 3: Package details ── */}
-          {step2Done && (
-            <View style={s.section}>
-              <SectionHeader
-                icon="cube-outline"
-                title="Step 3 · Package Info"
-                subtitle="Optional but helpful for driver"
-              />
-              <View style={s.card}>
-                <FieldInput
-                  icon="cube-outline"
-                  placeholder="What are you sending? (e.g. documents, food)"
-                  value={packageDescription}
-                  onChangeText={setPackageDescription}
-                  maxLength={100}
-                  label="Package Description"
-                />
-                <FieldInput
-                  icon="chatbubble-ellipses-outline"
-                  placeholder="Any special instructions for the driver?"
-                  value={customerNote}
-                  onChangeText={setCustomerNote}
-                  maxLength={200}
-                  multiline
-                  label="Driver Notes"
-                />
+                ) : (
+                  <TouchableOpacity
+                    style={s.locEmptyBtn}
+                    onPress={() => setShowPickupAddressModal(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={16}
+                      color={T.textTertiary}
+                    />
+                    <Text style={s.locEmptyText}>Add a saved location</Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={14}
+                      color={T.textTertiary}
+                      style={{ marginLeft: "auto" }}
+                    />
+                  </TouchableOpacity>
+                )}
+                {selectedPickupAddress && senderName ? (
+                  <Text style={s.senderHint}>Sending as {senderName}</Text>
+                ) : null}
               </View>
             </View>
           )}
 
-          {/* ── Price Summary ── */}
-          {estimatedPrice != null && distanceKm != null && (
-            <View style={s.priceCard}>
-              <View style={s.priceTop}>
-                <View>
-                  <Text style={s.priceTitleSmall}>Estimated Total</Text>
-                  <Text style={s.priceBig}>D{estimatedPrice.toFixed(0)}</Text>
-                </View>
-                <View style={s.priceTagBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color={T.brand} />
-                  <Text style={s.priceTagText}>Price confirmed</Text>
-                </View>
+          {/* The existing location section handles the detailed dropoff / pickup-town / contacts */}
+          <View style={s.unifiedWrap}>
+            <UnifiedLocationSection
+              pickupTown={pickupTown}
+              dropoffTown={dropoffTown}
+              pickupAddressDisplay={
+                pickupMode === "saved"
+                  ? pickupAddressLabel ||
+                    selectedPickupAddress?.addressLine ||
+                    ""
+                  : pickupAddressLabel
+              }
+              dropoffAddressDisplay={dropoffAddressLabel || ""}
+              useSavedPickupAddress={false}
+              hidePickupSection={pickupMode === "saved"}
+              onPickupSelect={handlePickupTownSelect}
+              onDropoffSelect={handleDropoffTownSelect}
+              onPickupGPS={handlePickupGPSLocation}
+              onDropoffGPS={handleDropoffGPSLocation}
+              senderName={senderName}
+              senderPhone={senderPhone}
+              receiverName={receiverName}
+              receiverPhone={receiverPhone}
+              onSenderNameChange={setSenderName}
+              onSenderPhoneChange={setSenderPhone}
+              onReceiverNameChange={setReceiverName}
+              onReceiverPhoneChange={setReceiverPhone}
+              onSenderDataLoaded={handleSenderDataLoaded}
+              towns={deliveryTowns}
+              dropoffMode={dropoffMode}
+              savedAddresses={addresses}
+              selectedDropoffAddress={selectedDropoffAddress}
+              onSelectSavedDropoffAddress={handleSavedDropoffAddressSelect}
+              onAddNewDropoffAddress={() => setShowDropoffAddressModal(true)}
+              pickupExtraContent={
+                pickupMode === "town" ? (
+                  <View style={s.landmarkWrap}>
+                    <Text style={s.landmarkLabel}>
+                      Pickup landmark / directions *
+                    </Text>
+                    <TextInput
+                      style={s.landmarkInput}
+                      placeholder="e.g. Near the big mango tree, opposite the mosque..."
+                      placeholderTextColor={T.textTertiary}
+                      value={pickupLandmark}
+                      onChangeText={setPickupLandmark}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                ) : undefined
+              }
+              dropoffExtraContent={
+                dropoffMode === "town" ? (
+                  <View style={s.landmarkWrap}>
+                    <Text style={s.landmarkLabel}>
+                      Delivery landmark / directions *
+                    </Text>
+                    <TextInput
+                      style={s.landmarkInput}
+                      placeholder="e.g. Near the big mango tree, opposite the mosque..."
+                      placeholderTextColor={T.textTertiary}
+                      value={dropoffLandmark}
+                      onChangeText={setDropoffLandmark}
+                      multiline
+                      numberOfLines={3}
+                      textAlignVertical="top"
+                    />
+                  </View>
+                ) : undefined
+              }
+            />
+          </View>
+        </View>
+
+        {/* ── Step 2: Package weight ── */}
+        {step1Done && (
+          <View style={s.block}>
+            <View style={s.blockHeader}>
+              <StepBadge n={2} />
+              <Text style={s.blockTitle}>Package Size</Text>
+              {selectedWeight && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={T.success}
+                  style={{ marginLeft: "auto" }}
+                />
+              )}
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.hScrollContent}
+            >
+              {weightOptions.map((w) => (
+                <ExpressWeightClassCard
+                  key={w.key}
+                  weightClass={w}
+                  selected={selectedWeight === w.key}
+                  onPress={() => setSelectedWeight(w.key)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── Step 2b: Vehicle ── */}
+        {step1Done && selectedWeight && (
+          <View style={s.block}>
+            <View style={s.blockHeader}>
+              <StepBadge n={3} />
+              <Text style={s.blockTitle}>Vehicle</Text>
+              {selectedVehicle && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={T.success}
+                  style={{ marginLeft: "auto" }}
+                />
+              )}
+            </View>
+            {loadingQuotes && (
+              <View style={s.quotingRow}>
+                <ActivityIndicator size="small" color={T.brand} />
+                <Text style={s.quotingText}>Getting prices…</Text>
               </View>
-              <View style={s.priceDivider} />
+            )}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.hScrollContent}
+            >
+              {vehicleOptions.map((v) => (
+                <ExpressVehicleCard
+                  key={v.key}
+                  vehicle={v}
+                  selected={selectedVehicle === v.key}
+                  onPress={() => setSelectedVehicle(v.key)}
+                  showPrice
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── Step 4: Package notes (optional) ── */}
+        {step2Done && (
+          <View style={s.block}>
+            <View style={s.blockHeader}>
+              <StepBadge n={4} />
+              <Text style={s.blockTitle}>Package Notes</Text>
+              <Text style={s.blockOptional}>Optional</Text>
+            </View>
+            <TextInput
+              style={s.noteInput}
+              placeholder="What are you sending? Any special instructions?"
+              placeholderTextColor={T.textTertiary}
+              value={packageDescription}
+              onChangeText={setPackageDescription}
+              maxLength={200}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </View>
+        )}
+
+        {/* ── Price Summary ── */}
+        {estimatedPrice != null && distanceKm != null && (
+          <View style={s.priceCard}>
+            <View style={s.priceRow}>
+              <View>
+                <Text style={s.priceSub}>Estimated total</Text>
+                <Text style={s.priceAmount}>D{estimatedPrice.toFixed(0)}</Text>
+              </View>
               <View style={s.priceMeta}>
                 <View style={s.priceMetaItem}>
-                  <View style={s.priceMetaIcon}>
-                    <Ionicons
-                      name="navigate-outline"
-                      size={13}
-                      color={T.brand}
-                    />
-                  </View>
-                  <View>
-                    <Text style={s.priceMetaVal}>
-                      {distanceKm.toFixed(1)} km
-                    </Text>
-                    <Text style={s.priceMetaLbl}>Distance</Text>
-                  </View>
+                  <Ionicons name="navigate-outline" size={13} color={T.brand} />
+                  <Text style={s.priceMetaText}>
+                    {distanceKm.toFixed(1)} km
+                  </Text>
                 </View>
-                <View style={s.priceMetaDivider} />
                 <View style={s.priceMetaItem}>
-                  <View style={s.priceMetaIcon}>
-                    <Ionicons name="time-outline" size={13} color={T.brand} />
-                  </View>
-                  <View>
-                    <Text style={s.priceMetaVal}>{estimatedTime} min</Text>
-                    <Text style={s.priceMetaLbl}>Est. Time</Text>
-                  </View>
-                </View>
-                <View style={s.priceMetaDivider} />
-                <View style={s.priceMetaItem}>
-                  <View style={s.priceMetaIcon}>
-                    <Ionicons name="car-outline" size={13} color={T.brand} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.priceMetaVal} numberOfLines={1}>
-                      {selectedVehicle === "KEKE_CARGO"
-                        ? "Keke"
-                        : selectedVehicle?.replace("_", " ")}
-                    </Text>
-                    <Text style={s.priceMetaLbl}>Vehicle</Text>
-                  </View>
+                  <Ionicons name="time-outline" size={13} color={T.brand} />
+                  <Text style={s.priceMetaText}>{estimatedTime} min</Text>
                 </View>
               </View>
             </View>
-          )}
+          </View>
+        )}
 
-          {/* ── CTA Button ── */}
+        {/* ── Book Button ── */}
+        <View style={s.ctaWrap}>
           <TouchableOpacity
             style={[s.bookBtn, !canSubmit && s.bookBtnOff]}
             onPress={handleCreateDelivery}
@@ -1524,86 +1156,32 @@ export default function CustomDeliveryScreen() {
             {isSubmitting ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <View style={s.bookBtnRow}>
-                <View style={s.bookBtnLeft}>
-                  <View style={[s.bookIcon, !canSubmit && s.bookIconOff]}>
-                    <Ionicons
-                      name="flash"
-                      size={14}
-                      color={canSubmit ? T.brand : T.textTertiary}
-                    />
-                  </View>
-                  <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
-                    {canSubmit
-                      ? `Continue · D${estimatedPrice?.toFixed(0)}`
-                      : "Complete all steps"}
-                  </Text>
-                </View>
-                <View style={[s.bookArrow, !canSubmit && s.bookArrowOff]}>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={16}
-                    color={canSubmit ? "#fff" : T.textTertiary}
-                  />
-                </View>
-              </View>
+              <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
+                {canSubmit
+                  ? `Book · D${estimatedPrice?.toFixed(0)}`
+                  : "Complete all steps above"}
+              </Text>
             )}
           </TouchableOpacity>
+        </View>
 
-          {/* ── Trust signals ── */}
-          <View style={s.trustRow}>
-            {[
-              { icon: "location-outline", text: "Real-time tracking" },
-              // { icon: "cash-outline", text: "Pay with wave" },
-              { icon: "people-outline", text: "Trusted drivers" },
-            ].map((t) => (
-              <View style={s.trustItem} key={t.text}>
-                <Ionicons name={t.icon as any} size={12} color={T.brand} />
-                <Text style={s.trustText}>{t.text}</Text>
-              </View>
-            ))}
+        {/* ── Recent Deliveries (last 5 — full history lives in Activities) ── */}
+        <View style={s.recentWrap}>
+          <View style={s.recentHeader}>
+            <Text style={s.recentTitle}>Recent Deliveries</Text>
           </View>
 
-          {/* ── Recent Deliveries ── */}
-          <View style={s.recentSection}>
-            <View style={s.recentHeader}>
-              <View style={s.recentTitleRow}>
-                <Text style={s.recentTitle}>Recent Deliveries</Text>
-                {recentDeliveries.length > 0 && (
-                  <View style={s.recentBadge}>
-                    <Text style={s.recentBadgeTxt}>
-                      {recentDeliveries.length}
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {recentDeliveries.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => router.push("/(tabs)/orders")}
-                  activeOpacity={0.7}
-                >
-                  <Text style={s.seeAll}>See all</Text>
-                </TouchableOpacity>
-              )}
+          {loadingDeliveries ? (
+            <View style={s.stateBox}>
+              <ActivityIndicator color={T.brand} size="small" />
             </View>
-
-            {loadingDeliveries ? (
-              <View style={s.stateBox}>
-                <ActivityIndicator color={T.brand} size="small" />
-                <Text style={s.stateText}>Loading deliveries…</Text>
-              </View>
-            ) : recentDeliveries.length === 0 ? (
-              <View style={s.emptyBox}>
-                <View style={s.emptyIconWrap}>
-                  <Ionicons name="cube-outline" size={32} color={T.brand} />
-                </View>
-                <Text style={s.emptyTitle}>No deliveries yet</Text>
-                <Text style={s.emptyText}>
-                  Your delivery history will appear here once you create your
-                  first booking.
-                </Text>
-              </View>
-            ) : (
+          ) : recentDeliveries.length === 0 ? (
+            <View style={s.emptyBox}>
+              <Ionicons name="cube-outline" size={28} color={T.textTertiary} />
+              <Text style={s.emptyText}>No deliveries yet</Text>
+            </View>
+          ) : (
+            <>
               <FlatList
                 data={recentDeliveries}
                 keyExtractor={(item) => item.id}
@@ -1611,8 +1189,16 @@ export default function CustomDeliveryScreen() {
                 scrollEnabled={false}
                 ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
               />
-            )}
-          </View>
+              <TouchableOpacity
+                style={s.seeMoreBtn}
+                onPress={() => router.push("/(tabs)/orders")}
+                activeOpacity={0.75}
+              >
+                <Text style={s.seeMoreText}>See more</Text>
+                <Ionicons name="chevron-forward" size={14} color={T.brand} />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -1624,7 +1210,6 @@ export default function CustomDeliveryScreen() {
           pickupAddressLabel || selectedPickupAddress?.addressLine
         }
       />
-
       <LocationModal
         visible={showDropoffAddressModal}
         onClose={() => setShowDropoffAddressModal(false)}
@@ -1635,156 +1220,168 @@ export default function CustomDeliveryScreen() {
   );
 }
 
-// ── Styles ────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: T.heroBase },
-  scroll: { flex: 1, backgroundColor: T.heroBase },
+  safe: { flex: 1, backgroundColor: "#1B1714" },
+  scroll: { flex: 1, backgroundColor: T.pageBg },
   scrollContent: { paddingBottom: 48 },
 
-  // ── Hero ───────────────────────────────────────────────
+  // Hero
   hero: {
-    backgroundColor: T.heroBase,
-    paddingBottom: 20,
+    paddingBottom: 34,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     overflow: "hidden",
     position: "relative",
   },
-  heroDeco1: {
+  heroGlowTop: {
     position: "absolute",
     width: 280,
     height: 280,
     borderRadius: 140,
-    backgroundColor: T.brandSoft,
-    top: -80,
-    right: -60,
+    backgroundColor: "rgba(255,107,0,0.16)",
+    top: -90,
+    right: -50,
   },
-  heroDeco2: {
-    position: "absolute",
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: "rgba(255,107,0,0.06)",
-    bottom: 10,
-    left: -40,
-  },
-
-  topBar: {
+  heroTopBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 4,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 6,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: T.heroCard,
+  heroIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: "rgba(255,255,255,0.08)",
     borderWidth: 1,
-    borderColor: T.heroBorder,
+    borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
   },
-  brandRow: {
+  heroBrand: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  brandDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: T.brand,
-  },
-  brandName: {
-    fontSize: 17,
-    fontWeight: "900",
+    textAlign: "center",
+    fontSize: 16,
+    fontWeight: "800",
     color: "#fff",
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  brandTag: {
-    color: T.brand,
-    fontWeight: "500",
-    fontSize: 14,
-  },
-  helpBtn: {
-    width: 38,
-    height: 38,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
+  heroBrandAccent: { color: T.brand, fontWeight: "600" },
   heroContent: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 28,
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    maxWidth: "66%",
   },
-  liveBadge: {
+  heroPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     alignSelf: "flex-start",
-    backgroundColor: T.brandSoft,
+    backgroundColor: "rgba(255,107,0,0.15)",
     borderWidth: 1,
-    borderColor: "rgba(0,177,79,0.25)",
+    borderColor: "rgba(255,107,0,0.32)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     marginBottom: 14,
   },
-  liveDot: {
+  heroPillDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: T.brand,
   },
-  liveTxt: {
+  heroPillText: {
     fontSize: 10,
     fontWeight: "800",
     color: T.brand,
-    letterSpacing: 1.2,
+    letterSpacing: 1,
   },
-  heroH1: {
-    fontSize: 34,
+  heroHeadline: {
+    fontSize: 29,
     fontWeight: "900",
     color: "#fff",
-    lineHeight: 40,
+    lineHeight: 34,
     letterSpacing: -1,
     marginBottom: 8,
   },
-  heroSub: { fontSize: 14, color: T.heroTextDim, fontWeight: "500" },
+  heroSub: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.62)",
+    fontWeight: "500",
+    lineHeight: 18,
+  },
+  heroImageWrap: {
+    position: "absolute",
+    right: -8,
+    bottom: 0,
+    width: 190,
+    height: 180,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  heroImageGlow: {
+    position: "absolute",
+    bottom: 18,
+    width: 155,
+    height: 155,
+    borderRadius: 78,
+    backgroundColor: "rgba(255,107,0,0.20)",
+  },
+  heroImage: { width: 186, height: 164 },
+  speedLine: {
+    position: "absolute",
+    left: 2,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: T.brand,
+  },
 
-  statsBar: {
+  // Role toggle
+  roleWrap: {
     flexDirection: "row",
-    marginHorizontal: 20,
-    backgroundColor: T.heroCard,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: T.heroBorder,
-    overflow: "hidden",
-  },
-  statsDivider: { width: 1, backgroundColor: T.heroBorder },
-
-  // ── Body ───────────────────────────────────────────────
-  body: {
+    marginHorizontal: 16,
+    marginTop: -22,
+    marginBottom: 18,
     backgroundColor: T.bg,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 18,
-    paddingTop: 22,
-    paddingBottom: 20,
-    minHeight: 500,
+    borderRadius: 18,
+    padding: 5,
+    borderWidth: 1,
+    borderColor: T.border,
+    gap: 5,
+    zIndex: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: { elevation: 6 },
+    }),
   },
-
-  // ── Progress ───────────────────────────────────────────
-  progressRow: {
+  roleBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: T.surface,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    justifyContent: "center",
+    gap: 7,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  roleBtnActive: { backgroundColor: T.brand },
+  roleBtnText: { fontSize: 13, fontWeight: "700", color: T.textTertiary },
+  roleBtnTextActive: { color: "#fff" },
+
+  // Blocks
+  block: {
+    backgroundColor: T.bg,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 18,
+    padding: 18,
     borderWidth: 1,
     borderColor: T.border,
     ...Platform.select({
@@ -1797,220 +1394,190 @@ const s = StyleSheet.create({
       android: { elevation: 2 },
     }),
   },
-  progressStep: { alignItems: "center", gap: 5 },
-  progressBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: T.border,
+  blockHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: T.brand,
     alignItems: "center",
     justifyContent: "center",
   },
-  progressBadgeDone: { backgroundColor: T.brand },
-  progressNum: { fontSize: 12, fontWeight: "800", color: T.textTertiary },
-  progressNumActive: { color: T.brand },
-  progressLabel: { fontSize: 10, fontWeight: "600", color: T.textTertiary },
-  progressLabelDone: { color: T.brand },
-  progressLine: {
-    flex: 1,
-    height: 2,
-    backgroundColor: T.border,
-    borderRadius: 1,
-    marginHorizontal: 6,
-    marginBottom: 14,
+  stepBadgeText: { fontSize: 12, fontWeight: "800", color: "#fff" },
+  blockTitle: { fontSize: 15, fontWeight: "700", color: T.textPrimary },
+  blockOptional: {
+    marginLeft: "auto",
+    fontSize: 11,
+    fontWeight: "600",
+    color: T.textTertiary,
+    backgroundColor: T.pageBg,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  progressLineDone: { backgroundColor: T.brand },
 
-  // ── Section ────────────────────────────────────────────
-  section: { marginBottom: 20 },
-  card: {
-    backgroundColor: T.surface,
+  // Location card (visual route indicator)
+  pickupRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  pickupDotCol: { alignItems: "center", paddingTop: 6, width: 14 },
+  pickupDotLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 24,
+    backgroundColor: T.border,
+    marginTop: 4,
+  },
+  pickupBody: { flex: 1 },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: T.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  locDot: { width: 10, height: 10, borderRadius: 5 },
+  locEmptyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: T.bg,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  locEmptyText: {
+    fontSize: 14,
+    color: T.textTertiary,
+    fontWeight: "500",
+    flex: 1,
+  },
+  senderHint: {
+    fontSize: 12,
+    color: T.brand,
+    fontWeight: "600",
+    marginTop: 6,
+  },
+
+  // Unified section wrapper (keeps existing component, just adds spacing)
+  unifiedWrap: { marginTop: 4 },
+
+  // Landmark input
+  landmarkWrap: { marginBottom: 16, paddingTop: 20 },
+  landmarkLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: T.textPrimary,
+    marginBottom: 8,
+  },
+  landmarkInput: {
+    backgroundColor: T.pageBg,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: T.textPrimary,
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+
+  // Horizontal scroll
+  hScrollContent: { gap: 10, paddingHorizontal: 2, paddingBottom: 4 },
+
+  // Quotes loading
+  quotingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+  },
+  quotingText: { fontSize: 13, color: T.textTertiary, fontWeight: "500" },
+
+  // Optional notes input
+  noteInput: {
+    backgroundColor: T.pageBg,
+    borderWidth: 1.5,
+    borderColor: T.border,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: T.textPrimary,
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+
+  // Price card
+  priceCard: {
+    backgroundColor: T.bg,
+    marginHorizontal: 16,
+    marginBottom: 12,
     borderRadius: 18,
     padding: 18,
-    borderWidth: 1,
-    borderColor: T.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-      },
-      android: { elevation: 2 },
-    }),
-  },
-  stepDivider: {
-    height: 1,
-    backgroundColor: T.border,
-    marginBottom: 20,
-  },
-
-  hScroll: { marginHorizontal: -18 },
-  hScrollContent: { paddingHorizontal: 18, gap: 10 },
-
-  senderChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    alignSelf: "flex-start",
-    backgroundColor: T.brandSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  senderChipText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: T.brandDark,
-  },
-
-  locationLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  flowToggle: {
-    flexDirection: "row",
-    backgroundColor: "#F3F4F6",
-    borderRadius: 16,
-    padding: 4,
-    marginBottom: 20,
-    gap: 4,
-  },
-  flowToggleOption: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  flowToggleOptionActive: {
-    backgroundColor: T.brand,
-  },
-  flowToggleText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#6B7280",
-  },
-  flowToggleTextActive: {
-    color: "#FFFFFF",
-  },
-
-  // ── Price card ─────────────────────────────────────────
-  priceCard: {
-    backgroundColor: T.surface,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 16,
     borderWidth: 1.5,
     borderColor: T.brand,
     ...Platform.select({
       ios: {
         shadowColor: T.brand,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
       },
-      android: { elevation: 4 },
+      android: { elevation: 3 },
     }),
   },
-  priceTop: {
+  priceRow: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14,
   },
-  priceTitleSmall: {
+  priceSub: {
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "600",
     color: T.textTertiary,
+    marginBottom: 2,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 4,
   },
-  priceBig: {
-    fontSize: 36,
+  priceAmount: {
+    fontSize: 32,
     fontWeight: "900",
     color: T.textPrimary,
     letterSpacing: -1,
   },
-  priceTagBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: T.brandSoft,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  priceTagText: { fontSize: 11, fontWeight: "700", color: T.brand },
-  priceDivider: { height: 1, backgroundColor: T.bg, marginBottom: 14 },
-  priceMeta: { flexDirection: "row", alignItems: "center" },
-  priceMetaItem: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  priceMetaIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
-    backgroundColor: T.brandSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  priceMetaVal: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: T.textPrimary,
-    flexShrink: 1,
-  },
-  priceMetaLbl: { fontSize: 10, color: T.textTertiary, fontWeight: "500" },
-  priceMetaDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: T.border,
-    marginHorizontal: 4,
-  },
+  priceMeta: { gap: 8, alignItems: "flex-end" },
+  priceMetaItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  priceMetaText: { fontSize: 13, fontWeight: "600", color: T.textSecondary },
 
-  // ── Book button ────────────────────────────────────────
+  // CTA
+  ctaWrap: { paddingHorizontal: 16, marginBottom: 8 },
   bookBtn: {
     backgroundColor: T.brand,
     borderRadius: 18,
     paddingVertical: 18,
-    paddingHorizontal: 20,
-    marginBottom: 14,
+    alignItems: "center",
+    justifyContent: "center",
     ...Platform.select({
       ios: {
         shadowColor: T.brand,
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
+        shadowOpacity: 0.35,
         shadowRadius: 16,
       },
       android: { elevation: 8 },
     }),
   },
-  bookBtnOff: { backgroundColor: "#E8EDF2", shadowOpacity: 0, elevation: 0 },
-  bookBtnRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  bookBtnLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  bookIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bookIconOff: { backgroundColor: T.border },
+  bookBtnOff: { backgroundColor: "#E5E7EB", shadowOpacity: 0, elevation: 0 },
   bookBtnText: {
     fontSize: 16,
     fontWeight: "800",
@@ -2018,91 +1585,38 @@ const s = StyleSheet.create({
     letterSpacing: -0.2,
   },
   bookBtnTextOff: { color: T.textTertiary },
-  bookArrow: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.20)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  bookArrowOff: { backgroundColor: T.border },
 
-  // ── Trust ──────────────────────────────────────────────
-  trustRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-    marginBottom: 28,
-  },
-  trustItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  trustText: { fontSize: 10, color: T.textTertiary, fontWeight: "600" },
-
-  // ── Recent ─────────────────────────────────────────────
-  recentSection: {},
+  // Recent deliveries
+  recentWrap: { paddingHorizontal: 16, paddingTop: 8 },
   recentHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 14,
   },
-  recentTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   recentTitle: { fontSize: 16, fontWeight: "800", color: T.textPrimary },
-  recentBadge: {
-    backgroundColor: T.brandSoft,
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  recentBadgeTxt: { fontSize: 11, fontWeight: "800", color: T.brand },
-  seeAll: { fontSize: 13, fontWeight: "700", color: T.brand },
-
-  stateBox: {
-    backgroundColor: T.surface,
-    borderRadius: 18,
-    padding: 36,
-    alignItems: "center",
-    gap: 10,
-    borderWidth: 1,
-    borderColor: T.border,
-  },
-  stateText: { fontSize: 13, color: T.textTertiary, fontWeight: "500" },
-
-  emptyBox: {
-    backgroundColor: T.surface,
-    borderRadius: 18,
-    padding: 36,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: T.border,
-  },
-  emptyIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: T.brandFaint,
+  seeMoreBtn: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 14,
+    gap: 4,
+    paddingVertical: 13,
+    marginTop: 10,
+    backgroundColor: T.bg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: T.border,
   },
-  emptyTitle: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: T.textPrimary,
-    marginBottom: 6,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: T.textTertiary,
-    textAlign: "center",
-    lineHeight: 18,
-    fontWeight: "500",
-  },
+  seeMoreText: { fontSize: 13, fontWeight: "700", color: T.brand },
 
-  // ── Delivery card ──────────────────────────────────────
+  stateBox: { alignItems: "center", paddingVertical: 32 },
+  emptyBox: { alignItems: "center", paddingVertical: 32, gap: 8 },
+  emptyText: { fontSize: 13, color: T.textTertiary, fontWeight: "500" },
+
+  // Delivery card
   deliveryCard: {
-    backgroundColor: T.surface,
-    borderRadius: 18,
+    backgroundColor: T.bg,
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: T.border,
@@ -2111,90 +1625,46 @@ const s = StyleSheet.create({
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 8,
+        shadowRadius: 6,
       },
       android: { elevation: 2 },
     }),
   },
-  routeRow: {
+  cardRoute: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
     gap: 10,
+    marginBottom: 12,
   },
-  routeLine: { alignItems: "center", width: 12, paddingVertical: 2 },
-  routeDotTop: { width: 10, height: 10, borderRadius: 5 },
-  routeConnector: {
+  cardRouteLine: { alignItems: "center", width: 12 },
+  cardDot: { width: 10, height: 10, borderRadius: 5 },
+  cardConnector: {
     width: 2,
-    height: 18,
+    height: 16,
     backgroundColor: T.border,
     marginVertical: 2,
   },
-  routeDotBot: { width: 10, height: 10, borderRadius: 5 },
-  routeAddresses: { flex: 1, gap: 0 },
-  routeAddrRow: { justifyContent: "center" },
-  routeFrom: { fontSize: 13, fontWeight: "700", color: T.textPrimary },
-  routeTo: { fontSize: 13, fontWeight: "600", color: T.textSecondary },
+  cardAddresses: { flex: 1 },
+  cardFrom: { fontSize: 13, fontWeight: "700", color: T.textPrimary },
+  cardTo: { fontSize: 13, fontWeight: "500", color: T.textSecondary },
   statusChip: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 20,
   },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusLabel: { fontSize: 10, fontWeight: "800" },
-  cardDivider: { height: 1, backgroundColor: T.bg, marginBottom: 12 },
-  cardFooter: { flexDirection: "row", alignItems: "center" },
-  cardMeta: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5 },
-  cardMetaText: { fontSize: 11, color: T.textTertiary, fontWeight: "600" },
-  metaDot: { width: 3, height: 3, borderRadius: 2, backgroundColor: T.border },
-  cardRight: { flexDirection: "row", alignItems: "center", gap: 8 },
-  cardFee: { fontSize: 13, fontWeight: "800", color: T.textPrimary },
-  cardDate: { fontSize: 10, color: T.textTertiary, fontWeight: "500" },
-  cardArrow: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: T.brandFaint,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  savedLocationBlock: { marginBottom: 20 },
-  savedLocationLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: T.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 8,
-    textTransform: "uppercase",
-  },
-  savedLocationEmpty: {
+  statusLabel: { fontSize: 10, fontWeight: "700" },
+  cardDivider: { height: 1, backgroundColor: T.pageBg, marginBottom: 10 },
+  cardFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: T.surface,
-    borderWidth: 1.5,
-    borderColor: T.border,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
   },
-  savedLocationEmptyLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 10,
-  },
-  savedLocationIconWrap: {
-    width: 24,
-    alignItems: "center",
-  },
-  savedLocationEmptyText: {
-    fontSize: 15,
-    color: T.textTertiary,
-    fontWeight: "500",
-    flexShrink: 1,
-  },
+  cardMeta: { fontSize: 11, color: T.textTertiary, fontWeight: "600" },
+  cardRight: { flexDirection: "row", alignItems: "center", gap: 8 },
+  cardFee: { fontSize: 13, fontWeight: "800", color: T.textPrimary },
+  cardDate: { fontSize: 11, color: T.textTertiary, fontWeight: "500" },
 });

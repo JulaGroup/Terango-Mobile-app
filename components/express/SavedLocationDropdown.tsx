@@ -185,18 +185,11 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
         onPress={() => setShowPicker(true)}
         activeOpacity={0.7}
       >
-        <View
-          style={[
-            styles.selectorIconWrapper,
-            selectedAddress && styles.selectorIconWrapperFilled,
-          ]}
-        >
-          <Ionicons
-            name={getAddressTypeIcon(selectedAddress?.label)}
-            size={20}
-            color={selectedAddress ? Colors.primary : Colors.inkMid}
-          />
-        </View>
+        <Ionicons
+          name={getAddressTypeIcon(selectedAddress?.label)}
+          size={18}
+          color={selectedAddress ? Colors.primary : Colors.inkLight}
+        />
         <View style={styles.selectorText}>
           {selectedAddress ? (
             <>
@@ -211,7 +204,7 @@ export const SavedLocationDropdown: React.FC<SavedLocationDropdownProps> = ({
             <Text style={styles.placeholder}>{placeholder}</Text>
           )}
         </View>
-        <Ionicons name="chevron-down" size={20} color={Colors.inkLighter} />
+        <Ionicons name="chevron-down" size={18} color={Colors.inkLighter} />
       </TouchableOpacity>
 
       <ModernBottomSheet
@@ -267,36 +260,20 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
 
-  // ── Trigger (restyled to match locationButton pattern) ──
+  // ── Trigger (compact, Grab-style clean row) ──
   selector: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.surface,
-    borderWidth: 1.5,
-    borderColor: Colors.divider,
-    borderRadius: Radius.lg,
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.base,
-    gap: Spacing.md,
-    ...Shadows.sm,
-  },
-  selectorFilled: {
-    backgroundColor: Colors.primaryFaint,
-    borderColor: Colors.primaryGlow,
-    ...Shadows.md,
-  },
-  selectorIconWrapper: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
     backgroundColor: Colors.bg,
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.divider,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    gap: 10,
   },
-  selectorIconWrapperFilled: {
-    backgroundColor: Colors.primaryGlow,
+  selectorFilled: {
+    backgroundColor: Colors.surface,
     borderColor: Colors.primaryGlow,
   },
   selectorContent: {
@@ -309,21 +286,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   selectedLabel: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
     color: Colors.ink,
-    lineHeight: 22,
-    marginBottom: 3,
+    lineHeight: 20,
+    marginBottom: 1,
   },
   selectedAddress: {
     ...Typography.footnote,
     color: Colors.inkMid,
   },
   placeholder: {
-    fontSize: 12,
+    fontSize: 14,
     color: Colors.inkLight,
     fontWeight: "500",
-    lineHeight: 16,
+    lineHeight: 18,
   },
 
   // ── Bottom sheet content (unchanged) ──
