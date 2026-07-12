@@ -47,8 +47,14 @@ export const ModernBottomSheet: React.FC<BottomSheetProps> = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => enableDrag,
-      onMoveShouldSetPanResponder: () => enableDrag,
+      // Do NOT claim the responder on touch-start — doing so swallows taps on
+      // child controls (list items, buttons) on Android. Only take over when
+      // the user makes a deliberate, mostly-vertical downward drag.
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) =>
+        enableDrag &&
+        gestureState.dy > 8 &&
+        Math.abs(gestureState.dy) > Math.abs(gestureState.dx),
       onPanResponderGrant: () => {
         lastGestureDy.current = 0;
       },
