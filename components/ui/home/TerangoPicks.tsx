@@ -97,6 +97,7 @@ export default function TeranGOPicks({
   hideHeader,
 }: TeranGOPicksProps) {
   const [products, setProducts] = useState<TeranGOProduct[]>([]);
+  const [shopId, setShopId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -108,7 +109,7 @@ export default function TeranGOPicks({
       setError(null);
 
       const response = await fetch(
-        `${API_URL}/api/public/products/terango-featured?limit=10`,
+        `${API_URL}/api/public/products/tmart-random?limit=10`,
       );
 
       if (!response.ok) {
@@ -117,13 +118,24 @@ export default function TeranGOPicks({
 
       const data = await response.json();
       setProducts(data.products || []);
+      // Prefer the shop id returned by the endpoint; fall back to the shop
+      // carried on the first product so "See All" always has a target.
+      setShopId(data.shop?.id || data.products?.[0]?.shop?.id || null);
     } catch (err) {
-      console.error("Error fetching TeranGO products:", err);
+      console.error("Error fetching T-Mart products:", err);
       setError("Failed to load products");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleSeeAll = useCallback(() => {
+    if (shopId) {
+      router.push(`/shop-details?shopId=${shopId}`);
+    } else {
+      router.push("/terango-picks");
+    }
+  }, [shopId, router]);
 
   useEffect(() => {
     fetchProducts();
@@ -137,7 +149,7 @@ export default function TeranGOPicks({
         price: product.discountedPrice || product.price,
         imageUrl: product.image ? String(product.image) : "",
         vendorId: rawProduct.shop?.id || "terango-official", // Use shopId for shop orders
-        vendorName: rawProduct.shop?.name || "TeranGO Official Store",
+        vendorName: rawProduct.shop?.name || "T-Mart",
         entityType: "SHOP",
       });
     },
@@ -180,7 +192,7 @@ export default function TeranGOPicks({
         vendor={{
           vendorId: item.raw.shop?.vendorId || "terango-official",
           vendorType: "shop",
-          vendorName: item.raw.shop?.name || "TeranGO Official Store",
+          vendorName: item.raw.shop?.name || "T-Mart",
           isActive: item.raw.shop?.isActive ?? true,
           acceptsOrders: item.raw.shop?.acceptsOrders ?? true,
           openingHours: item.raw.shop?.openingHours ?? null,
@@ -220,14 +232,9 @@ export default function TeranGOPicks({
             <View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text
-                  style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
-                >
-                  Teran
-                </Text>
-                <Text
                   style={{ fontSize: 18, fontWeight: "bold", color: "#FF6B00" }}
                 >
-                  GO
+                  T-Mart
                 </Text>
                 <Text
                   style={{ fontSize: 18, fontWeight: "bold", color: "#1a1a1a" }}
@@ -248,7 +255,7 @@ export default function TeranGOPicks({
             </View>
           </View>
           <TouchableOpacity
-            onPress={() => router.push("/terango-picks")}
+            onPress={handleSeeAll}
             style={{
               flexDirection: "row",
               alignItems: "center",
