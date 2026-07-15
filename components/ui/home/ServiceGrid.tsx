@@ -731,7 +731,10 @@ const ServiceGrid = () => {
           const firstSeen = parseInt(raw, 10);
           setExpressIsNew(Date.now() - firstSeen < SEVEN_DAYS_MS);
         } else {
-          await AsyncStorage.setItem(EXPRESS_FIRST_SEEN_KEY, String(Date.now()));
+          await AsyncStorage.setItem(
+            EXPRESS_FIRST_SEEN_KEY,
+            String(Date.now()),
+          );
           setExpressIsNew(true);
         }
       } catch {
@@ -770,8 +773,16 @@ const ServiceGrid = () => {
   const dismissPromo = async () => {
     await AsyncStorage.setItem(PROMO_KEY, "1");
     Animated.parallel([
-      Animated.timing(promoScale, { toValue: 0.9, duration: 160, useNativeDriver: true }),
-      Animated.timing(promoOpacity, { toValue: 0, duration: 160, useNativeDriver: true }),
+      Animated.timing(promoScale, {
+        toValue: 0.9,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+      Animated.timing(promoOpacity, {
+        toValue: 0,
+        duration: 160,
+        useNativeDriver: true,
+      }),
     ]).start(() => setShowExpressPromo(false));
   };
 
@@ -816,11 +827,21 @@ const ServiceGrid = () => {
         onRequestClose={dismissPromo}
       >
         <Pressable
-          style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center", paddingHorizontal: 24 }}
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.6)",
+            justifyContent: "center",
+            alignItems: "center",
+            paddingHorizontal: 24,
+          }}
           onPress={dismissPromo}
         >
           <Animated.View
-            style={{ width: "100%", transform: [{ scale: promoScale }], opacity: promoOpacity }}
+            style={{
+              width: "100%",
+              transform: [{ scale: promoScale }],
+              opacity: promoOpacity,
+            }}
           >
             <Pressable onPress={() => {}}>
               <LinearGradient
@@ -831,8 +852,16 @@ const ServiceGrid = () => {
                 <View style={ep.glow} />
 
                 {/* Dismiss X */}
-                <TouchableOpacity style={ep.closeBtn} onPress={dismissPromo} activeOpacity={0.7}>
-                  <Ionicons name="close" size={16} color="rgba(255,255,255,0.5)" />
+                <TouchableOpacity
+                  style={ep.closeBtn}
+                  onPress={dismissPromo}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name="close"
+                    size={16}
+                    color="rgba(255,255,255,0.5)"
+                  />
                 </TouchableOpacity>
 
                 {/* NEW badge */}
@@ -843,8 +872,7 @@ const ServiceGrid = () => {
 
                 {/* Headline */}
                 <Text style={ep.headline}>
-                  TeranGO{" "}
-                  <Text style={{ color: ORANGE }}>Express</Text>
+                  TeranGO <Text style={{ color: ORANGE }}>Express</Text>
                 </Text>
                 <Text style={ep.tagline}>
                   Send anything, anywhere in Gambia — tracked live.
@@ -853,10 +881,19 @@ const ServiceGrid = () => {
                 {/* Feature list */}
                 <View style={ep.features}>
                   {[
-                    { icon: "navigate" as const, text: "Live driver tracking on a map" },
-                    { icon: "flash" as const, text: "Fast local drivers ready to go" },
+                    {
+                      icon: "navigate" as const,
+                      text: "Live driver tracking on a map",
+                    },
+                    {
+                      icon: "flash" as const,
+                      text: "Fast local drivers ready to go",
+                    },
                     { icon: "card" as const, text: "Pay securely with Wave" },
-                    { icon: "shield-checkmark" as const, text: "Admin confirms every delivery" },
+                    {
+                      icon: "shield-checkmark" as const,
+                      text: "Admin confirms every delivery",
+                    },
                   ].map((f) => (
                     <View key={f.text} style={ep.featureRow}>
                       <View style={ep.featureIcon}>
@@ -868,18 +905,30 @@ const ServiceGrid = () => {
                 </View>
 
                 {/* CTAs */}
-                <TouchableOpacity style={ep.bookBtn} onPress={bookExpress} activeOpacity={0.88}>
+                <TouchableOpacity
+                  style={ep.bookBtn}
+                  onPress={bookExpress}
+                  activeOpacity={0.88}
+                >
                   <LinearGradient
                     colors={[ORANGE, "#e55a00"]}
                     style={ep.bookBtnGradient}
                   >
                     <Ionicons name="flash" size={16} color="#fff" />
                     <Text style={ep.bookBtnText}>Book a Delivery</Text>
-                    <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.7)" />
+                    <Ionicons
+                      name="arrow-forward"
+                      size={14}
+                      color="rgba(255,255,255,0.7)"
+                    />
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={dismissPromo} style={ep.laterBtn} activeOpacity={0.7}>
+                <TouchableOpacity
+                  onPress={dismissPromo}
+                  style={ep.laterBtn}
+                  activeOpacity={0.7}
+                >
                   <Text style={ep.laterText}>Maybe later</Text>
                 </TouchableOpacity>
               </LinearGradient>
@@ -917,7 +966,7 @@ const ServiceGrid = () => {
         }}
       >
         <SmallTile
-          label="Express"
+          label="Delivery"
           image={require("@/assets/images/express_icon.png")}
           onPress={openExpress}
           isNew={expressIsNew}
@@ -999,7 +1048,12 @@ const ep = StyleSheet.create({
     marginBottom: 16,
   },
   newDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: ORANGE },
-  newText: { fontSize: 10, fontWeight: "800", color: ORANGE, letterSpacing: 1.2 },
+  newText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: ORANGE,
+    letterSpacing: 1.2,
+  },
   headline: {
     fontSize: 28,
     fontWeight: "900",
@@ -1026,7 +1080,12 @@ const ep = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  featureText: { fontSize: 14, color: "rgba(255,255,255,0.8)", fontWeight: "500", flex: 1 },
+  featureText: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    fontWeight: "500",
+    flex: 1,
+  },
   bookBtn: { borderRadius: 16, overflow: "hidden", marginBottom: 12 },
   bookBtnGradient: {
     flexDirection: "row",
@@ -1036,7 +1095,17 @@ const ep = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
   },
-  bookBtnText: { fontSize: 16, fontWeight: "800", color: "#fff", flex: 1, textAlign: "center" },
+  bookBtnText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#fff",
+    flex: 1,
+    textAlign: "center",
+  },
   laterBtn: { alignItems: "center", paddingVertical: 8 },
-  laterText: { fontSize: 13, color: "rgba(255,255,255,0.35)", fontWeight: "500" },
+  laterText: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.35)",
+    fontWeight: "500",
+  },
 });

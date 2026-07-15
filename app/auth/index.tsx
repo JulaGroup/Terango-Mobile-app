@@ -64,7 +64,18 @@ const COUNTRIES: Country[] = [
   { code: "DNK", name: "Denmark", flag: "🇩🇰", dialCode: "+45", maxLength: 8 },
   { code: "NOR", name: "Norway", flag: "🇳🇴", dialCode: "+47", maxLength: 8 },
   { code: "FIN", name: "Finland", flag: "🇫🇮", dialCode: "+358", maxLength: 8 },
-  { code: "SWE", name: "Sweden", flag: "🇸🇪", dialCode: "+46", maxLength: 8 },
+  { code: "AUT", name: "Austria", flag: "🇦🇹", dialCode: "+43", maxLength: 10 },
+  {
+    code: "CHE",
+    name: "Switzerland",
+    flag: "🇨🇭",
+    dialCode: "+41",
+    maxLength: 9,
+  },
+  { code: "PRT", name: "Portugal", flag: "🇵🇹", dialCode: "+351", maxLength: 9 },
+  { code: "IRL", name: "Ireland", flag: "🇮🇪", dialCode: "+353", maxLength: 9 },
+  { code: "POL", name: "Poland", flag: "🇵🇱", dialCode: "+48", maxLength: 9 },
+  { code: "CAN", name: "Canada", flag: "🇨🇦", dialCode: "+1", maxLength: 10 },
 ];
 
 export default function AuthScreen() {
