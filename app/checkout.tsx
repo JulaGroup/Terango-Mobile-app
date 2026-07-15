@@ -249,6 +249,12 @@ export default function Checkout() {
   // Track auth state for UX
   const [isUserLoggedIn, setIsUserLoggedIn] = useState<boolean | null>(null);
 
+  // Whether we've finished checking for a saved order type preference (e.g. a
+  // returning user's last PICKUP/DELIVERY choice). Delivery-fee estimation
+  // must wait for this so it doesn't fire against the initial "DELIVERY"
+  // default before a saved PICKUP preference has been restored.
+  const [orderTypeReady, setOrderTypeReady] = useState(false);
+
   // 💳 DIGITAL PAYMENT METHOD STATE
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("mobile");
   const [defaultPaymentMethod, setDefaultPaymentMethod] = useState<
@@ -691,14 +697,21 @@ export default function Checkout() {
 
       if (!token || !isLoggedIn) {
         setIsUserLoggedIn(false);
+        // Guests have no saved order-type preference to restore — the
+        // initial "DELIVERY" default is already final for them.
+        setOrderTypeReady(true);
         return;
       }
 
       setIsUserLoggedIn(true);
       await loadUserInfo();
+      // loadUserInfo() has now applied any saved order-type preference (or
+      // confirmed there isn't one) — safe to let delivery-fee estimation run.
+      setOrderTypeReady(true);
     } catch (error) {
       console.error("Error checking authentication:", error);
       setIsUserLoggedIn(false);
+      setOrderTypeReady(true);
     }
   }, [router, loadUserInfo]);
 
@@ -981,6 +994,12 @@ export default function Checkout() {
   // Call estimation when address changes
   // 🔴 CRITICAL: Added currentAddress to dependencies to re-estimate when saved address is selected
   useEffect(() => {
+    // Wait until we know the user's real order type (saved PICKUP/DELIVERY
+    // preference restored, or confirmed there is none) — otherwise this can
+    // fire against the initial "DELIVERY" default and estimate a fee for a
+    // returning PICKUP customer before their preference loads.
+    if (!orderTypeReady) return;
+
     // Mark as loading immediately so the UI doesn't briefly treat the fee as
     // "unavailable" (deliveryFee=0) during the debounce window below.
     if (form.address && form.orderType === "DELIVERY") {
@@ -997,7 +1016,7 @@ export default function Checkout() {
     }, 400); // 400ms debounce
     return () => clearTimeout(debounceTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.address, form.orderType, form.isGiftOrder, currentAddress]);
+  }, [form.address, form.orderType, form.isGiftOrder, currentAddress, orderTypeReady]);
 
   useEffect(() => {
     Animated.parallel([
