@@ -1080,7 +1080,8 @@ export default function DeliveryTrackingPage() {
     }),
   ).current;
 
-  // ── OSRM route ────────────────────────────────────────
+  // ── Road-following route via our backend (Google Directions API, key kept
+  // server-side) ─────────────────────────────────────────
   const fetchRoute = useCallback(
     async (
       from: { latitude: number; longitude: number },
@@ -1089,18 +1090,15 @@ export default function DeliveryTrackingPage() {
       if (isFetchingRoute.current) return;
       isFetchingRoute.current = true;
       try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("OSRM error");
-        const data = await res.json();
-        const coords = data?.routes?.[0]?.geometry?.coordinates;
-        if (coords) {
-          setRouteCoordinates(
-            coords.map(([lng, lat]: [number, number]) => ({
-              latitude: lat,
-              longitude: lng,
-            })),
-          );
+        const data = await apiCall(
+          `/api/directions?originLat=${from.latitude}&originLng=${from.longitude}` +
+            `&destLat=${to.latitude}&destLng=${to.longitude}`,
+        );
+        const coords = data?.coordinates;
+        if (coords && Array.isArray(coords) && coords.length > 0) {
+          setRouteCoordinates(coords);
+        } else {
+          throw new Error("No route data");
         }
       } catch {
         setRouteCoordinates([from, to]); // straight-line fallback

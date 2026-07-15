@@ -29,6 +29,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { API_URL } from "@/constants/config";
+import { SecureStorage } from "@/utils/secureStorage";
 import {
   on as socketOn,
   off as socketOff,
@@ -192,6 +194,12 @@ export default function OrderTrackingPage() {
   const [routeCoordinates, setRouteCoordinates] = useState<
     { latitude: number; longitude: number }[]
   >([]);
+  // Real road distance/ETA from the Directions endpoint (falls back to
+  // straight-line math when unavailable).
+  const [routeInfo, setRouteInfo] = useState<{
+    distanceKm: number;
+    durationMinutes: number | null;
+  } | null>(null);
 
   const mapRef = useRef<typeof MapView>(null);
   const lastRouteRequestRef = useRef<any>(null);
@@ -204,8 +212,10 @@ export default function OrderTrackingPage() {
   const lastGestureY = useRef(0);
   const currentSnap = useRef<"collapsed" | "half" | "expanded">("half");
 
-  // Calculate distance between two coordinates
+  // Calculate distance between two coordinates — prefers the real road
+  // distance from the Directions endpoint, falls back to straight-line.
   const calculateDistance = useCallback(() => {
+    if (routeInfo?.distanceKm != null) return routeInfo.distanceKm;
     if (!driverLocation || !deliveryLocation) return null;
 
     const R = 6371; // Earth's radius in km
@@ -221,15 +231,19 @@ export default function OrderTrackingPage() {
       Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
-  }, [driverLocation, deliveryLocation]);
+  }, [driverLocation, deliveryLocation, routeInfo]);
 
   const calculateETA = useCallback(() => {
+    // Real traffic-aware duration from Google when we have it.
+    if (routeInfo?.durationMinutes != null) {
+      return Math.max(2, Math.round(routeInfo.durationMinutes));
+    }
     const distance = calculateDistance();
     if (!distance) return null;
     const averageSpeed = 25; // km/h in city traffic
     const timeInMinutes = Math.round((distance / averageSpeed) * 60);
     return Math.max(timeInMinutes, 2);
-  }, [calculateDistance]);
+  }, [calculateDistance, routeInfo]);
 
   const distanceBetween = useCallback(
     (
@@ -255,7 +269,8 @@ export default function OrderTrackingPage() {
     [],
   );
 
-  // Fetch route using OSRM
+  // Fetch a road-following route via our backend (Google Directions API,
+  // key kept server-side). Returns polyline + real distance/ETA.
   const fetchRoute = useCallback(
     async (
       origin: { latitude: number; longitude: number },
@@ -276,20 +291,28 @@ export default function OrderTrackingPage() {
       isFetchingRouteRef.current = true;
 
       try {
-        const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson`;
-        const response = await fetch(url);
+        const token =
+          (await SecureStorage.getItem("token")) ||
+          (await SecureStorage.getItem("authToken"));
+        const url =
+          `${API_URL}/api/directions?` +
+          `originLat=${origin.latitude}&originLng=${origin.longitude}` +
+          `&destLat=${destination.latitude}&destLng=${destination.longitude}`;
+        const response = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
 
-        if (!response.ok) throw new Error(`OSRM request failed`);
+        if (!response.ok) throw new Error(`Directions request failed`);
 
         const data = await response.json();
-        const coordinates = data?.routes?.[0]?.geometry?.coordinates;
+        const coordinates = data?.coordinates;
 
-        if (coordinates && Array.isArray(coordinates)) {
-          const mapped = coordinates.map(([lng, lat]: [number, number]) => ({
-            latitude: lat,
-            longitude: lng,
-          }));
-          setRouteCoordinates(mapped);
+        if (coordinates && Array.isArray(coordinates) && coordinates.length > 0) {
+          setRouteCoordinates(coordinates);
+          setRouteInfo({
+            distanceKm: data.distanceKm,
+            durationMinutes: data.durationMinutes ?? null,
+          });
           lastRouteRequestRef.current = { origin, destination };
           return;
         }
