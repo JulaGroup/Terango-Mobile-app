@@ -1,14 +1,14 @@
 /**
- * Global floating "View Cart" bar — stays visible while browsing (Home,
- * Browse, restaurant/shop pages, category pages, search, etc.) so a user
- * with items in their cart never loses track of it, without needing a
- * dedicated Cart tab. Mounted once in the root layout, above the
- * navigation Stack.
+ * Global floating "View Cart" bar — shown only on the three top-level
+ * browsing screens (Home, Food, Mart), so a user with items in their cart
+ * has a persistent way back to it without needing a dedicated Cart tab.
+ * Mounted once in the root layout, above the navigation Stack.
  *
- * Hidden on screens where showing it would be redundant or wrong context:
- * the cart screen itself, checkout/payment flow, auth/onboarding, order
- * tracking, the vendor dashboard (a different persona's screens), and
- * Express/custom-delivery (a separate flow with no food/mart cart).
+ * Deliberately an allowlist, not a denylist: it was previously shown
+ * everywhere except a few excluded screens, which meant it sat on top of
+ * (and blocked) the "Add to Cart" button on item detail pages like
+ * /menuitem/[menuitem]. Only add a path here if it's a page you scroll
+ * through browsing, not one with its own bottom action button.
  */
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Text, TouchableOpacity, View, Platform } from "react-native";
@@ -19,30 +19,8 @@ import { useCart } from "@/context/CartContext";
 
 const ORANGE = "#ff6b00";
 
-// Route prefixes where the floating cart bar should never appear.
-const HIDDEN_PATH_PREFIXES = [
-  "/cart",
-  "/checkout",
-  "/auth",
-  "/onboarding",
-  "/payment-success",
-  "/payment-cancel",
-  "/payment-failed",
-  "/payment-methods",
-  "/order-details",
-  "/order-tracking",
-  "/vendor", // vendor dashboard — different persona, not the customer cart
-  "/vendor-application",
-  "/custom-delivery",
-  "/express-payment",
-  "/driver-profile",
-];
-
-function isHiddenRoute(pathname: string): boolean {
-  return HIDDEN_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
-}
+// Only these screens show the floating cart bar.
+const SHOWN_PATHS = new Set(["/", "/food", "/mart"]);
 
 // Tab-group root routes render behind the floating tab bar, so the cart bar
 // needs extra bottom offset there; other (stack) screens have no tab bar.
@@ -58,7 +36,7 @@ export default function FloatingCartBar() {
   const total = getTotalAmount();
   const vendor = getVendorDetails();
 
-  const hidden = isHiddenRoute(pathname) || itemCount === 0;
+  const hidden = !SHOWN_PATHS.has(pathname) || itemCount === 0;
 
   const translateY = useRef(new Animated.Value(120)).current;
   const opacity = useRef(new Animated.Value(0)).current;
