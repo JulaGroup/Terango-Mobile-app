@@ -353,7 +353,7 @@ const TrendingMealsSection = ({ refreshKey }: { refreshKey: number }) => {
       >
         <View>
           <Text style={{ fontSize: 17, fontWeight: "700", color: "#1a1a1a" }}>
-            Top Meals Near You
+            Top Meals
           </Text>
           <Text style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
             Most ordered right now
@@ -631,9 +631,9 @@ export default function HomeScreen() {
           <Divider />
 
           {/* ⑦ Top Meals */}
-          {/* <TrendingMealsSection refreshKey={refreshKey} /> */}
+          <TrendingMealsSection refreshKey={refreshKey} />
 
-          {/* <Divider /> */}
+          <Divider />
 
           {/* ⑧ Restaurants Near You (component has its own header) */}
           <RestaurantNearYou refreshKey={refreshKey} />

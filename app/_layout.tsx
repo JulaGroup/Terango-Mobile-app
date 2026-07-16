@@ -42,6 +42,7 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import OfflineNotice from "@/components/common/OfflineNotice";
 import CookieConsent from "@/components/CookieConsent";
 import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
+import FloatingCartBar from "@/components/common/FloatingCartBar";
 
 /** Renders a full-screen maintenance overlay when appMaintenanceMode is on. */
 function GlobalMaintenanceGate({ children }: { children: React.ReactNode }) {
@@ -816,6 +817,8 @@ export default function RootLayout() {
                                 options={{ headerShown: false }}
                               />
                             </Stack>
+
+                            <FloatingCartBar />
 
                             <StatusBar barStyle="default" />
                           </GlobalMaintenanceGate>
