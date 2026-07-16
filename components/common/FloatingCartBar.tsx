@@ -98,10 +98,15 @@ export default function FloatingCartBar() {
 
   if (!mounted) return null;
 
+  // Home sits above the floating tab bar. Food and Mart also show
+  // ActiveOrderBanner (components/ui/home/ActiveOrderBanner.tsx) near the
+  // bottom when the user has a live order — stack above it so the two
+  // never overlap, whether or not that banner happens to be visible.
   const isTabRoot = TAB_ROOT_PATHS.has(pathname);
+  const clearsActiveOrderBanner = pathname === "/food" || pathname === "/mart";
   const bottomOffset = isTabRoot
     ? (Platform.OS === "ios" ? 49 : 75) + insets.bottom + 12
-    : insets.bottom + 16;
+    : insets.bottom + 16 + (clearsActiveOrderBanner ? 78 : 0);
 
   return (
     <Animated.View
