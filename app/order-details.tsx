@@ -1532,8 +1532,11 @@ export default function OrderDetailsPage() {
             </TouchableOpacity>
           )}
 
-        {/* Cancel Button - Full width below pay/track button */}
-        {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
+        {/* Cancel Button - Full width below pay/track button.
+            Hidden once the order is paid — after payment the vendor starts
+            preparing, so cancellations/refunds go through support instead. */}
+        {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) &&
+          order.paymentStatus !== "PAID" && (
           <TouchableOpacity
             style={[
               styles.cancelButton,

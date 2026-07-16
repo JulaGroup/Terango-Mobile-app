@@ -812,7 +812,10 @@ export default function Orders() {
             <Ionicons name="chevron-forward" size={14} color="#C4C4C4" />
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
-            {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) && (
+            {/* Cancel — only while unpaid; after payment the vendor starts
+                preparing, so cancellations/refunds go through support. */}
+            {["PENDING", "ACCEPTED", "PREPARING"].includes(order.status) &&
+              order.paymentStatus !== "PAID" && (
               <TouchableOpacity
                 style={{
                   paddingHorizontal: 12,
