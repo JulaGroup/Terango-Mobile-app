@@ -144,11 +144,15 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
     onSenderPhoneChange,
   ]);
 
-  // Initialize empty sender fields when entering "saved" mode
+  // Initialize empty sender fields when entering "saved" mode — including the
+  // parent's state, which may still hold the user's own details loaded while
+  // in "I'm Sending" mode (the user is the receiver here, not the sender).
   useEffect(() => {
     if (dropoffMode === "saved") {
       setSenderName("");
       setSenderPhone("");
+      onSenderNameChange?.("");
+      onSenderPhoneChange?.("");
     }
   }, [dropoffMode]);
 
@@ -162,8 +166,18 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
         if (cached) {
           const name = cached.fullName || "";
           const phone = cached.phone || "";
+          // Normalize to the 7-digit local format (strip +220 etc.) — the
+          // read-only display adds its own "+220" prefix, and the booking
+          // screen validates receiverPhone as exactly 7 digits.
+          const digits = phone.replace(/\D/g, "");
+          const localPhone = digits.length > 7 ? digits.slice(-7) : digits;
           setUserCachedName(name);
-          setUserCachedPhone(phone);
+          setUserCachedPhone(localPhone);
+          // Propagate to the parent form too — the booking screen only
+          // enables the Book button once receiverName/receiverPhone are set,
+          // and in this flow the user IS the receiver.
+          onReceiverNameChange?.(name);
+          onReceiverPhoneChange?.(localPhone);
         }
       } catch (error) {
         console.log("Could not load user cached data:", error);

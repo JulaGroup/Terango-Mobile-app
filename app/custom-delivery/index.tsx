@@ -554,6 +554,13 @@ export default function CustomDeliveryScreen() {
     setDropoffLongitude(null);
     setDropoffLandmark("");
     setSelectedDropoffAddress(null);
+    // Contact roles flip with the direction — clear them so values from the
+    // previous mode (e.g. the user pre-filled as sender) don't leak through.
+    // UnifiedLocationSection re-populates the user's own side from cache.
+    setSenderName("");
+    setSenderPhone("");
+    setReceiverName("");
+    setReceiverPhone("");
   };
 
   const handleCreateDelivery = async () => {
