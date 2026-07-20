@@ -10,6 +10,8 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
+import { API_URL } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
 
 interface NotificationSettings {
@@ -54,8 +56,27 @@ export default function NotificationModal({
   const loadSettings = async () => {
     try {
       const savedSettings = await SecureStorage.getItem("notificationSettings");
-      if (savedSettings) {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+      const merged = savedSettings
+        ? { ...defaultSettings, ...JSON.parse(savedSettings) }
+        : defaultSettings;
+      setSettings(merged);
+
+      // Marketing toggles are the source of truth server-side (they control
+      // whether the backend's engagement/marketing scheduler pushes to this
+      // user at all) — fetch the real value rather than trusting the local
+      // cache, which can drift if the user changed it on another device.
+      const token = await SecureStorage.getItem("token");
+      if (token) {
+        const response = await axios.get(
+          `${API_URL}/api/notifications/preferences`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const marketingOptOut = response.data?.marketingOptOut ?? false;
+        setSettings((prev) => ({
+          ...prev,
+          promotions: !marketingOptOut,
+          newRestaurants: !marketingOptOut,
+        }));
       }
     } catch (error) {
       console.error("Error loading notification settings:", error);
@@ -69,6 +90,18 @@ export default function NotificationModal({
         "notificationSettings",
         JSON.stringify(settings)
       );
+
+      const token = await SecureStorage.getItem("token");
+      if (token) {
+        // Both marketing toggles map to the single server-side flag today —
+        // enabling either re-enables engagement/promotional push.
+        await axios.patch(
+          `${API_URL}/api/notifications/preferences`,
+          { marketingOptOut: !(settings.promotions || settings.newRestaurants) },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+      }
+
       Alert.alert("Success", "Notification preferences saved successfully!");
       onClose();
     } catch (error) {
@@ -80,7 +113,15 @@ export default function NotificationModal({
   };
 
   const updateSetting = (key: keyof NotificationSettings, value: boolean) => {
-    setSettings((prev) => ({ ...prev, [key]: value }));
+    setSettings((prev) => {
+      // Keep both marketing toggles in sync since they share one backend
+      // flag — otherwise one could look "off" while the user still gets
+      // marketing push because the other toggle is still on.
+      if (key === "promotions" || key === "newRestaurants") {
+        return { ...prev, promotions: value, newRestaurants: value };
+      }
+      return { ...prev, [key]: value };
+    });
   };
 
   const NotificationItem = ({

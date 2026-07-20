@@ -17,6 +17,7 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
@@ -26,6 +27,9 @@ import MealItemCard from "@/components/common/MealItemCard";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 
 const { height } = Dimensions.get("window");
+
+const RECENT_SEARCHES_KEY = "@terango_recent_searches";
+const MAX_RECENT_SEARCHES = 10;
 
 interface SearchModalProps {
   visible: boolean;
@@ -46,6 +50,16 @@ interface SearchResults {
   menuItems: any[];
   total: number;
   hasMore: boolean;
+  // True match counts per category, independent of which tab was last
+  // fetched — use these for tab badges instead of the array lengths above,
+  // which only reflect whichever category(ies) the last request actually
+  // queried.
+  counts?: {
+    restaurants: number;
+    shops: number;
+    products: number;
+    menuItems: number;
+  };
 }
 
 interface RecentSearch {
@@ -74,11 +88,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
   const [activeTab, setActiveTab] = useState<
     "all" | "products" | "meals" | "restaurants" | "shops"
   >("all");
-  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([
-    { id: "1", query: "Burger", timestamp: Date.now() - 3600000 },
-    { id: "2", query: "Chicken yassa", timestamp: Date.now() - 7200000 },
-    { id: "3", query: "Fresh vegetables", timestamp: Date.now() - 10800000 },
-  ]);
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [popularSearches] = useState([
     "Rice",
     "Chicken",
@@ -117,6 +127,20 @@ const SearchModal: React.FC<SearchModalProps> = ({
     }
   }, [visible, slideAnim]);
 
+  // Load persisted recent searches once on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+        if (stored) {
+          setRecentSearches(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error("Failed to load recent searches:", error);
+      }
+    })();
+  }, []);
+
   // Reset on modal open
   useEffect(() => {
     if (visible) {
@@ -154,7 +178,11 @@ const SearchModal: React.FC<SearchModalProps> = ({
     // Map frontend tab names to API types
     const apiType = tabType === "meals" ? "menu_items" : tabType;
 
-    const limit = tabType === "all" ? 50 : 20;
+    // Same per-category limit regardless of tab, so switching from "All" to
+    // a specific tab (or back) never shows a different count for the same
+    // category — the backend now fetches this many items per category
+    // either way (see search.controller.ts).
+    const limit = 20;
     setLoading(true);
     try {
       const response = await fetch(
@@ -202,6 +230,15 @@ const SearchModal: React.FC<SearchModalProps> = ({
     }, 500);
   };
 
+  // Persist recent searches
+  const persistRecentSearches = async (searches: RecentSearch[]) => {
+    try {
+      await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(searches));
+    } catch (error) {
+      console.error("Failed to save recent searches:", error);
+    }
+  };
+
   // Save search to recent searches
   const saveSearch = (searchQuery: string) => {
     if (searchQuery.trim().length < 2) return;
@@ -212,10 +249,14 @@ const SearchModal: React.FC<SearchModalProps> = ({
       timestamp: Date.now(),
     };
 
-    setRecentSearches((prev) => [
-      newSearch,
-      ...prev.filter((s) => s.query !== searchQuery.trim()).slice(0, 9),
-    ]);
+    setRecentSearches((prev) => {
+      const next = [
+        newSearch,
+        ...prev.filter((s) => s.query !== searchQuery.trim()),
+      ].slice(0, MAX_RECENT_SEARCHES);
+      persistRecentSearches(next);
+      return next;
+    });
   };
 
   // Handle search submission
@@ -695,7 +736,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                   <Ionicons
                     name="search"
                     size={20}
-                    color="#FF6B35"
+                    color={PrimaryColor}
                     style={styles.searchIcon}
                   />
                   <TextInput
@@ -708,22 +749,27 @@ const SearchModal: React.FC<SearchModalProps> = ({
                     onSubmitEditing={handleSearchSubmit}
                     returnKeyType="search"
                   />
-                  {query.length > 0 && (
-                    <TouchableOpacity
-                      onPress={clearSearch}
+                  {loading ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={PrimaryColor}
                       style={styles.clearButton}
-                    >
-                      <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
+                    />
+                  ) : (
+                    query.length > 0 && (
+                      <TouchableOpacity
+                        onPress={clearSearch}
+                        style={styles.clearButton}
+                      >
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color="#9CA3AF"
+                        />
+                      </TouchableOpacity>
+                    )
                   )}
                 </View>
-
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleSearchSubmit}
-                >
-                  <Text style={styles.saveButtonText}>Search</Text>
-                </TouchableOpacity>
               </View>
 
               {/* Content */}
@@ -741,7 +787,10 @@ const SearchModal: React.FC<SearchModalProps> = ({
                             Recent Searches
                           </Text>
                           <TouchableOpacity
-                            onPress={() => setRecentSearches([])}
+                            onPress={() => {
+                              setRecentSearches([]);
+                              persistRecentSearches([]);
+                            }}
                           >
                             <Text style={styles.clearAllText}>Clear All</Text>
                           </TouchableOpacity>
@@ -764,11 +813,15 @@ const SearchModal: React.FC<SearchModalProps> = ({
                               {search.query}
                             </Text>
                             <TouchableOpacity
-                              onPress={() =>
-                                setRecentSearches((prev) =>
-                                  prev.filter((s) => s.id !== search.id),
-                                )
-                              }
+                              onPress={() => {
+                                setRecentSearches((prev) => {
+                                  const next = prev.filter(
+                                    (s) => s.id !== search.id,
+                                  );
+                                  persistRecentSearches(next);
+                                  return next;
+                                });
+                              }}
                             >
                               <Ionicons
                                 name="close"
@@ -826,25 +879,33 @@ const SearchModal: React.FC<SearchModalProps> = ({
                       {renderTabButton(
                         "products",
                         "Products",
-                        results.products.length,
+                        results.counts?.products ?? results.products.length,
                       )}
                       {renderTabButton(
                         "meals",
                         "Meals",
-                        results.menuItems.length,
+                        results.counts?.menuItems ?? results.menuItems.length,
                       )}
                       {renderTabButton(
                         "restaurants",
                         "Restaurants",
-                        results.restaurants.length,
+                        results.counts?.restaurants ??
+                          results.restaurants.length,
                       )}
-                      {renderTabButton("shops", "Stores", results.shops.length)}
+                      {renderTabButton(
+                        "shops",
+                        "Stores",
+                        results.counts?.shops ?? results.shops.length,
+                      )}
                     </ScrollView>
 
-                    {/* Results */}
-                    {loading ? (
+                    {/* Results — once we have data, keep it visible during
+                        subsequent loads (tab switches, refined queries)
+                        instead of blanking the screen; the input's own
+                        spinner already communicates "in progress". */}
+                    {loading && results.total === 0 ? (
                       <View style={styles.loadingContainer}>
-                        <ActivityIndicator size="large" color="#FF6B35" />
+                        <ActivityIndicator size="large" color={PrimaryColor} />
                         <Text style={styles.loadingText}>Searching...</Text>
                       </View>
                     ) : (
@@ -958,7 +1019,6 @@ const styles = {
     borderRadius: 25,
     paddingHorizontal: 16,
     height: 44,
-    marginRight: 12,
   },
   searchIcon: {
     marginRight: 8,
@@ -971,17 +1031,6 @@ const styles = {
   },
   clearButton: {
     padding: 4,
-  },
-  saveButton: {
-    backgroundColor: "#FF6B35",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600" as const,
   },
   content: {
     flex: 1,
@@ -1008,7 +1057,7 @@ const styles = {
   },
   clearAllText: {
     fontSize: 14,
-    color: "#FF6B35",
+    color: PrimaryColor,
     fontWeight: "600" as const,
   },
   recentItem: {
@@ -1072,8 +1121,8 @@ const styles = {
     gap: 6,
   },
   activeTabButton: {
-    backgroundColor: "#FF6B35",
-    borderColor: "#FF6B35",
+    backgroundColor: PrimaryColor,
+    borderColor: PrimaryColor,
   },
   tabText: {
     fontSize: 14,
