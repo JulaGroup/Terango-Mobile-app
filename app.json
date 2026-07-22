@@ -18,7 +18,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "buildNumber": "49",
+      "buildNumber": "50",
       "bundleIdentifier": "com.darboedev.terango",
       "config": {
         "googleMapsApiKey": "AIzaSyC2bQ45Sr7oW5VgwGA0W7biEOJDkQoi5U4"
