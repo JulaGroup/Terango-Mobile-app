@@ -13,7 +13,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import WebSocketService from "@/services/websocket.service";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi, userApi, VendorStats } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
@@ -132,6 +133,44 @@ export default function VendorDashboard() {
       setIsLoading(false);
     }
   }, [vendor, isVendorLoading, hasAttemptedLoad]);
+
+  // Live-refresh the dashboard stats whenever an order comes in or changes
+  // status. Uses the same socket the pending-orders badge listens on. The
+  // full-screen loader only shows before the first load, so these background
+  // refreshes update the numbers in place without a spinner flash.
+  useEffect(() => {
+    if (!vendor?.id) return;
+    const refreshOnOrderChange = () => {
+      fetchDashboardData();
+    };
+    // Ensure the socket is connected + joined to this vendor's room, since the
+    // dashboard may be the first screen the vendor opens (connection is
+    // otherwise only established from the Orders/Menu screens).
+    (async () => {
+      try {
+        await WebSocketService.connect(vendor.id);
+        WebSocketService.joinVendorRoom(vendor.id);
+      } catch (err) {
+        console.warn("Dashboard socket connect failed:", err);
+      }
+    })();
+    WebSocketService.on("new_order", refreshOnOrderChange);
+    WebSocketService.on("order_status_changed", refreshOnOrderChange);
+    // Only remove our own listeners — the socket is a shared singleton used by
+    // other screens and the pending-orders badge, so we never disconnect it.
+    return () => {
+      WebSocketService.off("new_order", refreshOnOrderChange);
+      WebSocketService.off("order_status_changed", refreshOnOrderChange);
+    };
+  }, [vendor?.id, fetchDashboardData]);
+
+  // Also refresh when the dashboard regains focus (e.g. returning from the
+  // Orders screen after changing a status), covering any missed socket event.
+  useFocusEffect(
+    useCallback(() => {
+      if (vendor) fetchDashboardData();
+    }, [vendor, fetchDashboardData]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
