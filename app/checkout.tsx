@@ -227,6 +227,10 @@ export default function Checkout() {
     useAddress();
   const { flags: maintenanceFlags } = useMaintenance();
   const [showLocationModal, setShowLocationModal] = useState(false);
+  // Pickup confirmation: shown once before creating a PICKUP order so the
+  // customer understands they must collect it from the store themselves.
+  const [showPickupModal, setShowPickupModal] = useState(false);
+  const pickupConfirmedRef = useRef(false);
   const [addressPickerVisible, setAddressPickerVisible] = useState(false);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
   const [paymentMethodPickerVisible, setPaymentMethodPickerVisible] =
@@ -320,18 +324,18 @@ export default function Checkout() {
     deliveryFee = 0;
   }
 
-  // ❌ A delivery order must always have a delivery fee unless a free-delivery
-  // promo is applied. A fee of 0 means the estimate failed — block checkout.
+  // ❌ A delivery order must always have a non-zero delivery fee unless a
+  // free-delivery promo is applied. A fee of 0 once loading has finished means
+  // the estimate failed (bad coordinates, API error, or a 0 estimate) — block
+  // checkout in every such case, not only when deliveryFeeError happened to be
+  // set. (Previously a failed geocode left deliveryFeeError false, letting a
+  // 0-fee delivery order slip through.)
   const hasInvalidDeliveryFee =
     form.orderType === "DELIVERY" &&
     !appliedPromo?.freeDelivery &&
     !loadingDeliveryFee &&
     deliveryFee <= 0 &&
-    (form.isGiftOrder
-      ? !!form.recipientTown
-      : // For regular delivery only flag it once the estimate has actually
-        // failed — not in the brief gap before the calculation starts
-        !!form.address.trim() && deliveryFeeError && !deliveryEstimate);
+    (form.isGiftOrder ? !!form.recipientTown : !!form.address.trim());
 
   // ❌ No drivers available overnight (admin-configurable window). Pickup
   // orders don't need a driver, so they're unaffected.
@@ -858,10 +862,11 @@ export default function Checkout() {
 
         if (!coords) {
           console.warn(
-            "⚠️ Could not get coordinates for address, using default delivery fee",
+            "⚠️ Could not get coordinates for address — cannot estimate a delivery fee",
           );
           setDeliveryEstimate(null);
           setCustomerCoordinates(null);
+          setDeliveryFeeError(true);
           setLoadingDeliveryFee(false);
           return;
         }
@@ -1203,6 +1208,15 @@ export default function Checkout() {
       Alert.alert("Empty Cart", "Your cart is empty.");
       return;
     }
+
+    // For pickup orders, confirm the customer understands they must collect the
+    // order themselves before we create it. The ref lets the modal's "Confirm"
+    // re-invoke this handler and pass straight through.
+    if (form.orderType === "PICKUP" && !pickupConfirmedRef.current) {
+      setShowPickupModal(true);
+      return;
+    }
+    pickupConfirmedRef.current = false;
 
     setLoading(true);
 
@@ -2677,6 +2691,61 @@ export default function Checkout() {
           ) : null}
         </ScrollView>
 
+        {/* Pickup Confirmation Modal */}
+        <Modal
+          visible={showPickupModal}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowPickupModal(false)}
+        >
+          <View style={styles.modalCentered}>
+            <View style={styles.modalContainer}>
+              <View style={styles.pickupModalIcon}>
+                <Ionicons name="storefront" size={34} color={PrimaryColor} />
+              </View>
+              <Text style={styles.modalTitle}>This is a pickup order</Text>
+              <Text style={styles.modalMessage}>
+                {(() => {
+                  const storeNames = Array.from(
+                    new Set(
+                      items
+                        .map((it: any) => it.vendorName)
+                        .filter((n: string) => !!n),
+                    ),
+                  ) as string[];
+                  const where =
+                    storeNames.length === 1
+                      ? storeNames[0]
+                      : storeNames.length > 1
+                        ? "each store"
+                        : "the store";
+                  return `No driver will deliver this order. You'll need to go to ${where} yourself to collect it once it's ready.`;
+                })()}
+              </Text>
+              <View style={styles.pickupModalButtons}>
+                <TouchableOpacity
+                  style={styles.pickupModalCancel}
+                  onPress={() => setShowPickupModal(false)}
+                >
+                  <Text style={styles.pickupModalCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickupModalConfirm}
+                  onPress={() => {
+                    pickupConfirmedRef.current = true;
+                    setShowPickupModal(false);
+                    handlePlaceOrder();
+                  }}
+                >
+                  <Text style={styles.pickupModalConfirmText}>
+                    Got it, place order
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Order Created Modal */}
         <Modal visible={orderCreated.visible} animationType="slide" transparent>
           <SafeAreaView style={styles.modalCentered}>
@@ -4066,6 +4135,45 @@ const styles = StyleSheet.create({
     color: "#6b7280",
     textAlign: "center",
     marginBottom: 16,
+  },
+  pickupModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: `${PrimaryColor}1A`,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  pickupModalButtons: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
+  pickupModalCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    alignItems: "center",
+  },
+  pickupModalCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  pickupModalConfirm: {
+    flex: 1.4,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: PrimaryColor,
+    alignItems: "center",
+  },
+  pickupModalConfirmText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
   },
   modalActions: {
     flexDirection: "row",
