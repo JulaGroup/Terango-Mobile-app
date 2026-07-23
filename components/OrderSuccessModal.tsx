@@ -62,7 +62,7 @@ export default function OrderSuccessModal({
                 </Text>
                 {orderData.totalAmount && (
                   <Text style={styles.amount}>
-                    Total: ₦{orderData.totalAmount.toLocaleString()}
+                    Total: D{orderData.totalAmount.toLocaleString()}
                   </Text>
                 )}
               </View>

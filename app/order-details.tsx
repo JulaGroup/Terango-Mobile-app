@@ -924,6 +924,35 @@ export default function OrderDetailsPage() {
             </View>
           </View>
 
+          {/* Awaiting-vendor banner: the order is placed but the vendor hasn't
+              accepted yet, so payment isn't available. Shown until ACCEPTED. */}
+          {order.status === "PENDING" && order.paymentStatus !== "PAID" && (
+            <View style={styles.pendingBanner}>
+              <View style={styles.pendingIconWrap}>
+                <Ionicons name="hourglass-outline" size={18} color="#B45309" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.pendingTitle}>
+                  Waiting for the vendor to accept
+                </Text>
+                <Text style={styles.pendingSubtitle}>
+                  You&apos;ll be able to pay once{" "}
+                  {order.restaurant?.name ||
+                    order.shop?.name ||
+                    order.pharmacy?.name ||
+                    "the vendor"}{" "}
+                  confirms your order.
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => fetchOrderDetails(true)}
+                style={styles.waitingRefresh}
+              >
+                <Ionicons name="refresh" size={18} color={PrimaryColor} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* Payment waiting banner */}
           {fromPayment === "true" &&
             order &&
@@ -1966,6 +1995,34 @@ const styles = StyleSheet.create({
   waitingText: { color: "#92400E", fontWeight: "600" },
   waitingRefresh: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 6 },
   waitingRefreshText: { color: PrimaryColor, fontWeight: "700" },
+  pendingBanner: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderLeftWidth: 4,
+    borderLeftColor: "#F59E0B",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  pendingIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pendingTitle: { color: "#92400E", fontWeight: "700", fontSize: 14 },
+  pendingSubtitle: {
+    color: "#B45309",
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
