@@ -31,6 +31,7 @@ export default function ProfilePage() {
     fullName?: string;
     phone?: string;
     role?: string;
+    vendorRole?: string | null;
     avatarUrl?: string;
     isVerified?: boolean;
     addresses?: any[];
@@ -92,6 +93,7 @@ export default function ProfilePage() {
           fullName: userData?.fullName,
           phone: userData?.phone || userPhone,
           role: userData?.role,
+          vendorRole: userData?.vendorRole ?? null,
           avatarUrl: userData?.avatarUrl || profileData?.avatarUrl,
           isVerified: userData?.isVerified,
           addresses: profileData?.addresses || [],
@@ -410,12 +412,20 @@ export default function ProfilePage() {
     // delete account is rendered in the footer instead of the menu
   ];
 
-  // Add vendor access menu item if user is a vendor or has approved application
-  if (user?.role === "VENDOR" || vendorApplication?.status === "APPROVED") {
+  // Add vendor access menu item if the user is a vendor, vendor staff
+  // (cashier/admin), or has an approved application.
+  if (
+    user?.role === "VENDOR" ||
+    user?.vendorRole ||
+    vendorApplication?.status === "APPROVED"
+  ) {
     menuItems.unshift({
       icon: "storefront-outline",
       title: "Vendor Dashboard",
-      subtitle: "Manage your business and orders",
+      subtitle:
+        user?.vendorRole === "CASHIER"
+          ? "Manage orders"
+          : "Manage your business and orders",
       onPress: () => router.push("/vendor/dashboard"),
       badge: vendorPendingOrders,
     });

@@ -23,7 +23,7 @@ const { width } = Dimensions.get("window");
 
 export default function VendorDashboard() {
   const router = useRouter();
-  const { vendor, currentBusiness, isVendorLoading, refreshVendorData } =
+  const { vendor, currentBusiness, isVendorLoading, refreshVendorData, isVendorAdmin } =
     useVendor();
   const [metrics, setMetrics] = useState<VendorStats>({
     totalOrders: 0,
@@ -278,18 +278,20 @@ export default function VendorDashboard() {
             </View>
           </View>
 
-          {/* Quick Stats */}
+          {/* Quick Stats — cashiers don't see revenue */}
           <View style={styles.quickStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{metrics.todayOrders}</Text>
               <Text style={styles.statLabel}>Today&apos;s Orders</Text>
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>
-                {formatCurrency(metrics.todayRevenue)}
-              </Text>
-              <Text style={styles.statLabel}>Today&apos;s Revenue</Text>
-            </View>
+            {isVendorAdmin && (
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>
+                  {formatCurrency(metrics.todayRevenue)}
+                </Text>
+                <Text style={styles.statLabel}>Today&apos;s Revenue</Text>
+              </View>
+            )}
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{metrics.pendingOrders}</Text>
               <Text style={styles.statLabel}>Pending</Text>
@@ -362,7 +364,8 @@ export default function VendorDashboard() {
           /> */}
         </View>
 
-        {/* Metrics Grid */}
+        {/* Metrics Grid — business overview is admin-only; cashiers do orders only */}
+        {isVendorAdmin && (
         <View style={styles.metricsSection}>
           <Text style={styles.sectionTitle}>Business Overview</Text>
           <View style={styles.metricsGrid}>
@@ -398,6 +401,7 @@ export default function VendorDashboard() {
             /> */}
           </View>
         </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -9,6 +9,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Alert } from "react-native";
 import { vendorApi, userApi, Business } from "@/lib/api";
 
+type VendorRole = "VENDOR_ADMIN" | "CASHIER";
+
 interface Vendor {
   id: string;
   name: string;
@@ -20,11 +22,18 @@ interface Vendor {
   businesses: Business[];
   totalRevenue: number;
   totalOrders: number;
+  // Staff role for multi-user vendors. Defaults to VENDOR_ADMIN (owner-style
+  // full access) when absent, so single-account vendors behave as before.
+  vendorRole?: VendorRole;
 }
 
 interface VendorContextType {
   vendor: Vendor | null;
   isVendor: boolean;
+  // Convenience flags derived from the staff role. isVendorAdmin is true for
+  // owners and admins (full dashboard); a cashier sees order management only.
+  vendorRole: VendorRole;
+  isVendorAdmin: boolean;
   isVendorLoading: boolean;
   loginAsVendor: (email: string, password: string) => Promise<boolean>;
   logoutVendor: () => Promise<void>;
@@ -69,6 +78,10 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
       }
 
       const userData = currentUser.user;
+      // Staff role from the backend (multi-user vendors). Absent → treat as
+      // full-access admin so existing single-account vendors are unaffected.
+      const vendorRole: VendorRole =
+        userData.vendorRole === "CASHIER" ? "CASHIER" : "VENDOR_ADMIN";
       console.log("📞 Calling getVendorBusinesses with ID:", userData.id);
 
       // Try to get businesses first
@@ -129,6 +142,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
             (sum, b) => sum + (b.todayOrders || 0),
             0,
           ),
+          vendorRole,
         };
 
         console.log("✅ Setting vendor data:", vendorData);
@@ -153,6 +167,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
           businesses: [], // Empty businesses array
           totalRevenue: 0,
           totalOrders: 0,
+          vendorRole,
         };
 
         console.log(
@@ -228,8 +243,11 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
 
           // The user data is nested in currentUser.user
           const userData = currentUser?.user;
-          if (userData && userData.role === "VENDOR") {
-            console.log("👑 User is a vendor, loading vendor data...");
+          // Recognize both the classic VENDOR-role owner AND multi-user staff
+          // (cashiers/second admins), who carry a vendorRole but may keep their
+          // global CUSTOMER role.
+          if (userData && (userData.role === "VENDOR" || userData.vendorRole)) {
+            console.log("👑 User is vendor staff, loading vendor data...");
             await refreshVendorData();
           } else {
             console.log("👤 User is not a vendor or no user found:", {
@@ -382,9 +400,13 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
     }
   };
 
+  const currentVendorRole: VendorRole = vendor?.vendorRole ?? "VENDOR_ADMIN";
+
   const value: VendorContextType = {
     vendor,
     isVendor,
+    vendorRole: currentVendorRole,
+    isVendorAdmin: currentVendorRole === "VENDOR_ADMIN",
     isVendorLoading,
     loginAsVendor,
     logoutVendor,
