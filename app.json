@@ -70,7 +70,7 @@
         }
       },
       "package": "com.darboedev.terango",
-      "versionCode": 79,
+      "versionCode": 80,
       "intentFilters": [
         {
           "action": "VIEW",
