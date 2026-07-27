@@ -344,25 +344,47 @@ export default function RestaurantDetails() {
     setActiveSection(categoryId);
   };
 
-  // Get meal time categories that have at least one item
-  const getAvailableMealTimes = () => {
-    // Always include "All" tab
-    const availableTabs = [MEAL_TIMES[0]]; // "All" tab
+  // Modern menus define their own sections. Derive the tabs from whatever
+  // sections the vendor's items actually use — no hardcoded whitelist — so any
+  // new section (Pizzas, Wings, Burgers, …) appears as a tab automatically.
+  const prettifySection = (raw: string) =>
+    raw
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
-    // Check each meal time category
-    MEAL_TIMES.slice(1).forEach((mealTime) => {
-      const hasItems = allMenuItems.some(
-        (item) => item.mealTime?.toLowerCase() === mealTime.name.toLowerCase(),
-      );
-      if (hasItems) {
-        availableTabs.push(mealTime);
-      }
+  const menuSections = useMemo(() => {
+    const seen = new Map<string, string>(); // lowercased mealTime → raw label
+    allMenuItems.forEach((item) => {
+      const raw = (item.mealTime || "").trim();
+      if (!raw) return;
+      const key = raw.toLowerCase();
+      if (!seen.has(key)) seen.set(key, raw);
     });
 
-    return availableTabs;
-  };
+    const tabs = Array.from(seen.entries()).map(([key, raw]) => {
+      // Reuse a known meal-time's icon/order/label when the section matches one.
+      const known = MEAL_TIMES.find(
+        (mt) => mt.name.toLowerCase() === key || mt.id === key,
+      );
+      return {
+        id: key,
+        name: known ? known.name : prettifySection(raw),
+        icon: known?.icon ?? "restaurant-outline",
+        order: known?.order ?? 500,
+      };
+    });
+    tabs.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
 
-  // Filter menu items by selected meal time and search text
+    return [
+      { id: "all", name: "All Items", icon: "grid-outline", order: 0 },
+      ...tabs,
+    ];
+  }, [allMenuItems]);
+
+  const getAvailableMealTimes = () => menuSections;
+
+  // Filter menu items by selected section and search text
   const getFilteredMenuItems = (): { [key: string]: MenuItem[] } => {
     const itemsToFilter =
       debouncedSearchText.length > 0
@@ -372,29 +394,36 @@ export default function RestaurantDetails() {
         : allMenuItems;
 
     if (activeSection === "all") {
-      // Group all items by their meal time
+      // Group by section, in the same order the tabs appear.
       const grouped: { [key: string]: MenuItem[] } = {};
+      menuSections
+        .filter((s) => s.id !== "all")
+        .forEach((s) => {
+          grouped[s.name] = [];
+        });
       itemsToFilter.forEach((item) => {
-        const mealTime =
-          item.mealTime || "Main Course" || "Breakfast" || "Lunch" || "Dinner";
-        if (!grouped[mealTime]) {
-          grouped[mealTime] = [];
-        }
-        grouped[mealTime].push(item);
+        const key = (item.mealTime || "").trim().toLowerCase();
+        const section = menuSections.find((s) => s.id === key);
+        const label = section
+          ? section.name
+          : prettifySection(item.mealTime || "Other");
+        if (!grouped[label]) grouped[label] = [];
+        grouped[label].push(item);
+      });
+      // Drop any empty seeded sections.
+      Object.keys(grouped).forEach((k) => {
+        if (grouped[k].length === 0) delete grouped[k];
       });
       return grouped;
-    } else {
-      // Show only items matching the selected meal time
-      const mealTimeCategory = MEAL_TIMES.find((mt) => mt.id === activeSection);
-      if (!mealTimeCategory) return {};
-
-      const filtered = itemsToFilter.filter(
-        (item) =>
-          item.mealTime?.toLowerCase() === mealTimeCategory.name.toLowerCase()
-      );
-
-      return filtered.length > 0 ? { [mealTimeCategory.name]: filtered } : {};
     }
+
+    // Single section selected → show just that section's items.
+    const section = menuSections.find((s) => s.id === activeSection);
+    if (!section) return {};
+    const filtered = itemsToFilter.filter(
+      (item) => (item.mealTime || "").trim().toLowerCase() === section.id
+    );
+    return filtered.length > 0 ? { [section.name]: filtered } : {};
   };
 
   const fetchRestaurantDetails = useCallback(async () => {
