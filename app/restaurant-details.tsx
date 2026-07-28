@@ -362,16 +362,24 @@ export default function RestaurantDetails() {
       if (!seen.has(key)) seen.set(key, raw);
     });
 
+    // Sides and drinks always come last, whatever a vendor calls them.
+    const LAST_SECTIONS = ["sides", "drinks", "beverages", "extras"];
+
     const tabs = Array.from(seen.entries()).map(([key, raw]) => {
       // Reuse a known meal-time's icon/order/label when the section matches one.
       const known = MEAL_TIMES.find(
         (mt) => mt.name.toLowerCase() === key || mt.id === key,
       );
+      const lastIdx = LAST_SECTIONS.indexOf(key);
+      // Force sides/drinks to the end; food sections keep their order (known
+      // meal-time order, else a mid default so they land before sides/drinks).
+      const order =
+        lastIdx !== -1 ? 900 + lastIdx : known ? known.order : 500;
       return {
         id: key,
         name: known ? known.name : prettifySection(raw),
         icon: known?.icon ?? "restaurant-outline",
-        order: known?.order ?? 500,
+        order,
       };
     });
     tabs.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
