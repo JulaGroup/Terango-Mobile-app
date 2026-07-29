@@ -1,4 +1,4 @@
-import { Tabs } from "expo-router";
+import { Redirect, Tabs } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
 
@@ -18,7 +18,8 @@ import { SecureStorage } from "@/utils/secureStorage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { vendorPendingOrders } = useVendor();
+  const { vendorPendingOrders, vendor, vendorRole, isVendorLoading } =
+    useVendor();
   const insets = useSafeAreaInsets();
   // Live orders (anything not delivered/cancelled) — badge on Activities tab
   const [liveOrderCount, setLiveOrderCount] = React.useState<number>(0);
@@ -81,6 +82,14 @@ export default function TabLayout() {
       }
     };
   }, [refreshLiveCount]);
+
+  // Cashiers are limited to the vendor dashboard (order management) only —
+  // they have no access to the customer side of the app. Once their vendor
+  // membership has resolved, bounce any attempt to open the customer tabs
+  // straight to the dashboard.
+  if (!isVendorLoading && vendor && vendorRole === "CASHIER") {
+    return <Redirect href="/vendor/dashboard" />;
+  }
 
   return (
     <Tabs

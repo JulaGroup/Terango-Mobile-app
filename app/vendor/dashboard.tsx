@@ -13,19 +13,48 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import { Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import WebSocketService from "@/services/websocket.service";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi, userApi, VendorStats } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { SecureStorage } from "@/utils/secureStorage";
 import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
 
 const { width } = Dimensions.get("window");
 
 export default function VendorDashboard() {
   const router = useRouter();
-  const { vendor, currentBusiness, isVendorLoading, refreshVendorData, isVendorAdmin } =
-    useVendor();
+  const {
+    vendor,
+    currentBusiness,
+    isVendorLoading,
+    refreshVendorData,
+    isVendorAdmin,
+    logoutVendor,
+  } = useVendor();
+
+  // Cashiers live entirely inside the dashboard — there is no customer app to
+  // return to, so the header's back control logs them out instead.
+  const handleCashierLogout = useCallback(() => {
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Log out",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logoutVendor();
+          } catch {
+            /* ignore */
+          }
+          await SecureStorage.clearAuthData();
+          router.replace("/auth");
+        },
+      },
+    ]);
+  }, [logoutVendor, router]);
   const [metrics, setMetrics] = useState<VendorStats>({
     totalOrders: 0,
     completedOrders: 0,
@@ -302,9 +331,15 @@ export default function VendorDashboard() {
             <View style={styles.headerLeft}>
               <TouchableOpacity
                 style={styles.backToAppButton}
-                onPress={() => router.back()}
+                onPress={() =>
+                  isVendorAdmin ? router.back() : handleCashierLogout()
+                }
               >
-                <Ionicons name="arrow-back" size={24} color="white" />
+                <Ionicons
+                  name={isVendorAdmin ? "arrow-back" : "log-out-outline"}
+                  size={24}
+                  color="white"
+                />
               </TouchableOpacity>
               <View style={styles.headerTitleContainer}>
                 <Text style={styles.headerTitle}>{getBusinessName()}</Text>

@@ -2,6 +2,7 @@ import { verifyOtp, safeGetItem } from "@/actions/auth.ts/action";
 import BackButton from "@/components/common/BackButton";
 import OTPTextInput from "react-native-otp-textinput";
 import { useRouter } from "expo-router";
+import { useVendor } from "@/context/VendorContext";
 import React, { useRef, useState, useEffect } from "react";
 import {
   StatusBar,
@@ -23,6 +24,7 @@ export default function OTP() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [retryAfter, setRetryAfter] = useState<string | null>(null);
   const router = useRouter();
+  const { refreshVendorData } = useVendor();
 
   // Loader animations
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -112,6 +114,11 @@ export default function OTP() {
       if (isNewUser === true) {
         router.replace("/auth/complete-profile");
       } else {
+        // Resolve vendor membership now so a cashier is recognised the moment
+        // they land — the tab layout redirects cashiers to the vendor
+        // dashboard (their only surface). Fire-and-forget; the guard reacts
+        // as soon as the context updates.
+        refreshVendorData().catch(() => {});
         router.replace("/(tabs)");
       }
     } catch (err: any) {

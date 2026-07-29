@@ -709,7 +709,11 @@ export default function ProfilePage() {
           <Text style={styles.gradientPhone}>{user?.phone || ""}</Text>
           <View style={styles.gradientRoleBadge}>
             <Text style={styles.gradientRoleBadgeText}>
-              {user?.role === "VENDOR" ? "🏪 Vendor Account" : "👤 Customer"}
+              {user?.role === "VENDOR" || user?.vendorRole === "VENDOR_ADMIN"
+                ? "🏪 Vendor Account"
+                : user?.vendorRole === "CASHIER"
+                  ? "🧾 Cashier"
+                  : "👤 Customer"}
             </Text>
           </View>
         </LinearGradient>
