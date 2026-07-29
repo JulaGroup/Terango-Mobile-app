@@ -76,6 +76,33 @@ export interface Business {
   updatedAt: string;
 }
 
+// A recurring shift window for a multi-user vendor.
+export interface VendorShift {
+  id: string;
+  vendorId: string;
+  name: string;
+  startTime: string; // "HH:MM"
+  endTime: string; // "HH:MM"
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// The shift active right now plus its live order/sales tally. The tally is
+// scoped to the active window, so it resets to zero at each shift boundary.
+export interface CurrentShift {
+  multiUserEnabled: boolean;
+  shift: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+  } | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+  stats: { orders: number; sales: number };
+}
+
 export interface VendorData {
   id: string;
   businessName: string;
@@ -444,6 +471,54 @@ export const vendorApi = {
     // Fallback to direct response if format is different
     console.log("⚠️ Using fallback vendor stats format");
     return response;
+  },
+
+  // ── Vendor shifts (multi-user vendors) ─────────────────────────────────
+  // Admin: manage the shift schedule. Cashier + admin: read the active shift.
+  getShifts: async (): Promise<VendorShift[]> => {
+    const res = await apiCall("/api/vendor/shifts");
+    return res?.data ?? [];
+  },
+  createShift: async (input: {
+    name: string;
+    startTime: string;
+    endTime: string;
+  }): Promise<VendorShift> => {
+    const res = await apiCall("/api/vendor/shifts", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return res?.data;
+  },
+  updateShift: async (
+    id: string,
+    input: Partial<{
+      name: string;
+      startTime: string;
+      endTime: string;
+      isActive: boolean;
+    }>,
+  ): Promise<VendorShift> => {
+    const res = await apiCall(`/api/vendor/shifts/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+    return res?.data;
+  },
+  deleteShift: async (id: string): Promise<void> => {
+    await apiCall(`/api/vendor/shifts/${id}`, { method: "DELETE" });
+  },
+  getCurrentShift: async (): Promise<CurrentShift> => {
+    const res = await apiCall("/api/vendor/shifts/current");
+    return (
+      res?.data ?? {
+        multiUserEnabled: false,
+        shift: null,
+        windowStart: null,
+        windowEnd: null,
+        stats: { orders: 0, sales: 0 },
+      }
+    );
   },
 
   // Calculate vendor statistics from businesses - DEPRECATED: Use getVendorStats instead

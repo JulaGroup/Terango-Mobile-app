@@ -17,7 +17,7 @@ import { Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import WebSocketService from "@/services/websocket.service";
 import { useVendor } from "@/context/VendorContext";
-import { vendorApi, userApi, VendorStats } from "@/lib/api";
+import { vendorApi, userApi, VendorStats, CurrentShift } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { SecureStorage } from "@/utils/secureStorage";
 import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
@@ -70,6 +70,19 @@ export default function VendorDashboard() {
   const [isLoading, setIsLoading] = useState(true); // Start as true
   const [refreshing, setRefreshing] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [currentShift, setCurrentShift] = useState<CurrentShift | null>(null);
+
+  // Live shift tally (multi-user vendors). Scoped to the active shift window,
+  // so it naturally resets to zero when the next shift begins.
+  const fetchCurrentShift = useCallback(async () => {
+    try {
+      const shift = await vendorApi.getCurrentShift();
+      setCurrentShift(shift);
+    } catch (err) {
+      // Non-fatal — single-user vendors and errors simply hide the card.
+      console.warn("Failed to fetch current shift:", err);
+    }
+  }, []);
 
   // Get business name for header
   const getBusinessName = () => {
@@ -155,6 +168,7 @@ export default function VendorDashboard() {
     if (vendor && !hasAttemptedLoad) {
       console.log("🚀 Initial dashboard data fetch");
       fetchDashboardData();
+      fetchCurrentShift();
     } else if (!vendor && !isVendorLoading) {
       // If no vendor and not loading, mark as attempted
       console.log("⚠️ No vendor and not loading, marking as attempted");
@@ -171,6 +185,7 @@ export default function VendorDashboard() {
     if (!vendor?.id) return;
     const refreshOnOrderChange = () => {
       fetchDashboardData();
+      fetchCurrentShift();
     };
     // Ensure the socket is connected + joined to this vendor's room, since the
     // dashboard may be the first screen the vendor opens (connection is
@@ -197,13 +212,20 @@ export default function VendorDashboard() {
   // Orders screen after changing a status), covering any missed socket event.
   useFocusEffect(
     useCallback(() => {
-      if (vendor) fetchDashboardData();
-    }, [vendor, fetchDashboardData]),
+      if (vendor) {
+        fetchDashboardData();
+        fetchCurrentShift();
+      }
+    }, [vendor, fetchDashboardData, fetchCurrentShift]),
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refreshVendorData(), fetchDashboardData()]);
+    await Promise.all([
+      refreshVendorData(),
+      fetchDashboardData(),
+      fetchCurrentShift(),
+    ]);
     setRefreshing(false);
   };
 
@@ -386,6 +408,58 @@ export default function VendorDashboard() {
           <SubscriptionStatus />
         </View> */}
 
+        {/* Current Shift tracker (multi-user vendors). Always shown to
+            cashiers — it's their main surface — and to admins when a shift is
+            active. The tally covers only the active shift and resets each
+            shift. */}
+        {currentShift?.multiUserEnabled && (
+          <View style={styles.shiftSection}>
+            <Text style={styles.sectionTitle}>Current Shift</Text>
+            {currentShift?.shift ? (
+              <View style={styles.shiftCard}>
+                <View style={styles.shiftHeaderRow}>
+                  <View style={styles.shiftBadge}>
+                    <Ionicons name="time-outline" size={16} color={PrimaryColor} />
+                    <Text style={styles.shiftName}>
+                      {currentShift.shift.name}
+                    </Text>
+                  </View>
+                  <Text style={styles.shiftWindow}>
+                    {currentShift.shift.startTime} – {currentShift.shift.endTime}
+                  </Text>
+                </View>
+                <View style={styles.shiftStatsRow}>
+                  <View style={styles.shiftStat}>
+                    <Text style={styles.shiftStatValue}>
+                      {currentShift.stats.orders}
+                    </Text>
+                    <Text style={styles.shiftStatLabel}>Orders this shift</Text>
+                  </View>
+                  <View style={styles.shiftStatDivider} />
+                  <View style={styles.shiftStat}>
+                    <Text style={styles.shiftStatValue}>
+                      {formatCurrency(currentShift.stats.sales)}
+                    </Text>
+                    <Text style={styles.shiftStatLabel}>Sales this shift</Text>
+                  </View>
+                </View>
+                <Text style={styles.shiftFootnote}>
+                  Resets automatically when the next shift starts.
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.shiftCard}>
+                <View style={styles.shiftEmpty}>
+                  <Ionicons name="moon-outline" size={22} color="#999" />
+                  <Text style={styles.shiftEmptyText}>
+                    No active shift right now.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
           <Text style={styles.sectionTitle}>Manage Your Business</Text>
@@ -420,6 +494,15 @@ export default function VendorDashboard() {
                   icon="storefront-outline"
                   color={PrimaryColor}
                   onPress={() => router.push("/vendor/products")}
+                />
+              )}
+              {currentShift?.multiUserEnabled && (
+                <NavigationCard
+                  title="Shifts"
+                  subtitle="Set staff shift times"
+                  icon="time-outline"
+                  color={PrimaryColor}
+                  onPress={() => router.push("/vendor/shifts" as any)}
                 />
               )}
               <NavigationCard
@@ -642,6 +725,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 4,
+  },
+  shiftSection: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 0,
+  },
+  shiftCard: {
+    backgroundColor: "white",
+    borderRadius: 14,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  shiftHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  shiftBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#FFF4EC",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  shiftName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1A1A1A",
+  },
+  shiftWindow: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#666",
+  },
+  shiftStatsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  shiftStat: {
+    flex: 1,
+    alignItems: "center",
+  },
+  shiftStatDivider: {
+    width: 1,
+    alignSelf: "stretch",
+    backgroundColor: "#EEE",
+  },
+  shiftStatValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: PrimaryColor,
+    marginBottom: 2,
+  },
+  shiftStatLabel: {
+    fontSize: 11,
+    color: "#888",
+  },
+  shiftFootnote: {
+    fontSize: 11,
+    color: "#AAA",
+    marginTop: 10,
+    textAlign: "center",
+  },
+  shiftEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 8,
+  },
+  shiftEmptyText: {
+    fontSize: 14,
+    color: "#999",
+    fontWeight: "500",
   },
   sectionTitle: {
     fontSize: 13,
