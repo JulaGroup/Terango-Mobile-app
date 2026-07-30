@@ -17,7 +17,13 @@ import { Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import WebSocketService from "@/services/websocket.service";
 import { useVendor } from "@/context/VendorContext";
-import { vendorApi, userApi, VendorStats, CurrentShift } from "@/lib/api";
+import {
+  vendorApi,
+  userApi,
+  VendorStats,
+  CurrentShift,
+  ShiftDaySummary,
+} from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { SecureStorage } from "@/utils/secureStorage";
 import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
@@ -71,6 +77,7 @@ export default function VendorDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [currentShift, setCurrentShift] = useState<CurrentShift | null>(null);
+  const [shiftSummary, setShiftSummary] = useState<ShiftDaySummary | null>(null);
 
   // Live shift tally (multi-user vendors). Scoped to the active shift window,
   // so it naturally resets to zero when the next shift begins.
@@ -81,6 +88,17 @@ export default function VendorDashboard() {
     } catch (err) {
       // Non-fatal — single-user vendors and errors simply hide the card.
       console.warn("Failed to fetch current shift:", err);
+    }
+  }, []);
+
+  // Today's per-shift breakdown — the admin's daily record, since the live
+  // tally above resets each shift.
+  const fetchShiftSummary = useCallback(async () => {
+    try {
+      const summary = await vendorApi.getShiftSummary();
+      setShiftSummary(summary);
+    } catch (err) {
+      console.warn("Failed to fetch shift summary:", err);
     }
   }, []);
 
@@ -169,6 +187,7 @@ export default function VendorDashboard() {
       console.log("🚀 Initial dashboard data fetch");
       fetchDashboardData();
       fetchCurrentShift();
+      fetchShiftSummary();
     } else if (!vendor && !isVendorLoading) {
       // If no vendor and not loading, mark as attempted
       console.log("⚠️ No vendor and not loading, marking as attempted");
@@ -186,6 +205,7 @@ export default function VendorDashboard() {
     const refreshOnOrderChange = () => {
       fetchDashboardData();
       fetchCurrentShift();
+      fetchShiftSummary();
     };
     // Ensure the socket is connected + joined to this vendor's room, since the
     // dashboard may be the first screen the vendor opens (connection is
@@ -215,8 +235,9 @@ export default function VendorDashboard() {
       if (vendor) {
         fetchDashboardData();
         fetchCurrentShift();
+        fetchShiftSummary();
       }
-    }, [vendor, fetchDashboardData, fetchCurrentShift]),
+    }, [vendor, fetchDashboardData, fetchCurrentShift, fetchShiftSummary]),
   );
 
   const onRefresh = async () => {
@@ -225,6 +246,7 @@ export default function VendorDashboard() {
       refreshVendorData(),
       fetchDashboardData(),
       fetchCurrentShift(),
+      fetchShiftSummary(),
     ]);
     setRefreshing(false);
   };
@@ -466,6 +488,54 @@ export default function VendorDashboard() {
             )}
           </View>
         )}
+
+        {/* Today's shifts — the admin's daily record (each shift's orders and
+            money, kept even as the live tally above resets each shift). */}
+        {isVendorAdmin &&
+          currentShift?.multiUserEnabled &&
+          (shiftSummary?.shifts.length ?? 0) > 0 && (
+            <View style={styles.shiftSection}>
+              <Text style={styles.sectionTitle}>Today&apos;s Shifts</Text>
+              <View style={styles.shiftCard}>
+                {shiftSummary!.shifts.map((row, idx) => (
+                  <View
+                    key={row.shift.id}
+                    style={[
+                      styles.summaryRow,
+                      idx > 0 && styles.summaryRowBorder,
+                    ]}
+                  >
+                    <View style={styles.summaryLeft}>
+                      <Text style={styles.summaryName}>{row.shift.name}</Text>
+                      <Text style={styles.summaryWindow}>
+                        {row.shift.startTime} – {row.shift.endTime}
+                      </Text>
+                    </View>
+                    <View style={styles.summaryNums}>
+                      <Text style={styles.summaryOrders}>
+                        {row.stats.completed}/{row.stats.orders} done
+                      </Text>
+                      <Text style={styles.summaryMoney}>
+                        {formatCurrency(row.stats.sales)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                <View style={[styles.summaryRow, styles.summaryTotalRow]}>
+                  <Text style={styles.summaryTotalLabel}>Today total</Text>
+                  <View style={styles.summaryNums}>
+                    <Text style={styles.summaryOrders}>
+                      {shiftSummary!.totals.completed}/
+                      {shiftSummary!.totals.orders} done
+                    </Text>
+                    <Text style={styles.summaryTotalMoney}>
+                      {formatCurrency(shiftSummary!.totals.sales)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
 
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
@@ -817,6 +887,59 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     fontWeight: "500",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+  },
+  summaryRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: "#F1F1F1",
+  },
+  summaryLeft: {
+    flex: 1,
+  },
+  summaryName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#1A1A1A",
+  },
+  summaryWindow: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 2,
+  },
+  summaryNums: {
+    alignItems: "flex-end",
+  },
+  summaryOrders: {
+    fontSize: 12,
+    color: "#666",
+    marginBottom: 2,
+  },
+  summaryMoney: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#1A1A1A",
+  },
+  summaryTotalRow: {
+    borderTopWidth: 1,
+    borderTopColor: "#E5E5E5",
+    marginTop: 2,
+  },
+  summaryTotalLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#666",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  summaryTotalMoney: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: PrimaryColor,
   },
   sectionTitle: {
     fontSize: 13,

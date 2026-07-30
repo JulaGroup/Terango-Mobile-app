@@ -103,6 +103,17 @@ export interface CurrentShift {
   stats: { orders: number; completed: number; sales: number };
 }
 
+// A record of what each shift did on a given day. Computed from orders, so any
+// past day can be queried — this is the vendor's shift history.
+export interface ShiftDaySummary {
+  date: string; // YYYY-MM-DD
+  shifts: Array<{
+    shift: { id: string; name: string; startTime: string; endTime: string };
+    stats: { orders: number; completed: number; sales: number };
+  }>;
+  totals: { orders: number; completed: number; sales: number };
+}
+
 export interface VendorData {
   id: string;
   businessName: string;
@@ -507,6 +518,17 @@ export const vendorApi = {
   },
   deleteShift: async (id: string): Promise<void> => {
     await apiCall(`/api/vendor/shifts/${id}`, { method: "DELETE" });
+  },
+  getShiftSummary: async (date?: string): Promise<ShiftDaySummary> => {
+    const q = date ? `?date=${encodeURIComponent(date)}` : "";
+    const res = await apiCall(`/api/vendor/shifts/summary${q}`);
+    return (
+      res?.data ?? {
+        date: "",
+        shifts: [],
+        totals: { orders: 0, completed: 0, sales: 0 },
+      }
+    );
   },
   getCurrentShift: async (): Promise<CurrentShift> => {
     const res = await apiCall("/api/vendor/shifts/current");
