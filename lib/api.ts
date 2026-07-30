@@ -100,7 +100,7 @@ export interface CurrentShift {
   } | null;
   windowStart: string | null;
   windowEnd: string | null;
-  stats: { orders: number; sales: number };
+  stats: { orders: number; completed: number; sales: number };
 }
 
 export interface VendorData {
@@ -516,7 +516,7 @@ export const vendorApi = {
         shift: null,
         windowStart: null,
         windowEnd: null,
-        stats: { orders: 0, sales: 0 },
+        stats: { orders: 0, completed: 0, sales: 0 },
       }
     );
   },

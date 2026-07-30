@@ -433,14 +433,21 @@ export default function VendorDashboard() {
                     <Text style={styles.shiftStatValue}>
                       {currentShift.stats.orders}
                     </Text>
-                    <Text style={styles.shiftStatLabel}>Orders this shift</Text>
+                    <Text style={styles.shiftStatLabel}>Orders</Text>
+                  </View>
+                  <View style={styles.shiftStatDivider} />
+                  <View style={styles.shiftStat}>
+                    <Text style={styles.shiftStatValue}>
+                      {currentShift.stats.completed}
+                    </Text>
+                    <Text style={styles.shiftStatLabel}>Completed</Text>
                   </View>
                   <View style={styles.shiftStatDivider} />
                   <View style={styles.shiftStat}>
                     <Text style={styles.shiftStatValue}>
                       {formatCurrency(currentShift.stats.sales)}
                     </Text>
-                    <Text style={styles.shiftStatLabel}>Sales this shift</Text>
+                    <Text style={styles.shiftStatLabel}>Money made</Text>
                   </View>
                 </View>
                 <Text style={styles.shiftFootnote}>
@@ -505,13 +512,14 @@ export default function VendorDashboard() {
                   onPress={() => router.push("/vendor/shifts" as any)}
                 />
               )}
+              {/* Analytics temporarily hidden.
               <NavigationCard
                 title="Analytics"
                 subtitle="View detailed reports"
                 icon="bar-chart-outline"
                 color={PrimaryColor}
                 onPress={() => router.push("/vendor/earnings")}
-              />
+              /> */}
               <NavigationCard
                 title="Settings"
                 subtitle="Business settings"
