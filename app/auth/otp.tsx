@@ -3,6 +3,7 @@ import BackButton from "@/components/common/BackButton";
 import OTPTextInput from "react-native-otp-textinput";
 import { useRouter } from "expo-router";
 import { useVendor } from "@/context/VendorContext";
+import { userApi } from "@/lib/api";
 import React, { useRef, useState, useEffect } from "react";
 import {
   StatusBar,
@@ -114,12 +115,26 @@ export default function OTP() {
       if (isNewUser === true) {
         router.replace("/auth/complete-profile");
       } else {
-        // Resolve vendor membership now so a cashier is recognised the moment
-        // they land — the tab layout redirects cashiers to the vendor
-        // dashboard (their only surface). Fire-and-forget; the guard reacts
-        // as soon as the context updates.
-        refreshVendorData().catch(() => {});
-        router.replace("/(tabs)");
+        // Decide where to land based on the user's vendor role. Cashiers are
+        // locked to the vendor dashboard, so route them there DIRECTLY — this
+        // avoids the customer home screen flashing before the tab-layout guard
+        // can redirect. Only vendor staff trigger a vendor-data load, so normal
+        // customers are unaffected.
+        try {
+          const profile = await userApi.getCurrentUser();
+          const vRole = profile?.user?.vendorRole;
+          const isVendorUser = profile?.user?.role === "VENDOR" || !!vRole;
+          if (isVendorUser) {
+            await refreshVendorData();
+          }
+          if (vRole === "CASHIER") {
+            router.replace("/vendor/dashboard");
+          } else {
+            router.replace("/(tabs)");
+          }
+        } catch {
+          router.replace("/(tabs)");
+        }
       }
     } catch (err: any) {
       // show nicer UI messages for rate limit and others

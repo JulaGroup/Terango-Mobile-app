@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { HapticTab } from "@/components/HapticTab";
 import { IconSymbol } from "@/components/ui/IconSymbol";
@@ -21,6 +22,23 @@ export default function TabLayout() {
   const { vendorPendingOrders, vendor, vendorRole, isVendorLoading } =
     useVendor();
   const insets = useSafeAreaInsets();
+
+  // Cached cashier hint from the last resolved session. Lets us redirect a
+  // cashier to the vendor dashboard on cold start before the (network) vendor
+  // resolution finishes, so the customer home never flashes. We still defer to
+  // the real resolution once it's available (handles a demoted cashier).
+  const [roleHint, setRoleHint] = React.useState<string | null | undefined>(
+    undefined,
+  );
+  React.useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem("@vendor_role_hint").then((v) => {
+      if (alive) setRoleHint(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   // Live orders (anything not delivered/cancelled) — badge on Activities tab
   const [liveOrderCount, setLiveOrderCount] = React.useState<number>(0);
 
@@ -84,10 +102,15 @@ export default function TabLayout() {
   }, [refreshLiveCount]);
 
   // Cashiers are limited to the vendor dashboard (order management) only —
-  // they have no access to the customer side of the app. Once their vendor
-  // membership has resolved, bounce any attempt to open the customer tabs
-  // straight to the dashboard.
-  if (!isVendorLoading && vendor && vendorRole === "CASHIER") {
+  // they have no access to the customer side of the app. Redirect them there.
+  // Prefer the real resolution; if it isn't ready yet, fall back to the cached
+  // hint so cold starts don't flash the customer home. Never redirect once the
+  // resolution says they're NOT a cashier (covers a demoted cashier).
+  const resolvedCashier =
+    !isVendorLoading && !!vendor && vendorRole === "CASHIER";
+  const resolvedNonCashier =
+    !isVendorLoading && (!vendor || vendorRole !== "CASHIER");
+  if (resolvedCashier || (!resolvedNonCashier && roleHint === "CASHIER")) {
     return <Redirect href="/vendor/dashboard" />;
   }
 

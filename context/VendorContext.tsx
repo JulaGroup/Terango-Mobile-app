@@ -82,6 +82,10 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
       // full-access admin so existing single-account vendors are unaffected.
       const vendorRole: VendorRole =
         userData.vendorRole === "CASHIER" ? "CASHIER" : "VENDOR_ADMIN";
+      // Cache the role so the tab layout can redirect a cashier to the vendor
+      // dashboard on the next cold start BEFORE the (network) resolution
+      // finishes — avoids the customer home flashing.
+      AsyncStorage.setItem("@vendor_role_hint", vendorRole).catch(() => {});
       console.log("📞 Calling getVendorBusinesses with ID:", userData.id);
 
       // Try to get businesses first
@@ -388,6 +392,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({ children }) => {
       // Clear all vendor-related storage
       await AsyncStorage.removeItem("@vendor_token");
       await AsyncStorage.removeItem("@vendor_data");
+      await AsyncStorage.removeItem("@vendor_role_hint");
       await AsyncStorage.removeItem("@auth_token"); // Clear main auth token too
 
       // Clear state
