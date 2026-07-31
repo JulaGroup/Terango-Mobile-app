@@ -15,7 +15,8 @@ import {
 } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { useCart } from "@/context/CartContext";
-import { userApi, orderApi } from "@/lib/api";
+import { userApi, orderApi, paymentApi } from "@/lib/api";
+import * as WebBrowser from "expo-web-browser";
 import { debugAuthState } from "@/utils/debugAuth";
 import { SecureStorage } from "@/utils/secureStorage";
 import { Ionicons } from "@expo/vector-icons";
@@ -1401,7 +1402,12 @@ export default function Checkout() {
             // so the user can view it or continue shopping without waiting for
             // the rest of the vendor orders to finish.
             try {
-              if (createdOrderIds.length === 1) {
+              // For bank, don't show success yet — payment happens on the
+              // hosted page after all orders are created.
+              if (
+                createdOrderIds.length === 1 &&
+                selectedPaymentMethod !== "bank"
+              ) {
                 await handleOrderCreated(created.id);
                 createdOrderIdsShown = true;
                 // Route user to home immediately so the global OrderSuccessModal
@@ -1422,10 +1428,48 @@ export default function Checkout() {
         }
 
         if (createdOrderIds.length > 0) {
-          // If we already showed the modal when the first order was created,
-          // skip calling handleOrderCreated again. Otherwise show for the
-          // first created order now.
-          if (!createdOrderIdsShown) {
+          if (selectedPaymentMethod === "bank") {
+            // Take a single bank payment for the whole cart via Modem Pay's
+            // hosted page. The webhook marks the order(s) paid and the
+            // paymentSuccess socket then shows the success modal.
+            try {
+              setPaymentStatus("pending");
+              const res = await paymentApi.createBankPayment({
+                orderId: createdOrderIds[0],
+                orderIds: createdOrderIds,
+                amount: total,
+                customerName: form.name,
+                customerPhone: form.phone,
+                customerEmail: form.email || undefined,
+              });
+              const link = res?.paymentLink;
+              if (link) {
+                await WebBrowser.openBrowserAsync(link);
+                Alert.alert(
+                  "Complete your bank payment",
+                  "Finish the payment to confirm your order. You'll be notified as soon as it's received.",
+                  [{ text: "OK", onPress: () => router.replace("/(tabs)/orders") }],
+                );
+              } else {
+                Alert.alert(
+                  "Order created",
+                  "Your order was placed, but we couldn't open bank payment. You can pay it from your Orders.",
+                  [{ text: "OK", onPress: () => router.replace("/(tabs)/orders") }],
+                );
+              }
+            } catch (bankErr: any) {
+              console.warn("Bank payment start failed:", bankErr?.message || bankErr);
+              Alert.alert(
+                "Order created",
+                "Your order was placed, but bank payment couldn't start. You can pay it from your Orders.",
+                [{ text: "OK", onPress: () => router.replace("/(tabs)/orders") }],
+              );
+            } finally {
+              setPaymentStatus(null);
+            }
+          } else if (!createdOrderIdsShown) {
+            // If we already showed the modal when the first order was created,
+            // skip calling handleOrderCreated again. Otherwise show it now.
             await handleOrderCreated(createdOrderIds[0]);
           }
         } else {
@@ -1918,9 +1962,22 @@ export default function Checkout() {
                     "Methods:",
                     paymentMethods,
                   );
+                  setSelectedPaymentMethod("mobile");
                   // Open payment method picker modal
                   setPaymentMethodPickerVisible(true);
                 }}
+              />
+
+              {/* Bank — pay via Modem Pay's hosted bank page after placing the
+                  order. The webhook confirms payment. */}
+              <PaymentMethodCard
+                method="bank"
+                icon="business"
+                title="Bank"
+                subtitle="Pay from your bank on the next screen"
+                selected={selectedPaymentMethod === "bank"}
+                showArrow={false}
+                onPress={() => setSelectedPaymentMethod("bank")}
               />
             </Animated.View>
 

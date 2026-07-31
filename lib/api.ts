@@ -376,6 +376,34 @@ const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   return data;
 };
 
+// Payment API
+export const paymentApi = {
+  // Create a Modem Pay bank payment for one or more orders. A multi-vendor cart
+  // produces several orders but takes a single payment; pass all their ids.
+  // Returns a hosted payment link to open in the browser — the webhook then
+  // confirms payment and the app is notified via the paymentSuccess socket.
+  createBankPayment: async (data: {
+    orderId: string;
+    orderIds?: string[];
+    amount: number;
+    customerName?: string;
+    customerPhone?: string;
+    customerEmail?: string;
+  }): Promise<{ paymentLink?: string; provider?: string }> => {
+    return apiCall("/api/payments", {
+      method: "POST",
+      body: JSON.stringify({
+        orderId: data.orderId,
+        orderIds: data.orderIds,
+        amount: data.amount,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerEmail: data.customerEmail,
+      }),
+    });
+  },
+};
+
 // Vendor API functions
 export const vendorApi = {
   // Get vendor profile and businesses by user ID
