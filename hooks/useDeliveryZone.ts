@@ -20,7 +20,7 @@ export const DELIVERY_HUB = {
 } as const;
 
 /** Maximum straight-line distance (km) a customer can be from the hub */
-export const MAX_DELIVERY_RADIUS_KM = 15;
+export const MAX_DELIVERY_RADIUS_KM = 50;
 
 // ─── Haversine helper ────────────────────────────────────────────────────────
 
