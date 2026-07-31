@@ -2549,53 +2549,11 @@ export default function Checkout() {
                         )}
                       </View>
 
-                      {/* Base + distance fee rows */}
-                      {deliveryEstimate.weightAnalysis?.baseVehicleFee !==
-                        undefined &&
-                        deliveryEstimate.weightAnalysis?.distanceFee !==
-                          undefined && (
-                          <View style={styles.deliveryBreakdownRows}>
-                            <View style={styles.deliveryBreakdownRow}>
-                              <Text style={styles.deliveryBreakdownRowLabel}>
-                                Base fee
-                              </Text>
-                              <Text style={styles.deliveryBreakdownRowValue}>
-                                D
-                                {Math.ceil(
-                                  deliveryEstimate.weightAnalysis
-                                    .baseVehicleFee,
-                                )}
-                              </Text>
-                            </View>
-                            <View style={styles.deliveryBreakdownRow}>
-                              <Text style={styles.deliveryBreakdownRowLabel}>
-                                Distance fee
-                                {deliveryEstimate.weightAnalysis.perKmFee
-                                  ? ` (D${Math.ceil(deliveryEstimate.weightAnalysis.perKmFee)}/km)`
-                                  : ""}
-                              </Text>
-                              <Text style={styles.deliveryBreakdownRowValue}>
-                                D
-                                {Math.ceil(
-                                  deliveryEstimate.weightAnalysis.distanceFee,
-                                )}
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.deliveryBreakdownRow,
-                                styles.deliveryBreakdownTotalRow,
-                              ]}
-                            >
-                              <Text style={styles.deliveryBreakdownTotalLabel}>
-                                Total delivery
-                              </Text>
-                              <Text style={styles.deliveryBreakdownTotalValue}>
-                                D{Math.ceil(deliveryEstimate.deliveryFee)}
-                              </Text>
-                            </View>
-                          </View>
-                        )}
+                      {/* Cost breakdown (base + distance fee) intentionally
+                          omitted — we show only what justifies the fee
+                          (distance, ETA, delivery type) above, not the internal
+                          cost decomposition. The total delivery fee remains
+                          visible in the "Delivery Fee" row. */}
                     </View>
                   )}
 
