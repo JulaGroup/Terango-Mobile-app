@@ -44,7 +44,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
   const router = useRouter();
   const [imageLoadError, setImageLoadError] = useState(false);
 
-  const CARD_WIDTH = fullWidth ? width - 32 : width * 0.75;
+  const CARD_WIDTH = fullWidth ? width - 32 : width * 0.7;
 
   const operatingStatus = React.useMemo(
     () =>
@@ -79,17 +79,15 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
       style={{
         width: CARD_WIDTH,
         backgroundColor: "#fff",
-        borderRadius: 16,
-        marginRight: fullWidth ? 0 : 16,
-        marginVertical: 8,
-        elevation: 12,
+        borderRadius: 12,
+        marginRight: fullWidth ? 0 : 12,
+        marginVertical: 6,
+        elevation: 2,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
         overflow: "hidden",
-        borderWidth: 0.5,
-        borderColor: "rgba(0, 0, 0, 0.08)",
       }}
       onPress={() =>
         router.push({
@@ -151,7 +149,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
           {restaurant.name}
         </Text>
 
-        <Text style={styles.restaurantDesc} numberOfLines={2}>
+        <Text style={styles.restaurantDesc} numberOfLines={1}>
           {restaurant.description || "Fresh and delicious food"}
         </Text>
 
@@ -200,7 +198,7 @@ const RestaurantCard: React.FC<RestaurantCardProps> = ({
 const styles = {
   imageContainer: {
     position: "relative" as const,
-    height: 140,
+    height: 118,
   },
   image: {
     width: "100%" as const,
@@ -253,18 +251,20 @@ const styles = {
     letterSpacing: 0.5,
   },
   restaurantInfo: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   restaurantName: {
-    fontSize: 16,
-    fontWeight: "bold" as const,
+    fontSize: 15,
+    fontWeight: "700" as const,
     color: "#333",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   restaurantDesc: {
     fontSize: 12,
     color: "#666",
-    marginBottom: 8,
+    marginBottom: 6,
     lineHeight: 16,
   },
   restaurantFooter: {

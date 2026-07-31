@@ -44,7 +44,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
   const [imageLoadError, setImageLoadError] = useState(false);
 
   const reviewCount = shop.totalReviews || Math.floor(Math.random() * 450 + 50);
-  const cardWidth = fullWidth ? width - 32 : 280;
+  const cardWidth = fullWidth ? width - 32 : width * 0.7;
 
   const operatingStatus = React.useMemo(
     () =>
@@ -79,17 +79,15 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
       style={{
         width: cardWidth,
         backgroundColor: "#fff",
-        borderRadius: 16,
-        marginRight: fullWidth ? 0 : 16,
-        marginVertical: fullWidth ? 8 : 0,
-        elevation: 12,
+        borderRadius: 12,
+        marginRight: fullWidth ? 0 : 12,
+        marginVertical: fullWidth ? 6 : 0,
+        elevation: 2,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
         overflow: "hidden",
-        borderWidth: 0.5,
-        borderColor: "rgba(0, 0, 0, 0.08)",
       }}
       onPress={() =>
         router.push({
@@ -155,7 +153,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
           {shop.name}
         </Text>
 
-        <Text style={styles.shopDesc} numberOfLines={2}>
+        <Text style={styles.shopDesc} numberOfLines={1}>
           {shop.description || "Quality products served fresh"}
         </Text>
 
@@ -201,13 +199,6 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
             </View>
           )}
         </View>
-
-        {shop.acceptsOrders && (
-          <View style={styles.acceptsOrdersBadge}>
-            <Ionicons name="checkmark-circle" size={12} color="#27AE60" />
-            <Text style={styles.acceptsOrdersText}>Accepts Orders</Text>
-          </View>
-        )}
       </View>
     </TouchableOpacity>
   );
@@ -216,7 +207,7 @@ const ShopCard: React.FC<ShopCardProps> = ({ shop, fullWidth = false }) => {
 const styles = {
   imageContainer: {
     position: "relative" as const,
-    height: 140,
+    height: 118,
   },
   image: {
     width: "100%" as const,
@@ -268,18 +259,20 @@ const styles = {
     letterSpacing: 0.5,
   },
   shopInfo: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   shopName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700" as const,
     color: "#1F2937",
-    marginBottom: 4,
+    marginBottom: 3,
   },
   shopDesc: {
     fontSize: 12,
     color: "#6B7280",
-    marginBottom: 8,
+    marginBottom: 6,
     lineHeight: 16,
   },
   shopTypeBadge: {
@@ -288,7 +281,7 @@ const styles = {
     paddingVertical: 2,
     borderRadius: 8,
     alignSelf: "flex-start" as const,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   shopTypeBadgeText: {
     fontSize: 10,
@@ -299,7 +292,6 @@ const styles = {
     flexDirection: "row" as const,
     justifyContent: "space-between" as const,
     alignItems: "center" as const,
-    marginBottom: 8,
   },
   locationRow: {
     flexDirection: "row" as const,
