@@ -2767,7 +2767,9 @@ export default function Checkout() {
             <View style={styles.modalContainer}>
               <Text style={styles.modalTitle}>Order placed 🎉</Text>
               <Text style={styles.modalMessage}>
-                Your order has been placed successfully.
+                Your order is in! No payment yet — you&apos;ll pay once the
+                vendor accepts it. We&apos;ll alert you, then just tap
+                &quot;Pay Now&quot; to confirm.
               </Text>
               <View style={styles.modalActions}>
                 <TouchableOpacity

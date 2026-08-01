@@ -43,6 +43,7 @@ import OfflineNotice from "@/components/common/OfflineNotice";
 import CookieConsent from "@/components/CookieConsent";
 import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 import FloatingCartBar from "@/components/common/FloatingCartBar";
+import PaymentPromptListener from "@/components/PaymentPromptListener";
 
 /** Renders a full-screen maintenance overlay when appMaintenanceMode is on. */
 function GlobalMaintenanceGate({ children }: { children: React.ReactNode }) {
@@ -819,6 +820,8 @@ export default function RootLayout() {
                             </Stack>
 
                             <FloatingCartBar />
+
+                            <PaymentPromptListener />
 
                             <StatusBar barStyle="default" />
                           </GlobalMaintenanceGate>
