@@ -1968,9 +1968,10 @@ export default function Checkout() {
                 }}
               />
 
-              {/* Bank — pay via Modem Pay's hosted bank page after placing the
-                  order. The webhook confirms payment. */}
-              <PaymentMethodCard
+              {/* Bank payment temporarily hidden — not fully ready yet. The
+                  option and its handling logic remain in place; re-enable this
+                  card when bank is live on the Modem Pay account. */}
+              {/* <PaymentMethodCard
                 method="bank"
                 icon="business"
                 title="Bank"
@@ -1978,7 +1979,7 @@ export default function Checkout() {
                 selected={selectedPaymentMethod === "bank"}
                 showArrow={false}
                 onPress={() => setSelectedPaymentMethod("bank")}
-              />
+              /> */}
             </Animated.View>
 
             <View style={styles.paymentNotice}>
