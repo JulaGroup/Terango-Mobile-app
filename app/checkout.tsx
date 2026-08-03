@@ -314,11 +314,8 @@ export default function Checkout() {
         : (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE)
       : 0;
 
-  // First order: customer pays 75% of delivery fee (company covers the 25% platform cut)
-  // Driver still receives their full 75% — the company simply takes D0 on this order.
-  if (isFirstOrder && form.orderType === "DELIVERY" && deliveryFee > 0) {
-    deliveryFee = Math.round(deliveryFee * 0.75 * 100) / 100;
-  }
+  // First-order delivery discount removed — all customers pay the standard
+  // delivery fee. (isFirstOrder is still fetched but no longer alters the fee.)
 
   // Free delivery from promo code
   if (appliedPromo?.freeDelivery && form.orderType === "DELIVERY") {
