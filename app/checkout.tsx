@@ -120,6 +120,11 @@ export default function Checkout() {
     "pending" | "processing" | "completed" | "failed" | "cancelled" | null
   >(null);
   const [deliveryFeeError, setDeliveryFeeError] = useState(false);
+  // Debounced version of deliveryFeeError for the UI: the fee is often
+  // re-estimated moments later (e.g. once the saved address loads), so we only
+  // surface the "couldn't calculate" banner if the error persists — avoiding a
+  // brief flash before the fee populates.
+  const [showFeeError, setShowFeeError] = useState(false);
   const [orderCreated, setOrderCreated] = useState<{
     visible: boolean;
     orderId?: string | null;
@@ -1020,6 +1025,19 @@ export default function Checkout() {
     return () => clearTimeout(debounceTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.address, form.orderType, form.isGiftOrder, currentAddress, orderTypeReady]);
+
+  // Only show the delivery-fee error banner if the error sticks around. A
+  // transient error (cleared within ~1.4s by a successful re-estimate) never
+  // surfaces, so the customer doesn't see a flash of "couldn't calculate"
+  // right before the fee appears.
+  useEffect(() => {
+    if (deliveryFeeError && !loadingDeliveryFee && !deliveryEstimate) {
+      const t = setTimeout(() => setShowFeeError(true), 1400);
+      return () => clearTimeout(t);
+    }
+    setShowFeeError(false);
+    return undefined;
+  }, [deliveryFeeError, loadingDeliveryFee, deliveryEstimate]);
 
   useEffect(() => {
     Animated.parallel([
@@ -2528,8 +2546,9 @@ export default function Checkout() {
                     </View>
                   </View>
 
-                  {/* Delivery fee error — shown when estimation fails */}
-                  {deliveryFeeError &&
+                  {/* Delivery fee error — shown only when the failure persists
+                      (see showFeeError), so a quick re-estimate doesn't flash */}
+                  {showFeeError &&
                     !loadingDeliveryFee &&
                     !deliveryEstimate && (
                       <TouchableOpacity

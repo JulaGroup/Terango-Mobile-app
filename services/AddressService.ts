@@ -1,6 +1,6 @@
 import axios from "axios";
 import * as Location from "expo-location";
-import { API_URL } from "@/constants/config";
+import { API_URL, GOOGLE_PLACES_API_KEY } from "@/constants/config";
 
 export interface Address {
   id: string;
@@ -307,6 +307,46 @@ export class AddressService {
   static async getCoordinatesFromAddress(
     address: string,
   ): Promise<{ latitude: number; longitude: number } | null> {
+    if (!address) return null;
+
+    // Prefer Google Geocoding — it's reliable in production. Nominatim (below)
+    // is a free OSM service that rate-limits/blocks under real traffic, which
+    // is why the fee estimate failed in the built app but worked in dev.
+    const hasGoogleKey =
+      !!GOOGLE_PLACES_API_KEY &&
+      GOOGLE_PLACES_API_KEY !== "YOUR_ACTUAL_API_KEY_HERE";
+    if (hasGoogleKey) {
+      try {
+        const g = await axios.get(
+          "https://maps.googleapis.com/maps/api/geocode/json",
+          {
+            params: {
+              address,
+              key: GOOGLE_PLACES_API_KEY,
+              components: "country:GM", // bias to The Gambia
+              region: "gm",
+            },
+            timeout: 10000,
+          },
+        );
+        if (g.data?.status === "OK" && g.data.results?.length > 0) {
+          const loc = g.data.results[0].geometry.location;
+          return { latitude: loc.lat, longitude: loc.lng };
+        }
+        console.warn(
+          "Google geocoding returned no result:",
+          g.data?.status,
+          g.data?.error_message,
+        );
+      } catch (gErr: any) {
+        console.warn(
+          "Google geocoding failed, falling back to Nominatim:",
+          gErr?.message || gErr,
+        );
+      }
+    }
+
+    // Fallback: Nominatim (OpenStreetMap).
     try {
       // Wait to respect rate limits
       await this.waitForNominatim();
