@@ -550,8 +550,10 @@ export default function VendorDashboard() {
             badge={metrics.pendingOrders}
           />
 
-          {/* Admin-only cards. Cashiers see order management only. */}
-          {isVendorAdmin && (
+          {/* Management cards. Only for multi-user vendors — a single-user
+              vendor manages menu/products/settings on the web panel and sees
+              only Orders on the app. Cashiers never see these either. */}
+          {isVendorAdmin && currentShift?.multiUserEnabled && (
             <>
               {(currentBusiness?.type === "RESTAURANT" ||
                 vendor?.businessType?.includes("RESTAURANT")) && (
@@ -601,8 +603,9 @@ export default function VendorDashboard() {
           )}
         </View>
 
-        {/* Metrics Grid — business overview is admin-only; cashiers do orders only */}
-        {isVendorAdmin && (
+        {/* Business overview — multi-user vendors only (single-user vendors use
+            the web panel; cashiers do orders only). */}
+        {isVendorAdmin && currentShift?.multiUserEnabled && (
         <View style={styles.metricsSection}>
           <Text style={styles.sectionTitle}>Business Overview</Text>
           <View style={styles.metricsGrid}>

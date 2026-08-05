@@ -744,6 +744,27 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="vendor/shifts"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="vendor/earnings"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="vendor/settings"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="custom-delivery/index"
                                 options={{
                                   animation: "slide_from_right",
