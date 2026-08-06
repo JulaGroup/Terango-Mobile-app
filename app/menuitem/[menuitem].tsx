@@ -11,6 +11,7 @@ import {
   Share,
   Dimensions,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -115,6 +116,12 @@ const MenuItemDetailSkeleton = () => {
   );
 };
 
+interface RequiredChoiceOption {
+  id: string;
+  name: string;
+  price: number;
+}
+
 // Menu Item Interface
 interface MenuItem {
   id: string;
@@ -126,6 +133,10 @@ interface MenuItem {
   preparationTime?: number;
   mealTime?: string;
   isAvailable: boolean;
+  requiredChoice?: {
+    label: string;
+    options: RequiredChoiceOption[];
+  } | null;
   menu: {
     id: string;
     title: string;
@@ -162,6 +173,8 @@ export default function MenuItemDetailPage() {
   const [isFavorite, setIsFavorite] = useState(false);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.95));
+  const [showChoice, setShowChoice] = useState(false);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
   const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
     vendorId: menuItem?.menu?.restaurant?.id,
@@ -218,21 +231,71 @@ export default function MenuItemDetailPage() {
     }
   }, [menuItem, loading, fadeAnim, scaleAnim]);
 
+  // Add a single line to the cart. Used for both the main item and a chosen
+  // required-choice option (each becomes its own cart line).
+  const addLineToCart = (line: {
+    id: string;
+    name: string;
+    price: number;
+    description?: string;
+    imageUrl?: string;
+  }) => {
+    if (!menuItem?.menu?.restaurant) return;
+    addToCart({
+      id: line.id,
+      name: line.name,
+      price: line.price,
+      description: line.description || "",
+      vendorId: menuItem.menu.restaurant.id,
+      vendorName: menuItem.menu.restaurant.name,
+      imageUrl: line.imageUrl || "",
+      entityType: "restaurant" as const,
+    });
+  };
+
   const handleAddToCart = (item: MenuItem) => {
     if (!item.menu?.restaurant) return;
 
-    const cartItem = {
+    // Items that must come with a complementary meal open the picker first.
+    if (item.requiredChoice && item.requiredChoice.options.length > 0) {
+      setSelectedOptionId(null);
+      setShowChoice(true);
+      return;
+    }
+
+    addLineToCart({
       id: item.id,
       name: item.name,
       price: item.price,
       description: item.description || "",
-      vendorId: item.menu.restaurant.id,
-      vendorName: item.menu.restaurant.name,
       imageUrl: item.imageUrl || "",
-      entityType: "restaurant" as const,
-    };
+    });
+  };
 
-    addToCart(cartItem);
+  // Confirm the required complementary choice: add the main item AND the chosen
+  // option, each as its own cart line (so pricing / vendor ticket work as usual).
+  const confirmRequiredChoice = () => {
+    if (!menuItem || !selectedOptionId) return;
+    const option = menuItem.requiredChoice?.options.find(
+      (o) => o.id === selectedOptionId,
+    );
+    if (!option) return;
+
+    addLineToCart({
+      id: menuItem.id,
+      name: menuItem.name,
+      price: menuItem.price,
+      description: menuItem.description || "",
+      imageUrl: menuItem.imageUrl || "",
+    });
+    addLineToCart({
+      id: option.id,
+      name: option.name,
+      price: option.price,
+      description: `With ${menuItem.name}`,
+    });
+    setShowChoice(false);
+    setSelectedOptionId(null);
   };
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -671,11 +734,173 @@ export default function MenuItemDetailPage() {
           </View>
         )}
       </Animated.View>
+
+      {/* Required complementary-meal picker (e.g. soup → swallow). */}
+      <Modal
+        visible={showChoice}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowChoice(false)}
+      >
+        <TouchableOpacity
+          style={styles.choiceOverlay}
+          activeOpacity={1}
+          onPress={() => setShowChoice(false)}
+        >
+          <TouchableOpacity
+            style={styles.choiceSheet}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <View style={styles.choiceHandle} />
+            <Text style={styles.choiceTitle}>{menuItem?.name}</Text>
+            <Text style={styles.choiceSubtitle}>
+              {menuItem?.requiredChoice?.label || "Choose a complementary meal"} ·
+              required
+            </Text>
+            <ScrollView style={{ maxHeight: 340 }}>
+              {menuItem?.requiredChoice?.options.map((opt) => {
+                const selected = selectedOptionId === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[
+                      styles.choiceOption,
+                      selected && styles.choiceOptionSelected,
+                    ]}
+                    onPress={() => setSelectedOptionId(opt.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.choiceRadio,
+                        selected && styles.choiceRadioSelected,
+                      ]}
+                    >
+                      {selected && <View style={styles.choiceRadioDot} />}
+                    </View>
+                    <Text style={styles.choiceOptionName} numberOfLines={1}>
+                      {opt.name}
+                    </Text>
+                    <Text style={styles.choiceOptionPrice}>
+                      +D{Math.ceil(opt.price)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[
+                styles.choiceAddBtn,
+                !selectedOptionId && styles.choiceAddBtnDisabled,
+              ]}
+              disabled={!selectedOptionId}
+              onPress={confirmRequiredChoice}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.choiceAddBtnText}>Add to cart</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Required complementary-meal picker
+  choiceOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  choiceSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  choiceHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 14,
+  },
+  choiceTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  choiceSubtitle: {
+    fontSize: 13,
+    color: "#FF6B00",
+    fontWeight: "600",
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  choiceOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#F0F0F0",
+    marginBottom: 8,
+    gap: 12,
+  },
+  choiceOptionSelected: {
+    borderColor: "#FF6B00",
+    backgroundColor: "#FFF7F0",
+  },
+  choiceRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  choiceRadioSelected: {
+    borderColor: "#FF6B00",
+  },
+  choiceRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FF6B00",
+  },
+  choiceOptionName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  choiceOptionPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  choiceAddBtn: {
+    marginTop: 14,
+    backgroundColor: "#FF6B00",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  choiceAddBtnDisabled: {
+    backgroundColor: "#F3C9AE",
+  },
+  choiceAddBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
   container: {
     flex: 1,
     backgroundColor: "#FFFFFF",
