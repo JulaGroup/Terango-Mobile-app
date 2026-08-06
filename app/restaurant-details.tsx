@@ -17,6 +17,7 @@ import {
   TextInput,
   Image,
   Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -258,6 +259,12 @@ const RestaurantDetailsSkeleton = () => {
   );
 };
 
+interface RequiredChoiceOption {
+  id: string;
+  name: string;
+  price: number;
+}
+
 interface MenuItem {
   id: string;
   name: string;
@@ -267,6 +274,12 @@ interface MenuItem {
   isAvailable: boolean;
   imageUrl?: string;
   mealTime?: string;
+  // Some items must be paired with another menu item (e.g. a soup needs a
+  // swallow, a rice needs a protein). The customer must pick one option.
+  requiredChoice?: {
+    label: string;
+    options: RequiredChoiceOption[];
+  };
 }
 
 interface Menu {
@@ -315,6 +328,9 @@ export default function RestaurantDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<string>("all");
+  // Required-choice modal (e.g. a soup that must come with a swallow).
+  const [choiceItem, setChoiceItem] = useState<MenuItem | null>(null);
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [scrollY] = useState(new Animated.Value(0));
   const [cartPulse] = useState(new Animated.Value(1));
   const [fadeAnim] = useState(new Animated.Value(0));
@@ -627,6 +643,49 @@ export default function RestaurantDetails() {
     Alert.alert("Ordering unavailable", message);
   }, [orderingDisabled, orderingDisabledMessage]);
 
+  // Pulse the cart badge after an add.
+  const pulseCart = useCallback(() => {
+    Animated.sequence([
+      Animated.timing(cartPulse, {
+        toValue: 1.15,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cartPulse, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [cartPulse]);
+
+  // Add a single line to the cart. `override` lets us add a required-choice
+  // option (which reuses an existing menu item's id/name/price) as its own line.
+  const addLineToCart = useCallback(
+    (line: {
+      id: string;
+      name: string;
+      price: number;
+      discountedPrice?: number;
+      description?: string;
+      imageUrl?: string;
+    }) => {
+      if (!restaurant) return;
+      addToCart({
+        id: line.id,
+        name: line.name,
+        price: line.price,
+        discountedPrice: line.discountedPrice,
+        description: line.description || "",
+        vendorId: restaurant.id,
+        vendorName: restaurant.name,
+        imageUrl: line.imageUrl || "",
+        entityType: "restaurant",
+      });
+    },
+    [addToCart, restaurant],
+  );
+
   const handleAddToCart = useCallback(
     (item: MenuItem) => {
       if (!restaurant) {
@@ -638,41 +697,45 @@ export default function RestaurantDetails() {
         return;
       }
 
-      const cartItem = {
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        discountedPrice: item.discountedPrice,
-        description: item.description || "",
-        vendorId: restaurant.id,
-        vendorName: restaurant.name,
-        imageUrl: item.imageUrl || "",
-        entityType: "restaurant",
-      };
+      // Items that require a complementary meal open the picker first.
+      if (item.requiredChoice && item.requiredChoice.options.length > 0) {
+        setChoiceItem(item);
+        setSelectedOptionId(null);
+        return;
+      }
 
-      addToCart(cartItem);
-
-      Animated.sequence([
-        Animated.timing(cartPulse, {
-          toValue: 1.15,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(cartPulse, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      addLineToCart(item);
+      pulseCart();
     },
     [
-      addToCart,
-      cartPulse,
+      addLineToCart,
+      pulseCart,
       handleAddAttemptBlocked,
       orderingDisabled,
       restaurant,
     ],
   );
+
+  // Confirm the required complementary choice: add the main item AND the chosen
+  // option (each as its own cart line, so pricing/vendor ticket work as usual).
+  const confirmRequiredChoice = useCallback(() => {
+    if (!choiceItem || !selectedOptionId) return;
+    const option = choiceItem.requiredChoice?.options.find(
+      (o) => o.id === selectedOptionId,
+    );
+    if (!option) return;
+
+    addLineToCart(choiceItem);
+    addLineToCart({
+      id: option.id,
+      name: option.name,
+      price: option.price,
+      description: `With ${choiceItem.name}`,
+    });
+    pulseCart();
+    setChoiceItem(null);
+    setSelectedOptionId(null);
+  }, [choiceItem, selectedOptionId, addLineToCart, pulseCart]);
 
   const handleRemove = useCallback(
     (productId: string) => {
@@ -1095,11 +1158,173 @@ export default function RestaurantDetails() {
           </TouchableOpacity>
         </Animated.View>
       )}
+
+      {/* Required complementary-meal picker (e.g. soup → swallow). */}
+      <Modal
+        visible={!!choiceItem}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setChoiceItem(null)}
+      >
+        <TouchableOpacity
+          style={styles.choiceOverlay}
+          activeOpacity={1}
+          onPress={() => setChoiceItem(null)}
+        >
+          <TouchableOpacity
+            style={styles.choiceSheet}
+            activeOpacity={1}
+            onPress={() => {}}
+          >
+            <View style={styles.choiceHandle} />
+            <Text style={styles.choiceTitle}>{choiceItem?.name}</Text>
+            <Text style={styles.choiceSubtitle}>
+              {choiceItem?.requiredChoice?.label || "Choose a complementary meal"}{" "}
+              · required
+            </Text>
+            <ScrollView style={{ maxHeight: 340 }}>
+              {choiceItem?.requiredChoice?.options.map((opt) => {
+                const selected = selectedOptionId === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    style={[
+                      styles.choiceOption,
+                      selected && styles.choiceOptionSelected,
+                    ]}
+                    onPress={() => setSelectedOptionId(opt.id)}
+                    activeOpacity={0.8}
+                  >
+                    <View
+                      style={[
+                        styles.choiceRadio,
+                        selected && styles.choiceRadioSelected,
+                      ]}
+                    >
+                      {selected && <View style={styles.choiceRadioDot} />}
+                    </View>
+                    <Text style={styles.choiceOptionName} numberOfLines={1}>
+                      {opt.name}
+                    </Text>
+                    <Text style={styles.choiceOptionPrice}>
+                      +D{Math.ceil(opt.price)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            <TouchableOpacity
+              style={[
+                styles.choiceAddBtn,
+                !selectedOptionId && styles.choiceAddBtnDisabled,
+              ]}
+              disabled={!selectedOptionId}
+              onPress={confirmRequiredChoice}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.choiceAddBtnText}>Add to cart</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Required complementary-meal picker
+  choiceOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  choiceSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  choiceHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 14,
+  },
+  choiceTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  choiceSubtitle: {
+    fontSize: 13,
+    color: "#FF6B00",
+    fontWeight: "600",
+    marginTop: 2,
+    marginBottom: 12,
+  },
+  choiceOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#F0F0F0",
+    marginBottom: 8,
+    gap: 12,
+  },
+  choiceOptionSelected: {
+    borderColor: "#FF6B00",
+    backgroundColor: "#FFF7F0",
+  },
+  choiceRadio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#D1D5DB",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  choiceRadioSelected: {
+    borderColor: "#FF6B00",
+  },
+  choiceRadioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FF6B00",
+  },
+  choiceOptionName: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#111827",
+  },
+  choiceOptionPrice: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  choiceAddBtn: {
+    marginTop: 14,
+    backgroundColor: "#FF6B00",
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  choiceAddBtnDisabled: {
+    backgroundColor: "#F3C9AE",
+  },
+  choiceAddBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",
