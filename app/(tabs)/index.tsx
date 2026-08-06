@@ -544,6 +544,10 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
+      // Only pad the top/sides — the orange background is meant for the status
+      // bar area behind the header. Padding the bottom edge would paint the
+      // Android gesture-nav inset orange (the strip the user saw at the bottom).
+      edges={["top", "left", "right"]}
       style={{
         flex: 1,
         backgroundColor: "#ff6b00",
@@ -579,7 +583,6 @@ export default function HomeScreen() {
       {/* Scrollable Content */}
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
         scrollEventThrottle={16}
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -597,8 +600,8 @@ export default function HomeScreen() {
         {/* ① Orange header (location + notif + profile) */}
         <HubHeader />
 
-        {/* White body */}
-        <View style={{ backgroundColor: "#fff" }}>
+        {/* White body — carries the bottom padding so no orange shows below it */}
+        <View style={{ backgroundColor: "#fff", paddingBottom: 32 }}>
           {/* ② Search bar */}
           <View style={{ paddingVertical: 10 }}>
             <SearchBar
