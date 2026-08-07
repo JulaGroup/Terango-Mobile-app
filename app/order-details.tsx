@@ -1430,55 +1430,71 @@ export default function OrderDetailsPage() {
 
           {order.items.map((item, index) => {
             const itemData = item.menuItem || item.product || item.medicine;
+            const isUnavailable = (item as any).status === "CANCELLED";
             return (
-              <View key={item.id} style={styles.orderItem}>
+              <View
+                key={item.id}
+                style={[
+                  styles.orderItem,
+                  isUnavailable && styles.orderItemUnavailable,
+                ]}
+              >
                 <View style={styles.itemImageContainer}>
-                  {itemData?.imageUrl ? (
-                    <View style={styles.itemImagePlaceholder}>
-                      <Ionicons
-                        name={
-                          item.menuItem
-                            ? "restaurant"
-                            : item.product
-                              ? "cube"
-                              : "medical"
-                        }
-                        size={24}
-                        color="#9CA3AF"
-                      />
-                    </View>
-                  ) : (
-                    <View style={styles.itemImagePlaceholder}>
-                      <Ionicons
-                        name={
-                          item.menuItem
-                            ? "restaurant"
-                            : item.product
-                              ? "cube"
-                              : "medical"
-                        }
-                        size={24}
-                        color="#9CA3AF"
-                      />
-                    </View>
-                  )}
+                  <View style={styles.itemImagePlaceholder}>
+                    <Ionicons
+                      name={
+                        item.menuItem
+                          ? "restaurant"
+                          : item.product
+                            ? "cube"
+                            : "medical"
+                      }
+                      size={24}
+                      color="#9CA3AF"
+                    />
+                  </View>
                 </View>
 
                 <View style={styles.itemDetails}>
-                  <Text style={styles.itemName}>
-                    {itemData?.name || "Item"}
-                  </Text>
-                  <View style={styles.itemMeta}>
-                    <Text style={styles.itemQuantity}>
-                      Qty: {item.quantity}
+                  <View style={styles.itemNameRow}>
+                    <Text
+                      style={[
+                        styles.itemName,
+                        isUnavailable && styles.itemNameUnavailable,
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {itemData?.name || "Item"}
                     </Text>
-                    <Text style={styles.itemPrice}>
+                    {isUnavailable && (
+                      <View style={styles.unavailableBadge}>
+                        <Text style={styles.unavailableBadgeText}>
+                          Unavailable
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.itemMeta}>
+                    <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
+                    <Text
+                      style={[
+                        styles.itemPrice,
+                        isUnavailable && styles.itemStrikethrough,
+                      ]}
+                    >
                       {formatAmount(item.price)}
                     </Text>
                   </View>
                   <View style={styles.itemTotal}>
-                    <Text style={styles.itemTotalText}>
-                      Subtotal: {formatAmount(item.price * item.quantity)}
+                    <Text
+                      style={[
+                        styles.itemTotalText,
+                        isUnavailable && styles.itemUnavailableNote,
+                      ]}
+                    >
+                      {isUnavailable
+                        ? "Removed — you won't be charged for this"
+                        : `Subtotal: ${formatAmount(item.price * item.quantity)}`}
                     </Text>
                   </View>
                 </View>
@@ -1495,13 +1511,22 @@ export default function OrderDetailsPage() {
             <Text style={styles.summaryLabel}>Items Total</Text>
             <Text style={styles.summaryValue}>
               {formatAmount(
-                order.items.reduce(
-                  (sum, item) => sum + item.price * item.quantity,
-                  0,
-                ),
+                order.items
+                  .filter((item: any) => item.status !== "CANCELLED")
+                  .reduce((sum, item) => sum + item.price * item.quantity, 0),
               )}
             </Text>
           </View>
+
+          {order.items.some((item: any) => item.status === "CANCELLED") && (
+            <View style={styles.unavailableNoticeRow}>
+              <Ionicons name="information-circle-outline" size={15} color="#B45309" />
+              <Text style={styles.unavailableNoticeText}>
+                Unavailable items were removed — you only pay for what&apos;s
+                available.
+              </Text>
+            </View>
+          )}
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
@@ -1525,6 +1550,18 @@ export default function OrderDetailsPage() {
               {formatAmount(order.totalAmount)}
             </Text>
           </View>
+
+          {!!(order as any).refundOwedAmount &&
+            (order as any).refundOwedAmount > 0 && (
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, { color: "#B45309" }]}>
+                  Refund owed
+                </Text>
+                <Text style={[styles.summaryValue, { color: "#B45309" }]}>
+                  {formatAmount((order as any).refundOwedAmount)}
+                </Text>
+              </View>
+            )}
         </View>
       </ScrollView>
 
@@ -2254,6 +2291,55 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#1F2937",
     marginBottom: 4,
+    flexShrink: 1,
+  },
+  orderItemUnavailable: {
+    opacity: 0.65,
+  },
+  itemNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  itemNameUnavailable: {
+    textDecorationLine: "line-through",
+    color: "#9CA3AF",
+    marginBottom: 0,
+  },
+  unavailableBadge: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  unavailableBadgeText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#B45309",
+  },
+  itemStrikethrough: {
+    textDecorationLine: "line-through",
+    color: "#9CA3AF",
+  },
+  itemUnavailableNote: {
+    color: "#B45309",
+    fontWeight: "600",
+  },
+  unavailableNoticeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+  },
+  unavailableNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#92400E",
+    lineHeight: 17,
   },
   itemMeta: {
     flexDirection: "row",
