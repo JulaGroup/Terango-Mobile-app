@@ -176,7 +176,7 @@ export default function ExperiencesScreen() {
         </View>
       </View>
 
-      {/* Search + filter */}
+      {/* Search */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#94A3B8" />
@@ -186,23 +186,14 @@ export default function ExperiencesScreen() {
             placeholder="Search experiences, places"
             placeholderTextColor="#94A3B8"
             style={styles.searchInput}
+            returnKeyType="search"
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")}>
+            <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
               <Ionicons name="close-circle" size={18} color="#CBD5E1" />
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          style={styles.filterBtn}
-          activeOpacity={0.85}
-          onPress={() => {
-            setQuery("");
-            setActiveCat(null);
-          }}
-        >
-          <Ionicons name="options" size={20} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -226,17 +217,35 @@ export default function ExperiencesScreen() {
             <View style={styles.sectionAccentBar} />
             <Text style={styles.sectionTitle}>Categories</Text>
           </View>
-          {activeCat && (
-            <TouchableOpacity onPress={() => setActiveCat(null)}>
-              <Text style={styles.seeAll}>Clear</Text>
-            </TouchableOpacity>
-          )}
         </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 16, gap: 20 }}
         >
+          {/* "All" resets the category — no separate filter button needed */}
+          <TouchableOpacity
+            style={styles.catItem}
+            activeOpacity={0.85}
+            onPress={() => setActiveCat(null)}
+          >
+            <View
+              style={[styles.catCircle, !activeCat && styles.catCircleActive]}
+            >
+              <Ionicons
+                name="apps"
+                size={23}
+                color={!activeCat ? "#fff" : PrimaryColor}
+              />
+            </View>
+            <Text
+              style={[styles.catLabel, !activeCat && styles.catLabelActive]}
+              numberOfLines={1}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
+
           {EXPERIENCE_CATEGORIES.map((cat) => {
             const active = activeCat === cat.label;
             return (
@@ -256,7 +265,7 @@ export default function ExperiencesScreen() {
                   />
                 </View>
                 <Text
-                  style={[styles.catLabel, active && { color: PrimaryColor }]}
+                  style={[styles.catLabel, active && styles.catLabelActive]}
                   numberOfLines={1}
                 >
                   {cat.label}
@@ -309,7 +318,25 @@ export default function ExperiencesScreen() {
                 <Text style={styles.sectionTitle}>
                   {activeCat ? activeCat : "All Experiences"}
                 </Text>
+                {isFiltering && (
+                  <View style={styles.countChip}>
+                    <Text style={styles.countChipText}>{filtered.length}</Text>
+                  </View>
+                )}
               </View>
+              {isFiltering && (
+                <TouchableOpacity
+                  style={styles.clearChip}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setQuery("");
+                    setActiveCat(null);
+                  }}
+                >
+                  <Text style={styles.clearChipText}>Clear</Text>
+                  <Ionicons name="close" size={13} color={PrimaryColor} />
+                </TouchableOpacity>
+              )}
             </View>
             <View style={{ paddingHorizontal: 16 }}>
               {filtered.length === 0 ? (
@@ -376,15 +403,11 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 4,
   },
   searchBox: {
-    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
@@ -394,14 +417,6 @@ const styles = StyleSheet.create({
     height: 50,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
-  filterBtn: {
-    width: 50,
-    height: 50,
-    borderRadius: 14,
-    backgroundColor: PrimaryColor,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -423,6 +438,24 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 18, fontWeight: "900", color: "#0F172A" },
   seeAll: { color: PrimaryColor, fontWeight: "700", fontSize: 13 },
+  countChip: {
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginLeft: 2,
+  },
+  countChipText: { color: PrimaryColor, fontWeight: "800", fontSize: 12 },
+  clearChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  clearChipText: { color: PrimaryColor, fontWeight: "700", fontSize: 12.5 },
   catItem: { alignItems: "center", width: 66 },
   catCircle: {
     width: 62,
@@ -433,8 +466,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 7,
   },
-  catCircleActive: { backgroundColor: PrimaryColor },
+  catCircleActive: {
+    backgroundColor: PrimaryColor,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.32,
+    shadowRadius: 10,
+    elevation: 5,
+  },
   catLabel: { fontSize: 11.5, color: "#475569", fontWeight: "600" },
+  catLabelActive: { color: PrimaryColor, fontWeight: "800" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 20,
