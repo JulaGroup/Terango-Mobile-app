@@ -9,6 +9,9 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Linking,
+  Share,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -17,8 +20,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryColor } from "@/constants/Colors";
 import { experienceApi, Experience, ExperienceOption } from "@/lib/api";
 
-// Venue clock time is encoded as UTC in the slot ISO — read it back as UTC so
-// it shows the venue's intended time regardless of the device timezone.
+const { width: SCREEN_W } = Dimensions.get("window");
+
 function formatSlotTime(iso: string) {
   const d = new Date(iso);
   let h = d.getUTCHours();
@@ -27,24 +30,25 @@ function formatSlotTime(iso: string) {
   h = h % 12 || 12;
   return `${h}:${m.toString().padStart(2, "0")} ${ampm}`;
 }
-
 function ymd(d: Date) {
   return d.toISOString().slice(0, 10);
 }
-
 function buildDays(count = 14) {
   const out: { key: string; top: string; day: string }[] = [];
   const now = new Date();
   for (let i = 0; i < count; i++) {
     const d = new Date(now);
     d.setDate(now.getDate() + i);
-    const top =
-      i === 0
-        ? "Today"
-        : i === 1
-          ? "Tomorrow"
-          : d.toLocaleDateString("en-US", { weekday: "short" });
-    out.push({ key: ymd(d), top, day: String(d.getDate()) });
+    out.push({
+      key: ymd(d),
+      top:
+        i === 0
+          ? "Today"
+          : i === 1
+            ? "Tomorrow"
+            : d.toLocaleDateString("en-US", { weekday: "short" }),
+      day: String(d.getDate()),
+    });
   }
   return out;
 }
@@ -55,6 +59,8 @@ export default function ExperienceDetailScreen() {
 
   const [experience, setExperience] = useState<Experience | null>(null);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+  const [fav, setFav] = useState(false);
 
   const [selectedOption, setSelectedOption] = useState<ExperienceOption | null>(
     null,
@@ -141,6 +147,30 @@ export default function ExperienceDetailScreen() {
     }
   };
 
+  const openMap = () => {
+    if (!experience) return;
+    const lat = (experience as any).latitude;
+    const lng = (experience as any).longitude;
+    const q =
+      lat && lng
+        ? `${lat},${lng}`
+        : encodeURIComponent(
+            experience.address || experience.city || experience.name,
+          );
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+  };
+
+  const callVenue = () => {
+    if (experience?.phone) Linking.openURL(`tel:${experience.phone}`);
+  };
+
+  const onShare = () => {
+    if (!experience) return;
+    Share.share({
+      message: `Check out ${experience.name} on TeranGO — book your slot in the app!`,
+    }).catch(() => {});
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.center}>
@@ -148,7 +178,6 @@ export default function ExperienceDetailScreen() {
       </SafeAreaView>
     );
   }
-
   if (!experience) {
     return (
       <SafeAreaView style={styles.center}>
@@ -176,72 +205,114 @@ export default function ExperienceDetailScreen() {
               colors={[PrimaryColor, "#FF8A34"]}
               style={styles.heroImg}
             >
-              <Ionicons name="star" size={56} color="rgba(255,255,255,0.85)" />
+              <Ionicons name="sparkles" size={60} color="rgba(255,255,255,0.9)" />
             </LinearGradient>
           )}
           <LinearGradient
-            colors={["rgba(0,0,0,0.45)", "transparent"]}
-            style={styles.heroTopFade}
+            colors={["rgba(0,0,0,0.5)", "transparent", "rgba(0,0,0,0.35)"]}
+            style={StyleSheet.absoluteFill}
           />
-          <SafeAreaView edges={["top"]} style={styles.heroTopBar}>
+          <SafeAreaView edges={["top"]} style={styles.heroBar}>
             <TouchableOpacity
               style={styles.circleBtn}
               onPress={() => router.back()}
-              activeOpacity={0.8}
             >
               <Ionicons name="arrow-back" size={22} color="#fff" />
             </TouchableOpacity>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity style={styles.circleBtn} onPress={onShare}>
+                <Ionicons name="share-social" size={19} color="#fff" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.circleBtn}
+                onPress={() => setFav((f) => !f)}
+              >
+                <Ionicons
+                  name={fav ? "heart" : "heart-outline"}
+                  size={20}
+                  color={fav ? "#EF4444" : "#fff"}
+                />
+              </TouchableOpacity>
+            </View>
           </SafeAreaView>
         </View>
 
-        <View style={styles.body}>
-          <Text style={styles.title}>{experience.name}</Text>
-          {!!(experience.address || experience.city) && (
-            <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={15} color="#94A3B8" />
-              <Text style={styles.metaText}>
-                {experience.address || experience.city}
-              </Text>
+        {/* Sheet */}
+        <View style={styles.sheet}>
+          {!!experience.category && (
+            <View style={styles.catPill}>
+              <Text style={styles.catPillText}>{experience.category}</Text>
             </View>
           )}
+          <Text style={styles.title}>{experience.name}</Text>
+
+          <View style={styles.metaRow}>
+            <Ionicons name="location" size={16} color={PrimaryColor} />
+            <Text style={styles.metaText}>
+              {experience.address || experience.city || "TeranGO"}
+            </Text>
+            <View style={styles.metaDot} />
+            <Ionicons name="people" size={16} color={PrimaryColor} />
+            <Text style={styles.metaText}>
+              up to {experience.totalUnits} {unitLabel}s
+            </Text>
+          </View>
+
+          {/* About */}
           {!!experience.description && (
-            <Text style={styles.desc}>{experience.description}</Text>
+            <View style={styles.block}>
+              <Text style={styles.blockTitle}>About</Text>
+              <Text
+                style={styles.about}
+                numberOfLines={expanded ? undefined : 3}
+              >
+                {experience.description}
+              </Text>
+              {experience.description.length > 90 && (
+                <TouchableOpacity onPress={() => setExpanded((e) => !e)}>
+                  <Text style={styles.readMore}>
+                    {expanded ? "Show less" : "Read more"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           )}
 
-          {/* Options */}
-          <Text style={styles.sectionTitle}>Choose a package</Text>
-          {experience.options?.map((opt) => {
-            const active = selectedOption?.id === opt.id;
-            return (
-              <TouchableOpacity
-                key={opt.id}
-                activeOpacity={0.85}
-                onPress={() => setSelectedOption(opt)}
-                style={[styles.optionCard, active && styles.optionCardActive]}
-              >
-                <View
-                  style={[styles.radio, active && styles.radioActive]}
+          <View style={styles.divider} />
+
+          {/* Packages */}
+          <Text style={styles.blockTitle}>Choose a package</Text>
+          <View style={{ marginTop: 10 }}>
+            {experience.options?.map((opt) => {
+              const active = selectedOption?.id === opt.id;
+              return (
+                <TouchableOpacity
+                  key={opt.id}
+                  activeOpacity={0.9}
+                  onPress={() => setSelectedOption(opt)}
+                  style={[styles.optionCard, active && styles.optionCardActive]}
                 >
-                  {active && <View style={styles.radioDot} />}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.optionLabel}>{opt.label}</Text>
-                  <Text style={styles.optionMeta}>
-                    <Ionicons name="time-outline" size={12} color="#94A3B8" />{" "}
-                    {opt.durationMins} min · per {unitLabel}
-                  </Text>
-                </View>
-                <Text style={styles.optionPrice}>D{opt.price}</Text>
-              </TouchableOpacity>
-            );
-          })}
+                  <View style={[styles.radio, active && styles.radioActive]}>
+                    {active && <View style={styles.radioDot} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionLabel}>{opt.label}</Text>
+                    <Text style={styles.optionMeta}>
+                      {opt.durationMins} min · per {unitLabel}
+                    </Text>
+                  </View>
+                  <Text style={styles.optionPrice}>D{opt.price}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           {/* Date */}
-          <Text style={styles.sectionTitle}>Pick a date</Text>
+          <Text style={[styles.blockTitle, { marginTop: 22 }]}>Select date</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 10, paddingVertical: 2 }}
+            contentContainerStyle={{ gap: 10, paddingVertical: 4 }}
           >
             {days.map((d) => {
               const active = selectedDate === d.key;
@@ -252,14 +323,10 @@ export default function ExperienceDetailScreen() {
                   onPress={() => setSelectedDate(d.key)}
                   style={[styles.dayChip, active && styles.dayChipActive]}
                 >
-                  <Text
-                    style={[styles.dayTop, active && styles.dayTextActive]}
-                  >
+                  <Text style={[styles.dayTop, active && styles.dayTextActive]}>
                     {d.top}
                   </Text>
-                  <Text
-                    style={[styles.dayNum, active && styles.dayTextActive]}
-                  >
+                  <Text style={[styles.dayNum, active && styles.dayTextActive]}>
                     {d.day}
                   </Text>
                 </TouchableOpacity>
@@ -267,8 +334,8 @@ export default function ExperienceDetailScreen() {
             })}
           </ScrollView>
 
-          {/* Slots */}
-          <Text style={styles.sectionTitle}>Pick a time</Text>
+          {/* Time */}
+          <Text style={[styles.blockTitle, { marginTop: 22 }]}>Select time</Text>
           {slotsLoading ? (
             <ActivityIndicator
               color={PrimaryColor}
@@ -322,7 +389,7 @@ export default function ExperienceDetailScreen() {
           {/* Quantity */}
           {selectedSlot && (
             <>
-              <Text style={styles.sectionTitle}>
+              <Text style={[styles.blockTitle, { marginTop: 22 }]}>
                 How many {unitLabel}s?
               </Text>
               <View style={styles.qtyRow}>
@@ -341,20 +408,49 @@ export default function ExperienceDetailScreen() {
                 >
                   <Ionicons name="add" size={20} color={PrimaryColor} />
                 </TouchableOpacity>
-                <Text style={styles.qtyHint}>
-                  {slotAvailable} available
-                </Text>
+                <Text style={styles.qtyHint}>{slotAvailable} available</Text>
               </View>
             </>
           )}
+
+          <View style={styles.divider} />
+
+          {/* Venue / contact */}
+          <Text style={styles.blockTitle}>Venue</Text>
+          <View style={styles.venueRow}>
+            <View style={styles.venueIcon}>
+              <Ionicons
+                name="business"
+                size={20}
+                color={PrimaryColor}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.venueName}>{experience.name}</Text>
+              <Text style={styles.venueSub} numberOfLines={1}>
+                {experience.address || experience.city || "TeranGO"}
+              </Text>
+            </View>
+            {!!experience.phone && (
+              <TouchableOpacity style={styles.venueAction} onPress={callVenue}>
+                <Ionicons name="call" size={18} color={PrimaryColor} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.venueAction} onPress={openMap}>
+              <Ionicons name="map" size={18} color={PrimaryColor} />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      {/* Sticky CTA */}
+      {/* Sticky bottom bar */}
       <View style={styles.footer}>
         <View>
-          <Text style={styles.footerLabel}>Total</Text>
-          <Text style={styles.footerTotal}>D{total}</Text>
+          <Text style={styles.footerLabel}>Total price</Text>
+          <Text style={styles.footerTotal}>
+            D{total}
+            <Text style={styles.footerUnit}> / {unitLabel}</Text>
+          </Text>
         </View>
         <TouchableOpacity
           disabled={!canBook || booking}
@@ -363,9 +459,7 @@ export default function ExperienceDetailScreen() {
           style={{ flex: 1, marginLeft: 16 }}
         >
           <LinearGradient
-            colors={
-              canBook ? [PrimaryColor, "#FF8A34"] : ["#CBD5E1", "#CBD5E1"]
-            }
+            colors={canBook ? [PrimaryColor, "#FF8A34"] : ["#CBD5E1", "#CBD5E1"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.cta}
@@ -373,12 +467,9 @@ export default function ExperienceDetailScreen() {
             {booking ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <>
-                <Ionicons name="calendar" size={18} color="#fff" />
-                <Text style={styles.ctaText}>
-                  {canBook ? "Book now" : "Select a time"}
-                </Text>
-              </>
+              <Text style={styles.ctaText}>
+                {canBook ? "Book now" : "Select a time"}
+              </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
@@ -388,66 +479,96 @@ export default function ExperienceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F8FA" },
+  container: { flex: 1, backgroundColor: "#fff" },
   center: {
     flex: 1,
     backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
   },
-  hero: { height: 240, backgroundColor: "#eee" },
+  hero: { height: 300, width: SCREEN_W, backgroundColor: "#eee" },
   heroImg: {
     width: "100%",
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
   },
-  heroTopFade: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 100,
-  },
-  heroTopBar: {
+  heroBar: {
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   circleBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: "rgba(0,0,0,0.35)",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 6,
   },
-  body: {
-    backgroundColor: "#F7F8FA",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -24,
-    paddingHorizontal: 16,
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -28,
+    paddingHorizontal: 20,
     paddingTop: 20,
   },
-  title: { fontSize: 24, fontWeight: "900", color: "#0F172A" },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 6 },
-  metaText: { color: "#94A3B8", fontSize: 14 },
-  desc: { color: "#475569", fontSize: 14, lineHeight: 21, marginTop: 12 },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginTop: 24,
-    marginBottom: 12,
+  catPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginBottom: 10,
   },
+  catPillText: {
+    color: PrimaryColor,
+    fontWeight: "800",
+    fontSize: 12,
+    textTransform: "capitalize",
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.6,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+    flexWrap: "wrap",
+  },
+  metaText: { fontSize: 14, color: "#475569", fontWeight: "500" },
+  metaDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#CBD5E1",
+    marginHorizontal: 6,
+  },
+  block: { marginTop: 20 },
+  blockTitle: { fontSize: 17, fontWeight: "800", color: "#0F172A" },
+  about: {
+    fontSize: 14.5,
+    color: "#64748B",
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  readMore: { color: PrimaryColor, fontWeight: "700", marginTop: 6, fontSize: 13 },
+  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 22 },
   optionCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FAFC",
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
@@ -473,16 +594,16 @@ const styles = StyleSheet.create({
     backgroundColor: PrimaryColor,
   },
   optionLabel: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
-  optionMeta: { fontSize: 12, color: "#94A3B8", marginTop: 3 },
+  optionMeta: { fontSize: 12.5, color: "#94A3B8", marginTop: 3 },
   optionPrice: { fontSize: 18, fontWeight: "900", color: PrimaryColor },
   dayChip: {
     width: 62,
     paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: "#fff",
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "transparent",
+    borderColor: "#F1F5F9",
   },
   dayChipActive: { backgroundColor: PrimaryColor, borderColor: PrimaryColor },
   dayTop: { fontSize: 12, color: "#94A3B8", fontWeight: "600" },
@@ -494,23 +615,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     textAlign: "center",
   },
-  slotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  slotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 },
   slot: {
     width: "31%",
-    backgroundColor: "#fff",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     paddingVertical: 10,
     alignItems: "center",
     borderWidth: 1.5,
-    borderColor: "transparent",
+    borderColor: "#F1F5F9",
   },
   slotActive: { backgroundColor: PrimaryColor, borderColor: PrimaryColor },
-  slotSold: { backgroundColor: "#F1F5F9", opacity: 0.7 },
+  slotSold: { backgroundColor: "#F1F5F9", opacity: 0.6 },
   slotText: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
   slotSub: { fontSize: 11, color: "#94A3B8", marginTop: 2 },
   slotTextActive: { color: "#fff" },
   slotTextSold: { color: "#94A3B8" },
-  qtyRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+  qtyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 12,
+  },
   qtyBtn: {
     width: 44,
     height: 44,
@@ -519,8 +645,38 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  qtyValue: { fontSize: 22, fontWeight: "900", color: "#0F172A", minWidth: 28, textAlign: "center" },
+  qtyValue: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A",
+    minWidth: 28,
+    textAlign: "center",
+  },
   qtyHint: { color: "#94A3B8", fontSize: 13, marginLeft: 4 },
+  venueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 12,
+  },
+  venueIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "#FFF5EE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  venueName: { fontSize: 15, fontWeight: "800", color: "#0F172A" },
+  venueSub: { fontSize: 13, color: "#94A3B8", marginTop: 2 },
+  venueAction: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF5EE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   footer: {
     position: "absolute",
     bottom: 0,
@@ -536,12 +692,13 @@ const styles = StyleSheet.create({
     borderTopColor: "#F1F5F9",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 10,
   },
   footerLabel: { color: "#94A3B8", fontSize: 12, fontWeight: "600" },
   footerTotal: { color: "#0F172A", fontSize: 22, fontWeight: "900" },
+  footerUnit: { color: "#94A3B8", fontSize: 13, fontWeight: "600" },
   cta: {
     flexDirection: "row",
     alignItems: "center",

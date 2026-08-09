@@ -1883,6 +1883,7 @@ export interface ExperienceOption {
 export interface Experience {
   id: string;
   name: string;
+  category?: string;
   description?: string;
   imageUrl?: string;
   images?: string[];
