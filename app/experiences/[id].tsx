@@ -21,7 +21,6 @@ import { PrimaryColor } from "@/constants/Colors";
 import { experienceApi, Experience, ExperienceOption } from "@/lib/api";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-const SLOT_W = Math.floor((SCREEN_W - 40 - 10) / 2);
 
 function formatSlotTime(iso: string) {
   const d = new Date(iso);
@@ -290,9 +289,13 @@ export default function ExperienceDetailScreen() {
 
           <View style={styles.divider} />
 
-          {/* Packages */}
+          {/* Packages — side-by-side horizontal cards */}
           <Text style={styles.blockTitle}>Choose a package</Text>
-          <View style={{ marginTop: 10 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 10, paddingVertical: 6, paddingHorizontal: 1 }}
+          >
             {experience.options?.map((opt, index) => {
               const active = selectedOption?.id === opt.id;
               return (
@@ -300,29 +303,36 @@ export default function ExperienceDetailScreen() {
                   key={opt.id}
                   activeOpacity={0.9}
                   onPress={() => setSelectedOption(opt)}
-                  style={[styles.optionCard, active && styles.optionCardActive]}
+                  style={[styles.pkgCard, active && styles.pkgCardActive]}
                 >
-                  <View style={[styles.radio, active && styles.radioActive]}>
-                    {active && <View style={styles.radioDot} />}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text style={styles.optionLabel}>{opt.label}</Text>
-                      {index === 0 && experience.options && experience.options.length > 1 && (
-                        <View style={styles.popularBadge}>
-                          <Text style={styles.popularBadgeText}>Popular</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={styles.optionMeta}>
-                      {opt.durationMins} min session · per {unitLabel}
+                  <View style={[styles.pkgDurBadge, active && styles.pkgDurBadgeActive]}>
+                    <Ionicons name="time-outline" size={11} color={active ? "#fff" : PrimaryColor} />
+                    <Text style={[styles.pkgDurText, active && { color: "#fff" }]}>
+                      {opt.durationMins} min
                     </Text>
                   </View>
-                  <Text style={styles.optionPrice}>D{opt.price}</Text>
+                  <Text style={[styles.pkgLabel, active && styles.pkgLabelActive]} numberOfLines={2}>
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.pkgUnit, active && { color: "rgba(255,255,255,0.7)" }]}>
+                    per {unitLabel}
+                  </Text>
+                  <Text style={[styles.pkgPrice, active && { color: "#fff" }]}>
+                    D{opt.price}
+                  </Text>
+                  {active ? (
+                    <View style={styles.pkgCornerIcon}>
+                      <Ionicons name="checkmark-circle" size={20} color="rgba(255,255,255,0.9)" />
+                    </View>
+                  ) : index === 0 && experience.options && experience.options.length > 1 ? (
+                    <View style={styles.pkgPopBadge}>
+                      <Text style={styles.pkgPopText}>Popular</Text>
+                    </View>
+                  ) : null}
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           <View style={styles.divider} />
 
@@ -361,20 +371,24 @@ export default function ExperienceDetailScreen() {
             })}
           </ScrollView>
 
-          {/* Time — 2-column, bigger slots */}
+          {/* Time — horizontal pill row */}
           <Text style={[styles.blockTitle, { marginTop: 22 }]}>Pick a time</Text>
           {slotsLoading ? (
             <View style={styles.slotsLoading}>
-              <ActivityIndicator color={PrimaryColor} />
+              <ActivityIndicator color={PrimaryColor} size="small" />
               <Text style={styles.slotsLoadingText}>Checking availability…</Text>
             </View>
           ) : slots.length === 0 ? (
             <View style={styles.noSlotsWrap}>
-              <Ionicons name="time-outline" size={32} color="#CBD5E1" />
+              <Ionicons name="time-outline" size={28} color="#CBD5E1" />
               <Text style={styles.noSlots}>No times available. Try another date.</Text>
             </View>
           ) : (
-            <View style={styles.slotGrid}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingVertical: 6, paddingHorizontal: 1 }}
+            >
               {slots.map((s) => {
                 const active = selectedSlot === s.startTime;
                 const sold = s.available <= 0;
@@ -385,38 +399,33 @@ export default function ExperienceDetailScreen() {
                     activeOpacity={0.85}
                     onPress={() => onPickSlot(s)}
                     style={[
-                      styles.slot,
-                      active && styles.slotActive,
-                      sold && styles.slotSold,
+                      styles.timePill,
+                      active && styles.timePillActive,
+                      sold && styles.timePillSold,
                     ]}
                   >
-                    {active && (
-                      <View style={styles.slotCheck}>
-                        <Ionicons name="checkmark" size={11} color="#fff" />
-                      </View>
-                    )}
                     <Text
                       style={[
-                        styles.slotTime,
-                        active && styles.slotTextActive,
-                        sold && styles.slotTextSold,
+                        styles.timePillText,
+                        active && styles.timePillTextActive,
+                        sold && styles.timePillTextSold,
                       ]}
                     >
                       {formatSlotTime(s.startTime)}
                     </Text>
                     <Text
                       style={[
-                        styles.slotSub,
-                        active && styles.slotTextActive,
+                        styles.timePillSub,
+                        active && styles.timePillTextActive,
                         sold && { color: "#CBD5E1" },
                       ]}
                     >
-                      {sold ? "Sold out" : `${s.available} spots left`}
+                      {sold ? "Sold out" : `${s.available} left`}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
           )}
 
           {/* Quantity — card with price math */}
@@ -622,45 +631,59 @@ const styles = StyleSheet.create({
   readMore: { color: PrimaryColor, fontWeight: "700", marginTop: 6, fontSize: 13 },
   divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 22 },
 
-  /* Packages */
-  popularBadge: {
-    backgroundColor: "#FFF5EE",
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
+  /* Package cards — side by side */
+  pkgCard: {
+    width: 155,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1.5,
+    borderColor: "#F1F5F9",
+    position: "relative",
+    gap: 5,
   },
-  popularBadgeText: { fontSize: 10, fontWeight: "800", color: PrimaryColor },
-  optionCard: {
+  pkgCardActive: {
+    backgroundColor: PrimaryColor,
+    borderColor: PrimaryColor,
+    shadowColor: PrimaryColor,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
+  },
+  pkgDurBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1.5,
-    borderColor: "transparent",
-    gap: 12,
+    gap: 4,
+    alignSelf: "flex-start",
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
   },
-  optionCardActive: { borderColor: PrimaryColor, backgroundColor: "#FFFAF7" },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
+  pkgDurBadgeActive: { backgroundColor: "rgba(255,255,255,0.22)" },
+  pkgDurText: { fontSize: 11, fontWeight: "700", color: PrimaryColor },
+  pkgLabel: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginTop: 6,
+    lineHeight: 20,
   },
-  radioActive: { borderColor: PrimaryColor },
-  radioDot: {
-    width: 11,
-    height: 11,
+  pkgLabelActive: { color: "#fff" },
+  pkgUnit: { fontSize: 12, color: "#94A3B8", fontWeight: "500" },
+  pkgPrice: { fontSize: 24, fontWeight: "900", color: PrimaryColor, marginTop: 6 },
+  pkgCornerIcon: { position: "absolute", top: 12, right: 12 },
+  pkgPopBadge: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
     borderRadius: 6,
-    backgroundColor: PrimaryColor,
   },
-  optionLabel: { fontSize: 15, fontWeight: "700", color: "#0F172A" },
-  optionMeta: { fontSize: 12.5, color: "#94A3B8", marginTop: 3 },
-  optionPrice: { fontSize: 19, fontWeight: "900", color: PrimaryColor },
+  pkgPopText: { fontSize: 10, fontWeight: "800", color: PrimaryColor },
 
   /* Date strip */
   sectionRow: {
@@ -715,36 +738,32 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  /* Time slots — 2 column */
+  /* Time slots — horizontal pill row */
   slotsLoading: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 24,
+    paddingVertical: 18,
     gap: 10,
   },
   slotsLoadingText: { color: "#94A3B8", fontSize: 13 },
   noSlotsWrap: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 16,
     gap: 8,
   },
-  noSlots: { color: "#94A3B8", fontSize: 14, textAlign: "center" },
-  slotGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 8,
-  },
-  slot: {
-    width: SLOT_W,
-    backgroundColor: "#F8FAFC",
+  noSlots: { color: "#94A3B8", fontSize: 14 },
+  timePill: {
+    width: 108,
+    paddingVertical: 13,
+    paddingHorizontal: 12,
     borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    backgroundColor: "#F8FAFC",
     borderWidth: 1.5,
     borderColor: "#F1F5F9",
-    position: "relative",
+    alignItems: "center",
   },
-  slotActive: {
+  timePillActive: {
     backgroundColor: PrimaryColor,
     borderColor: PrimaryColor,
     shadowColor: PrimaryColor,
@@ -753,22 +772,11 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
-  slotSold: { opacity: 0.45 },
-  slotCheck: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.28)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  slotTime: { fontSize: 15, fontWeight: "800", color: "#0F172A" },
-  slotSub: { fontSize: 12, color: "#94A3B8", marginTop: 3, fontWeight: "500" },
-  slotTextActive: { color: "#fff" },
-  slotTextSold: { textDecorationLine: "line-through", color: "#94A3B8" },
+  timePillSold: { opacity: 0.4 },
+  timePillText: { fontSize: 14, fontWeight: "800", color: "#0F172A" },
+  timePillSub: { fontSize: 11, color: "#94A3B8", marginTop: 3, fontWeight: "500" },
+  timePillTextActive: { color: "#fff" },
+  timePillTextSold: { textDecorationLine: "line-through", color: "#94A3B8" },
 
   /* Quantity card */
   qtyCard: {
