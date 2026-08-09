@@ -158,43 +158,51 @@ export default function ExperiencesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
 
-      {/* Branded header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="chevron-back" size={22} color="#0F172A" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.pageTitle}>Experiences</Text>
-          <Text style={styles.pageTagline}>Discover & book in The Gambia</Text>
-        </View>
-      </View>
-
-      {/* Search */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color="#94A3B8" />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search experiences, places"
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
-            returnKeyType="search"
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
-              <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+      {/* Orange brand header — title, promise, and the search bar inside it */}
+      <LinearGradient
+        colors={[PrimaryColor, "#FF8A34"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerWrap}
+      >
+        <SafeAreaView edges={["top", "left", "right"]}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => router.back()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={22} color="#fff" />
             </TouchableOpacity>
-          )}
-        </View>
-      </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pageTitle}>Experiences</Text>
+              <Text style={styles.pageTagline}>
+                Reserve your spot, pay once, show your QR at the door.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={18} color="#94A3B8" />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search experiences, places"
+              placeholderTextColor="#94A3B8"
+              style={styles.searchInput}
+              returnKeyType="search"
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
       <ScrollView
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -213,9 +221,9 @@ export default function ExperiencesScreen() {
       >
         {/* Categories */}
         <View style={styles.sectionHead}>
-          <View style={styles.sectionTitleGroup}>
-            <View style={styles.sectionAccentBar} />
-            <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
+            <Text style={styles.sectionSub}>Pick a category to narrow things down</Text>
           </View>
         </View>
         <ScrollView
@@ -296,9 +304,11 @@ export default function ExperiencesScreen() {
             {!isFiltering && experiences.length > 0 && (
               <>
                 <View style={styles.sectionHead}>
-                  <View style={styles.sectionTitleGroup}>
-                    <View style={styles.sectionAccentBar} />
-                    <Text style={styles.sectionTitle}>Featured</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.sectionTitle}>Worth booking</Text>
+                    <Text style={styles.sectionSub}>
+                      Handpicked by the TeranGO team
+                    </Text>
                   </View>
                 </View>
                 <ScrollView
@@ -313,16 +323,15 @@ export default function ExperiencesScreen() {
 
             {/* All / filtered results */}
             <View style={styles.sectionHead}>
-              <View style={styles.sectionTitleGroup}>
-                <View style={styles.sectionAccentBar} />
+              <View style={{ flex: 1 }}>
                 <Text style={styles.sectionTitle}>
-                  {activeCat ? activeCat : "All Experiences"}
+                  {activeCat || "Everything on TeranGO"}
                 </Text>
-                {isFiltering && (
-                  <View style={styles.countChip}>
-                    <Text style={styles.countChipText}>{filtered.length}</Text>
-                  </View>
-                )}
+                <Text style={styles.sectionSub}>
+                  {isFiltering
+                    ? `${filtered.length} ${filtered.length === 1 ? "match" : "matches"}`
+                    : "Every experience you can book right now"}
+                </Text>
               </View>
               {isFiltering && (
                 <TouchableOpacity
@@ -368,53 +377,59 @@ export default function ExperiencesScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: {
+  headerWrap: {
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 4,
+    paddingTop: 6,
     gap: 12,
   },
   backBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "rgba(255,255,255,0.22)",
     justifyContent: "center",
     alignItems: "center",
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: "900",
-    color: "#0F172A",
+    color: "#fff",
     letterSpacing: -0.5,
   },
   pageTagline: {
-    fontSize: 13,
-    color: "#94A3B8",
+    fontSize: 12.5,
+    color: "rgba(255,255,255,0.9)",
     fontWeight: "500",
-    marginTop: 2,
-  },
-  searchRow: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 4,
+    marginTop: 3,
+    lineHeight: 17,
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#fff",
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 50,
+    marginTop: 16,
+    shadowColor: "#7C2D12",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
   sectionHead: {
@@ -425,27 +440,18 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 14,
   },
-  sectionTitleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  sectionTitle: {
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.3,
   },
-  sectionAccentBar: {
-    width: 4,
-    height: 22,
-    borderRadius: 2,
-    backgroundColor: PrimaryColor,
+  sectionSub: {
+    fontSize: 12.5,
+    color: "#94A3B8",
+    fontWeight: "500",
+    marginTop: 3,
   },
-  sectionTitle: { fontSize: 18, fontWeight: "900", color: "#0F172A" },
-  seeAll: { color: PrimaryColor, fontWeight: "700", fontSize: 13 },
-  countChip: {
-    backgroundColor: "#FFF5EE",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    marginLeft: 2,
-  },
-  countChipText: { color: PrimaryColor, fontWeight: "800", fontSize: 12 },
   clearChip: {
     flexDirection: "row",
     alignItems: "center",
