@@ -488,6 +488,28 @@ export const vendorApi = {
         console.log("✅ Found vendor shops:", shops);
       }
 
+      // Add experiences (bookable activities)
+      if (vendorData.experiences && Array.isArray(vendorData.experiences)) {
+        const experiences = vendorData.experiences.map((x: any) => ({
+          id: x.id,
+          name: x.name,
+          type: "EXPERIENCE" as any,
+          isActive: x.isActive !== false,
+          todayOrders: 0,
+          revenue: 0,
+          address: x.address,
+          city: x.city,
+          phone: x.phone,
+          description: x.description,
+          logoUrl: x.imageUrl,
+          acceptsOrders: x.acceptsBookings !== false,
+          createdAt: x.createdAt,
+          updatedAt: x.updatedAt,
+        }));
+        businesses.push(...experiences);
+        console.log("✅ Found vendor experiences:", experiences);
+      }
+
       console.log("✅ Total vendor businesses found:", businesses);
       return businesses;
     } catch (error) {

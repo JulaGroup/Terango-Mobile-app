@@ -671,6 +671,34 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="experiences/index"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="experiences/[id]"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="booking/[bookingId]"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="vendor/bookings"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="ViewAllStores"
                                 options={{
                                   animation: "slide_from_right",
