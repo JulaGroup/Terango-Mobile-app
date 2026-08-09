@@ -11,12 +11,10 @@ export const EXPERIENCE_CATEGORIES: ExperienceCategory[] = [
   { label: "Activities", icon: "flash" },
   { label: "Tours", icon: "map" },
   { label: "Beach & Water", icon: "boat" },
-  { label: "Nightlife", icon: "wine" },
   { label: "Sports", icon: "football" },
   { label: "Wellness", icon: "flower" },
   { label: "Arts & Culture", icon: "color-palette" },
-  { label: "Food & Drink", icon: "restaurant" },
-  { label: "Events", icon: "musical-notes" },
+  { label: "Events", icon: "calendar" },
 ];
 
 export function iconForCategory(

@@ -161,7 +161,7 @@ export default function ExperiencesScreen() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Location header */}
+      {/* Branded header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backBtn}
@@ -171,15 +171,8 @@ export default function ExperiencesScreen() {
           <Ionicons name="chevron-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.locLabel}>Location</Text>
-          <View style={styles.locRow}>
-            <Ionicons name="location" size={15} color={PrimaryColor} />
-            <Text style={styles.locValue}>The Gambia</Text>
-          </View>
-        </View>
-        <View style={styles.bell}>
-          <Ionicons name="notifications-outline" size={20} color="#0F172A" />
-          <View style={styles.bellDot} />
+          <Text style={styles.pageTitle}>Experiences</Text>
+          <Text style={styles.pageTagline}>Discover & book in The Gambia</Text>
         </View>
       </View>
 
@@ -229,10 +222,13 @@ export default function ExperiencesScreen() {
       >
         {/* Categories */}
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>Categories</Text>
+          <View style={styles.sectionTitleGroup}>
+            <View style={styles.sectionAccentBar} />
+            <Text style={styles.sectionTitle}>Categories</Text>
+          </View>
           {activeCat && (
             <TouchableOpacity onPress={() => setActiveCat(null)}>
-              <Text style={styles.seeAll}>See all</Text>
+              <Text style={styles.seeAll}>Clear</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -287,11 +283,14 @@ export default function ExperiencesScreen() {
           </View>
         ) : (
           <>
-            {/* Popular rail — only in the default (unfiltered) view */}
+            {/* Featured rail — only in the default (unfiltered) view */}
             {!isFiltering && experiences.length > 0 && (
               <>
                 <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>Popular</Text>
+                  <View style={styles.sectionTitleGroup}>
+                    <View style={styles.sectionAccentBar} />
+                    <Text style={styles.sectionTitle}>Featured</Text>
+                  </View>
                 </View>
                 <ScrollView
                   horizontal
@@ -303,11 +302,14 @@ export default function ExperiencesScreen() {
               </>
             )}
 
-            {/* Explore / results */}
+            {/* All / filtered results */}
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>
-                {activeCat ? activeCat : "Explore experiences"}
-              </Text>
+              <View style={styles.sectionTitleGroup}>
+                <View style={styles.sectionAccentBar} />
+                <Text style={styles.sectionTitle}>
+                  {activeCat ? activeCat : "All Experiences"}
+                </Text>
+              </View>
             </View>
             <View style={{ paddingHorizontal: 16 }}>
               {filtered.length === 0 ? (
@@ -349,7 +351,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 8,
+    paddingBottom: 4,
     gap: 12,
   },
   backBtn: {
@@ -360,25 +363,17 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  locLabel: { fontSize: 12, color: "#94A3B8", fontWeight: "500" },
-  locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
-  locValue: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
-  bell: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.5,
   },
-  bellDot: {
-    position: "absolute",
-    top: 12,
-    right: 13,
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: PrimaryColor,
+  pageTagline: {
+    fontSize: 13,
+    color: "#94A3B8",
+    fontWeight: "500",
+    marginTop: 2,
   },
   searchRow: {
     flexDirection: "row",
@@ -412,8 +407,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 22,
+    marginTop: 24,
     marginBottom: 14,
+  },
+  sectionTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sectionAccentBar: {
+    width: 4,
+    height: 22,
+    borderRadius: 2,
+    backgroundColor: PrimaryColor,
   },
   sectionTitle: { fontSize: 18, fontWeight: "900", color: "#0F172A" },
   seeAll: { color: PrimaryColor, fontWeight: "700", fontSize: 13 },
