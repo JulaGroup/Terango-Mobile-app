@@ -113,7 +113,11 @@ export default function ExperienceDetailScreen() {
   }, [loadSlots]);
 
   const unitLabel = experience?.unitLabel || "spot";
-  const total = (selectedOption?.price || 0) * quantity;
+  // TeranGO adds a 5% service fee on top of the provider's price — keep this in
+  // sync with SERVICE_FEE_RATE in server/src/services/experience.service.ts.
+  const subtotal = (selectedOption?.price || 0) * quantity;
+  const serviceFee = Math.round(subtotal * 0.05);
+  const total = subtotal + serviceFee;
 
   const onPickSlot = (slot: { startTime: string; available: number }) => {
     if (slot.available <= 0) return;
@@ -463,11 +467,21 @@ export default function ExperienceDetailScreen() {
                 </View>
               </View>
               {selectedOption && (
-                <View style={styles.priceMathRow}>
-                  <Text style={styles.priceMathLabel}>
-                    D{selectedOption.price} × {quantity}
-                  </Text>
-                  <Text style={styles.priceMathTotal}>D{selectedOption.price * quantity}</Text>
+                <View style={styles.priceMathBlock}>
+                  <View style={styles.priceMathRow}>
+                    <Text style={styles.priceMathLabel}>
+                      D{selectedOption.price} × {quantity}
+                    </Text>
+                    <Text style={styles.priceMathValue}>D{subtotal}</Text>
+                  </View>
+                  <View style={styles.priceMathLine}>
+                    <Text style={styles.priceMathLabel}>Service fee (5%)</Text>
+                    <Text style={styles.priceMathValue}>D{serviceFee}</Text>
+                  </View>
+                  <View style={styles.priceMathLine}>
+                    <Text style={styles.priceMathTotalLabel}>Total</Text>
+                    <Text style={styles.priceMathTotal}>D{total}</Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -817,16 +831,26 @@ const styles = StyleSheet.create({
     minWidth: 34,
     textAlign: "center",
   },
-  priceMathRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  priceMathBlock: {
     marginTop: 14,
     paddingTop: 14,
     borderTopWidth: 1,
     borderTopColor: "#E2E8F0",
   },
+  priceMathRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  priceMathLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
   priceMathLabel: { fontSize: 14, color: "#64748B", fontWeight: "500" },
+  priceMathValue: { fontSize: 14, color: "#0F172A", fontWeight: "700" },
+  priceMathTotalLabel: { fontSize: 15, color: "#0F172A", fontWeight: "800" },
   priceMathTotal: { fontSize: 18, fontWeight: "900", color: PrimaryColor },
 
   /* Venue */

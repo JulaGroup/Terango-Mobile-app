@@ -1904,6 +1904,11 @@ export interface Booking {
   endTime: string;
   quantity: number;
   unitPrice: number;
+  /** unitPrice × quantity — the provider's price, they keep all of it. */
+  subtotalAmount?: number;
+  /** TeranGO's 5% service fee, added on top of the subtotal. */
+  serviceFee?: number;
+  /** subtotalAmount + serviceFee — what the customer pays. */
   totalAmount: number;
   status: string;
   paymentStatus: string;

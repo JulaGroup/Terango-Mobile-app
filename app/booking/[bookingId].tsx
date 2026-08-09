@@ -57,6 +57,14 @@ export default function BookingReceiptScreen() {
     booking.status !== "COMPLETED" &&
     new Date(booking.startTime).getTime() > Date.now();
 
+  // Older bookings predate the split columns — derive them so the breakdown
+  // still adds up to the amount that was actually charged.
+  const subtotal =
+    booking?.subtotalAmount ??
+    (booking ? booking.unitPrice * booking.quantity : 0);
+  const serviceFee =
+    booking?.serviceFee ?? Math.max(0, (booking?.totalAmount ?? 0) - subtotal);
+
   const fetchBooking = useCallback(async () => {
     try {
       const b = await experienceApi.getBooking(bookingId);
@@ -302,6 +310,16 @@ export default function BookingReceiptScreen() {
           )}
 
           <View style={styles.divider} />
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Subtotal</Text>
+            <Text style={styles.breakdownValue}>D{subtotal}</Text>
+          </View>
+          {serviceFee > 0 && (
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Service fee</Text>
+              <Text style={styles.breakdownValue}>D{serviceFee}</Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total</Text>
             <Text style={styles.totalValue}>D{booking.totalAmount}</Text>
@@ -385,13 +403,13 @@ export default function BookingReceiptScreen() {
             <Text style={styles.sheetBlockTitle}>Order summary</Text>
             <View style={styles.sheetRow}>
               <Text style={styles.sheetRowLabel} numberOfLines={1}>
-                {booking.option?.label}
+                {booking.option?.label} × {booking.quantity}
               </Text>
-              <Text style={styles.sheetRowValue}>D{booking.unitPrice}</Text>
+              <Text style={styles.sheetRowValue}>D{subtotal}</Text>
             </View>
             <View style={styles.sheetRow}>
-              <Text style={styles.sheetRowLabel}>Quantity</Text>
-              <Text style={styles.sheetRowValue}>× {booking.quantity}</Text>
+              <Text style={styles.sheetRowLabel}>Service fee</Text>
+              <Text style={styles.sheetRowValue}>D{serviceFee}</Text>
             </View>
             <View style={styles.sheetRow}>
               <Text style={styles.sheetRowLabel}>When</Text>
@@ -578,6 +596,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
+  breakdownRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  breakdownLabel: { fontSize: 13.5, color: "#94A3B8", fontWeight: "500" },
+  breakdownValue: { fontSize: 13.5, color: "#334155", fontWeight: "700" },
   totalLabel: { fontSize: 15, fontWeight: "700", color: "#64748B" },
   totalValue: { fontSize: 22, fontWeight: "900", color: PrimaryColor },
   secondaryBtn: { alignItems: "center", paddingVertical: 18, marginTop: 4 },
