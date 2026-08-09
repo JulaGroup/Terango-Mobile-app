@@ -19,6 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryColor } from "@/constants/Colors";
 import { experienceApi, Experience, ExperienceOption } from "@/lib/api";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 
@@ -181,9 +182,36 @@ export default function ExperienceDetailScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
-        <ActivityIndicator color={PrimaryColor} size="large" />
-      </SafeAreaView>
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" />
+        {/* Mirror the real layout so the page doesn't jump when it loads */}
+        <Skeleton style={{ height: 320, width: SCREEN_W }} radius={0} />
+        <View style={[styles.sheet, { paddingTop: 22 }]}>
+          <Skeleton style={{ height: 24, width: 90, borderRadius: 8 }} />
+          <Skeleton style={{ height: 28, width: "75%", marginTop: 12 }} />
+          <Skeleton style={{ height: 15, width: "55%", marginTop: 14 }} />
+
+          <Skeleton style={{ height: 18, width: 130, marginTop: 28 }} />
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+            {[0, 1].map((i) => (
+              <Skeleton
+                key={i}
+                style={{ width: 155, height: 132, borderRadius: 18 }}
+              />
+            ))}
+          </View>
+
+          <Skeleton style={{ height: 18, width: 110, marginTop: 28 }} />
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton
+                key={i}
+                style={{ width: 68, height: 74, borderRadius: 18 }}
+              />
+            ))}
+          </View>
+        </View>
+      </View>
     );
   }
   if (!experience) {
@@ -378,9 +406,13 @@ export default function ExperienceDetailScreen() {
           {/* Time — horizontal pill row */}
           <Text style={[styles.blockTitle, { marginTop: 22 }]}>Pick a time</Text>
           {slotsLoading ? (
-            <View style={styles.slotsLoading}>
-              <ActivityIndicator color={PrimaryColor} size="small" />
-              <Text style={styles.slotsLoadingText}>Checking availability…</Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+              {[0, 1, 2].map((i) => (
+                <Skeleton
+                  key={i}
+                  style={{ width: 108, height: 64, borderRadius: 14 }}
+                />
+              ))}
             </View>
           ) : slots.length === 0 ? (
             <View style={styles.noSlotsWrap}>
@@ -753,13 +785,6 @@ const styles = StyleSheet.create({
   },
 
   /* Time slots — horizontal pill row */
-  slotsLoading: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 18,
-    gap: 10,
-  },
-  slotsLoadingText: { color: "#94A3B8", fontSize: 13 },
   noSlotsWrap: {
     flexDirection: "row",
     alignItems: "center",

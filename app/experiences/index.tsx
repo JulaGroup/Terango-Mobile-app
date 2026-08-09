@@ -21,6 +21,7 @@ import {
   EXPERIENCE_CATEGORIES,
   iconForCategory,
 } from "@/constants/experienceCategories";
+import { Skeleton } from "@/components/ui/Skeleton";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const RAIL_W = Math.round(SCREEN_W * 0.72);
@@ -180,7 +181,7 @@ export default function ExperiencesScreen() {
             <View style={{ flex: 1 }}>
               <Text style={styles.pageTitle}>Experiences</Text>
               <Text style={styles.pageTagline}>
-                Reserve your spot, pay once, show your QR at the door.
+                Activities, events and tours across The Gambia
               </Text>
             </View>
           </View>
@@ -221,10 +222,7 @@ export default function ExperiencesScreen() {
       >
         {/* Categories */}
         <View style={styles.sectionHead}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.sectionTitle}>What are you in the mood for?</Text>
-            <Text style={styles.sectionSub}>Pick a category to narrow things down</Text>
-          </View>
+          <Text style={styles.sectionTitle}>Categories</Text>
         </View>
         <ScrollView
           horizontal
@@ -284,15 +282,54 @@ export default function ExperiencesScreen() {
         </ScrollView>
 
         {loading ? (
-          <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
-            {[1, 2].map((i) => (
-              <View key={i} style={styles.skeletonCard}>
-                <View style={styles.skeletonImg} />
-                <View style={styles.skeletonLineWide} />
-                <View style={styles.skeletonLine} />
-              </View>
-            ))}
-          </View>
+          <>
+            {/* Horizontal rail placeholder */}
+            <View style={styles.sectionHead}>
+              <Skeleton style={{ width: 150, height: 20 }} />
+            </View>
+            <ScrollView
+              horizontal
+              scrollEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 16 }}
+            >
+              {[0, 1].map((i) => (
+                <View key={i} style={[styles.skeletonCard, { width: RAIL_W }]}>
+                  <Skeleton style={styles.skeletonImgRail} radius={0} />
+                  <View style={{ padding: 13 }}>
+                    <Skeleton style={{ height: 15, width: "70%" }} />
+                    <Skeleton
+                      style={{ height: 12, width: "45%", marginTop: 8 }}
+                    />
+                    <Skeleton
+                      style={{ height: 16, width: "35%", marginTop: 12 }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+
+            {/* Vertical list placeholder */}
+            <View style={styles.sectionHead}>
+              <Skeleton style={{ width: 120, height: 20 }} />
+            </View>
+            <View style={{ paddingHorizontal: 16 }}>
+              {[0, 1].map((i) => (
+                <View key={i} style={styles.skeletonCard}>
+                  <Skeleton style={styles.skeletonImg} radius={0} />
+                  <View style={{ padding: 13 }}>
+                    <Skeleton style={{ height: 15, width: "60%" }} />
+                    <Skeleton
+                      style={{ height: 12, width: "40%", marginTop: 8 }}
+                    />
+                    <Skeleton
+                      style={{ height: 16, width: "30%", marginTop: 12 }}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
         ) : error ? (
           <View style={styles.emptyWrap}>
             <Ionicons name="cloud-offline-outline" size={44} color="#CBD5E1" />
@@ -304,12 +341,7 @@ export default function ExperiencesScreen() {
             {!isFiltering && experiences.length > 0 && (
               <>
                 <View style={styles.sectionHead}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sectionTitle}>Worth booking</Text>
-                    <Text style={styles.sectionSub}>
-                      Handpicked by the TeranGO team
-                    </Text>
-                  </View>
+                  <Text style={styles.sectionTitle}>Popular right now</Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -323,15 +355,16 @@ export default function ExperiencesScreen() {
 
             {/* All / filtered results */}
             <View style={styles.sectionHead}>
-              <View style={{ flex: 1 }}>
+              <View style={styles.resultsTitleRow}>
                 <Text style={styles.sectionTitle}>
-                  {activeCat || "Everything on TeranGO"}
+                  {activeCat || "All experiences"}
                 </Text>
-                <Text style={styles.sectionSub}>
-                  {isFiltering
-                    ? `${filtered.length} ${filtered.length === 1 ? "match" : "matches"}`
-                    : "Every experience you can book right now"}
-                </Text>
+                {isFiltering && (
+                  <Text style={styles.resultsCount}>
+                    {filtered.length}{" "}
+                    {filtered.length === 1 ? "result" : "results"}
+                  </Text>
+                )}
               </View>
               {isFiltering && (
                 <TouchableOpacity
@@ -446,12 +479,13 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     letterSpacing: -0.3,
   },
-  sectionSub: {
-    fontSize: 12.5,
-    color: "#94A3B8",
-    fontWeight: "500",
-    marginTop: 3,
+  resultsTitleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
+  resultsCount: { fontSize: 13, color: "#94A3B8", fontWeight: "600" },
   clearChip: {
     flexDirection: "row",
     alignItems: "center",
@@ -593,21 +627,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 2,
   },
-  skeletonImg: { width: "100%", height: 180, backgroundColor: "#EEF2F6" },
-  skeletonLineWide: {
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: "#EEF2F6",
-    margin: 13,
-    marginBottom: 8,
-    width: "60%",
-  },
-  skeletonLine: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#F1F5F9",
-    marginHorizontal: 13,
-    marginBottom: 16,
-    width: "40%",
-  },
+  skeletonImg: { width: "100%", height: 180 },
+  skeletonImgRail: { width: "100%", height: 150 },
 });
