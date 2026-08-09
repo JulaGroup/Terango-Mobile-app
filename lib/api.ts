@@ -1848,3 +1848,94 @@ export const notificationApi = {
 
   getUserHistory: async () => apiCall("/api/notifications/history"),
 };
+
+// ── Experiences (bookable activities) ────────────────────────────────────────
+export interface ExperienceOption {
+  id: string;
+  label: string;
+  description?: string;
+  durationMins: number;
+  price: number;
+}
+
+export interface Experience {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+  images?: string[];
+  address?: string;
+  city?: string;
+  phone?: string;
+  unitLabel: string;
+  totalUnits: number;
+  slotMinutes: number;
+  options: ExperienceOption[];
+}
+
+export interface Booking {
+  id: string;
+  experienceId: string;
+  optionId: string;
+  startTime: string;
+  endTime: string;
+  quantity: number;
+  unitPrice: number;
+  totalAmount: number;
+  status: string;
+  paymentStatus: string;
+  qrCodeUrl?: string;
+  qrCode?: string;
+  experience?: Partial<Experience>;
+  option?: Partial<ExperienceOption>;
+}
+
+export const experienceApi = {
+  list: async (): Promise<Experience[]> => apiCall("/api/experiences"),
+
+  getById: async (id: string): Promise<Experience> =>
+    apiCall(`/api/experiences/${id}`),
+
+  getAvailability: async (
+    id: string,
+    date: string,
+    optionId: string,
+  ): Promise<{
+    slots: { startTime: string; available: number }[];
+    option: ExperienceOption;
+    experience: Experience;
+  }> =>
+    apiCall(
+      `/api/experiences/${id}/availability?date=${encodeURIComponent(
+        date,
+      )}&optionId=${encodeURIComponent(optionId)}`,
+    ),
+
+  createBooking: async (data: {
+    experienceId: string;
+    optionId: string;
+    startTime: string;
+    quantity: number;
+    customerName?: string;
+    customerPhone?: string;
+  }): Promise<Booking> =>
+    apiCall("/api/experiences/bookings", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  payForBooking: async (
+    bookingId: string,
+    successUrl?: string,
+  ): Promise<{ wave_launch_url?: string; session?: any; bookingId: string }> =>
+    apiCall(`/api/experiences/bookings/${bookingId}/pay`, {
+      method: "POST",
+      body: JSON.stringify({ success_url: successUrl }),
+    }),
+
+  getBooking: async (bookingId: string): Promise<Booking> =>
+    apiCall(`/api/experiences/bookings/${bookingId}`),
+
+  getMyBookings: async (): Promise<Booking[]> =>
+    apiCall("/api/experiences/bookings/mine"),
+};

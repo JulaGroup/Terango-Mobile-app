@@ -615,6 +615,11 @@ const MoreServicesSheet = ({
                     key={svc.id}
                     activeOpacity={0.7}
                     onPress={() => {
+                      if (svc.id === "experiences") {
+                        closeSheetRef.current();
+                        router.push("/experiences" as any);
+                        return;
+                      }
                       Alert.alert(
                         "Coming Soon",
                         `${svc.label} will be available soon. Stay tuned!`,
