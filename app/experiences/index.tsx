@@ -17,31 +17,13 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryColor } from "@/constants/Colors";
 import { experienceApi, Experience } from "@/lib/api";
+import {
+  EXPERIENCE_CATEGORIES,
+  iconForCategory,
+} from "@/constants/experienceCategories";
 
 const { width: SCREEN_W } = Dimensions.get("window");
-
-const CATEGORY_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  karting: "car-sport",
-  racing: "speedometer",
-  adventure: "trail-sign",
-  nightlife: "wine",
-  sports: "football",
-  wellness: "flower",
-  spa: "flower",
-  tours: "map",
-  tour: "map",
-  gaming: "game-controller",
-  arts: "color-palette",
-  art: "color-palette",
-  music: "musical-notes",
-  food: "restaurant",
-  events: "sparkles",
-};
-
-function iconFor(cat?: string): keyof typeof Ionicons.glyphMap {
-  if (!cat) return "sparkles";
-  return CATEGORY_ICONS[cat.toLowerCase()] || "sparkles";
-}
+const RAIL_W = Math.round(SCREEN_W * 0.72);
 
 export default function ExperiencesScreen() {
   const router = useRouter();
@@ -71,16 +53,10 @@ export default function ExperiencesScreen() {
     fetchExperiences();
   }, [fetchExperiences]);
 
-  const categories = useMemo(() => {
-    const set = new Set<string>();
-    experiences.forEach((e) => e.category && set.add(e.category));
-    return Array.from(set);
-  }, [experiences]);
-
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return experiences.filter((e) => {
-      if (activeCat && e.category !== activeCat) return false;
+      if (activeCat && (e.category || "") !== activeCat) return false;
       if (!q) return true;
       return (
         e.name.toLowerCase().includes(q) ||
@@ -90,35 +66,30 @@ export default function ExperiencesScreen() {
     });
   }, [experiences, query, activeCat]);
 
+  const isFiltering = !!activeCat || query.trim().length > 0;
+
   const fromPrice = (exp: Experience) => {
     const prices = (exp.options || []).map((o) => o.price).filter(Boolean);
     return prices.length ? Math.min(...prices) : null;
   };
-  const durationRange = (exp: Experience) => {
-    const ds = (exp.options || []).map((o) => o.durationMins).filter(Boolean);
-    if (!ds.length) return null;
-    const min = Math.min(...ds);
-    const max = Math.max(...ds);
-    return min === max ? `${min} min` : `${min}–${max} min`;
-  };
 
-  const renderCard = (exp: Experience) => {
+  const toggleFav = (id: string) =>
+    setFavs((p) => ({ ...p, [id]: !p[id] }));
+
+  const goto = (id: string) =>
+    router.push({ pathname: "/experiences/[id]" as any, params: { id } });
+
+  const renderCard = (exp: Experience, wide: boolean) => {
     const price = fromPrice(exp);
-    const dur = durationRange(exp);
     const fav = !!favs[exp.id];
     return (
       <TouchableOpacity
         key={exp.id}
-        style={styles.card}
+        style={[styles.card, wide ? { width: RAIL_W } : { width: SCREEN_W - 32 }]}
         activeOpacity={0.93}
-        onPress={() =>
-          router.push({
-            pathname: "/experiences/[id]" as any,
-            params: { id: exp.id },
-          })
-        }
+        onPress={() => goto(exp.id)}
       >
-        <View style={styles.cardImageWrap}>
+        <View style={[styles.cardImageWrap, { height: wide ? 150 : 180 }]}>
           {exp.imageUrl ? (
             <Image source={{ uri: exp.imageUrl }} style={styles.cardImage} />
           ) : (
@@ -129,27 +100,25 @@ export default function ExperiencesScreen() {
               style={styles.cardImage}
             >
               <Ionicons
-                name={iconFor(exp.category)}
-                size={44}
+                name={iconForCategory(exp.category)}
+                size={40}
                 color="rgba(255,255,255,0.9)"
               />
             </LinearGradient>
           )}
-
           {!!exp.category && (
             <View style={styles.tagPill}>
               <Text style={styles.tagPillText}>{exp.category}</Text>
             </View>
           )}
-
           <TouchableOpacity
             style={styles.heart}
             activeOpacity={0.8}
-            onPress={() => setFavs((p) => ({ ...p, [exp.id]: !p[exp.id] }))}
+            onPress={() => toggleFav(exp.id)}
           >
             <Ionicons
               name={fav ? "heart" : "heart-outline"}
-              size={18}
+              size={17}
               color={fav ? "#EF4444" : "#0F172A"}
             />
           </TouchableOpacity>
@@ -159,34 +128,28 @@ export default function ExperiencesScreen() {
           <Text style={styles.cardName} numberOfLines={1}>
             {exp.name}
           </Text>
-
           <View style={styles.metaRow}>
             <Ionicons name="location" size={13} color={PrimaryColor} />
             <Text style={styles.metaText} numberOfLines={1}>
-              {exp.address || exp.city || "TeranGO"}
+              {exp.address || exp.city || "The Gambia"}
             </Text>
-            {!!dur && (
-              <>
-                <View style={styles.metaDot} />
-                <Ionicons name="time" size={13} color={PrimaryColor} />
-                <Text style={styles.metaText}>{dur}</Text>
-              </>
-            )}
           </View>
-
           <View style={styles.cardFooter}>
-            <Text style={styles.priceText}>
+            <Text>
               {price != null ? (
                 <>
                   <Text style={styles.priceValue}>D{price}</Text>
                   <Text style={styles.priceUnit}> / {exp.unitLabel}</Text>
                 </>
               ) : (
-                "Book now"
+                <Text style={styles.priceValue}>Book</Text>
               )}
             </Text>
-            <View style={styles.bookBtn}>
-              <Text style={styles.bookBtnText}>Book</Text>
+            <View style={styles.capChip}>
+              <Ionicons name="people" size={12} color={PrimaryColor} />
+              <Text style={styles.capChipText}>
+                {exp.totalUnits} {exp.unitLabel}s
+              </Text>
             </View>
           </View>
         </View>
@@ -198,22 +161,29 @@ export default function ExperiencesScreen() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
 
-      {/* Header */}
+      {/* Location header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.iconBtn}
+          style={styles.backBtn}
           onPress={() => router.back()}
           activeOpacity={0.8}
         >
-          <Ionicons name="chevron-back" size={24} color="#0F172A" />
+          <Ionicons name="chevron-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.kicker}>DISCOVER</Text>
-          <Text style={styles.title}>Experiences</Text>
+          <Text style={styles.locLabel}>Location</Text>
+          <View style={styles.locRow}>
+            <Ionicons name="location" size={15} color={PrimaryColor} />
+            <Text style={styles.locValue}>The Gambia</Text>
+          </View>
+        </View>
+        <View style={styles.bell}>
+          <Ionicons name="notifications-outline" size={20} color="#0F172A" />
+          <View style={styles.bellDot} />
         </View>
       </View>
 
-      {/* Search */}
+      {/* Search + filter */}
       <View style={styles.searchRow}>
         <View style={styles.searchBox}>
           <Ionicons name="search" size={18} color="#94A3B8" />
@@ -230,6 +200,16 @@ export default function ExperiencesScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          style={styles.filterBtn}
+          activeOpacity={0.85}
+          onPress={() => {
+            setQuery("");
+            setActiveCat(null);
+          }}
+        >
+          <Ionicons name="options" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -248,98 +228,116 @@ export default function ExperiencesScreen() {
         }
       >
         {/* Categories */}
-        {categories.length > 0 && (
-          <View style={{ marginTop: 6 }}>
-            <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-            </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16, gap: 18 }}
-            >
-              {categories.map((cat) => {
-                const active = activeCat === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={styles.catItem}
-                    activeOpacity={0.85}
-                    onPress={() => setActiveCat(active ? null : cat)}
-                  >
-                    <View
-                      style={[styles.catCircle, active && styles.catCircleActive]}
-                    >
-                      <Ionicons
-                        name={iconFor(cat)}
-                        size={24}
-                        color={active ? "#fff" : PrimaryColor}
-                      />
-                    </View>
-                    <Text
-                      style={[styles.catLabel, active && { color: PrimaryColor }]}
-                      numberOfLines={1}
-                    >
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* List */}
         <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>
-            {activeCat ? activeCat : "Explore experiences"}
-          </Text>
-          {(activeCat || query) && (
-            <TouchableOpacity
-              onPress={() => {
-                setActiveCat(null);
-                setQuery("");
-              }}
-            >
-              <Text style={styles.clearText}>Clear</Text>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          {activeCat && (
+            <TouchableOpacity onPress={() => setActiveCat(null)}>
+              <Text style={styles.seeAll}>See all</Text>
             </TouchableOpacity>
           )}
         </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 20 }}
+        >
+          {EXPERIENCE_CATEGORIES.map((cat) => {
+            const active = activeCat === cat.label;
+            return (
+              <TouchableOpacity
+                key={cat.label}
+                style={styles.catItem}
+                activeOpacity={0.85}
+                onPress={() => setActiveCat(active ? null : cat.label)}
+              >
+                <View
+                  style={[styles.catCircle, active && styles.catCircleActive]}
+                >
+                  <Ionicons
+                    name={cat.icon}
+                    size={24}
+                    color={active ? "#fff" : PrimaryColor}
+                  />
+                </View>
+                <Text
+                  style={[styles.catLabel, active && { color: PrimaryColor }]}
+                  numberOfLines={1}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
 
-        <View style={{ paddingHorizontal: 16 }}>
-          {loading ? (
-            [1, 2].map((i) => (
+        {loading ? (
+          <View style={{ paddingHorizontal: 16, marginTop: 20 }}>
+            {[1, 2].map((i) => (
               <View key={i} style={styles.skeletonCard}>
                 <View style={styles.skeletonImg} />
                 <View style={styles.skeletonLineWide} />
                 <View style={styles.skeletonLine} />
               </View>
-            ))
-          ) : error ? (
-            <View style={styles.emptyWrap}>
-              <Ionicons name="cloud-offline-outline" size={44} color="#CBD5E1" />
-              <Text style={styles.emptyText}>{error}</Text>
-            </View>
-          ) : filtered.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <View style={styles.emptyBadge}>
-                <Ionicons name="sparkles-outline" size={32} color={PrimaryColor} />
-              </View>
-              <Text style={styles.emptyTitle}>
-                {experiences.length === 0
-                  ? "Nothing here yet"
-                  : "No matches"}
+            ))}
+          </View>
+        ) : error ? (
+          <View style={styles.emptyWrap}>
+            <Ionicons name="cloud-offline-outline" size={44} color="#CBD5E1" />
+            <Text style={styles.emptyText}>{error}</Text>
+          </View>
+        ) : (
+          <>
+            {/* Popular rail — only in the default (unfiltered) view */}
+            {!isFiltering && experiences.length > 0 && (
+              <>
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>Popular</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16, gap: 16 }}
+                >
+                  {experiences.map((e) => renderCard(e, true))}
+                </ScrollView>
+              </>
+            )}
+
+            {/* Explore / results */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>
+                {activeCat ? activeCat : "Explore experiences"}
               </Text>
-              <Text style={styles.emptyText}>
-                {experiences.length === 0
-                  ? "New experiences are coming soon."
-                  : "Try a different search or category."}
-              </Text>
             </View>
-          ) : (
-            filtered.map(renderCard)
-          )}
-        </View>
+            <View style={{ paddingHorizontal: 16 }}>
+              {filtered.length === 0 ? (
+                <View style={styles.emptyWrap}>
+                  <View style={styles.emptyBadge}>
+                    <Ionicons
+                      name={
+                        activeCat
+                          ? iconForCategory(activeCat)
+                          : "sparkles-outline"
+                      }
+                      size={30}
+                      color={PrimaryColor}
+                    />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    {experiences.length === 0 ? "Nothing here yet" : "No matches"}
+                  </Text>
+                  <Text style={styles.emptyText}>
+                    {experiences.length === 0
+                      ? "New experiences are coming soon."
+                      : `No experiences in ${activeCat || "this search"} yet.`}
+                  </Text>
+                </View>
+              ) : (
+                filtered.map((e) => renderCard(e, false))
+              )}
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -351,62 +349,86 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 4,
     gap: 12,
   },
-  iconBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#F1F5F9",
     justifyContent: "center",
     alignItems: "center",
   },
-  kicker: {
-    fontSize: 11,
-    fontWeight: "800",
-    color: PrimaryColor,
-    letterSpacing: 1.5,
+  locLabel: { fontSize: 12, color: "#94A3B8", fontWeight: "500" },
+  locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 1 },
+  locValue: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
+  bell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F1F5F9",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "900",
-    color: "#0F172A",
-    letterSpacing: -0.5,
+  bellDot: {
+    position: "absolute",
+    top: 12,
+    right: 13,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: PrimaryColor,
   },
-  searchRow: { paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     backgroundColor: "#F1F5F9",
     borderRadius: 14,
     paddingHorizontal: 14,
-    height: 48,
+    height: 50,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#0F172A" },
+  filterBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    backgroundColor: PrimaryColor,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginTop: 18,
-    marginBottom: 12,
+    marginTop: 22,
+    marginBottom: 14,
   },
   sectionTitle: { fontSize: 18, fontWeight: "900", color: "#0F172A" },
-  clearText: { color: PrimaryColor, fontWeight: "700", fontSize: 13 },
-  catItem: { alignItems: "center", width: 64 },
+  seeAll: { color: PrimaryColor, fontWeight: "700", fontSize: 13 },
+  catItem: { alignItems: "center", width: 66 },
   catCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 20,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: "#FFF5EE",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 6,
+    marginBottom: 7,
   },
   catCircleActive: { backgroundColor: PrimaryColor },
-  catLabel: { fontSize: 12, color: "#475569", fontWeight: "600" },
+  catLabel: { fontSize: 11.5, color: "#475569", fontWeight: "600" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -418,8 +440,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   cardImageWrap: {
-    width: SCREEN_W - 32,
-    height: 180,
+    width: "100%",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: "hidden",
@@ -459,50 +480,45 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  cardBody: { padding: 14 },
-  cardName: { fontSize: 17, fontWeight: "800", color: "#0F172A" },
+  cardBody: { padding: 13 },
+  cardName: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    marginTop: 6,
+    marginTop: 5,
   },
-  metaText: { fontSize: 12.5, color: "#64748B", fontWeight: "500" },
-  metaDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "#CBD5E1",
-    marginHorizontal: 5,
-  },
+  metaText: { fontSize: 12.5, color: "#64748B", fontWeight: "500", flex: 1 },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 12,
+    marginTop: 11,
   },
-  priceText: { fontSize: 14 },
-  priceValue: { fontSize: 18, fontWeight: "900", color: PrimaryColor },
-  priceUnit: { fontSize: 13, color: "#94A3B8", fontWeight: "600" },
-  bookBtn: {
-    backgroundColor: PrimaryColor,
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 12,
+  priceValue: { fontSize: 17, fontWeight: "900", color: PrimaryColor },
+  priceUnit: { fontSize: 12.5, color: "#94A3B8", fontWeight: "600" },
+  capChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFF5EE",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 9,
   },
-  bookBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
-  emptyWrap: { alignItems: "center", paddingTop: 50, paddingHorizontal: 40 },
+  capChipText: { color: PrimaryColor, fontWeight: "700", fontSize: 11.5 },
+  emptyWrap: { alignItems: "center", paddingTop: 30, paddingHorizontal: 40 },
   emptyBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: "#FFF5EE",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 14,
   },
   emptyTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
     color: "#0F172A",
     marginBottom: 6,
@@ -529,7 +545,7 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     backgroundColor: "#EEF2F6",
-    margin: 14,
+    margin: 13,
     marginBottom: 8,
     width: "60%",
   },
@@ -537,7 +553,7 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: "#F1F5F9",
-    marginHorizontal: 14,
+    marginHorizontal: 13,
     marginBottom: 16,
     width: "40%",
   },
