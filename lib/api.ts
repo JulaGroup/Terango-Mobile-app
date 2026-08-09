@@ -322,7 +322,7 @@ const getAuthToken = async (): Promise<string | null> => {
 const apiCall = async (endpoint: string, options: RequestInit = {}) => {
   // Prefer vendor token for vendor-scoped endpoints if available, otherwise fall back to main auth token
   const vendorEndpointRegex =
-    /\/api\/(vendor(-stats)?|vendors|orders\/vendor|analytics|vendor-stats|restaurants|shops|pharmacies|menuItem)/i;
+    /\/api\/(vendor(-stats)?|vendors|orders\/vendor|experiences\/vendor|analytics|vendor-stats|restaurants|shops|pharmacies|menuItem)/i;
   let token: string | null = null;
 
   try {
@@ -1886,8 +1886,11 @@ export interface Booking {
   paymentStatus: string;
   qrCodeUrl?: string;
   qrCode?: string;
+  createdAt?: string;
+  cancelReason?: string;
   experience?: Partial<Experience>;
   option?: Partial<ExperienceOption>;
+  userProfile?: { user?: { fullName?: string; phone?: string } };
 }
 
 export const experienceApi = {
@@ -1938,4 +1941,24 @@ export const experienceApi = {
 
   getMyBookings: async (): Promise<Booking[]> =>
     apiCall("/api/experiences/bookings/mine"),
+
+  cancelBooking: async (
+    bookingId: string,
+    reason?: string,
+  ): Promise<{ booking: Booking; wasPaid: boolean }> =>
+    apiCall(`/api/experiences/bookings/${bookingId}/cancel`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+
+  // Vendor/provider side
+  getVendorBookings: async (date?: string): Promise<Booking[]> =>
+    apiCall(
+      `/api/experiences/vendor/bookings${date ? `?date=${date}` : ""}`,
+    ),
+
+  checkInBooking: async (bookingId: string): Promise<Booking> =>
+    apiCall(`/api/experiences/vendor/bookings/${bookingId}/check-in`, {
+      method: "POST",
+    }),
 };

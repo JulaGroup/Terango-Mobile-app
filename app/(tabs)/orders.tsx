@@ -16,7 +16,13 @@ import { Ionicons } from "@expo/vector-icons";
 // AsyncStorage removed - not used in this file
 import { useFocusEffect } from "@react-navigation/native";
 import { PrimaryColor } from "@/constants/Colors";
-import { customDeliveryApi, orderApi, type Order } from "@/lib/api";
+import {
+  customDeliveryApi,
+  orderApi,
+  experienceApi,
+  type Order,
+  type Booking,
+} from "@/lib/api";
 import {
   setOrdersRefreshCallback,
   setNavigateToOrderCallback,
@@ -78,7 +84,11 @@ type ActivityItem =
       id: string;
       createdAt: string;
       delivery: DeliveryActivity;
-    };
+    }
+  | { kind: "booking"; id: string; createdAt: string; booking: Booking };
+
+const LIVE_BOOKING_STATUSES = ["PENDING", "CONFIRMED"];
+const PAST_BOOKING_STATUSES = ["CHECKED_IN", "COMPLETED", "CANCELLED"];
 
 const LIVE_ORDER_STATUSES = [
   "PENDING",
@@ -130,6 +140,7 @@ export default function Orders() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [deliveries, setDeliveries] = useState<DeliveryActivity[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -223,9 +234,12 @@ export default function Orders() {
           setLoadingMore(true);
         }
 
-        const [result, deliveryResponse] = await Promise.all([
+        const [result, deliveryResponse, bookingResponse] = await Promise.all([
           orderApi.getCustomerOrders(page, PAGE_SIZE),
           customDeliveryApi.listDeliveries().catch(() => []),
+          append
+            ? Promise.resolve(null)
+            : experienceApi.getMyBookings().catch(() => []),
         ]);
 
         if (append) {
@@ -236,6 +250,10 @@ export default function Orders() {
 
         const parsedDeliveries = parseDeliveryList(deliveryResponse);
         setDeliveries(parsedDeliveries);
+
+        if (!append && Array.isArray(bookingResponse)) {
+          setBookings(bookingResponse);
+        }
 
         setHasMore(result.hasMore);
         setCurrentPage(page);
@@ -527,6 +545,12 @@ export default function Orders() {
           : PAST_STATUSES.includes(delivery.status)),
     );
 
+    const filteredBookings = bookings.filter((b) =>
+      activeTab === "live"
+        ? LIVE_BOOKING_STATUSES.includes(b.status)
+        : PAST_BOOKING_STATUSES.includes(b.status),
+    );
+
     const merged: ActivityItem[] = [
       ...filteredOrders.map((order) => ({
         kind: "order" as const,
@@ -539,6 +563,12 @@ export default function Orders() {
         id: `delivery-${delivery.id}`,
         createdAt: delivery.createdAt,
         delivery,
+      })),
+      ...filteredBookings.map((booking) => ({
+        kind: "booking" as const,
+        id: `booking-${booking.id}`,
+        createdAt: (booking as any).createdAt || booking.startTime,
+        booking,
       })),
     ];
 
@@ -563,7 +593,123 @@ export default function Orders() {
           : PAST_STATUSES.includes(delivery.status)),
     ).length;
 
-    return orderCount + deliveryCount;
+    const bookingCount = bookings.filter((b) =>
+      tab === "live"
+        ? LIVE_BOOKING_STATUSES.includes(b.status)
+        : PAST_BOOKING_STATUSES.includes(b.status),
+    ).length;
+
+    return orderCount + deliveryCount + bookingCount;
+  };
+
+  const bookingStatusStyle = (status: string) => {
+    switch (status) {
+      case "CONFIRMED":
+        return { bg: "#ECFDF5", fg: "#059669", label: "Confirmed" };
+      case "CHECKED_IN":
+        return { bg: "#EFF6FF", fg: "#2563EB", label: "Checked in" };
+      case "COMPLETED":
+        return { bg: "#F1F5F9", fg: "#475569", label: "Completed" };
+      case "CANCELLED":
+        return { bg: "#FEF2F2", fg: "#DC2626", label: "Cancelled" };
+      default:
+        return { bg: "#FFF7ED", fg: "#C2410C", label: "Awaiting payment" };
+    }
+  };
+
+  const renderBookingCard = (booking: Booking) => {
+    const s = bookingStatusStyle(booking.status);
+    const d = new Date(booking.startTime);
+    let h = d.getUTCHours();
+    const min = d.getUTCMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    const when = `${d.toLocaleDateString("en-US", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    })} · ${h}:${min.toString().padStart(2, "0")} ${ampm}`;
+
+    return (
+      <TouchableOpacity
+        key={booking.id}
+        activeOpacity={0.9}
+        onPress={() =>
+          router.push({
+            pathname: "/booking/[bookingId]" as any,
+            params: { bookingId: booking.id },
+          })
+        }
+        style={{
+          backgroundColor: "#fff",
+          borderRadius: 16,
+          padding: 14,
+          marginBottom: 12,
+          flexDirection: "row",
+          alignItems: "center",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 3 },
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+          elevation: 2,
+        }}
+      >
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 14,
+            backgroundColor: "#FFF5EE",
+            justifyContent: "center",
+            alignItems: "center",
+            marginRight: 12,
+          }}
+        >
+          <Ionicons name="star" size={22} color={PrimaryColor} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}
+            numberOfLines={1}
+          >
+            {booking.experience?.name || "Experience"}
+          </Text>
+          <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
+            {booking.option?.label} · {when}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              marginTop: 8,
+              gap: 8,
+            }}
+          >
+            <View
+              style={{
+                backgroundColor: s.bg,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: "700", color: s.fg }}>
+                {s.label}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, color: "#64748B" }}>
+              {booking.quantity} × D{booking.unitPrice}
+            </Text>
+          </View>
+        </View>
+        <View style={{ alignItems: "flex-end" }}>
+          <Text style={{ fontSize: 16, fontWeight: "900", color: PrimaryColor }}>
+            D{booking.totalAmount}
+          </Text>
+          <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   const renderOrderCard = (order: Order) => {
@@ -1456,7 +1602,9 @@ export default function Orders() {
         renderItem={({ item }) =>
           item.kind === "order"
             ? renderOrderCard(item.order)
-            : renderDeliveryCard(item.delivery)
+            : item.kind === "delivery"
+              ? renderDeliveryCard(item.delivery)
+              : renderBookingCard(item.booking)
         }
         contentContainerStyle={{ padding: 16 }}
         onEndReached={loadMoreOrders}

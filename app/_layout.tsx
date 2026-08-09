@@ -150,6 +150,7 @@ export default function RootLayout() {
         const urlParams = new URLSearchParams(qs);
         const orderId = urlParams.get("orderId") ?? undefined;
         const deliveryId = urlParams.get("deliveryId") ?? undefined;
+        const bookingId = urlParams.get("bookingId") ?? undefined;
         const paymentId = urlParams.get("paymentId") ?? undefined;
         const status = urlParams.get("status") ?? undefined;
         const reason = urlParams.get("reason") ?? undefined;
@@ -169,7 +170,12 @@ export default function RootLayout() {
           // Route to order-details with fromPayment=true so the polling loop
           // kicks in and re-fetches until status === PAID/PROCESSING.
           // Fall back to home only when there's no orderId.
-          if (orderId) {
+          if (bookingId) {
+            router.replace({
+              pathname: "/booking/[bookingId]" as any,
+              params: { bookingId },
+            });
+          } else if (orderId) {
             router.replace({
               pathname: "/order-details" as any,
               params: {
@@ -301,16 +307,24 @@ export default function RootLayout() {
           "error",
         );
 
-        router.replace({
-          pathname: target,
-          params: {
-            orderId: orderId ?? "",
-            deliveryId: deliveryId ?? "",
-            paymentId: paymentId ?? "",
-            reason: reason ?? "",
-            status: status ?? "",
-          },
-        });
+        // For bookings, return to the receipt (still unpaid) so they can retry.
+        if (bookingId) {
+          router.replace({
+            pathname: "/booking/[bookingId]" as any,
+            params: { bookingId },
+          });
+        } else {
+          router.replace({
+            pathname: target,
+            params: {
+              orderId: orderId ?? "",
+              deliveryId: deliveryId ?? "",
+              paymentId: paymentId ?? "",
+              reason: reason ?? "",
+              status: status ?? "",
+            },
+          });
+        }
       } catch (err: any) {
         console.error("[DeepLink] Unhandled error:", err);
         router.replace({ pathname: "/" });

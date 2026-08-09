@@ -550,6 +550,18 @@ export default function VendorDashboard() {
             badge={metrics.pendingOrders}
           />
 
+          {/* Bookings — for experience providers (go-karting, tours, etc.) */}
+          {((currentBusiness?.type as string) === "EXPERIENCE" ||
+            vendor?.businessType?.includes("EXPERIENCE")) && (
+            <NavigationCard
+              title="Bookings"
+              subtitle="View bookings & check guests in"
+              icon="calendar-outline"
+              color={PrimaryColor}
+              onPress={() => router.push("/vendor/bookings" as any)}
+            />
+          )}
+
           {/* Management cards. Only for multi-user vendors — a single-user
               vendor manages menu/products/settings on the web panel and sees
               only Orders on the app. Cashiers never see these either. */}

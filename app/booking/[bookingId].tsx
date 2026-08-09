@@ -40,10 +40,18 @@ export default function BookingReceiptScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const pollRef = useRef<any>(null);
 
   const isPaid =
     booking?.paymentStatus === "PAID" || booking?.paymentStatus === "SUCCEEDED";
+  const isCancelled = booking?.status === "CANCELLED";
+  const canCancel =
+    !!booking &&
+    !isCancelled &&
+    booking.status !== "CHECKED_IN" &&
+    booking.status !== "COMPLETED" &&
+    new Date(booking.startTime).getTime() > Date.now();
 
   const fetchBooking = useCallback(async () => {
     try {
@@ -61,9 +69,48 @@ export default function BookingReceiptScreen() {
     fetchBooking();
   }, [fetchBooking]);
 
+  const handleCancel = () => {
+    if (!booking) return;
+    const paidNote = isPaid
+      ? " Your refund will be arranged by TeranGO support."
+      : "";
+    Alert.alert(
+      "Cancel booking?",
+      `This frees your slot and can't be undone.${paidNote}`,
+      [
+        { text: "Keep booking", style: "cancel" },
+        {
+          text: "Cancel booking",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setCancelling(true);
+              await experienceApi.cancelBooking(booking.id);
+              await fetchBooking();
+              Alert.alert(
+                "Booking cancelled",
+                isPaid
+                  ? "Your slot was released. Support will arrange your refund."
+                  : "Your slot was released.",
+              );
+            } catch (e: any) {
+              Alert.alert(
+                "Couldn't cancel",
+                e?.message?.replace(/^API Error: \d+ - /, "") ||
+                  "Please try again.",
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   // Poll while unpaid so the receipt flips to confirmed after Wave returns.
   useEffect(() => {
-    if (isPaid) {
+    if (isPaid || isCancelled) {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
@@ -75,7 +122,7 @@ export default function BookingReceiptScreen() {
       if (pollRef.current) clearInterval(pollRef.current);
       sub.remove();
     };
-  }, [isPaid, fetchBooking]);
+  }, [isPaid, isCancelled, fetchBooking]);
 
   const handlePay = async () => {
     if (!booking) return;
@@ -123,7 +170,13 @@ export default function BookingReceiptScreen() {
 
       {/* Header */}
       <LinearGradient
-        colors={isPaid ? ["#10B981", "#059669"] : [PrimaryColor, "#FF8A34"]}
+        colors={
+          isCancelled
+            ? ["#94A3B8", "#64748B"]
+            : isPaid
+              ? ["#10B981", "#059669"]
+              : [PrimaryColor, "#FF8A34"]
+        }
         style={styles.header}
       >
         <View style={styles.headerRow}>
@@ -134,7 +187,11 @@ export default function BookingReceiptScreen() {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {isPaid ? "Your Ticket" : "Confirm & Pay"}
+            {isCancelled
+              ? "Booking Cancelled"
+              : isPaid
+                ? "Your Ticket"
+                : "Confirm & Pay"}
           </Text>
           <View style={{ width: 40 }} />
         </View>
@@ -148,28 +205,48 @@ export default function BookingReceiptScreen() {
         <View
           style={[
             styles.statusBanner,
-            { backgroundColor: isPaid ? "#ECFDF5" : "#FFF7ED" },
+            {
+              backgroundColor: isCancelled
+                ? "#FEF2F2"
+                : isPaid
+                  ? "#ECFDF5"
+                  : "#FFF7ED",
+            },
           ]}
         >
           <Ionicons
-            name={isPaid ? "checkmark-circle" : "time-outline"}
+            name={
+              isCancelled
+                ? "close-circle"
+                : isPaid
+                  ? "checkmark-circle"
+                  : "time-outline"
+            }
             size={20}
-            color={isPaid ? "#059669" : PrimaryColor}
+            color={isCancelled ? "#DC2626" : isPaid ? "#059669" : PrimaryColor}
           />
           <Text
             style={[
               styles.statusText,
-              { color: isPaid ? "#047857" : "#C2410C" },
+              {
+                color: isCancelled
+                  ? "#B91C1C"
+                  : isPaid
+                    ? "#047857"
+                    : "#C2410C",
+              },
             ]}
           >
-            {isPaid
-              ? "Booking confirmed — show this QR at the venue"
-              : "Almost there — pay to confirm your slot"}
+            {isCancelled
+              ? "This booking was cancelled"
+              : isPaid
+                ? "Booking confirmed — show this QR at the venue"
+                : "Almost there — pay to confirm your slot"}
           </Text>
         </View>
 
         {/* QR (paid only) */}
-        {isPaid && (
+        {isPaid && !isCancelled && (
           <View style={styles.qrCard}>
             {booking.qrCodeUrl ? (
               <Image source={{ uri: booking.qrCodeUrl }} style={styles.qr} />
@@ -219,7 +296,21 @@ export default function BookingReceiptScreen() {
           </View>
         </View>
 
-        {isPaid && (
+        {canCancel && (
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={handleCancel}
+            disabled={cancelling}
+          >
+            {cancelling ? (
+              <ActivityIndicator color="#DC2626" />
+            ) : (
+              <Text style={styles.cancelBtnText}>Cancel booking</Text>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {(isPaid || isCancelled) && (
           <TouchableOpacity
             style={styles.secondaryBtn}
             onPress={() => router.replace("/experiences" as any)}
@@ -230,7 +321,7 @@ export default function BookingReceiptScreen() {
       </ScrollView>
 
       {/* Pay CTA */}
-      {!isPaid && (
+      {!isPaid && !isCancelled && (
         <View style={styles.footer}>
           <TouchableOpacity
             activeOpacity={0.9}
@@ -349,6 +440,14 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 22, fontWeight: "900", color: PrimaryColor },
   secondaryBtn: { alignItems: "center", paddingVertical: 18, marginTop: 4 },
   secondaryBtnText: { color: PrimaryColor, fontWeight: "800", fontSize: 15 },
+  cancelBtn: {
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 8,
+    borderRadius: 14,
+    backgroundColor: "#FEF2F2",
+  },
+  cancelBtnText: { color: "#DC2626", fontWeight: "700", fontSize: 15 },
   footer: {
     position: "absolute",
     bottom: 0,
