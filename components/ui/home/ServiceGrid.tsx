@@ -667,8 +667,28 @@ const MoreServicesSheet = ({
                       </Text>
                     </View>
 
-                    {/* Badge */}
-                    {
+                    {/* Badge — live services show an actionable badge, the
+                        rest still show "SOON". */}
+                    {svc.id === "experiences" ? (
+                      <View
+                        style={{
+                          backgroundColor: ORANGE,
+                          borderRadius: 8,
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: "700",
+                            color: "#fff",
+                          }}
+                        >
+                          OPEN
+                        </Text>
+                      </View>
+                    ) : (
                       <View
                         style={{
                           backgroundColor: "#F0F0F0",
@@ -687,7 +707,7 @@ const MoreServicesSheet = ({
                           SOON
                         </Text>
                       </View>
-                    }
+                    )}
                   </TouchableOpacity>
                 );
               })}
