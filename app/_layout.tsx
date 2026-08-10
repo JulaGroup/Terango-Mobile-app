@@ -307,10 +307,11 @@ export default function RootLayout() {
           "error",
         );
 
-        // For bookings, return to the receipt (still unpaid) so they can retry.
+        // For bookings, return to the payment screen so they can retry there —
+        // the ticket screen is only ever for a paid booking.
         if (bookingId) {
           router.replace({
-            pathname: "/booking/[bookingId]" as any,
+            pathname: "/booking-payment" as any,
             params: { bookingId },
           });
         } else {

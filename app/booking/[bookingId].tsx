@@ -10,6 +10,9 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  Linking,
+  Share,
+  Dimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -18,22 +21,26 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryColor } from "@/constants/Colors";
 import { experienceApi, Booking } from "@/lib/api";
 
-function formatWhen(iso?: string) {
-  if (!iso) return "";
+const { width: SCREEN_W } = Dimensions.get("window");
+const PAGE_BG = "#EEF1F5";
+const TICKET_W = SCREEN_W - 32;
+const NOTCH = 26;
+
+function parts(iso?: string) {
+  if (!iso) return { date: "", time: "", weekday: "" };
   const d = new Date(iso);
   let h = d.getUTCHours();
   const m = d.getUTCMinutes();
   const ampm = h >= 12 ? "PM" : "AM";
   h = h % 12 || 12;
-  const date = d.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  return `${date} · ${h}:${m.toString().padStart(2, "0")} ${ampm}`;
+  return {
+    weekday: d.toLocaleDateString("en-US", { weekday: "long" }),
+    date: d.toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" }),
+    time: `${h}:${m.toString().padStart(2, "0")} ${ampm}`,
+  };
 }
 
-export default function BookingReceiptScreen() {
+export default function BookingTicketScreen() {
   const router = useRouter();
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -44,15 +51,15 @@ export default function BookingReceiptScreen() {
   const isPaid =
     booking?.paymentStatus === "PAID" || booking?.paymentStatus === "SUCCEEDED";
   const isCancelled = booking?.status === "CANCELLED";
+  const isCheckedIn = booking?.status === "CHECKED_IN";
+  const isDone = booking?.status === "COMPLETED";
   const canCancel =
     !!booking &&
     !isCancelled &&
-    booking.status !== "CHECKED_IN" &&
-    booking.status !== "COMPLETED" &&
+    !isCheckedIn &&
+    !isDone &&
     new Date(booking.startTime).getTime() > Date.now();
 
-  // Older bookings predate the split columns — derive them so the breakdown
-  // still adds up to the amount that was actually charged.
   const subtotal =
     booking?.subtotalAmount ??
     (booking ? booking.unitPrice * booking.quantity : 0);
@@ -75,14 +82,38 @@ export default function BookingReceiptScreen() {
     fetchBooking();
   }, [fetchBooking]);
 
+  // A ticket only exists once the booking is paid. An unpaid booking belongs on
+  // the payment screen, not here.
+  useEffect(() => {
+    if (!loading && booking && !isPaid && !isCancelled) {
+      router.replace({
+        pathname: "/booking-payment" as any,
+        params: { bookingId: String(booking.id) },
+      });
+    }
+  }, [loading, booking, isPaid, isCancelled, router]);
+
+  // Keep the ticket fresh so a check-in at the gate reflects immediately.
+  useEffect(() => {
+    if (isCancelled || isDone) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    pollRef.current = setInterval(fetchBooking, 15000);
+    const sub = AppState.addEventListener("change", (s) => {
+      if (s === "active") fetchBooking();
+    });
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      sub.remove();
+    };
+  }, [isCancelled, isDone, fetchBooking]);
+
   const handleCancel = () => {
     if (!booking) return;
-    const paidNote = isPaid
-      ? " Your refund will be arranged by TeranGO support."
-      : "";
     Alert.alert(
       "Cancel booking?",
-      `This frees your slot and can't be undone.${paidNote}`,
+      "This frees your slot and can't be undone. Your refund will be arranged by TeranGO support.",
       [
         { text: "Keep booking", style: "cancel" },
         {
@@ -95,9 +126,7 @@ export default function BookingReceiptScreen() {
               await fetchBooking();
               Alert.alert(
                 "Booking cancelled",
-                isPaid
-                  ? "Your slot was released. Support will arrange your refund."
-                  : "Your slot was released.",
+                "Your slot was released. Support will arrange your refund.",
               );
             } catch (e: any) {
               Alert.alert(
@@ -114,179 +143,206 @@ export default function BookingReceiptScreen() {
     );
   };
 
-  // Poll while unpaid so the receipt flips to confirmed after Wave returns.
-  useEffect(() => {
-    if (isPaid || isCancelled) {
-      if (pollRef.current) clearInterval(pollRef.current);
-      return;
-    }
-    pollRef.current = setInterval(fetchBooking, 3000);
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") fetchBooking();
-    });
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-      sub.remove();
-    };
-  }, [isPaid, isCancelled, fetchBooking]);
+  const onShare = () => {
+    if (!booking) return;
+    const w = parts(booking.startTime);
+    Share.share({
+      message:
+        `My TeranGO ticket — ${booking.experience?.name}\n` +
+        `${w.weekday} ${w.date} at ${w.time}\n` +
+        `${booking.option?.label} × ${booking.quantity}\n` +
+        `Ref: ${booking.id.slice(-8).toUpperCase()}`,
+    }).catch(() => {});
+  };
+
+  const openMap = () => {
+    if (!booking?.experience) return;
+    const q = encodeURIComponent(
+      booking.experience.address ||
+        booking.experience.city ||
+        booking.experience.name ||
+        "",
+    );
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+  };
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.center}>
+      <View style={styles.center}>
         <ActivityIndicator color={PrimaryColor} size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
-
   if (!booking) {
     return (
-      <SafeAreaView style={styles.center}>
+      <View style={styles.center}>
         <Text style={{ color: "#94A3B8" }}>Booking not found.</Text>
-      </SafeAreaView>
+      </View>
+    );
+  }
+  // Redirecting to payment — don't flash the ticket.
+  if (!isPaid && !isCancelled) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator color={PrimaryColor} size="large" />
+      </View>
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <StatusBar barStyle="light-content" backgroundColor={PrimaryColor} />
+  const w = parts(booking.startTime);
+  const ref = booking.id.slice(-8).toUpperCase();
 
-      {/* Header */}
-      <LinearGradient
-        colors={
-          isCancelled
-            ? ["#94A3B8", "#64748B"]
-            : isPaid
-              ? ["#10B981", "#059669"]
-              : [PrimaryColor, "#FF8A34"]
-        }
-        style={styles.header}
-      >
-        <View style={styles.headerRow}>
+  const status = isCancelled
+    ? { label: "Cancelled", bg: "#FEE2E2", fg: "#B91C1C", icon: "close-circle" }
+    : isCheckedIn
+      ? { label: "Checked in", bg: "#DBEAFE", fg: "#1D4ED8", icon: "checkmark-done-circle" }
+      : isDone
+        ? { label: "Completed", bg: "#E2E8F0", fg: "#475569", icon: "flag" }
+        : { label: "Confirmed", bg: "#D1FAE5", fg: "#047857", icon: "checkmark-circle" };
+
+  const dead = isCancelled || isDone;
+
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
+      <SafeAreaView edges={["top", "left", "right"]}>
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={styles.headerBtn}
             onPress={() => router.replace("/experiences" as any)}
           >
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={21} color="#0F172A" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>
-            {isCancelled
-              ? "Booking Cancelled"
-              : isPaid
-                ? "Your Ticket"
-                : "Confirm & Pay"}
-          </Text>
-          <View style={{ width: 40 }} />
+          <Text style={styles.headerTitle}>E-Ticket</Text>
+          <TouchableOpacity style={styles.headerBtn} onPress={onShare}>
+            <Ionicons name="share-outline" size={20} color="#0F172A" />
+          </TouchableOpacity>
         </View>
-      </LinearGradient>
+      </SafeAreaView>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 130 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Status banner */}
-        <View
-          style={[
-            styles.statusBanner,
-            {
-              backgroundColor: isCancelled
-                ? "#FEF2F2"
-                : isPaid
-                  ? "#ECFDF5"
-                  : "#FFF7ED",
-            },
-          ]}
-        >
-          <Ionicons
-            name={
+        {/* ── Ticket ──────────────────────────────────────────────────── */}
+        <View style={[styles.ticket, dead && { opacity: 0.62 }]}>
+          {/* Stub head */}
+          <LinearGradient
+            colors={
               isCancelled
-                ? "close-circle"
-                : isPaid
-                  ? "checkmark-circle"
-                  : "time-outline"
+                ? ["#94A3B8", "#64748B"]
+                : [PrimaryColor, "#FF8A34"]
             }
-            size={20}
-            color={isCancelled ? "#DC2626" : isPaid ? "#059669" : PrimaryColor}
-          />
-          <Text
-            style={[
-              styles.statusText,
-              {
-                color: isCancelled
-                  ? "#B91C1C"
-                  : isPaid
-                    ? "#047857"
-                    : "#C2410C",
-              },
-            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.ticketHead}
           >
-            {isCancelled
-              ? "This booking was cancelled"
-              : isPaid
-                ? "Booking confirmed — show this QR at the venue"
-                : "Almost there — pay to confirm your slot"}
-          </Text>
-        </View>
-
-        {/* QR (paid only) */}
-        {isPaid && !isCancelled && (
-          <View style={styles.qrCard}>
-            {booking.qrCodeUrl ? (
-              <Image source={{ uri: booking.qrCodeUrl }} style={styles.qr} />
-            ) : (
-              <View style={[styles.qr, styles.qrPlaceholder]}>
-                <Ionicons name="qr-code" size={64} color="#CBD5E1" />
-              </View>
-            )}
-            <Text style={styles.bookingCode}>
-              #{booking.id.slice(-8).toUpperCase()}
-            </Text>
-          </View>
-        )}
-
-        {/* Details */}
-        <View style={styles.card}>
-          <Text style={styles.expName}>{booking.experience?.name}</Text>
-          <View style={styles.detailRow}>
-            <Ionicons name="pricetag-outline" size={16} color="#94A3B8" />
-            <Text style={styles.detailText}>{booking.option?.label}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="calendar-outline" size={16} color="#94A3B8" />
-            <Text style={styles.detailText}>
-              {formatWhen(booking.startTime)}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="people-outline" size={16} color="#94A3B8" />
-            <Text style={styles.detailText}>
-              {booking.quantity} × D{booking.unitPrice}
-            </Text>
-          </View>
-          {!!booking.experience?.address && (
-            <View style={styles.detailRow}>
-              <Ionicons name="location-outline" size={16} color="#94A3B8" />
-              <Text style={styles.detailText}>
-                {booking.experience.address}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ticketBrand}>TERANGO</Text>
+              <Text style={styles.ticketVenue} numberOfLines={1}>
+                {booking.experience?.name}
               </Text>
             </View>
-          )}
-
-          <View style={styles.divider} />
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Subtotal</Text>
-            <Text style={styles.breakdownValue}>D{subtotal}</Text>
-          </View>
-          {serviceFee > 0 && (
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Service fee</Text>
-              <Text style={styles.breakdownValue}>D{serviceFee}</Text>
+            <View style={styles.headIcon}>
+              <Ionicons name="ticket" size={20} color="#fff" />
             </View>
-          )}
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>D{booking.totalAmount}</Text>
+          </LinearGradient>
+
+          {/* QR */}
+          <View style={styles.qrZone}>
+            <View style={styles.qrFrame}>
+              {booking.qrCodeUrl ? (
+                <Image source={{ uri: booking.qrCodeUrl }} style={styles.qr} />
+              ) : (
+                <View style={[styles.qr, styles.qrEmpty]}>
+                  <Ionicons name="qr-code-outline" size={56} color="#CBD5E1" />
+                </View>
+              )}
+            </View>
+            <Text style={styles.qrHint}>
+              {isCheckedIn
+                ? "Already scanned"
+                : isCancelled
+                  ? "This ticket is void"
+                  : "Show this at the entrance"}
+            </Text>
+          </View>
+
+          {/* Perforation */}
+          <View style={styles.perforation}>
+            <View style={[styles.notch, styles.notchLeft]} />
+            <View style={styles.dashRow}>
+              {Array.from({ length: 26 }).map((_, i) => (
+                <View key={i} style={styles.dash} />
+              ))}
+            </View>
+            <View style={[styles.notch, styles.notchRight]} />
+          </View>
+
+          {/* Stub body */}
+          <View style={styles.stub}>
+            <View style={styles.gridRow}>
+              <Field label="Date" value={w.date} sub={w.weekday} />
+              <Field label="Time" value={w.time} align="right" />
+            </View>
+            <View style={styles.gridRow}>
+              <Field label="Package" value={booking.option?.label || "—"} />
+              <Field
+                label={booking.experience?.unitLabel ? `${booking.experience.unitLabel}s` : "Guests"}
+                value={String(booking.quantity)}
+                align="right"
+              />
+            </View>
+
+            <View style={styles.stubDivider} />
+
+            <View style={styles.gridRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Booking reference</Text>
+                <Text style={styles.refValue}>{ref}</Text>
+              </View>
+              <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
+                <Ionicons name={status.icon as any} size={13} color={status.fg} />
+                <Text style={[styles.statusChipText, { color: status.fg }]}>
+                  {status.label}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.stubDivider} />
+
+            <View style={styles.payRow}>
+              <Text style={styles.payLabel}>
+                D{subtotal}
+                {serviceFee > 0 ? ` + D${serviceFee} fee` : ""}
+              </Text>
+              <View style={{ alignItems: "flex-end" }}>
+                <Text style={styles.fieldLabel}>Total paid</Text>
+                <Text style={styles.payTotal}>D{booking.totalAmount}</Text>
+              </View>
+            </View>
           </View>
         </View>
+
+        {/* Venue */}
+        {!!(booking.experience?.address || booking.experience?.city) && (
+          <TouchableOpacity
+            style={styles.venueRow}
+            activeOpacity={0.85}
+            onPress={openMap}
+          >
+            <View style={styles.venueIcon}>
+              <Ionicons name="location" size={19} color={PrimaryColor} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.venueName}>Getting there</Text>
+              <Text style={styles.venueSub} numberOfLines={1}>
+                {booking.experience.address || booking.experience.city}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+          </TouchableOpacity>
+        )}
 
         {canCancel && (
           <TouchableOpacity
@@ -302,181 +358,226 @@ export default function BookingReceiptScreen() {
           </TouchableOpacity>
         )}
 
-        {(isPaid || isCancelled) && (
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            onPress={() => router.replace("/experiences" as any)}
-          >
-            <Text style={styles.secondaryBtnText}>Browse more experiences</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.secondaryBtn}
+          onPress={() => router.replace("/experiences" as any)}
+        >
+          <Text style={styles.secondaryBtnText}>Browse more experiences</Text>
+        </TouchableOpacity>
       </ScrollView>
+    </View>
+  );
+}
 
-      {/* Pay CTA — hands off to the shared payment screen */}
-      {!isPaid && !isCancelled && (
-        <View style={styles.footer}>
-          <View style={styles.footerTotalRow}>
-            <Text style={styles.footerTotalLabel}>Total to pay</Text>
-            <Text style={styles.footerTotalValue}>D{booking.totalAmount}</Text>
-          </View>
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() =>
-              router.push({
-                pathname: "/booking-payment" as any,
-                params: { bookingId: booking.id },
-              })
-            }
-          >
-            <LinearGradient
-              colors={[PrimaryColor, "#FF8A34"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.cta}
-            >
-              <Ionicons name="card" size={18} color="#fff" />
-              <Text style={styles.ctaText}>Continue to payment</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      )}
-
-    </SafeAreaView>
+function Field({
+  label,
+  value,
+  sub,
+  align,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  align?: "right";
+}) {
+  return (
+    <View style={{ flex: 1, alignItems: align === "right" ? "flex-end" : "flex-start" }}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text
+        style={[styles.fieldValue, align === "right" && { textAlign: "right" }]}
+        numberOfLines={1}
+      >
+        {value}
+      </Text>
+      {!!sub && <Text style={styles.fieldSub}>{sub}</Text>}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F7F8FA" },
+  container: { flex: 1, backgroundColor: PAGE_BG },
   center: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: PAGE_BG,
     justifyContent: "center",
     alignItems: "center",
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
   },
-  backButton: {
+  headerBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "#fff",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  statusBanner: {
+  headerTitle: { fontSize: 17, fontWeight: "800", color: "#0F172A" },
+
+  /* Ticket */
+  ticket: {
+    width: TICKET_W,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    overflow: "hidden",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 22,
+    elevation: 6,
+  },
+  ticketHead: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    gap: 12,
   },
-  statusText: { flex: 1, fontSize: 13, fontWeight: "700", lineHeight: 18 },
-  qrCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    alignItems: "center",
-    paddingVertical: 24,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+  ticketBrand: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 2.5,
   },
-  qr: { width: 200, height: 200 },
-  qrPlaceholder: { justifyContent: "center", alignItems: "center" },
-  bookingCode: {
-    marginTop: 12,
-    fontSize: 16,
+  ticketVenue: {
+    color: "#fff",
+    fontSize: 21,
     fontWeight: "900",
-    letterSpacing: 2,
-    color: "#0F172A",
+    marginTop: 3,
+    letterSpacing: -0.3,
   },
-  card: {
-    backgroundColor: "#fff",
+  headIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  qrZone: { alignItems: "center", paddingTop: 26, paddingBottom: 20 },
+  qrFrame: {
+    padding: 14,
     borderRadius: 18,
-    padding: 18,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 2,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#EDF1F6",
   },
-  expName: { fontSize: 19, fontWeight: "900", color: "#0F172A", marginBottom: 12 },
-  detailRow: {
+  qr: { width: 190, height: 190 },
+  qrEmpty: { justifyContent: "center", alignItems: "center" },
+  qrHint: {
+    marginTop: 14,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
+  perforation: {
+    height: NOTCH,
+    justifyContent: "center",
+  },
+  notch: {
+    position: "absolute",
+    width: NOTCH,
+    height: NOTCH,
+    borderRadius: NOTCH / 2,
+    backgroundColor: PAGE_BG,
+    top: 0,
+  },
+  notchLeft: { left: -NOTCH / 2 },
+  notchRight: { right: -NOTCH / 2 },
+  dashRow: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    paddingHorizontal: NOTCH / 2 + 6,
+  },
+  dash: {
+    width: 7,
+    height: 2,
+    borderRadius: 1,
+    backgroundColor: "#D8DEE6",
+  },
+
+  stub: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 20 },
+  gridRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 16,
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    color: "#94A3B8",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  fieldValue: { fontSize: 15.5, fontWeight: "800", color: "#0F172A" },
+  fieldSub: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
+  stubDivider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginBottom: 16,
+  },
+  refValue: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: 3,
+  },
+  statusChip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 10,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  detailText: { fontSize: 14, color: "#334155", flex: 1 },
-  divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 6 },
-  totalRow: {
+  statusChipText: { fontSize: 12, fontWeight: "800" },
+  payRow: {
     flexDirection: "row",
+    alignItems: "flex-end",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 6,
   },
-  breakdownRow: {
+  payLabel: { fontSize: 13, color: "#94A3B8", fontWeight: "600" },
+  payTotal: { fontSize: 22, fontWeight: "900", color: PrimaryColor },
+
+  /* Venue */
+  venueRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 6,
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 16,
   },
-  breakdownLabel: { fontSize: 13.5, color: "#94A3B8", fontWeight: "500" },
-  breakdownValue: { fontSize: 13.5, color: "#334155", fontWeight: "700" },
-  totalLabel: { fontSize: 15, fontWeight: "700", color: "#64748B" },
-  totalValue: { fontSize: 22, fontWeight: "900", color: PrimaryColor },
-  secondaryBtn: { alignItems: "center", paddingVertical: 18, marginTop: 4 },
-  secondaryBtnText: { color: PrimaryColor, fontWeight: "800", fontSize: 15 },
+  venueIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFF5EE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  venueName: { fontSize: 14.5, fontWeight: "800", color: "#0F172A" },
+  venueSub: { fontSize: 12.5, color: "#94A3B8", marginTop: 2 },
+
   cancelBtn: {
     alignItems: "center",
     paddingVertical: 16,
-    marginTop: 8,
+    marginTop: 14,
     borderRadius: 14,
     backgroundColor: "#FEF2F2",
   },
   cancelBtnText: { color: "#DC2626", fontWeight: "700", fontSize: 15 },
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  cta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 16,
-  },
-  ctaText: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  footerTotalRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  footerTotalLabel: { fontSize: 13, color: "#64748B", fontWeight: "600" },
-  footerTotalValue: { fontSize: 20, fontWeight: "900", color: "#0F172A" },
-
+  secondaryBtn: { alignItems: "center", paddingVertical: 18, marginTop: 2 },
+  secondaryBtnText: { color: PrimaryColor, fontWeight: "800", fontSize: 15 },
 });
