@@ -828,6 +828,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="booking-payment"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="browse/[section]"
                                 options={{
                                   animation: "slide_from_right",

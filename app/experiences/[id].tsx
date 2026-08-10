@@ -137,8 +137,9 @@ export default function ExperienceDetailScreen() {
         startTime: selectedSlot,
         quantity,
       });
+      // Straight to payment, same as Express: the slot is only held once paid.
       router.push({
-        pathname: "/booking/[bookingId]" as any,
+        pathname: "/booking-payment" as any,
         params: { bookingId: created.id },
       });
     } catch (e: any) {

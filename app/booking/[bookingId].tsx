@@ -9,10 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
-  Linking,
   AppState,
-  Modal,
-  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -41,10 +38,7 @@ export default function BookingReceiptScreen() {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [paySheetOpen, setPaySheetOpen] = useState(false);
-  const [method, setMethod] = useState<string | null>("wave");
   const pollRef = useRef<any>(null);
 
   const isPaid =
@@ -135,38 +129,6 @@ export default function BookingReceiptScreen() {
       sub.remove();
     };
   }, [isPaid, isCancelled, fetchBooking]);
-
-  const handlePay = async () => {
-    if (!booking) return;
-    if (!method) {
-      Alert.alert(
-        "Choose a payment method",
-        "Select how you'd like to pay to continue.",
-      );
-      return;
-    }
-    try {
-      setPaying(true);
-      const res = await experienceApi.payForBooking(
-        booking.id,
-        "teranggo://booking-success",
-      );
-      const url = res?.wave_launch_url;
-      if (!url) throw new Error("No payment link received");
-      const canOpen = await Linking.canOpenURL(url);
-      if (!canOpen) throw new Error("Cannot open Wave. Is the app installed?");
-      await Linking.openURL(url);
-      setPaySheetOpen(false);
-    } catch (e: any) {
-      Alert.alert(
-        "Payment failed",
-        e?.message?.replace(/^API Error: \d+ - /, "") ||
-          "Couldn't start the payment. Please try again.",
-      );
-    } finally {
-      setPaying(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -350,7 +312,7 @@ export default function BookingReceiptScreen() {
         )}
       </ScrollView>
 
-      {/* Pay CTA — opens the payment-method sheet */}
+      {/* Pay CTA — hands off to the shared payment screen */}
       {!isPaid && !isCancelled && (
         <View style={styles.footer}>
           <View style={styles.footerTotalRow}>
@@ -359,7 +321,12 @@ export default function BookingReceiptScreen() {
           </View>
           <TouchableOpacity
             activeOpacity={0.9}
-            onPress={() => setPaySheetOpen(true)}
+            onPress={() =>
+              router.push({
+                pathname: "/booking-payment" as any,
+                params: { bookingId: booking.id },
+              })
+            }
           >
             <LinearGradient
               colors={[PrimaryColor, "#FF8A34"]}
@@ -374,140 +341,6 @@ export default function BookingReceiptScreen() {
         </View>
       )}
 
-      {/* ── Payment method sheet (same pattern as Express delivery) ─────── */}
-      <Modal
-        visible={paySheetOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => !paying && setPaySheetOpen(false)}
-      >
-        <Pressable
-          style={styles.sheetBackdrop}
-          onPress={() => !paying && setPaySheetOpen(false)}
-        />
-        <View style={styles.sheet}>
-          <View style={styles.sheetHandle} />
-
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Payment</Text>
-            <TouchableOpacity
-              onPress={() => !paying && setPaySheetOpen(false)}
-              hitSlop={10}
-            >
-              <Ionicons name="close" size={22} color="#94A3B8" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Breakdown */}
-          <View style={styles.sheetBlock}>
-            <Text style={styles.sheetBlockTitle}>Order summary</Text>
-            <View style={styles.sheetRow}>
-              <Text style={styles.sheetRowLabel} numberOfLines={1}>
-                {booking.option?.label} × {booking.quantity}
-              </Text>
-              <Text style={styles.sheetRowValue}>D{subtotal}</Text>
-            </View>
-            <View style={styles.sheetRow}>
-              <Text style={styles.sheetRowLabel}>Service fee</Text>
-              <Text style={styles.sheetRowValue}>D{serviceFee}</Text>
-            </View>
-            <View style={styles.sheetRow}>
-              <Text style={styles.sheetRowLabel}>When</Text>
-              <Text style={styles.sheetRowValue}>
-                {formatWhen(booking.startTime)}
-              </Text>
-            </View>
-            <View style={styles.sheetDivider} />
-            <View style={styles.sheetRow}>
-              <Text style={styles.sheetTotalLabel}>Total</Text>
-              <Text style={styles.sheetTotalValue}>D{booking.totalAmount}</Text>
-            </View>
-          </View>
-
-          {/* Methods */}
-          <View style={styles.sheetBlock}>
-            <Text style={styles.sheetBlockTitle}>Payment method</Text>
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPress={() => setMethod("wave")}
-              style={[
-                styles.methodCard,
-                method === "wave" && styles.methodCardActive,
-              ]}
-            >
-              <View
-                style={[
-                  styles.methodIcon,
-                  method === "wave" && styles.methodIconActive,
-                ]}
-              >
-                <Text style={{ fontSize: 22 }}>🐧</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.methodName}>Wave</Text>
-                <Text style={styles.methodDesc}>Pay with the Wave app</Text>
-              </View>
-              <View
-                style={[
-                  styles.radio,
-                  method === "wave" && styles.radioActive,
-                ]}
-              >
-                {method === "wave" && <View style={styles.radioDot} />}
-              </View>
-            </TouchableOpacity>
-
-            <View style={[styles.methodCard, styles.methodCardDisabled]}>
-              <View style={styles.methodIcon}>
-                <Ionicons name="cash-outline" size={20} color="#94A3B8" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.methodName, { color: "#94A3B8" }]}>
-                  Cash at venue
-                </Text>
-                <Text style={styles.methodDesc}>
-                  Not available — slots are held only once paid
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.secureNote}>
-            <Ionicons name="lock-closed" size={13} color="#059669" />
-            <Text style={styles.secureNoteText}>
-              Secured by Wave. You'll come straight back here for your QR.
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            activeOpacity={0.9}
-            disabled={paying || !method}
-            onPress={handlePay}
-          >
-            <LinearGradient
-              colors={
-                paying || !method
-                  ? ["#CBD5E1", "#CBD5E1"]
-                  : [PrimaryColor, "#FF8A34"]
-              }
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.sheetCta}
-            >
-              {paying ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <Text style={styles.ctaText}>Pay with Wave</Text>
-                  <Text style={styles.sheetCtaAmount}>
-                    D{booking.totalAmount}
-                  </Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -646,123 +479,4 @@ const styles = StyleSheet.create({
   footerTotalLabel: { fontSize: 13, color: "#64748B", fontWeight: "600" },
   footerTotalValue: { fontSize: 20, fontWeight: "900", color: "#0F172A" },
 
-  /* Payment sheet */
-  sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)" },
-  sheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 30,
-  },
-  sheetHandle: {
-    alignSelf: "center",
-    width: 42,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#E2E8F0",
-    marginBottom: 14,
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  sheetTitle: { fontSize: 21, fontWeight: "900", color: "#0F172A" },
-  sheetBlock: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
-  },
-  sheetBlockTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#94A3B8",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  sheetRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 9,
-    gap: 12,
-  },
-  sheetRowLabel: { fontSize: 14, color: "#64748B", flex: 1 },
-  sheetRowValue: { fontSize: 14, fontWeight: "700", color: "#0F172A" },
-  sheetDivider: {
-    height: 1,
-    backgroundColor: "#E2E8F0",
-    marginVertical: 6,
-  },
-  sheetTotalLabel: { fontSize: 15, fontWeight: "800", color: "#0F172A" },
-  sheetTotalValue: { fontSize: 20, fontWeight: "900", color: PrimaryColor },
-  methodCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 13,
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    marginBottom: 10,
-  },
-  methodCardActive: { borderColor: PrimaryColor, backgroundColor: "#FFFAF7" },
-  methodCardDisabled: { opacity: 0.55, backgroundColor: "#F8FAFC" },
-  methodIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#F1F5F9",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  methodIconActive: { backgroundColor: "#FFE6D4" },
-  methodName: { fontSize: 15, fontWeight: "800", color: "#0F172A" },
-  methodDesc: { fontSize: 12, color: "#94A3B8", marginTop: 2, lineHeight: 16 },
-  radio: {
-    width: 21,
-    height: 21,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: "#CBD5E1",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  radioActive: { borderColor: PrimaryColor },
-  radioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: PrimaryColor,
-  },
-  secureNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginBottom: 14,
-    paddingHorizontal: 2,
-  },
-  secureNoteText: {
-    flex: 1,
-    fontSize: 11.5,
-    color: "#64748B",
-    lineHeight: 16,
-  },
-  sheetCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingVertical: 17,
-    borderRadius: 16,
-  },
-  sheetCtaAmount: { color: "#fff", fontSize: 17, fontWeight: "900" },
 });
