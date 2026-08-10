@@ -15,6 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { vendorApi, VendorStats } from "@/lib/api";
+import { useVendor } from "@/context/VendorContext";
 
 const STATUS_COLORS: Record<string, string> = {
   DELIVERED: "#10B981",
@@ -23,10 +24,21 @@ const STATUS_COLORS: Record<string, string> = {
   PREPARING: "#3B82F6",
   DISPATCHED: "#8B5CF6",
   CANCELLED: "#EF4444",
+  // Booking statuses
+  CONFIRMED: "#10B981",
+  CHECKED_IN: "#3B82F6",
+  COMPLETED: "#10B981",
 };
 
 export default function VendorEarningsScreen() {
   const router = useRouter();
+  const { currentBusiness, vendor } = useVendor();
+  // Providers sell bookings, not orders — relabel the same figures for them.
+  const isExperience =
+    (currentBusiness?.type as string) === "EXPERIENCE" ||
+    !!vendor?.businessType?.includes("EXPERIENCE" as any);
+  const unit = isExperience ? "booking" : "order";
+  const units = isExperience ? "bookings" : "orders";
   const [stats, setStats] = useState<VendorStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,21 +163,25 @@ export default function VendorEarningsScreen() {
               {fmt(stats.todayRevenue)}
             </Text>
             <Text style={styles.summarySubLabel}>
-              {stats.todayOrders} orders
+              {stats.todayOrders} {units}
             </Text>
           </View>
         </View>
 
         <View style={styles.summaryRow}>
           <View style={[styles.summaryCard, { borderLeftColor: "#3B82F6" }]}>
-            <Text style={styles.summaryLabel}>Avg. Order Value</Text>
+            <Text style={styles.summaryLabel}>
+              {isExperience ? "Avg. Booking Value" : "Avg. Order Value"}
+            </Text>
             <Text style={[styles.summaryAmount, { color: "#3B82F6" }]}>
               {fmt(stats.averageOrderValue)}
             </Text>
-            <Text style={styles.summarySubLabel}>Per order</Text>
+            <Text style={styles.summarySubLabel}>Per {unit}</Text>
           </View>
           <View style={[styles.summaryCard, { borderLeftColor: "#8B5CF6" }]}>
-            <Text style={styles.summaryLabel}>Total Orders</Text>
+            <Text style={styles.summaryLabel}>
+              {isExperience ? "Total Bookings" : "Total Orders"}
+            </Text>
             <Text style={[styles.summaryAmount, { color: "#8B5CF6" }]}>
               {stats.totalOrders}
             </Text>
@@ -243,7 +259,9 @@ export default function VendorEarningsScreen() {
         {/* Recent Orders */}
         {stats.recentOrders && stats.recentOrders.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Recent Orders</Text>
+            <Text style={styles.cardTitle}>
+              {isExperience ? "Recent Bookings" : "Recent Orders"}
+            </Text>
             {stats.recentOrders.slice(0, 10).map((order) => {
               const statusColor = STATUS_COLORS[order.status] || "#6B7280";
               const orderDate = new Date(order.createdAt).toLocaleDateString(
@@ -264,7 +282,13 @@ export default function VendorEarningsScreen() {
                     <Text style={styles.recentOrderDate}>{orderDate}</Text>
                     <Text style={styles.recentOrderItems}>
                       {order.itemCount}{" "}
-                      {order.itemCount === 1 ? "item" : "items"}
+                      {isExperience
+                        ? order.itemCount === 1
+                          ? "guest"
+                          : "guests"
+                        : order.itemCount === 1
+                          ? "item"
+                          : "items"}
                     </Text>
                   </View>
                   <View style={styles.recentOrderRight}>

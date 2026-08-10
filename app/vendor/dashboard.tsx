@@ -102,6 +102,12 @@ export default function VendorDashboard() {
     }
   }, []);
 
+  // Experience providers (karting, tours, events) sell bookings rather than
+  // orders, so the dashboard relabels its stats and swaps which cards show.
+  const isExperience =
+    (currentBusiness?.type as string) === "EXPERIENCE" ||
+    !!vendor?.businessType?.includes("EXPERIENCE" as any);
+
   // Get business name for header
   const getBusinessName = () => {
     if (currentBusiness?.name) {
@@ -122,6 +128,8 @@ export default function VendorDashboard() {
         return "My Shop";
       case "PHARMACY":
         return "My Pharmacy";
+      case "EXPERIENCE":
+        return "My Experience";
       default:
         return "My Business";
     }
@@ -400,7 +408,9 @@ export default function VendorDashboard() {
           <View style={styles.quickStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{metrics.todayOrders}</Text>
-              <Text style={styles.statLabel}>Today&apos;s Orders</Text>
+              <Text style={styles.statLabel}>
+                {isExperience ? "Today's Bookings" : "Today's Orders"}
+              </Text>
             </View>
             {isVendorAdmin && (
               <View style={styles.statItem}>
@@ -412,7 +422,9 @@ export default function VendorDashboard() {
             )}
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{metrics.pendingOrders}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>
+                {isExperience ? "Upcoming" : "Pending"}
+              </Text>
             </View>
           </View>
         </View>
@@ -540,26 +552,50 @@ export default function VendorDashboard() {
         {/* Navigation Cards */}
         <View style={styles.navigationSection}>
           <Text style={styles.sectionTitle}>Manage Your Business</Text>
-          {/* Orders — available to everyone (admins and cashiers) */}
-          <NavigationCard
-            title="Orders"
-            subtitle="Manage incoming orders"
-            icon="receipt-outline"
-            color={PrimaryColor}
-            onPress={() => router.push("/vendor/orders")}
-            badge={metrics.pendingOrders}
-          />
+          {/* Orders — everyone except experience providers, who have no orders */}
+          {!isExperience && (
+            <NavigationCard
+              title="Orders"
+              subtitle="Manage incoming orders"
+              icon="receipt-outline"
+              color={PrimaryColor}
+              onPress={() => router.push("/vendor/orders")}
+              badge={metrics.pendingOrders}
+            />
+          )}
 
           {/* Bookings — for experience providers (go-karting, tours, etc.) */}
-          {((currentBusiness?.type as string) === "EXPERIENCE" ||
-            vendor?.businessType?.includes("EXPERIENCE")) && (
+          {isExperience && (
             <NavigationCard
               title="Bookings"
               subtitle="View bookings & check guests in"
               icon="calendar-outline"
               color={PrimaryColor}
               onPress={() => router.push("/vendor/bookings" as any)}
+              badge={metrics.pendingOrders}
             />
+          )}
+
+          {/* Experience providers manage everything in-app — there's no web
+              panel for them — so earnings and settings aren't gated behind
+              the multi-user shift setup the food vendors use. */}
+          {isExperience && isVendorAdmin && (
+            <>
+              <NavigationCard
+                title="Earnings"
+                subtitle="Revenue, payouts & best sellers"
+                icon="cash-outline"
+                color={PrimaryColor}
+                onPress={() => router.push("/vendor/earnings")}
+              />
+              <NavigationCard
+                title="Settings"
+                subtitle="Business settings"
+                icon="settings-outline"
+                color={PrimaryColor}
+                onPress={() => router.push("/vendor/profile")}
+              />
+            </>
           )}
 
           {/* Management cards. Only for multi-user vendors — a single-user
@@ -604,30 +640,33 @@ export default function VendorDashboard() {
                 color={PrimaryColor}
                 onPress={() => router.push("/vendor/earnings")}
               /> */}
-              <NavigationCard
-                title="Settings"
-                subtitle="Business settings"
-                icon="settings-outline"
-                color={PrimaryColor}
-                onPress={() => router.push("/vendor/profile")}
-              />
+              {/* Experience providers already got Settings above */}
+              {!isExperience && (
+                <NavigationCard
+                  title="Settings"
+                  subtitle="Business settings"
+                  icon="settings-outline"
+                  color={PrimaryColor}
+                  onPress={() => router.push("/vendor/profile")}
+                />
+              )}
             </>
           )}
         </View>
 
         {/* Business overview — multi-user vendors only (single-user vendors use
             the web panel; cashiers do orders only). */}
-        {isVendorAdmin && currentShift?.multiUserEnabled && (
+        {isVendorAdmin && (currentShift?.multiUserEnabled || isExperience) && (
         <View style={styles.metricsSection}>
           <Text style={styles.sectionTitle}>Business Overview</Text>
           <View style={styles.metricsGrid}>
             <MetricCard
-              title="Total Orders"
+              title={isExperience ? "Total Bookings" : "Total Orders"}
               value={metrics.totalOrders}
-              icon="receipt-outline"
+              icon={isExperience ? "calendar-outline" : "receipt-outline"}
             />
             <MetricCard
-              title="Completed"
+              title={isExperience ? "Guests Checked In" : "Completed"}
               value={metrics.completedOrders}
               icon="checkmark-circle-outline"
             />
