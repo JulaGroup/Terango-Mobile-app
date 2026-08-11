@@ -54,7 +54,22 @@ function formatWhen(iso?: string) {
 }
 
 export default function BookingPaymentScreen() {
-  const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
+  // Two ways in: a fresh selection (nothing created yet) or an existing unpaid
+  // booking being retried.
+  const params = useLocalSearchParams<{
+    bookingId?: string;
+    experienceId?: string;
+    optionId?: string;
+    startTime?: string;
+    quantity?: string;
+    experienceName?: string;
+    optionLabel?: string;
+    unitLabel?: string;
+    address?: string;
+    unitPrice?: string;
+  }>();
+  const { bookingId } = params;
+  const isFresh = !bookingId && !!params.experienceId;
   const router = useRouter();
 
   const [booking, setBooking] = useState<Booking | null>(null);
@@ -74,8 +89,14 @@ export default function BookingPaymentScreen() {
   ];
 
   useEffect(() => {
+    if (isFresh) {
+      // Nothing exists on the server yet — everything shown comes from the
+      // selection the customer just made.
+      setLoading(false);
+      return;
+    }
     loadBooking();
-  }, [bookingId]);
+  }, [bookingId, isFresh]);
 
   const loadBooking = async () => {
     try {
@@ -88,6 +109,44 @@ export default function BookingPaymentScreen() {
       setLoading(false);
     }
   };
+
+  /** One shape for the screen, whether the booking exists yet or not. */
+  const quantity = Number(params.quantity) || booking?.quantity || 1;
+  const unitPrice = Number(params.unitPrice) || booking?.unitPrice || 0;
+  const summary = booking
+    ? {
+        name: booking.experience?.name || "Experience",
+        option: booking.option?.label || "",
+        startTime: booking.startTime,
+        quantity: booking.quantity,
+        unitLabel: booking.experience?.unitLabel || "guest",
+        address: booking.experience?.address || "",
+        subtotal: booking.subtotalAmount ?? booking.unitPrice * booking.quantity,
+        serviceFee:
+          booking.serviceFee ??
+          Math.max(
+            0,
+            booking.totalAmount -
+              (booking.subtotalAmount ?? booking.unitPrice * booking.quantity),
+          ),
+        total: booking.totalAmount,
+      }
+    : (() => {
+        const subtotal = unitPrice * quantity;
+        // Mirrors SERVICE_FEE_RATE on the server.
+        const fee = Math.round(subtotal * 0.05);
+        return {
+          name: params.experienceName || "Experience",
+          option: params.optionLabel || "",
+          startTime: params.startTime || "",
+          quantity,
+          unitLabel: params.unitLabel || "guest",
+          address: params.address || "",
+          subtotal,
+          serviceFee: fee,
+          total: subtotal + fee,
+        };
+      })();
 
   const handlePaymentMethodSelect = (methodId: string) => {
     const method = paymentMethods.find((m) => m.id === methodId);
@@ -109,17 +168,29 @@ export default function BookingPaymentScreen() {
       );
       return;
     }
-    if (!booking) {
+    if (!isFresh && !booking) {
       Alert.alert("Error", "Booking details not loaded.");
       return;
     }
 
     setPaymentLoading(true);
     try {
-      const res = await experienceApi.payForBooking(
-        booking.id,
-        "teranggo://booking-success",
-      );
+      // Fresh selection: the booking is created here, at the moment of paying.
+      // Retry: reuse the booking that already exists.
+      const res = isFresh
+        ? await experienceApi.checkoutBooking({
+            experienceId: String(params.experienceId),
+            optionId: String(params.optionId),
+            startTime: String(params.startTime),
+            quantity,
+            success_url: "teranggo://booking-success",
+          })
+        : await experienceApi.payForBooking(
+            booking!.id,
+            "teranggo://booking-success",
+          );
+
+      const newBookingId = res?.bookingId || res?.booking?.id || booking?.id;
       const launchUrl = res?.wave_launch_url;
       if (!launchUrl) throw new Error("No Wave launch URL returned");
 
@@ -139,7 +210,7 @@ export default function BookingPaymentScreen() {
             onPress: () =>
               router.replace({
                 pathname: "/booking/[bookingId]" as any,
-                params: { bookingId: String(booking.id) },
+                params: { bookingId: String(newBookingId) },
               }),
           },
         ],
@@ -167,7 +238,7 @@ export default function BookingPaymentScreen() {
     );
   }
 
-  if (!booking) {
+  if (!isFresh && !booking) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -177,13 +248,9 @@ export default function BookingPaymentScreen() {
     );
   }
 
-  // Older bookings predate the split columns — derive so the maths still adds up.
-  const subtotal =
-    booking.subtotalAmount ?? booking.unitPrice * booking.quantity;
-  const serviceFee =
-    booking.serviceFee ?? Math.max(0, booking.totalAmount - subtotal);
   const alreadyPaid =
-    booking.paymentStatus === "PAID" || booking.paymentStatus === "SUCCEEDED";
+    booking?.paymentStatus === "PAID" ||
+    booking?.paymentStatus === "SUCCEEDED";
 
   return (
     <SafeAreaView style={styles.container}>
@@ -208,7 +275,7 @@ export default function BookingPaymentScreen() {
           <View style={styles.bannerContent}>
             <Ionicons name="ticket" size={24} color="#FFFFFF" />
             <Text style={styles.bannerTitle}>
-              {booking.experience?.name || "Experience Booking"}
+              {summary.name}
             </Text>
           </View>
           <Text style={styles.bannerSubtitle}>
@@ -225,92 +292,50 @@ export default function BookingPaymentScreen() {
           </View>
         )}
 
-        {/* Booking Summary */}
+        {/* Booking Summary — compact: what, when, how many, then the money. */}
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>Booking Summary</Text>
 
-          <View style={styles.detailRow}>
-            <View style={[styles.detailDot, { backgroundColor: C.primary }]} />
-            <View style={styles.detailInfo}>
-              <Text style={styles.detailLabel}>Package</Text>
-              <Text style={styles.detailValue}>{booking.option?.label}</Text>
-            </View>
-          </View>
-
-          <View style={styles.detailConnector} />
-
-          <View style={styles.detailRow}>
-            <View style={[styles.detailDot, { backgroundColor: "#059669" }]} />
-            <View style={styles.detailInfo}>
-              <Text style={styles.detailLabel}>When</Text>
-              <Text style={styles.detailValue}>
-                {formatWhen(booking.startTime)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.detailConnector} />
-
-          <View style={styles.detailRow}>
-            <View style={[styles.detailDot, { backgroundColor: "#2563EB" }]} />
-            <View style={styles.detailInfo}>
-              <Text style={styles.detailLabel}>Guests</Text>
-              <Text style={styles.detailValue}>
-                {booking.quantity}{" "}
-                {booking.experience?.unitLabel
-                  ? `${booking.experience.unitLabel}${booking.quantity === 1 ? "" : "s"}`
-                  : booking.quantity === 1
-                    ? "guest"
-                    : "guests"}
-              </Text>
-            </View>
-          </View>
-
-          {!!booking.experience?.address && (
-            <>
-              <View style={styles.detailConnector} />
-              <View style={styles.detailRow}>
-                <View
-                  style={[styles.detailDot, { backgroundColor: "#8B5CF6" }]}
-                />
-                <View style={styles.detailInfo}>
-                  <Text style={styles.detailLabel}>Where</Text>
-                  <Text style={styles.detailValue}>
-                    {booking.experience.address}
-                  </Text>
-                </View>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Pricing Breakdown */}
-        <View style={styles.pricingSection}>
-          <Text style={styles.sectionTitle}>Pricing Details</Text>
-
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>
-              {booking.option?.label} × {booking.quantity}
+          <View style={styles.sumRow}>
+            <Text style={styles.sumLabel}>Package</Text>
+            <Text style={styles.sumValue} numberOfLines={1}>
+              {summary.option}
             </Text>
-            <Text style={styles.priceValue}>D{subtotal.toLocaleString()}</Text>
           </View>
-
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Service fee (5%)</Text>
-            <Text style={[styles.priceValue, { color: "#2563EB" }]}>
-              +D{serviceFee.toLocaleString()}
+          <View style={styles.sumRow}>
+            <Text style={styles.sumLabel}>When</Text>
+            <Text style={styles.sumValue}>{formatWhen(summary.startTime)}</Text>
+          </View>
+          <View style={styles.sumRow}>
+            <Text style={styles.sumLabel}>Guests</Text>
+            <Text style={styles.sumValue}>
+              {summary.quantity} {summary.unitLabel}
+              {summary.quantity === 1 ? "" : "s"}
             </Text>
           </View>
 
           <View style={styles.priceDivider} />
 
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabelTotal}>Total Amount</Text>
+          <View style={styles.sumRow}>
+            <Text style={styles.sumLabel}>Subtotal</Text>
+            <Text style={styles.sumValue}>
+              D{summary.subtotal.toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.sumRow}>
+            <Text style={styles.sumLabel}>Service fee (5%)</Text>
+            <Text style={styles.sumValue}>
+              D{summary.serviceFee.toLocaleString()}
+            </Text>
+          </View>
+          <View style={[styles.sumRow, { marginBottom: 0 }]}>
+            <Text style={styles.priceLabelTotal}>Total</Text>
             <Text style={styles.priceValueTotal}>
-              D{booking.totalAmount.toLocaleString()}
+              D{summary.total.toLocaleString()}
             </Text>
           </View>
         </View>
+
 
         {/* Payment Methods */}
         <View style={styles.paymentSection}>
@@ -403,7 +428,7 @@ export default function BookingPaymentScreen() {
               </Text>
               {!alreadyPaid && (
                 <Text style={styles.payButtonAmount}>
-                  D{booking.totalAmount.toLocaleString()}
+                  D{summary.total.toLocaleString()}
                 </Text>
               )}
             </>
@@ -536,6 +561,21 @@ const styles = StyleSheet.create({
   },
   priceLabelTotal: { fontSize: 16, fontWeight: "bold", color: C.ink },
   priceValueTotal: { fontSize: 18, fontWeight: "bold", color: C.primary },
+  sumRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 16,
+    marginBottom: 10,
+  },
+  sumLabel: { fontSize: 14, color: C.inkLight },
+  sumValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: C.ink,
+    flexShrink: 1,
+    textAlign: "right",
+  },
 
   paymentSection: {
     backgroundColor: C.surface,

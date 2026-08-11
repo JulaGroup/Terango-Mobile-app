@@ -75,7 +75,6 @@ export default function ExperienceDetailScreen() {
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [slotAvailable, setSlotAvailable] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [booking, setBooking] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -127,30 +126,24 @@ export default function ExperienceDetailScreen() {
     setQuantity((q) => Math.min(Math.max(1, q), slot.available));
   };
 
-  const handleBook = async () => {
+  // Nothing is created here — the booking is only written when the customer
+  // commits to paying, so browsing never leaves rows behind for the provider.
+  const handleBook = () => {
     if (!experience || !selectedOption || !selectedSlot) return;
-    try {
-      setBooking(true);
-      const created = await experienceApi.createBooking({
+    router.push({
+      pathname: "/booking-payment" as any,
+      params: {
         experienceId: experience.id,
         optionId: selectedOption.id,
         startTime: selectedSlot,
-        quantity,
-      });
-      // Straight to payment, same as Express: the slot is only held once paid.
-      router.push({
-        pathname: "/booking-payment" as any,
-        params: { bookingId: created.id },
-      });
-    } catch (e: any) {
-      Alert.alert(
-        "Couldn't book",
-        e?.message?.replace(/^API Error: \d+ - /, "") ||
-          "Please try another time.",
-      );
-    } finally {
-      setBooking(false);
-    }
+        quantity: String(quantity),
+        experienceName: experience.name,
+        optionLabel: selectedOption.label,
+        unitLabel,
+        unitPrice: String(selectedOption.price),
+        address: experience.address || experience.city || "",
+      },
+    });
   };
 
   const openMap = () => {
@@ -560,7 +553,7 @@ export default function ExperienceDetailScreen() {
           </Text>
         </View>
         <TouchableOpacity
-          disabled={!canBook || booking}
+          disabled={!canBook}
           activeOpacity={0.9}
           onPress={handleBook}
           style={{ flex: 1, marginLeft: 16 }}
@@ -571,20 +564,14 @@ export default function ExperienceDetailScreen() {
             end={{ x: 1, y: 0 }}
             style={styles.cta}
           >
-            {booking ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons
-                  name="flash"
-                  size={17}
-                  color={canBook ? "#fff" : "#94A3B8"}
-                />
-                <Text style={[styles.ctaText, !canBook && { color: "#94A3B8" }]}>
-                  {canBook ? "Book now" : "Select a time"}
-                </Text>
-              </>
-            )}
+            <Ionicons
+              name="flash"
+              size={17}
+              color={canBook ? "#fff" : "#94A3B8"}
+            />
+            <Text style={[styles.ctaText, !canBook && { color: "#94A3B8" }]}>
+              {canBook ? "Book now" : "Select a time"}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
       </View>

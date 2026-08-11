@@ -1942,6 +1942,24 @@ export const experienceApi = {
       )}&optionId=${encodeURIComponent(optionId)}`,
     ),
 
+  /**
+   * Creates the booking and its Wave session together. Nothing is written until
+   * the customer commits to paying, so abandoned browsing leaves no rows.
+   */
+  checkoutBooking: async (data: {
+    experienceId: string;
+    optionId: string;
+    startTime: string;
+    quantity: number;
+    customerName?: string;
+    customerPhone?: string;
+    success_url?: string;
+  }): Promise<any> =>
+    apiCall("/api/experiences/bookings/checkout", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
   createBooking: async (data: {
     experienceId: string;
     optionId: string;
