@@ -23,6 +23,8 @@ import { experienceApi, Booking } from "@/lib/api";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const PAGE_BG = "#EEF1F5";
+/** ~16s of grace for Wave's confirmation to land before we call it unpaid. */
+const MAX_SETTLE_TRIES = 8;
 const TICKET_W = SCREEN_W - 32;
 const NOTCH = 26;
 
@@ -46,6 +48,7 @@ export default function BookingTicketScreen() {
   const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [settleTries, setSettleTries] = useState(0);
   const pollRef = useRef<any>(null);
 
   const isPaid =
@@ -82,16 +85,25 @@ export default function BookingTicketScreen() {
     fetchBooking();
   }, [fetchBooking]);
 
-  // A ticket only exists once the booking is paid. An unpaid booking belongs on
-  // the payment screen, not here.
+  // A ticket only exists once the booking is paid — but arriving straight back
+  // from Wave we can beat the confirmation, so give it a few seconds before
+  // deciding the booking really is unpaid and sending them to pay.
   useEffect(() => {
-    if (!loading && booking && !isPaid && !isCancelled) {
+    if (loading || !booking || isPaid || isCancelled) return;
+
+    if (settleTries >= MAX_SETTLE_TRIES) {
       router.replace({
         pathname: "/booking-payment" as any,
         params: { bookingId: String(booking.id) },
       });
+      return;
     }
-  }, [loading, booking, isPaid, isCancelled, router]);
+    const t = setTimeout(() => {
+      fetchBooking();
+      setSettleTries((n) => n + 1);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [loading, booking, isPaid, isCancelled, settleTries, fetchBooking, router]);
 
   // Keep the ticket fresh so a check-in at the gate reflects immediately.
   useEffect(() => {
@@ -180,11 +192,17 @@ export default function BookingTicketScreen() {
       </View>
     );
   }
-  // Redirecting to payment — don't flash the ticket.
+  // Waiting on Wave's confirmation — don't flash the ticket, and don't imply
+  // anything went wrong.
   if (!isPaid && !isCancelled) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={PrimaryColor} size="large" />
+        <Text style={styles.settleTitle}>Confirming your payment…</Text>
+        <Text style={styles.settleSub}>
+          This usually takes a few seconds. Your ticket appears as soon as it
+          clears.
+        </Text>
       </View>
     );
   }
@@ -401,6 +419,20 @@ const styles = StyleSheet.create({
     backgroundColor: PAGE_BG,
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 40,
+  },
+  settleTitle: {
+    marginTop: 18,
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#0F172A",
+  },
+  settleSub: {
+    marginTop: 8,
+    fontSize: 13.5,
+    color: "#64748B",
+    textAlign: "center",
+    lineHeight: 20,
   },
   header: {
     flexDirection: "row",
