@@ -615,11 +615,10 @@ const MoreServicesSheet = ({
                     key={svc.id}
                     activeOpacity={0.7}
                     onPress={() => {
-                      if (svc.id === "experiences") {
-                        closeSheetRef.current();
-                        router.push("/experiences" as any);
-                        return;
-                      }
+                      // Experiences is built and live on the server, but stays
+                      // behind "Coming Soon" for customers until the provider
+                      // has signed off. The screens are still reachable by
+                      // deep link for demos.
                       Alert.alert(
                         "Coming Soon",
                         `${svc.label} will be available soon. Stay tuned!`,
@@ -667,47 +666,25 @@ const MoreServicesSheet = ({
                       </Text>
                     </View>
 
-                    {/* Badge — live services show an actionable badge, the
-                        rest still show "SOON". */}
-                    {svc.id === "experiences" ? (
-                      <View
+                    {/* Every service in this sheet is still pre-launch. */}
+                    <View
+                      style={{
+                        backgroundColor: "#F0F0F0",
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text
                         style={{
-                          backgroundColor: ORANGE,
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
+                          fontSize: 10,
+                          fontWeight: "700",
+                          color: "#999",
                         }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "700",
-                            color: "#fff",
-                          }}
-                        >
-                          OPEN
-                        </Text>
-                      </View>
-                    ) : (
-                      <View
-                        style={{
-                          backgroundColor: "#F0F0F0",
-                          borderRadius: 8,
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontWeight: "700",
-                            color: "#999",
-                          }}
-                        >
-                          SOON
-                        </Text>
-                      </View>
-                    )}
+                        SOON
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
