@@ -23,12 +23,12 @@ import {
   fetchDeliveryTowns,
   DeliveryTown,
 } from "@/services/deliveryTowns.service";
-import { GambianTown } from "@/constants/gambianTowns";
-import { UnifiedLocationSection } from "@/components/express/UnifiedLocationSection";
-import { SavedLocationDropdown } from "@/components/express/SavedLocationDropdown";
-import LocationModal from "@/components/common/LocationModal";
+import LocationSearchSheet, {
+  type PickedLocation,
+} from "@/components/express/LocationSearchSheet";
+import { AddressService } from "@/services/AddressService";
 import { useAddress } from "@/context/AddressContext";
-import { Address } from "@/services/AddressService";
+import * as Location from "expo-location";
 import { useMaintenance } from "@/context/MaintenanceContext";
 import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 import {
@@ -43,6 +43,18 @@ import {
   WEIGHT_CONFIG,
 } from "@/components/express/ExpressWeightClassCard";
 import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
+import { UserCacheManager } from "@/utils/userCache";
+
+// Server-side ceilings from EXPRESS_CONFIG.VEHICLE_SUPPORT — create() throws
+// past these. The old town list kept everything inside ~10km so this never
+// mattered; with free-form pins it does, so we surface it before submit.
+const VEHICLE_MAX_KM: Record<VehicleType, number> = {
+  BIKE: 15,
+  KEKE_CARGO: 25,
+  CAR: 35,
+  VAN: 40,
+  LORRY: 50,
+};
 
 // ── Brand palette (unchanged) ─────────────────────────────
 const T = {
@@ -91,23 +103,6 @@ interface DeliveryQuote {
 }
 
 // ── Helpers ───────────────────────────────────────────────
-const findNearestTown = (
-  lat: number,
-  lon: number,
-  towns: DeliveryTown[],
-): DeliveryTown | null => {
-  let nearest: DeliveryTown | null = null;
-  let minD = Infinity;
-  for (const town of towns) {
-    const d = Math.hypot(town.latitude - lat, town.longitude - lon);
-    if (d < minD) {
-      minD = d;
-      nearest = town;
-    }
-  }
-  return nearest;
-};
-
 const STATUS_MAP: Record<
   string,
   { label: string; bg: string; color: string; dot: string }
@@ -174,7 +169,7 @@ function StepBadge({ n }: { n: number }) {
 export default function CustomDeliveryScreen() {
   const { flags, refetch: refetchMaintenanceFlags } = useMaintenance();
   const router = useRouter();
-  const { addresses, fetchAddresses } = useAddress();
+  const { fetchAddresses } = useAddress();
 
   useEffect(() => {
     refetchMaintenanceFlags();
@@ -206,28 +201,29 @@ export default function CustomDeliveryScreen() {
   });
 
   const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
-  const [pickupTown, setPickupTown] = useState<GambianTown | null>(null);
-  const [dropoffTown, setDropoffTown] = useState<GambianTown | null>(null);
-  const [pickupAddressLabel, setPickupAddressLabel] = useState("");
-  const [dropoffAddressLabel, setDropoffAddressLabel] = useState("");
-  const [pickupLatitude, setPickupLatitude] = useState<number | null>(null);
-  const [pickupLongitude, setPickupLongitude] = useState<number | null>(null);
-  const [dropoffLatitude, setDropoffLatitude] = useState<number | null>(null);
-  const [dropoffLongitude, setDropoffLongitude] = useState<number | null>(null);
 
-  const [flowDirection, setFlowDirection] = useState<
-    "pickupSaved" | "dropoffSaved"
-  >("pickupSaved");
-  const pickupMode = flowDirection === "pickupSaved" ? "saved" : "town";
-  const dropoffMode = flowDirection === "pickupSaved" ? "town" : "saved";
+  // Both stops are free-form places now — searched, pinned, saved or GPS.
+  // Neither is tied to the 16-town list any more.
+  const [pickup, setPickup] = useState<PickedLocation | null>(null);
+  const [dropoff, setDropoff] = useState<PickedLocation | null>(null);
+  const [sheetFor, setSheetFor] = useState<"pickup" | "dropoff" | null>(null);
+  const [prefillingPickup, setPrefillingPickup] = useState(false);
 
-  const [selectedPickupAddress, setSelectedPickupAddress] =
-    useState<Address | null>(null);
-  const [selectedDropoffAddress, setSelectedDropoffAddress] =
-    useState<Address | null>(null);
-  const [showDropoffAddressModal, setShowDropoffAddressModal] = useState(false);
+  const pickupLatitude = pickup?.latitude ?? null;
+  const pickupLongitude = pickup?.longitude ?? null;
+  const dropoffLatitude = dropoff?.latitude ?? null;
+  const dropoffLongitude = dropoff?.longitude ?? null;
+
+  // Optional now — a note for the driver, not a required landmark.
   const [pickupLandmark, setPickupLandmark] = useState("");
   const [dropoffLandmark, setDropoffLandmark] = useState("");
+  const [showPickupNote, setShowPickupNote] = useState(false);
+  const [showDropoffNote, setShowDropoffNote] = useState(false);
+
+  // Surfaced when the server refuses quotes during the no-drivers window.
+  const [quoteBlockedReason, setQuoteBlockedReason] = useState<string | null>(
+    null,
+  );
 
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
@@ -251,7 +247,6 @@ export default function CustomDeliveryScreen() {
   const [packageDescription, setPackageDescription] = useState("");
   const [customerNote, setCustomerNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPickupAddressModal, setShowPickupAddressModal] = useState(false);
   const [recentDeliveries, setRecentDeliveries] = useState<DeliverySummary[]>(
     [],
   );
@@ -262,19 +257,40 @@ export default function CustomDeliveryScreen() {
     ? getAvailableVehicles(selectedWeight)
     : (["BIKE", "KEKE_CARGO", "CAR", "VAN", "LORRY"] as VehicleType[]);
 
+  /** Distance for the route, from whichever quote came back first. */
+  const routeDistanceKm =
+    distanceKm ??
+    Object.values(quotesByVehicle).find((q) => Number.isFinite(q?.distanceKm))
+      ?.distanceKm ??
+    null;
+
+  const vehicleTooFar = (key: VehicleType) =>
+    routeDistanceKm != null && routeDistanceKm > VEHICLE_MAX_KM[key];
+
   const vehicleOptions: VehicleOption[] = availableVehicleTypes.map((key) => {
     const vehicleQuote = quotesByVehicle[key];
+    const tooFar = vehicleTooFar(key);
     return {
       key,
       label: VEHICLE_CONFIG[key].label,
-      description: VEHICLE_CONFIG[key].description,
+      description: tooFar
+        ? `Too far — max ${VEHICLE_MAX_KM[key]}km`
+        : VEHICLE_CONFIG[key].description,
       iconName: VEHICLE_CONFIG[key].iconName,
-      estimatedPrice: vehicleQuote?.estimatedPrice ?? null,
-      estimatedTime: vehicleQuote?.estimatedTimeMinutes
-        ? `${vehicleQuote.estimatedTimeMinutes} min`
-        : undefined,
+      estimatedPrice: tooFar ? null : (vehicleQuote?.estimatedPrice ?? null),
+      estimatedTime:
+        !tooFar && vehicleQuote?.estimatedTimeMinutes
+          ? `${vehicleQuote.estimatedTimeMinutes} min`
+          : undefined,
     };
   });
+
+  // Drop a selection that the route has since outgrown.
+  useEffect(() => {
+    if (selectedVehicle && vehicleTooFar(selectedVehicle)) {
+      setSelectedVehicle(null);
+    }
+  }, [routeDistanceKm, selectedVehicle]);
 
   const weightOptions: WeightClassOption[] = (
     ["LIGHT", "MEDIUM", "HEAVY"] as WeightClass[]
@@ -350,9 +366,20 @@ export default function CustomDeliveryScreen() {
             }
           });
           setQuotesByVehicle(nextQuotes);
-        } catch (error) {
+          setQuoteBlockedReason(null);
+        } catch (error: any) {
           console.error("Failed to fetch express quotes", error);
-          if (!isCancelled) setQuotesByVehicle({});
+          if (!isCancelled) {
+            setQuotesByVehicle({});
+            // The server refuses quotes during the no-drivers window; say so
+            // plainly instead of leaving an empty price block.
+            const msg = String(error?.message || "");
+            setQuoteBlockedReason(
+              /no drivers/i.test(msg)
+                ? msg.replace(/^API Error: \d+ - /, "")
+                : null,
+            );
+          }
         } finally {
           if (!isCancelled) setLoadingQuotes(false);
         }
@@ -431,23 +458,6 @@ export default function CustomDeliveryScreen() {
   }, []);
 
   useEffect(() => {
-    if (!selectedPickupAddress || pickupMode !== "saved") return;
-    const nearestTown = findNearestTown(
-      selectedPickupAddress.latitude,
-      selectedPickupAddress.longitude,
-      deliveryTowns,
-    );
-    if (nearestTown) setPickupTown(nearestTown);
-    setPickupLatitude(selectedPickupAddress.latitude);
-    setPickupLongitude(selectedPickupAddress.longitude);
-    setPickupAddressLabel(
-      selectedPickupAddress.addressLine ||
-        nearestTown?.name ||
-        "Pickup location",
-    );
-  }, [selectedPickupAddress, pickupMode]);
-
-  useEffect(() => {
     fetchAddresses();
   }, [fetchAddresses]);
 
@@ -457,151 +467,127 @@ export default function CustomDeliveryScreen() {
     setRefreshing(false);
   }, [fetchDeliveries]);
 
-  const handlePickupTownSelect = (town: GambianTown) => {
-    setPickupTown(town);
-    setPickupAddressLabel(town.name);
-    setPickupLatitude(town.latitude);
-    setPickupLongitude(town.longitude);
-  };
-  const handleDropoffTownSelect = (town: GambianTown) => {
-    setDropoffTown(town);
-    setDropoffAddressLabel(town.name);
-    setDropoffLatitude(town.latitude);
-    setDropoffLongitude(town.longitude);
-  };
-  const handlePickupGPSLocation = (
-    lat: number,
-    lon: number,
-    address: string,
-  ) => {
-    setPickupAddressLabel(address || "Pickup location");
-    setPickupLatitude(lat);
-    setPickupLongitude(lon);
-  };
-  const handleDropoffGPSLocation = (
-    lat: number,
-    lon: number,
-    address: string,
-  ) => {
-    setDropoffAddressLabel(address || "Dropoff location");
-    setDropoffLatitude(lat);
-    setDropoffLongitude(lon);
-  };
-  const handleSenderDataLoaded = (name: string, phone: string) => {
-    setSenderName(name);
-    setSenderPhone(phone);
-  };
-
-  const handleSavedPickupAddressSelect = async (address: Address) => {
-    let towns = deliveryTowns;
-    if (towns.length === 0) {
+  // Pre-fill pickup from where the customer actually is, the way Uber does.
+  // Silent by design: if permission is refused we just leave the field empty
+  // rather than nagging before they've shown any intent to book.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
       try {
-        const townsResponse = await fetchDeliveryTowns();
-        towns = Array.isArray(townsResponse?.data) ? townsResponse.data : [];
-        setDeliveryTowns(towns);
-      } catch (error) {
-        Alert.alert(
-          "Error",
-          "Could not load delivery areas. Please check your connection and try again.",
+        const { status } = await Location.getForegroundPermissionsAsync();
+        const granted =
+          status === "granted"
+            ? true
+            : (await Location.requestForegroundPermissionsAsync()).status ===
+              "granted";
+        if (!granted || cancelled) return;
+
+        setPrefillingPickup(true);
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (cancelled) return;
+        const { latitude, longitude } = pos.coords;
+        let address = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+        try {
+          address = await AddressService.getAddressFromCoordinates(
+            latitude,
+            longitude,
+          );
+        } catch {
+          /* keep the coordinate string */
+        }
+        if (cancelled) return;
+        // Don't clobber a choice the customer already made while we waited.
+        setPickup((prev) =>
+          prev
+            ? prev
+            : {
+                label: "Current location",
+                address,
+                latitude,
+                longitude,
+                source: "gps",
+              },
         );
-        return;
+      } catch {
+        /* pickup simply stays empty */
+      } finally {
+        if (!cancelled) setPrefillingPickup(false);
       }
-    }
-    if (towns.length > 0) {
-      const nearestTown = findNearestTown(
-        address.latitude,
-        address.longitude,
-        towns,
-      );
-      if (nearestTown) setPickupTown(nearestTown);
-    }
-    setSelectedPickupAddress(address);
-    setPickupLatitude(address.latitude);
-    setPickupLongitude(address.longitude);
-    setPickupAddressLabel(address.addressLine || "Pickup location");
-    setShowPickupAddressModal(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Sender is always the signed-in customer — this used to live inside
+  // UnifiedLocationSection, which the new flow no longer uses.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { cached } = await UserCacheManager.smartLoadUserData();
+        if (cached) {
+          setSenderName(cached.fullName || "");
+          setSenderPhone(cached.phone || "");
+        }
+      } catch {
+        /* sender falls back to empty; the server accepts null */
+      }
+    })();
+  }, []);
+
+  const handlePlacePicked = (place: PickedLocation) => {
+    if (sheetFor === "pickup") setPickup(place);
+    else if (sheetFor === "dropoff") setDropoff(place);
   };
 
-  const handleSavedDropoffAddressSelect = (address: Address) => {
-    setSelectedDropoffAddress(address);
-    setDropoffLatitude(address.latitude);
-    setDropoffLongitude(address.longitude);
-    setDropoffAddressLabel(address.addressLine || "Delivery location");
-    setDropoffTown({
-      id: address.id,
-      name: address.addressLine || "Saved location",
-      area: address.city || "",
-      latitude: address.latitude,
-      longitude: address.longitude,
-      deliveryZone: "zone1",
-    });
-    setShowDropoffAddressModal(false);
-  };
-
-  const handleFlowDirectionChange = (
-    direction: "pickupSaved" | "dropoffSaved",
-  ) => {
-    if (direction === flowDirection) return;
-    setFlowDirection(direction);
-    setPickupTown(null);
-    setPickupAddressLabel("");
-    setPickupLatitude(null);
-    setPickupLongitude(null);
-    setPickupLandmark("");
-    setDropoffTown(null);
-    setDropoffAddressLabel("");
-    setDropoffLatitude(null);
-    setDropoffLongitude(null);
-    setDropoffLandmark("");
-    setSelectedDropoffAddress(null);
-    // Contact roles flip with the direction — clear them so values from the
-    // previous mode (e.g. the user pre-filled as sender) don't leak through.
-    // UnifiedLocationSection re-populates the user's own side from cache.
-    setSenderName("");
-    setSenderPhone("");
-    setReceiverName("");
-    setReceiverPhone("");
+  const swapStops = () => {
+    setPickup(dropoff);
+    setDropoff(pickup);
+    setPickupLandmark(dropoffLandmark);
+    setDropoffLandmark(pickupLandmark);
   };
 
   const handleCreateDelivery = async () => {
-    if (!pickupTown || !dropoffTown)
-      return Alert.alert("Missing locations", "Select pickup & dropoff.");
+    if (!pickup || !dropoff)
+      return Alert.alert("Missing locations", "Set both pickup and drop-off.");
     if (!selectedVehicle || !selectedWeight)
       return Alert.alert(
         "Select delivery option",
         "Pick a vehicle and weight class.",
       );
-    if (!receiverName.trim() || !receiverPhone.trim())
-      return Alert.alert("Receiver required", "Add receiver contact info.");
-    if (pickupMode !== "saved" && !pickupLandmark.trim())
+    if (!receiverName.trim() || receiverPhone.trim().length !== 7)
       return Alert.alert(
-        "Pickup directions required",
-        "Describe a landmark so the driver can find the pickup.",
+        "Receiver required",
+        "Add the receiver's name and 7-digit phone number.",
       );
-    if (dropoffMode === "town" && !dropoffLandmark.trim())
+    if (selectedVehicle && vehicleTooFar(selectedVehicle))
       return Alert.alert(
-        "Delivery directions required",
-        "Describe a landmark so the driver can find the delivery.",
+        "Vehicle can't cover this trip",
+        `${VEHICLE_CONFIG[selectedVehicle].label} is limited to ${VEHICLE_MAX_KM[selectedVehicle]}km. Choose a larger vehicle.`,
       );
 
     setIsSubmitting(true);
     try {
+      // Driver notes are optional; when empty the address is sent on its own.
+      // The em-dash separator is what the driver app already expects.
       const pickupAddressWithLandmark = pickupLandmark.trim()
-        ? `${pickupAddressLabel || pickupTown.name} — ${pickupLandmark.trim()}`
-        : pickupAddressLabel || pickupTown.name;
+        ? `${pickup.address} — ${pickupLandmark.trim()}`
+        : pickup.address;
       const dropoffAddressWithLandmark = dropoffLandmark.trim()
-        ? `${dropoffAddressLabel || dropoffTown.name} — ${dropoffLandmark.trim()}`
-        : dropoffAddressLabel || dropoffTown.name;
+        ? `${dropoff.address} — ${dropoffLandmark.trim()}`
+        : dropoff.address;
 
       const payload = {
         pickupAddress: pickupAddressWithLandmark,
-        pickupCity: pickupTown.area,
-        pickupLatitude: pickupLatitude ?? undefined,
-        pickupLongitude: pickupLongitude ?? undefined,
+        pickupCity: pickup.city,
+        pickupLatitude: pickup.latitude,
+        pickupLongitude: pickup.longitude,
         dropoffAddress: dropoffAddressWithLandmark,
-        dropoffCity: dropoffTown.area,
-        dropoffLatitude: dropoffLatitude ?? undefined,
-        dropoffLongitude: dropoffLongitude ?? undefined,
+        dropoffCity: dropoff.city,
+        dropoffLatitude: dropoff.latitude,
+        dropoffLongitude: dropoff.longitude,
         packageDescription: packageDescription.trim() || undefined,
         customerNote: customerNote.trim() || undefined,
         weightClass: selectedWeight,
@@ -636,18 +622,12 @@ export default function CustomDeliveryScreen() {
       }
 
       // Reset form
-      setPickupTown(null);
-      setDropoffTown(null);
-      setPickupLatitude(null);
-      setPickupLongitude(null);
-      setDropoffLatitude(null);
-      setDropoffLongitude(null);
-      setPickupAddressLabel("");
-      setDropoffAddressLabel("");
-      setSelectedDropoffAddress(null);
-      setSelectedPickupAddress(null);
-      setFlowDirection("pickupSaved");
+      setPickup(null);
+      setDropoff(null);
       setPickupLandmark("");
+      setDropoffLandmark("");
+      setShowPickupNote(false);
+      setShowDropoffNote(false);
       setReceiverName("");
       setReceiverPhone("");
       setPackageDescription("");
@@ -666,16 +646,10 @@ export default function CustomDeliveryScreen() {
   };
 
   // ── Progress ──────────────────────────────────────────────
-  const step1Done = !!(
-    pickupTown &&
-    dropoffTown &&
-    (pickupMode === "saved" || pickupLandmark.trim().length > 0) &&
-    (dropoffMode !== "town" || dropoffLandmark.trim().length > 0)
-  );
+  // Both stops set is all step 1 needs now — driver notes are optional.
+  const step1Done = !!(pickup && dropoff);
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
-    senderName.trim() &&
-    senderPhone.trim() &&
     receiverName.trim() &&
     receiverPhone.trim().replace(/\s/g, "").length === 7
   );
@@ -848,191 +822,170 @@ export default function CustomDeliveryScreen() {
           </View>
         </View>
 
-        {/* ── Role Toggle: I'm Sending / I'm Receiving ── */}
-        <View style={s.roleWrap}>
-          <TouchableOpacity
-            style={[
-              s.roleBtn,
-              flowDirection === "pickupSaved" && s.roleBtnActive,
-            ]}
-            onPress={() => handleFlowDirectionChange("pickupSaved")}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="arrow-up-circle-outline"
-              size={18}
-              color={flowDirection === "pickupSaved" ? "#fff" : T.textTertiary}
-            />
-            <Text
-              style={[
-                s.roleBtnText,
-                flowDirection === "pickupSaved" && s.roleBtnTextActive,
-              ]}
-            >
-              I'm Sending
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              s.roleBtn,
-              flowDirection === "dropoffSaved" && s.roleBtnActive,
-            ]}
-            onPress={() => handleFlowDirectionChange("dropoffSaved")}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="arrow-down-circle-outline"
-              size={18}
-              color={flowDirection === "dropoffSaved" ? "#fff" : T.textTertiary}
-            />
-            <Text
-              style={[
-                s.roleBtnText,
-                flowDirection === "dropoffSaved" && s.roleBtnTextActive,
-              ]}
-            >
-              I'm Receiving
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Step 1: Location ── */}
+        {/* ── Step 1: Where to? ── */}
         <View style={s.block}>
           <View style={s.blockHeader}>
             <StepBadge n={1} />
             <Text style={s.blockTitle}>Route</Text>
             {step1Done && (
-              <Ionicons
-                name="checkmark-circle"
-                size={18}
-                color={T.success}
-                style={{ marginLeft: "auto" }}
-              />
+              <Ionicons name="checkmark-circle" size={18} color={T.success} />
             )}
           </View>
 
-          {/* Pickup — your saved address (only shown in "I'm Sending" mode;
-              in "I'm Receiving" mode the pickup town selector is rendered by
-              UnifiedLocationSection below). */}
-          {pickupMode === "saved" && (
-            <View style={s.pickupRow}>
-              <View style={s.pickupDotCol}>
-                <View style={[s.locDot, { backgroundColor: T.success }]} />
-                <View style={s.pickupDotLine} />
-              </View>
-              <View style={s.pickupBody}>
-                <Text style={s.fieldLabel}>Pickup · your location</Text>
-                {addresses && addresses.length > 0 ? (
-                  <SavedLocationDropdown
-                    selectedAddress={selectedPickupAddress}
-                    onSelectAddress={handleSavedPickupAddressSelect}
-                    addresses={addresses}
-                    onAddNew={() => setShowPickupAddressModal(true)}
-                    label="Pickup From"
-                    placeholder="Select your saved location"
-                    hideLabel
+          {/* Uber-style stop card: two identical, independently editable rows */}
+          <View style={s.routeCard}>
+            <View style={s.routeRail}>
+              <View style={[s.railDot, { backgroundColor: T.brand }]} />
+              <View style={s.railLine} />
+              <View style={[s.railSquare, { backgroundColor: "#111827" }]} />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={s.stopRow}
+                activeOpacity={0.7}
+                onPress={() => setSheetFor("pickup")}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stopLabel}>Pickup</Text>
+                  {prefillingPickup && !pickup ? (
+                    <View style={s.stopLoadingRow}>
+                      <ActivityIndicator size="small" color={T.brand} />
+                      <Text style={s.stopPlaceholder}>
+                        Finding your location…
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text
+                      style={pickup ? s.stopValue : s.stopPlaceholder}
+                      numberOfLines={1}
+                    >
+                      {pickup ? pickup.address : "Where from?"}
+                    </Text>
+                  )}
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={17}
+                  color={T.textTertiary}
+                />
+              </TouchableOpacity>
+
+              {pickup &&
+                (showPickupNote ? (
+                  <TextInput
+                    style={s.stopNoteInput}
+                    placeholder="Note for the driver (optional)"
+                    placeholderTextColor={T.textTertiary}
+                    value={pickupLandmark}
+                    onChangeText={setPickupLandmark}
+                    multiline
                   />
                 ) : (
                   <TouchableOpacity
-                    style={s.locEmptyBtn}
-                    onPress={() => setShowPickupAddressModal(true)}
-                    activeOpacity={0.7}
+                    onPress={() => setShowPickupNote(true)}
+                    hitSlop={6}
                   >
-                    <Ionicons
-                      name="location-outline"
-                      size={16}
-                      color={T.textTertiary}
-                    />
-                    <Text style={s.locEmptyText}>Add a saved location</Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={14}
-                      color={T.textTertiary}
-                      style={{ marginLeft: "auto" }}
-                    />
+                    <Text style={s.addNote}>+ Add directions</Text>
                   </TouchableOpacity>
-                )}
-                {selectedPickupAddress && senderName ? (
-                  <Text style={s.senderHint}>Sending as {senderName}</Text>
-                ) : null}
-              </View>
+                ))}
+
+              <View style={s.stopDivider} />
+
+              <TouchableOpacity
+                style={s.stopRow}
+                activeOpacity={0.7}
+                onPress={() => setSheetFor("dropoff")}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={s.stopLabel}>Drop-off</Text>
+                  <Text
+                    style={dropoff ? s.stopValue : s.stopPlaceholder}
+                    numberOfLines={1}
+                  >
+                    {dropoff ? dropoff.address : "Where to?"}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={17}
+                  color={T.textTertiary}
+                />
+              </TouchableOpacity>
+
+              {dropoff &&
+                (showDropoffNote ? (
+                  <TextInput
+                    style={s.stopNoteInput}
+                    placeholder="Note for the driver (optional)"
+                    placeholderTextColor={T.textTertiary}
+                    value={dropoffLandmark}
+                    onChangeText={setDropoffLandmark}
+                    multiline
+                  />
+                ) : (
+                  <TouchableOpacity
+                    onPress={() => setShowDropoffNote(true)}
+                    hitSlop={6}
+                  >
+                    <Text style={s.addNote}>+ Add directions</Text>
+                  </TouchableOpacity>
+                ))}
+            </View>
+
+            <TouchableOpacity
+              style={s.swapBtn}
+              onPress={swapStops}
+              disabled={!pickup && !dropoff}
+              hitSlop={8}
+            >
+              <Ionicons name="swap-vertical" size={18} color={T.brand} />
+            </TouchableOpacity>
+          </View>
+
+          {routeDistanceKm != null && (
+            <Text style={s.routeDistance}>
+              {routeDistanceKm.toFixed(1)} km apart
+            </Text>
+          )}
+
+          {quoteBlockedReason && (
+            <View style={s.warnBanner}>
+              <Ionicons name="moon-outline" size={16} color="#B45309" />
+              <Text style={s.warnText}>{quoteBlockedReason}</Text>
             </View>
           )}
 
-          {/* The existing location section handles the detailed dropoff / pickup-town / contacts */}
-          <View style={s.unifiedWrap}>
-            <UnifiedLocationSection
-              pickupTown={pickupTown}
-              dropoffTown={dropoffTown}
-              pickupAddressDisplay={
-                pickupMode === "saved"
-                  ? pickupAddressLabel ||
-                    selectedPickupAddress?.addressLine ||
-                    ""
-                  : pickupAddressLabel
-              }
-              dropoffAddressDisplay={dropoffAddressLabel || ""}
-              useSavedPickupAddress={false}
-              hidePickupSection={pickupMode === "saved"}
-              onPickupSelect={handlePickupTownSelect}
-              onDropoffSelect={handleDropoffTownSelect}
-              onPickupGPS={handlePickupGPSLocation}
-              onDropoffGPS={handleDropoffGPSLocation}
-              senderName={senderName}
-              senderPhone={senderPhone}
-              receiverName={receiverName}
-              receiverPhone={receiverPhone}
-              onSenderNameChange={setSenderName}
-              onSenderPhoneChange={setSenderPhone}
-              onReceiverNameChange={setReceiverName}
-              onReceiverPhoneChange={setReceiverPhone}
-              onSenderDataLoaded={handleSenderDataLoaded}
-              towns={deliveryTowns}
-              dropoffMode={dropoffMode}
-              savedAddresses={addresses}
-              selectedDropoffAddress={selectedDropoffAddress}
-              onSelectSavedDropoffAddress={handleSavedDropoffAddressSelect}
-              onAddNewDropoffAddress={() => setShowDropoffAddressModal(true)}
-              pickupExtraContent={
-                pickupMode === "town" ? (
-                  <View style={s.landmarkWrap}>
-                    <Text style={s.landmarkLabel}>
-                      Pickup landmark / directions *
-                    </Text>
-                    <TextInput
-                      style={s.landmarkInput}
-                      placeholder="e.g. Near the big mango tree, opposite the mosque..."
-                      placeholderTextColor={T.textTertiary}
-                      value={pickupLandmark}
-                      onChangeText={setPickupLandmark}
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                    />
-                  </View>
-                ) : undefined
-              }
-              dropoffExtraContent={
-                dropoffMode === "town" ? (
-                  <View style={s.landmarkWrap}>
-                    <Text style={s.landmarkLabel}>
-                      Delivery landmark / directions *
-                    </Text>
-                    <TextInput
-                      style={s.landmarkInput}
-                      placeholder="e.g. Near the big mango tree, opposite the mosque..."
-                      placeholderTextColor={T.textTertiary}
-                      value={dropoffLandmark}
-                      onChangeText={setDropoffLandmark}
-                      multiline
-                      numberOfLines={3}
-                      textAlignVertical="top"
-                    />
-                  </View>
-                ) : undefined
-              }
-            />
-          </View>
+          {/* Receiver — who the rider hands the package to */}
+          {step1Done && (
+            <View style={s.receiverCard}>
+              <Text style={s.receiverTitle}>Receiver details</Text>
+              <TextInput
+                style={s.receiverInput}
+                placeholder="Full name"
+                placeholderTextColor={T.textTertiary}
+                value={receiverName}
+                onChangeText={setReceiverName}
+                autoCapitalize="words"
+              />
+              <View style={s.phoneRow}>
+                <View style={s.phonePrefix}>
+                  <Text style={s.phonePrefixText}>+220</Text>
+                </View>
+                <TextInput
+                  style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
+                  placeholder="7 digits"
+                  placeholderTextColor={T.textTertiary}
+                  value={receiverPhone}
+                  onChangeText={(t) =>
+                    setReceiverPhone(t.replace(/[^0-9]/g, "").slice(0, 7))
+                  }
+                  keyboardType="phone-pad"
+                  maxLength={7}
+                />
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ── Step 2: Package weight ── */}
@@ -1209,19 +1162,11 @@ export default function CustomDeliveryScreen() {
         </View>
       </ScrollView>
 
-      <LocationModal
-        visible={showPickupAddressModal}
-        onClose={() => setShowPickupAddressModal(false)}
-        onSelectAddress={handleSavedPickupAddressSelect}
-        currentAddress={
-          pickupAddressLabel || selectedPickupAddress?.addressLine
-        }
-      />
-      <LocationModal
-        visible={showDropoffAddressModal}
-        onClose={() => setShowDropoffAddressModal(false)}
-        onSelectAddress={handleSavedDropoffAddressSelect}
-        currentAddress={dropoffAddressLabel}
+      <LocationSearchSheet
+        visible={sheetFor !== null}
+        mode={sheetFor ?? "pickup"}
+        onClose={() => setSheetFor(null)}
+        onSelect={handlePlacePicked}
       />
     </SafeAreaView>
   );
@@ -1346,41 +1291,128 @@ const s = StyleSheet.create({
     backgroundColor: T.brand,
   },
 
-  // Role toggle
-  roleWrap: {
+  // Route card — Uber-style pickup/drop-off stops
+  routeCard: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: -22,
-    marginBottom: 18,
-    backgroundColor: T.bg,
-    borderRadius: 18,
-    padding: 5,
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FAFBFC",
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: T.border,
-    gap: 5,
-    zIndex: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-      },
-      android: { elevation: 6 },
-    }),
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginTop: 12,
   },
-  roleBtn: {
+  routeRail: { alignItems: "center", paddingTop: 20, width: 14 },
+  railDot: { width: 10, height: 10, borderRadius: 5 },
+  railLine: {
+    width: 2,
     flex: 1,
+    minHeight: 34,
+    marginVertical: 4,
+    backgroundColor: "#DDE1E6",
+  },
+  railSquare: { width: 9, height: 9, borderRadius: 2 },
+  stopRow: { flexDirection: "row", alignItems: "center", paddingVertical: 6 },
+  stopLabel: {
+    fontSize: 10.5,
+    fontWeight: "800",
+    color: T.textTertiary,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 3,
+  },
+  stopValue: { fontSize: 14.5, fontWeight: "600", color: T.textPrimary },
+  stopPlaceholder: { fontSize: 14.5, color: T.textTertiary },
+  stopLoadingRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stopDivider: {
+    height: 1,
+    backgroundColor: T.border,
+    marginVertical: 4,
+  },
+  addNote: {
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: T.brand,
+    paddingVertical: 4,
+  },
+  stopNoteInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: T.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13.5,
+    color: T.textPrimary,
+    minHeight: 40,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  swapBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: T.brandSoft,
+    justifyContent: "center",
+    alignItems: "center",
+    alignSelf: "center",
+  },
+  routeDistance: {
+    fontSize: 12.5,
+    color: T.textSecondary,
+    fontWeight: "600",
+    marginTop: 8,
+    marginLeft: 4,
+  },
+  warnBanner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    paddingVertical: 12,
+    gap: 8,
+    backgroundColor: "#FEF3C7",
     borderRadius: 12,
+    padding: 11,
+    marginTop: 12,
   },
-  roleBtnActive: { backgroundColor: T.brand },
-  roleBtnText: { fontSize: 13, fontWeight: "700", color: T.textTertiary },
-  roleBtnTextActive: { color: "#fff" },
+  warnText: { flex: 1, fontSize: 12.5, color: "#92400E", lineHeight: 17 },
+
+  // Receiver
+  receiverCard: { marginTop: 16 },
+  receiverTitle: {
+    fontSize: 13.5,
+    fontWeight: "800",
+    color: T.textPrimary,
+    marginBottom: 8,
+  },
+  receiverInput: {
+    backgroundColor: "#FAFBFC",
+    borderWidth: 1,
+    borderColor: T.border,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14.5,
+    color: T.textPrimary,
+    marginTop: 8,
+  },
+  phoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 8,
+  },
+  phonePrefix: {
+    backgroundColor: "#F1F3F5",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
+  },
+  phonePrefixText: {
+    fontSize: 14.5,
+    fontWeight: "700",
+    color: T.textSecondary,
+  },
 
   // Blocks
   block: {
@@ -1481,24 +1513,6 @@ const s = StyleSheet.create({
   unifiedWrap: { marginTop: 4 },
 
   // Landmark input
-  landmarkWrap: { marginBottom: 16, paddingTop: 20 },
-  landmarkLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: T.textPrimary,
-    marginBottom: 8,
-  },
-  landmarkInput: {
-    backgroundColor: T.pageBg,
-    borderWidth: 1.5,
-    borderColor: T.border,
-    borderRadius: 14,
-    padding: 14,
-    fontSize: 14,
-    color: T.textPrimary,
-    minHeight: 80,
-    textAlignVertical: "top",
-  },
 
   // Horizontal scroll
   hScrollContent: { gap: 10, paddingHorizontal: 2, paddingBottom: 4 },

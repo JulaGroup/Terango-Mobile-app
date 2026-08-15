@@ -28,14 +28,14 @@ const PRIMARY = Colors.primary;
 const GOOGLE_PLACES_API_KEY =
   process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || FALLBACK_GOOGLE_PLACES_API_KEY;
 
-// const hasValidGooglePlacesKey = (key?: string) => {
-//   if (!key) return false;
-//   const normalized = key.trim();
-//   if (!normalized) return false;
-//   if (normalized.includes("YOUR_ACTUAL_API_KEY_HERE")) return false;
-//   if (normalized.includes("YOUR_GOOGLE_PLACES_API_KEY_HERE")) return false;
-//   return normalized.length > 10;
-// };
+const hasValidGooglePlacesKey = (key?: string) => {
+  if (!key) return false;
+  const normalized = key.trim();
+  if (!normalized) return false;
+  if (normalized.includes("YOUR_ACTUAL_API_KEY_HERE")) return false;
+  if (normalized.includes("YOUR_GOOGLE_PLACES_API_KEY_HERE")) return false;
+  return normalized.length > 10;
+};
 
 interface LocationPickerModalProps {
   visible: boolean;
@@ -107,11 +107,9 @@ export const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [slideAnim] = useState(new Animated.Value(SCREEN_HEIGHT));
   const [backdropOpacity] = useState(new Animated.Value(0));
-  // Google Places temporarily disabled: use built-in Gambian towns only.
-  // Keep this logic for future re-enable:
-  // const placesEnabled =
-  //   allowGooglePlaces && hasValidGooglePlacesKey(GOOGLE_PLACES_API_KEY);
-  const placesEnabled = false;
+  // Falls back to the built-in Gambian towns when no usable key is present.
+  const placesEnabled =
+    allowGooglePlaces && hasValidGooglePlacesKey(GOOGLE_PLACES_API_KEY);
 
   useEffect(() => {
     if (visible) {

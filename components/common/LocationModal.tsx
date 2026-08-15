@@ -701,7 +701,11 @@ const LocationModal = ({
   );
 
   const renderAddForm = () => {
-    const isGooglePlacesAvailable = false;
+    // Search when we have a usable key; otherwise the map pin below is still
+    // a complete way to add an address.
+    const key = (GOOGLE_PLACES_API_KEY || "").trim();
+    const isGooglePlacesAvailable =
+      key.length > 10 && !key.includes("YOUR_ACTUAL_API_KEY_HERE");
 
     return (
       <View style={styles.addForm}>
