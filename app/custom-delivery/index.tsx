@@ -19,10 +19,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useFocusEffect } from "expo-router";
 import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
-import {
-  fetchDeliveryTowns,
-  DeliveryTown,
-} from "@/services/deliveryTowns.service";
 import LocationSearchSheet, {
   type PickedLocation,
 } from "@/components/express/LocationSearchSheet";
@@ -199,8 +195,6 @@ export default function CustomDeliveryScreen() {
     inputRange: [0, 1],
     outputRange: [0, -10],
   });
-
-  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
 
   // Both stops are free-form places now — searched, pinned, saved or GPS.
   // Neither is tied to the 16-town list any more.
@@ -441,21 +435,6 @@ export default function CustomDeliveryScreen() {
       fetchDeliveries();
     }, [fetchDeliveries]),
   );
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchDeliveryTowns()
-      .then((res) => {
-        const towns = Array.isArray(res?.data) ? res.data : [];
-        if (isMounted) setDeliveryTowns(towns);
-      })
-      .catch((error) =>
-        console.error("Could not fetch delivery towns:", error),
-      );
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     fetchAddresses();

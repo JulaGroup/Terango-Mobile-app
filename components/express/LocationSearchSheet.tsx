@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,7 +21,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { AddressService, type Address } from "@/services/AddressService";
 import { useAddress } from "@/context/AddressContext";
 
@@ -132,6 +132,13 @@ function cityFromDetails(details: any): string | undefined {
   return match?.long_name;
 }
 
+interface Prediction {
+  placeId: string;
+  main: string;
+  secondary: string;
+  description: string;
+}
+
 interface Props {
   visible: boolean;
   /** Which stop is being set — drives the title and the marker colour. */
@@ -149,11 +156,12 @@ export default function LocationSearchSheet({
   const { addresses } = useAddress();
   const [recents, setRecents] = useState<PickedLocation[]>([]);
   const [locating, setLocating] = useState(false);
-  // The autocomplete renders its results inside its own container, so that
-  // container has to own the space while a search is active — otherwise the
-  // list has nowhere to draw. Below the threshold we hand the space back to
-  // the saved/recent list instead.
   const [query, setQuery] = useState("");
+  const [results, setResults] = useState<Prediction[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const searchDebounce = useRef<any>(null);
   const searching = query.trim().length >= 2;
 
   // Pin-drop fallback
@@ -171,6 +179,8 @@ export default function LocationSearchSheet({
       loadRecentPlaces().then(setRecents);
       setPinMode(false);
       setQuery("");
+      setResults([]);
+      setSearchError(null);
     }
   }, [visible]);
 
@@ -189,6 +199,88 @@ export default function LocationSearchSheet({
     },
     [onSelect, onClose],
   );
+
+  // ── Place search ──────────────────────────────────────────────────────────
+  // Calling Places directly keeps the results in our own list and makes a
+  // REQUEST_DENIED or quota problem visible instead of silently empty.
+  useEffect(() => {
+    if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    const term = query.trim();
+    if (term.length < 2 || !hasPlacesKey()) {
+      setResults([]);
+      setSearchError(null);
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    searchDebounce.current = setTimeout(async () => {
+      try {
+        const url =
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
+          `?input=${encodeURIComponent(term)}` +
+          `&components=country:gm&language=en&key=${GOOGLE_PLACES_API_KEY}`;
+        const json = await (await fetch(url)).json();
+
+        if (json.status === "OK" || json.status === "ZERO_RESULTS") {
+          setSearchError(null);
+          setResults(
+            (json.predictions || []).map((p: any) => ({
+              placeId: p.place_id,
+              main: p.structured_formatting?.main_text || p.description,
+              secondary: p.structured_formatting?.secondary_text || "",
+              description: p.description,
+            })),
+          );
+        } else {
+          console.warn("[Places]", json.status, json.error_message);
+          setResults([]);
+          setSearchError(json.error_message || `Google returned ${json.status}`);
+        }
+      } catch (e: any) {
+        console.warn("[Places] network error", e?.message);
+        setResults([]);
+        setSearchError("Couldn't reach the search service.");
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => {
+      if (searchDebounce.current) clearTimeout(searchDebounce.current);
+    };
+  }, [query]);
+
+  /** Resolve a prediction to real coordinates, then hand it back. */
+  const choosePrediction = async (p: Prediction) => {
+    try {
+      setResolvingId(p.placeId);
+      const url =
+        `https://maps.googleapis.com/maps/api/place/details/json` +
+        `?place_id=${p.placeId}` +
+        `&fields=geometry,formatted_address,address_component,name` +
+        `&key=${GOOGLE_PLACES_API_KEY}`;
+      const json = await (await fetch(url)).json();
+      const loc = json?.result?.geometry?.location;
+      if (json.status !== "OK" || !loc) {
+        throw new Error(json.error_message || "No coordinates for that place");
+      }
+      commit({
+        label: json.result.name || p.main,
+        address: json.result.formatted_address || p.description,
+        latitude: loc.lat,
+        longitude: loc.lng,
+        city: cityFromDetails(json.result),
+        placeId: p.placeId,
+        source: "places",
+      });
+    } catch (e: any) {
+      Alert.alert(
+        "Couldn't use that place",
+        e?.message || "Try another result, or drop a pin instead.",
+      );
+    } finally {
+      setResolvingId(null);
+    }
+  };
 
   // ── Current location ──────────────────────────────────────────────────────
   const useCurrentLocation = async () => {
@@ -395,48 +487,89 @@ export default function LocationSearchSheet({
         ) : (
           // ── Search ──────────────────────────────────────────────────────
           <View style={{ flex: 1 }}>
-            {placesReady ? (
-              <GooglePlacesAutocomplete
-                placeholder="Search for a place…"
-                fetchDetails
-                enablePoweredByContainer={false}
-                debounce={300}
-                minLength={2}
+            {/* Search field — we call Places directly rather than using the
+                autocomplete widget, so results render in our own list and any
+                API error is visible instead of failing silently. */}
+            <View style={s.searchWrap}>
+              <Ionicons name="search" size={18} color={INK_LIGHT} />
+              <TextInput
+                style={s.searchField}
+                placeholder={
+                  placesReady ? "Search for a place…" : "Search unavailable"
+                }
+                placeholderTextColor={INK_LIGHT}
+                value={query}
+                onChangeText={setQuery}
+                editable={placesReady}
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {searchLoading && <ActivityIndicator size="small" color={ORANGE} />}
+              {!searchLoading && query.length > 0 && (
+                <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
+                  <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {!placesReady && (
+              <View style={s.noKeyBanner}>
+                <Ionicons name="information-circle" size={18} color="#B45309" />
+                <Text style={s.noKeyText}>
+                  Search is unavailable right now. Pick a saved place or drop a
+                  pin.
+                </Text>
+              </View>
+            )}
+
+            {/* Results */}
+            {searching && (
+              <ScrollView
                 keyboardShouldPersistTaps="handled"
-                query={{
-                  key: GOOGLE_PLACES_API_KEY,
-                  language: "en",
-                  components: "country:gm",
-                }}
-                onPress={(data, details = null) => {
-                  const loc = details?.geometry?.location;
-                  if (!loc) {
-                    Alert.alert(
-                      "Couldn't read that place",
-                      "Try another result, or drop a pin instead.",
-                    );
-                    return;
-                  }
-                  commit({
-                    label:
-                      data.structured_formatting?.main_text ||
-                      data.description ||
-                      "Selected place",
-                    address: details?.formatted_address || data.description,
-                    latitude: loc.lat,
-                    longitude: loc.lng,
-                    city: cityFromDetails(details),
-                    placeId: data.place_id,
-                    source: "places",
-                  });
-                }}
-                renderLeftButton={() => (
-                  <View style={s.searchIcon}>
-                    <Ionicons name="search" size={18} color={INK_LIGHT} />
+                contentContainerStyle={{ paddingBottom: 32 }}
+              >
+                {searchError ? (
+                  <View style={s.emptyResults}>
+                    <Ionicons name="cloud-offline-outline" size={26} color="#CBD5E1" />
+                    <Text style={s.emptyResultsTitle}>Search failed</Text>
+                    <Text style={s.emptyResultsSub}>{searchError}</Text>
+                    <TouchableOpacity
+                      style={s.emptyResultsBtn}
+                      onPress={openPinMode}
+                    >
+                      <Ionicons name="map-outline" size={16} color="#fff" />
+                      <Text style={s.emptyResultsBtnText}>Drop a pin</Text>
+                    </TouchableOpacity>
                   </View>
-                )}
-                onFail={(e) => console.warn("[Places] request failed:", e)}
-                listEmptyComponent={() => (
+                ) : results.length > 0 ? (
+                  results.map((r) => (
+                    <TouchableOpacity
+                      key={r.placeId}
+                      style={s.row}
+                      activeOpacity={0.7}
+                      onPress={() => choosePrediction(r)}
+                      disabled={resolvingId !== null}
+                    >
+                      <View style={s.rowIcon}>
+                        {resolvingId === r.placeId ? (
+                          <ActivityIndicator size="small" color={ORANGE} />
+                        ) : (
+                          <Ionicons name="location-outline" size={17} color={INK_MID} />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowTitle} numberOfLines={1}>
+                          {r.main}
+                        </Text>
+                        {!!r.secondary && (
+                          <Text style={s.rowSub} numberOfLines={1}>
+                            {r.secondary}
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  ))
+                ) : searchLoading ? null : (
                   <View style={s.emptyResults}>
                     <Ionicons name="search" size={26} color="#CBD5E1" />
                     <Text style={s.emptyResultsTitle}>No matches</Text>
@@ -453,39 +586,13 @@ export default function LocationSearchSheet({
                     </TouchableOpacity>
                   </View>
                 )}
-                styles={{
-                  // flex:1 while searching so the results list has room to
-                  // render; flex:0 otherwise so saved/recent get the space.
-                  container: {
-                    flex: searching ? 1 : 0,
-                    paddingHorizontal: 16,
-                  },
-                  textInputContainer: { backgroundColor: "transparent" },
-                  textInput: s.searchInput,
-                  listView: s.listView,
-                  row: s.resultRow,
-                  separator: { height: 1, backgroundColor: DIVIDER },
-                  description: { color: INK, fontSize: 14.5 },
-                }}
-                textInputProps={{
-                  placeholderTextColor: INK_LIGHT,
-                  onChangeText: setQuery,
-                }}
-              />
-            ) : (
-              <View style={s.noKeyBanner}>
-                <Ionicons name="information-circle" size={18} color="#B45309" />
-                <Text style={s.noKeyText}>
-                  Search is unavailable right now. Pick a saved place or drop a
-                  pin.
-                </Text>
-              </View>
+              </ScrollView>
             )}
 
+            {!searching && (
             <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 32 }}
-              style={searching ? s.hidden : undefined}
             >
               {/* Current location */}
               <TouchableOpacity
@@ -591,6 +698,7 @@ export default function LocationSearchSheet({
                 <Ionicons name="chevron-forward" size={18} color={INK_LIGHT} />
               </TouchableOpacity>
             </ScrollView>
+            )}
           </View>
         )}
 
@@ -628,21 +736,19 @@ const s = StyleSheet.create({
   },
   headerTitle: { fontSize: 16.5, fontWeight: "800", color: INK },
 
-  searchIcon: { justifyContent: "center", paddingLeft: 12, paddingRight: 2 },
-  searchInput: {
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     height: 48,
-    backgroundColor: "#F4F5F7",
-    borderRadius: 12,
-    fontSize: 15,
-    color: INK,
+    marginHorizontal: 16,
     marginTop: 12,
     marginBottom: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
+    backgroundColor: "#F4F5F7",
+    borderRadius: 12,
   },
-  listView: { backgroundColor: "#fff" },
-  resultRow: { paddingVertical: 14, paddingHorizontal: 4 },
-  /** Collapsed rather than unmounted so recents/saved don't refetch on blur. */
-  hidden: { height: 0, opacity: 0 },
+  searchField: { flex: 1, fontSize: 15, color: INK, padding: 0 },
 
   emptyResults: { alignItems: "center", paddingTop: 28, paddingHorizontal: 24 },
   emptyResultsTitle: {
