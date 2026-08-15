@@ -13,14 +13,7 @@ import {
 import { API_URL } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
 
-// Minimal uuidv4 generator (no deps)
-const uuidv4 = () => {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-};
+import { uuidv4 } from "@/utils/uuid";
 
 type OrderData = {
   customerName: string;

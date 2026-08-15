@@ -24,6 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AddressService, type Address } from "@/services/AddressService";
 import { apiCall } from "@/lib/apiClient";
 import { useAddress } from "@/context/AddressContext";
+import { uuidv4 } from "@/utils/uuid";
 
 // Maps are native-only in this app — every other screen requires them lazily so
 // the web build doesn't blow up. Same treatment here.
@@ -113,21 +114,6 @@ async function rememberPlace(place: PickedLocation) {
   }
 }
 
-/** Pull the locality out of a Places details payload. */
-function cityFromDetails(details: any): string | undefined {
-  const comps = details?.address_components;
-  if (!Array.isArray(comps)) return undefined;
-  const match =
-    comps.find((c: any) => c.types?.includes("locality")) ||
-    comps.find((c: any) =>
-      c.types?.includes("administrative_area_level_2"),
-    ) ||
-    comps.find((c: any) =>
-      c.types?.includes("administrative_area_level_1"),
-    );
-  return match?.long_name;
-}
-
 interface Prediction {
   placeId: string;
   main: string;
@@ -160,6 +146,11 @@ export default function LocationSearchSheet({
   const searchDebounce = useRef<any>(null);
   const searching = query.trim().length >= 2;
 
+  // Google bills a whole search session as one unit when every autocomplete
+  // and the closing details call share a token. Rotated once a place is
+  // chosen, since that closes the session.
+  const sessionToken = useRef<string>(uuidv4());
+
   // Pin-drop fallback
   const [pinMode, setPinMode] = useState(false);
   const [pinCoords, setPinCoords] = useState(DEFAULT_REGION);
@@ -177,6 +168,7 @@ export default function LocationSearchSheet({
       setQuery("");
       setResults([]);
       setSearchError(null);
+      sessionToken.current = uuidv4();
     }
   }, [visible]);
 
@@ -190,6 +182,9 @@ export default function LocationSearchSheet({
   const commit = useCallback(
     (place: PickedLocation) => {
       rememberPlace(place);
+      // Choosing a place ends the Google session — the next search must not
+      // reuse this token or it would be billed against a closed session.
+      sessionToken.current = uuidv4();
       onSelect(place);
       onClose();
     },
@@ -197,8 +192,8 @@ export default function LocationSearchSheet({
   );
 
   // ── Place search ──────────────────────────────────────────────────────────
-  // Calling Places directly keeps the results in our own list and makes a
-  // REQUEST_DENIED or quota problem visible instead of silently empty.
+  // Goes through our own proxy: the Google key stays server-side, responses
+  // are cached, and results render in our list rather than a widget's.
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     const term = query.trim();
@@ -213,7 +208,8 @@ export default function LocationSearchSheet({
       try {
         // Proxied through our server so the Google key stays off the device.
         const json = await apiCall(
-          `/api/places/autocomplete?input=${encodeURIComponent(term)}`,
+          `/api/places/autocomplete?input=${encodeURIComponent(term)}` +
+            `&sessionToken=${sessionToken.current}`,
         );
         setSearchError(null);
         setResults(json?.predictions || []);
@@ -235,7 +231,8 @@ export default function LocationSearchSheet({
     try {
       setResolvingId(p.placeId);
       const d = await apiCall(
-        `/api/places/details?placeId=${encodeURIComponent(p.placeId)}`,
+        `/api/places/details?placeId=${encodeURIComponent(p.placeId)}` +
+          `&sessionToken=${sessionToken.current}`,
       );
       if (typeof d?.latitude !== "number" || typeof d?.longitude !== "number") {
         throw new Error("No coordinates for that place");
