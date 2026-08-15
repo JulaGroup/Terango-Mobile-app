@@ -22,6 +22,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AddressService, type Address } from "@/services/AddressService";
+import { apiCall } from "@/lib/apiClient";
 import { useAddress } from "@/context/AddressContext";
 
 // Maps are native-only in this app — every other screen requires them lazily so
@@ -40,7 +41,6 @@ const INK_MID = "#3A3A3C";
 const INK_LIGHT = "#6B6B6E";
 const DIVIDER = "#E8E8EA";
 
-const GOOGLE_PLACES_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY;
 const RECENTS_KEY = "express_recent_places_v1";
 const MAX_RECENTS = 5;
 
@@ -84,10 +84,6 @@ export interface PickedLocation {
   source: "places" | "gps" | "saved" | "pin";
 }
 
-const hasPlacesKey = () =>
-  !!GOOGLE_PLACES_API_KEY &&
-  GOOGLE_PLACES_API_KEY !== "YOUR_ACTUAL_API_KEY_HERE" &&
-  GOOGLE_PLACES_API_KEY.length > 20;
 
 // ── Recents ─────────────────────────────────────────────────────────────────
 export async function loadRecentPlaces(): Promise<PickedLocation[]> {
@@ -206,7 +202,7 @@ export default function LocationSearchSheet({
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     const term = query.trim();
-    if (term.length < 2 || !hasPlacesKey()) {
+    if (term.length < 2) {
       setResults([]);
       setSearchError(null);
       setSearchLoading(false);
@@ -215,27 +211,12 @@ export default function LocationSearchSheet({
     setSearchLoading(true);
     searchDebounce.current = setTimeout(async () => {
       try {
-        const url =
-          `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-          `?input=${encodeURIComponent(term)}` +
-          `&components=country:gm&language=en&key=${GOOGLE_PLACES_API_KEY}`;
-        const json = await (await fetch(url)).json();
-
-        if (json.status === "OK" || json.status === "ZERO_RESULTS") {
-          setSearchError(null);
-          setResults(
-            (json.predictions || []).map((p: any) => ({
-              placeId: p.place_id,
-              main: p.structured_formatting?.main_text || p.description,
-              secondary: p.structured_formatting?.secondary_text || "",
-              description: p.description,
-            })),
-          );
-        } else {
-          console.warn("[Places]", json.status, json.error_message);
-          setResults([]);
-          setSearchError(json.error_message || `Google returned ${json.status}`);
-        }
+        // Proxied through our server so the Google key stays off the device.
+        const json = await apiCall(
+          `/api/places/autocomplete?input=${encodeURIComponent(term)}`,
+        );
+        setSearchError(null);
+        setResults(json?.predictions || []);
       } catch (e: any) {
         console.warn("[Places] network error", e?.message);
         setResults([]);
@@ -253,22 +234,18 @@ export default function LocationSearchSheet({
   const choosePrediction = async (p: Prediction) => {
     try {
       setResolvingId(p.placeId);
-      const url =
-        `https://maps.googleapis.com/maps/api/place/details/json` +
-        `?place_id=${p.placeId}` +
-        `&fields=geometry,formatted_address,address_component,name` +
-        `&key=${GOOGLE_PLACES_API_KEY}`;
-      const json = await (await fetch(url)).json();
-      const loc = json?.result?.geometry?.location;
-      if (json.status !== "OK" || !loc) {
-        throw new Error(json.error_message || "No coordinates for that place");
+      const d = await apiCall(
+        `/api/places/details?placeId=${encodeURIComponent(p.placeId)}`,
+      );
+      if (typeof d?.latitude !== "number" || typeof d?.longitude !== "number") {
+        throw new Error("No coordinates for that place");
       }
       commit({
-        label: json.result.name || p.main,
-        address: json.result.formatted_address || p.description,
-        latitude: loc.lat,
-        longitude: loc.lng,
-        city: cityFromDetails(json.result),
+        label: d.label || p.main,
+        address: d.address || p.description,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        city: d.city,
         placeId: p.placeId,
         source: "places",
       });
@@ -404,7 +381,6 @@ export default function LocationSearchSheet({
     [addresses],
   );
 
-  const placesReady = hasPlacesKey();
 
   return (
     <Modal
@@ -495,12 +471,11 @@ export default function LocationSearchSheet({
               <TextInput
                 style={s.searchField}
                 placeholder={
-                  placesReady ? "Search for a place…" : "Search unavailable"
+                  "Search for a place…"
                 }
                 placeholderTextColor={INK_LIGHT}
                 value={query}
                 onChangeText={setQuery}
-                editable={placesReady}
                 autoCorrect={false}
                 returnKeyType="search"
               />
@@ -511,16 +486,6 @@ export default function LocationSearchSheet({
                 </TouchableOpacity>
               )}
             </View>
-
-            {!placesReady && (
-              <View style={s.noKeyBanner}>
-                <Ionicons name="information-circle" size={18} color="#B45309" />
-                <Text style={s.noKeyText}>
-                  Search is unavailable right now. Pick a saved place or drop a
-                  pin.
-                </Text>
-              </View>
-            )}
 
             {/* Results */}
             {searching && (
