@@ -149,6 +149,12 @@ export default function LocationSearchSheet({
   const { addresses } = useAddress();
   const [recents, setRecents] = useState<PickedLocation[]>([]);
   const [locating, setLocating] = useState(false);
+  // The autocomplete renders its results inside its own container, so that
+  // container has to own the space while a search is active — otherwise the
+  // list has nowhere to draw. Below the threshold we hand the space back to
+  // the saved/recent list instead.
+  const [query, setQuery] = useState("");
+  const searching = query.trim().length >= 2;
 
   // Pin-drop fallback
   const [pinMode, setPinMode] = useState(false);
@@ -164,6 +170,7 @@ export default function LocationSearchSheet({
     if (visible) {
       loadRecentPlaces().then(setRecents);
       setPinMode(false);
+      setQuery("");
     }
   }, [visible]);
 
@@ -428,8 +435,31 @@ export default function LocationSearchSheet({
                     <Ionicons name="search" size={18} color={INK_LIGHT} />
                   </View>
                 )}
+                onFail={(e) => console.warn("[Places] request failed:", e)}
+                listEmptyComponent={() => (
+                  <View style={s.emptyResults}>
+                    <Ionicons name="search" size={26} color="#CBD5E1" />
+                    <Text style={s.emptyResultsTitle}>No matches</Text>
+                    <Text style={s.emptyResultsSub}>
+                      Plenty of places here aren&apos;t on the map. Drop a pin
+                      on the exact spot instead.
+                    </Text>
+                    <TouchableOpacity
+                      style={s.emptyResultsBtn}
+                      onPress={openPinMode}
+                    >
+                      <Ionicons name="map-outline" size={16} color="#fff" />
+                      <Text style={s.emptyResultsBtnText}>Drop a pin</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
                 styles={{
-                  container: { flex: 0, paddingHorizontal: 16 },
+                  // flex:1 while searching so the results list has room to
+                  // render; flex:0 otherwise so saved/recent get the space.
+                  container: {
+                    flex: searching ? 1 : 0,
+                    paddingHorizontal: 16,
+                  },
                   textInputContainer: { backgroundColor: "transparent" },
                   textInput: s.searchInput,
                   listView: s.listView,
@@ -437,7 +467,10 @@ export default function LocationSearchSheet({
                   separator: { height: 1, backgroundColor: DIVIDER },
                   description: { color: INK, fontSize: 14.5 },
                 }}
-                textInputProps={{ placeholderTextColor: INK_LIGHT }}
+                textInputProps={{
+                  placeholderTextColor: INK_LIGHT,
+                  onChangeText: setQuery,
+                }}
               />
             ) : (
               <View style={s.noKeyBanner}>
@@ -452,6 +485,7 @@ export default function LocationSearchSheet({
             <ScrollView
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={{ paddingBottom: 32 }}
+              style={searching ? s.hidden : undefined}
             >
               {/* Current location */}
               <TouchableOpacity
@@ -605,12 +639,36 @@ const s = StyleSheet.create({
     marginBottom: 4,
     paddingHorizontal: 10,
   },
-  listView: {
-    marginHorizontal: 0,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-  },
+  listView: { backgroundColor: "#fff" },
   resultRow: { paddingVertical: 14, paddingHorizontal: 4 },
+  /** Collapsed rather than unmounted so recents/saved don't refetch on blur. */
+  hidden: { height: 0, opacity: 0 },
+
+  emptyResults: { alignItems: "center", paddingTop: 28, paddingHorizontal: 24 },
+  emptyResultsTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: INK,
+    marginTop: 10,
+  },
+  emptyResultsSub: {
+    fontSize: 13,
+    color: INK_LIGHT,
+    textAlign: "center",
+    lineHeight: 19,
+    marginTop: 6,
+  },
+  emptyResultsBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: ORANGE,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    marginTop: 16,
+  },
+  emptyResultsBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
 
   noKeyBanner: {
     flexDirection: "row",
