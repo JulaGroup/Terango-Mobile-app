@@ -114,6 +114,18 @@ async function rememberPlace(place: PickedLocation) {
   }
 }
 
+/**
+ * A plus code typed on its own, with no town after it.
+ *
+ * Short plus codes are only unique within ~100km of a reference point, and The
+ * Gambia is wider than that — geocoding "C727+G25, The Gambia" returns a point
+ * 108km east of the real one, confidently and with no error. So we never guess
+ * a location for these; we ask for the town instead.
+ */
+function isBarePlusCode(input: string): boolean {
+  return /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,3}$/i.test(input.trim());
+}
+
 interface Prediction {
   placeId: string;
   main: string;
@@ -533,11 +545,18 @@ export default function LocationSearchSheet({
                   ))
                 ) : searchLoading ? null : (
                   <View style={s.emptyResults}>
-                    <Ionicons name="search" size={26} color="#CBD5E1" />
-                    <Text style={s.emptyResultsTitle}>No matches</Text>
+                    <Ionicons
+                      name={isBarePlusCode(query) ? "keypad-outline" : "search"}
+                      size={26}
+                      color="#CBD5E1"
+                    />
+                    <Text style={s.emptyResultsTitle}>
+                      {isBarePlusCode(query) ? "Add the area too" : "No matches"}
+                    </Text>
                     <Text style={s.emptyResultsSub}>
-                      Plenty of places here aren&apos;t on the map. Drop a pin
-                      on the exact spot instead.
+                      {isBarePlusCode(query)
+                        ? `A plus code on its own matches several places in The Gambia. Add the town — e.g. "${query.trim()} Brusubi".`
+                        : "Plenty of places here aren't on the map. Drop a pin on the exact spot instead."}
                     </Text>
                     <TouchableOpacity
                       style={s.emptyResultsBtn}
