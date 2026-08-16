@@ -629,8 +629,7 @@ export default function CustomDeliveryScreen() {
   const step1Done = !!(pickup && dropoff);
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
-    receiverName.trim() &&
-    receiverPhone.trim().replace(/\s/g, "").length === 7
+    receiverName.trim() && receiverPhone.trim().replace(/\s/g, "").length === 7
   );
   const canSubmit =
     step1Done &&
@@ -938,7 +937,10 @@ export default function CustomDeliveryScreen() {
           {/* Receiver — who the rider hands the package to */}
           {step1Done && (
             <View style={s.receiverCard}>
-              <Text style={s.receiverTitle}>Receiver details</Text>
+              <Text style={s.receiverTitle}>
+                Receiver details
+                <Text style={{ color: "red" }}>*</Text>
+              </Text>
               <TextInput
                 style={s.receiverInput}
                 placeholder="Full name"
