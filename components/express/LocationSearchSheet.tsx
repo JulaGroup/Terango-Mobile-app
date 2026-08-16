@@ -117,10 +117,10 @@ async function rememberPlace(place: PickedLocation) {
 /**
  * A plus code typed on its own, with no town after it.
  *
- * Short plus codes are only unique within ~100km of a reference point, and The
- * Gambia is wider than that — geocoding "C727+G25, The Gambia" returns a point
- * 108km east of the real one, confidently and with no error. So we never guess
- * a location for these; we ask for the town instead.
+ * The server resolves these against a nearby reference point. This flag is only
+ * for the empty state: if a bare code came back with nothing, the reference was
+ * missing or too far away to be certain of the cell, so we ask for the town
+ * rather than guessing — a wrong cell is ~110km out and looks like a success.
  */
 function isBarePlusCode(input: string): boolean {
   return /^[A-Z0-9]{4,8}\+[A-Z0-9]{2,3}$/i.test(input.trim());
@@ -131,6 +131,14 @@ interface Prediction {
   main: string;
   secondary: string;
   description: string;
+  /** Set for plus-code lookups, which the server resolves up front. */
+  resolved?: {
+    label: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    city?: string;
+  };
 }
 
 interface Props {
@@ -139,6 +147,12 @@ interface Props {
   mode: "pickup" | "dropoff";
   onClose: () => void;
   onSelect: (place: PickedLocation) => void;
+  /**
+   * Somewhere near where the customer is searching, used to restore the
+   * missing prefix on a short plus code. Without it a bare code can't be
+   * resolved safely, so the sheet asks for a town instead.
+   */
+  reference?: { latitude: number; longitude: number } | null;
 }
 
 export default function LocationSearchSheet({
@@ -146,6 +160,7 @@ export default function LocationSearchSheet({
   mode,
   onClose,
   onSelect,
+  reference,
 }: Props) {
   const { addresses } = useAddress();
   const [recents, setRecents] = useState<PickedLocation[]>([]);
@@ -219,9 +234,12 @@ export default function LocationSearchSheet({
     searchDebounce.current = setTimeout(async () => {
       try {
         // Proxied through our server so the Google key stays off the device.
+        const ref = reference
+          ? `&lat=${reference.latitude}&lng=${reference.longitude}`
+          : "";
         const json = await apiCall(
           `/api/places/autocomplete?input=${encodeURIComponent(term)}` +
-            `&sessionToken=${sessionToken.current}`,
+            `&sessionToken=${sessionToken.current}${ref}`,
         );
         setSearchError(null);
         setResults(json?.predictions || []);
@@ -236,10 +254,14 @@ export default function LocationSearchSheet({
     return () => {
       if (searchDebounce.current) clearTimeout(searchDebounce.current);
     };
-  }, [query]);
+  }, [query, reference]);
 
   /** Resolve a prediction to real coordinates, then hand it back. */
   const choosePrediction = async (p: Prediction) => {
+    if (p.resolved) {
+      commit({ ...p.resolved, placeId: p.placeId, source: "places" });
+      return;
+    }
     try {
       setResolvingId(p.placeId);
       const d = await apiCall(
@@ -536,8 +558,13 @@ export default function LocationSearchSheet({
                           {r.main}
                         </Text>
                         {!!r.secondary && (
-                          <Text style={s.rowSub} numberOfLines={1}>
-                            {r.secondary}
+                          <Text
+                            style={[s.rowSub, r.resolved && s.rowSubEmphasis]}
+                            numberOfLines={1}
+                          >
+                            {/* For a plus code this is the area we resolved to
+                                — the one thing worth checking before tapping. */}
+                            {r.resolved ? `in ${r.secondary}` : r.secondary}
                           </Text>
                         )}
                       </View>
@@ -795,6 +822,8 @@ const s = StyleSheet.create({
   },
   rowTitle: { fontSize: 15, fontWeight: "600", color: INK },
   rowSub: { fontSize: 12.5, color: INK_LIGHT, marginTop: 2 },
+  /** Plus-code rows: the resolved area is the thing to verify, so it's bolder. */
+  rowSubEmphasis: { color: ORANGE, fontWeight: "700" },
   divider: {
     height: 1,
     backgroundColor: DIVIDER,

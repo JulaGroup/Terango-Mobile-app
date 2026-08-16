@@ -1146,6 +1146,11 @@ export default function CustomDeliveryScreen() {
         mode={sheetFor ?? "pickup"}
         onClose={() => setSheetFor(null)}
         onSelect={handlePlacePicked}
+        // Anchor for expanding short plus codes: prefer the opposite stop,
+        // falling back to this one (which pre-fills from GPS).
+        reference={
+          sheetFor === "pickup" ? (dropoff ?? pickup) : (pickup ?? dropoff)
+        }
       />
     </SafeAreaView>
   );
