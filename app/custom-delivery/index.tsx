@@ -44,13 +44,6 @@ import { UserCacheManager } from "@/utils/userCache";
 // Server-side ceilings from EXPRESS_CONFIG.VEHICLE_SUPPORT — create() throws
 // past these. The old town list kept everything inside ~10km so this never
 // mattered; with free-form pins it does, so we surface it before submit.
-const VEHICLE_MAX_KM: Record<VehicleType, number> = {
-  BIKE: 15,
-  KEKE_CARGO: 25,
-  CAR: 35,
-  VAN: 40,
-  LORRY: 50,
-};
 
 // ── Brand palette (unchanged) ─────────────────────────────
 const T = {
@@ -258,33 +251,19 @@ export default function CustomDeliveryScreen() {
       ?.distanceKm ??
     null;
 
-  const vehicleTooFar = (key: VehicleType) =>
-    routeDistanceKm != null && routeDistanceKm > VEHICLE_MAX_KM[key];
-
   const vehicleOptions: VehicleOption[] = availableVehicleTypes.map((key) => {
     const vehicleQuote = quotesByVehicle[key];
-    const tooFar = vehicleTooFar(key);
     return {
       key,
       label: VEHICLE_CONFIG[key].label,
-      description: tooFar
-        ? `Too far — max ${VEHICLE_MAX_KM[key]}km`
-        : VEHICLE_CONFIG[key].description,
+      description: VEHICLE_CONFIG[key].description,
       iconName: VEHICLE_CONFIG[key].iconName,
-      estimatedPrice: tooFar ? null : (vehicleQuote?.estimatedPrice ?? null),
-      estimatedTime:
-        !tooFar && vehicleQuote?.estimatedTimeMinutes
-          ? `${vehicleQuote.estimatedTimeMinutes} min`
-          : undefined,
+      estimatedPrice: vehicleQuote?.estimatedPrice ?? null,
+      estimatedTime: vehicleQuote?.estimatedTimeMinutes
+        ? `${vehicleQuote.estimatedTimeMinutes} min`
+        : undefined,
     };
   });
-
-  // Drop a selection that the route has since outgrown.
-  useEffect(() => {
-    if (selectedVehicle && vehicleTooFar(selectedVehicle)) {
-      setSelectedVehicle(null);
-    }
-  }, [routeDistanceKm, selectedVehicle]);
 
   const weightOptions: WeightClassOption[] = (
     ["LIGHT", "MEDIUM", "HEAVY"] as WeightClass[]
@@ -541,12 +520,6 @@ export default function CustomDeliveryScreen() {
         "Receiver required",
         "Add the receiver's name and 7-digit phone number.",
       );
-    if (selectedVehicle && vehicleTooFar(selectedVehicle))
-      return Alert.alert(
-        "Vehicle can't cover this trip",
-        `${VEHICLE_CONFIG[selectedVehicle].label} is limited to ${VEHICLE_MAX_KM[selectedVehicle]}km. Choose a larger vehicle.`,
-      );
-
     setIsSubmitting(true);
     try {
       // Driver notes are optional; when empty the address is sent on its own.
