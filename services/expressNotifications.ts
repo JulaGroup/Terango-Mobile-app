@@ -1,106 +1,112 @@
 /**
- * ENHANCED EXPRESS DELIVERY NOTIFICATIONS
- * Industry-standard messages with emojis and better UX
+ * Express delivery push notifications.
+ *
+ * Written to the conventions transactional delivery push follows:
+ *
+ * - Sentence case, no exclamation marks, no marketing voice. "Great news!"
+ *   and "Thank you for using TeranGO Express!" read as promotional, and
+ *   promotional-sounding transactional push is what gets an app muted.
+ * - Every message carries the delivery reference. A customer with two
+ *   deliveries running could not previously tell which one a notification
+ *   was about.
+ * - The title carries the substance where there is any, because on a lock
+ *   screen the title is often all that is read: the rider's name when one is
+ *   assigned, the ETA while in transit.
+ * - No emoji. Titles led with one before; Uber, Bolt and Grab all ship plain
+ *   text, and an emoji costs characters the title needs on a narrow screen.
  */
 
 import * as Notifications from "expo-notifications";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 
 // ─── Express Delivery Status Messages ────────────────────────────────────────
 export const EXPRESS_NOTIFICATION_MESSAGES = {
   PENDING: {
-    emoji: "⏳",
-    title: "Order Received",
-    body: "Your express delivery request is being reviewed by our team",
+    title: "Delivery request received",
+    body: "{{ref}} · We're reviewing your request and will confirm shortly.",
     sound: "default",
     priority: "default" as const,
   },
-  
+
   CONFIRMED: {
-    emoji: "✅",
-    title: "Order Confirmed",
-    body: "Great news! Your express delivery has been confirmed. Looking for a driver...",
+    title: "Delivery confirmed",
+    body: "{{ref}} · We're finding a rider for your package.",
     sound: "default",
     priority: "high" as const,
   },
-  
+
+  ADMIN_APPROVED: {
+    title: "Ready for payment",
+    body: "{{ref}} · Your request is approved. Pay now to book your rider.",
+    sound: "default",
+    priority: "high" as const,
+  },
+
+  // Same moment as ADMIN_APPROVED — the request cleared review and payment is
+  // the next step. The old copy read "Payment Approved / Your payment has been
+  // approved. You can now complete the payment", which told customers they had
+  // paid and then asked them to pay.
+  PAYMENT_APPROVED: {
+    title: "Ready for payment",
+    body: "{{ref}} · Your request is approved. Pay now to book your rider.",
+    sound: "default",
+    priority: "high" as const,
+  },
+
   DRIVER_ASSIGNED: {
-    emoji: "🚗",
-    title: "Driver Assigned",
-    body: "{{driverName}} is on the way to pick up your package",
+    title: "{{driverName}} is your rider",
+    body: "{{ref}} · On the way to collect your package.",
     sound: "default",
     priority: "high" as const,
   },
-  
-  PICKED_UP: {
-    emoji: "📦",
-    title: "Package Picked Up",
-    body: "Your package is now with the driver. Delivery in progress!",
-    sound: "default",
-    priority: "high" as const,
-  },
-  
-  IN_TRANSIT: {
-    emoji: "🚀",
-    title: "On The Way",
-    body: "Your package is moving! ETA: {{eta}} minutes",
-    sound: "default",
-    priority: "high" as const,
-  },
-  
-  NEAR_DELIVERY: {
-    emoji: "📍",
-    title: "Almost There",
-    body: "Driver is 5 minutes away from your delivery location",
+
+  DRIVER_ARRIVED: {
+    title: "Your rider has arrived",
+    body: "{{ref}} · {{driverName}} is at the pickup point.",
     sound: "default",
     priority: "max" as const,
   },
-  
+
+  PICKED_UP: {
+    title: "Package collected",
+    body: "{{ref}} · {{driverName}} is heading to the drop-off.",
+    sound: "default",
+    priority: "high" as const,
+  },
+
+  IN_TRANSIT: {
+    title: "Arriving in {{eta}} min",
+    body: "{{ref}} · Your package is on its way to the drop-off.",
+    sound: "default",
+    priority: "high" as const,
+  },
+
+  NEAR_DELIVERY: {
+    title: "Your rider is nearly there",
+    body: "{{ref}} · Arriving shortly — please keep your phone reachable.",
+    sound: "default",
+    priority: "max" as const,
+  },
+
   DELIVERED: {
-    emoji: "🎉",
-    title: "Delivered Successfully",
-    body: "Your package has been delivered. Thank you for using TeranGO Express!",
+    title: "Delivered",
+    body: "{{ref}} · Your package has been delivered.",
     sound: "success",
     priority: "high" as const,
   },
-  
-  CANCELLED: {
-    emoji: "❌",
-    title: "Delivery Cancelled",
-    body: "Your express delivery has been cancelled. Reason: {{reason}}",
-    sound: "default",
-    priority: "default" as const,
-  },
-  
+
   DELAYED: {
-    emoji: "⚠️",
-    title: "Slight Delay",
-    body: "Your delivery is experiencing a minor delay. New ETA: {{eta}} minutes",
+    title: "Your delivery is running late",
+    body: "{{ref}} · New estimate: {{eta}} min. Sorry for the wait.",
     sound: "default",
     priority: "default" as const,
   },
-  
-  PAYMENT_APPROVED: {
-    emoji: "💳",
-    title: "Payment Approved",
-    body: "Your payment has been approved. You can now complete the payment.",
+
+  CANCELLED: {
+    title: "Delivery cancelled",
+    body: "{{ref}} · {{reason}}",
     sound: "default",
-    priority: "high" as const,
-  },
-  
-  DRIVER_ARRIVED: {
-    emoji: "🎯",
-    title: "Driver Has Arrived",
-    body: "Your driver has arrived at the pickup location",
-    sound: "default",
-    priority: "max" as const,
-  },
-  
-  ADMIN_APPROVED: {
-    emoji: "👍",
-    title: "Admin Approved",
-    body: "Your delivery request has been approved! Proceed to payment.",
-    sound: "default",
-    priority: "high" as const,
+    priority: "default" as const,
   },
 } as const;
 
@@ -175,27 +181,36 @@ export async function showExpressDeliveryNotification(
     return;
   }
 
-  // Replace placeholders
-  let body = template.body;
-  if (data.driverName) {
-    body = body.replace("{{driverName}}", data.driverName);
-  }
-  if (data.eta) {
-    body = body.replace("{{eta}}", data.eta.toString());
-  }
-  if (data.reason) {
-    body = body.replace("{{reason}}", data.reason);
-  }
+  const fill = (text: string) =>
+    text
+      .replace(/\{\{ref\}\}/g, formatExpressDeliveryId(data.deliveryId))
+      .replace(/\{\{driverName\}\}/g, data.driverName || "Your rider")
+      .replace(/\{\{eta\}\}/g, data.eta != null ? String(data.eta) : "")
+      .replace(/\{\{reason\}\}/g, data.reason || "No reason was given.");
+
+  // Every placeholder gets a fallback above, but a template could still be
+  // edited to use one this function does not know. Strip any survivors rather
+  // than pushing a literal "{{eta}}" to a customer's lock screen, and tidy the
+  // separator and spacing an emptied placeholder leaves behind.
+  const clean = (text: string) =>
+    fill(text)
+      .replace(/\{\{[^}]*\}\}/g, "")
+      .replace(/\s+/g, " ")
+      .replace(/\s+·\s*$/, "")
+      .replace(/^\s*·\s+/, "")
+      .trim();
+
+  const title = clean(template.title);
+  const body = clean(template.body);
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: `${template.emoji} ${template.title}`,
+      title,
       body,
       data: {
-        type: "express_delivery",
-        deliveryId: data.deliveryId,
-        status,
         ...data,
+        type: "express_delivery",
+        status,
       },
       sound: template.sound === "success" ? "success.wav" : "default",
       priority:
