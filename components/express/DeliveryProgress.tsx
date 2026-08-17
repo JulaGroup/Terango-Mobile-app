@@ -3,185 +3,137 @@ import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 /**
- * Where a delivery is, at a glance.
+ * Status header and progress bar for the Express tracking sheet.
  *
- * The tracking sheet previously showed progress only as a "Tracking History"
- * log at the very bottom — a reverse-chronological list you had to read and
- * interpret. That answers "what has happened" when the question a customer
- * actually has is "where is my package now, and how much further".
+ * Deliberately the same shape as the ordinary order tracking sheet
+ * (app/order-tracking.tsx): a 48pt tinted status circle, an 18/700 label with
+ * a muted line beneath, and a single 4pt continuous progress bar. Express and
+ * ordinary tracking are the same job from a customer's point of view, so they
+ * should not look like two different products.
  *
- * This is the four-beat stepper every delivery app uses for that reason:
- * completed steps fill in, the current one is ringed and labelled, upcoming
- * ones stay muted. The connecting bar fills only up to the current step, so
- * the remaining distance is visible without reading a word.
+ * An earlier version used a four-step stepper. It carried more detail but
+ * matched nothing else in the app.
  */
 
-const T = {
-  brand: "#FF6B00",
-  brandSoft: "rgba(255,107,0,0.12)",
-  surface: "#FFFFFF",
-  border: "#E9ECEF",
-  textPrimary: "#000000",
-  textTertiary: "#6C757D",
-  success: "#28A745",
-  muted: "#DEE2E6",
+const C = {
+  text: "#1F2937",
+  muted: "#6B7280",
+  faint: "#9CA3AF",
+  track: "#E5E7EB",
+  badgeBg: "#F3F4F6",
 };
 
-type StepKey = "CONFIRMED" | "ASSIGNED" | "PICKED_UP" | "DELIVERED";
-
-const STEPS: { key: StepKey; label: string; icon: any }[] = [
-  { key: "CONFIRMED", label: "Confirmed", icon: "checkmark-circle-outline" },
-  { key: "ASSIGNED", label: "Driver", icon: "person-outline" },
-  { key: "PICKED_UP", label: "Picked up", icon: "bag-check-outline" },
-  { key: "DELIVERED", label: "Delivered", icon: "flag-outline" },
-];
-
-/**
- * Delivery statuses collapse onto the four steps above. ARRIVED sits inside
- * the picked-up leg: the package is still with the rider, so the stepper
- * should not imply it has been handed over.
- */
-const STATUS_TO_INDEX: Record<string, number> = {
-  PENDING: 0,
-  DRIVER_ASSIGNED: 1,
-  PICKED_UP: 2,
-  IN_TRANSIT: 2,
-  ARRIVED: 2,
-  DELIVERED: 3,
+/** How far along the bar sits for each status. */
+const STATUS_PROGRESS: Record<string, number> = {
+  PENDING: 0.12,
+  DRIVER_ASSIGNED: 0.4,
+  PICKED_UP: 0.62,
+  IN_TRANSIT: 0.78,
+  ARRIVED: 0.92,
+  DELIVERED: 1,
+  CANCELLED: 0,
 };
 
 export function DeliveryProgress({
   status,
+  label,
+  message,
+  color,
+  icon,
+  reference,
+  distanceKm,
 }: {
   status?: string | null;
+  label: string;
+  message?: string;
+  color: string;
+  icon: string;
+  reference?: string;
+  distanceKm?: number | null;
 }) {
-  // Cancelled deliveries have no progress to show — the sheet renders its own
-  // cancelled state instead of a stepper frozen partway along.
-  if (status === "CANCELLED") return null;
-
-  // An unknown or missing status sits at the first step rather than
-  // rendering nothing — the delivery exists, so the stepper should too.
-  const current = status ? (STATUS_TO_INDEX[status] ?? 0) : 0;
+  const progress = status ? (STATUS_PROGRESS[status] ?? 0.12) : 0.12;
+  const isCancelled = status === "CANCELLED";
 
   return (
     <View style={s.wrap}>
-      <View style={s.track}>
-        {STEPS.map((step, i) => {
-          const done = i < current;
-          const active = i === current;
-          const reached = done || active;
+      <View style={s.header}>
+        <View style={s.left}>
+          <View style={[s.iconCircle, { backgroundColor: color + "15" }]}>
+            <Ionicons name={icon as any} size={24} color={color} />
+          </View>
+          <View style={s.info}>
+            <Text style={s.label} numberOfLines={1}>
+              {label}
+            </Text>
+            {!!message && (
+              <Text style={s.message} numberOfLines={2}>
+                {message}
+              </Text>
+            )}
+            {!!reference && <Text style={s.reference}>{reference}</Text>}
+          </View>
+        </View>
 
-          return (
-            <React.Fragment key={step.key}>
-              <View style={s.stepCol}>
-                <View
-                  style={[
-                    s.node,
-                    done && s.nodeDone,
-                    active && s.nodeActive,
-                    !reached && s.nodePending,
-                  ]}
-                >
-                  <Ionicons
-                    name={done ? "checkmark" : step.icon}
-                    size={active ? 16 : 14}
-                    color={
-                      done ? "#fff" : active ? T.brand : T.textTertiary
-                    }
-                  />
-                </View>
-                <Text
-                  style={[
-                    s.label,
-                    active && s.labelActive,
-                    !reached && s.labelPending,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {step.label}
-                </Text>
-              </View>
-
-              {i < STEPS.length - 1 && (
-                <View style={s.barWrap}>
-                  {/* Filled only as far as progress has actually got. */}
-                  <View style={[s.bar, i < current && s.barFilled]} />
-                </View>
-              )}
-            </React.Fragment>
-          );
-        })}
+        {distanceKm != null && (
+          <View style={s.badge}>
+            <Text style={s.badgeText}>{distanceKm.toFixed(1)} km</Text>
+          </View>
+        )}
       </View>
+
+      {/* A cancelled delivery has no progress to show. */}
+      {!isCancelled && (
+        <View style={s.progressWrap}>
+          <View style={s.progressTrack}>
+            <View
+              style={[
+                s.progressFill,
+                { width: `${progress * 100}%`, backgroundColor: color },
+              ]}
+            />
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  wrap: {
-    backgroundColor: T.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: T.border,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-  },
-  track: {
+  wrap: { marginBottom: 4 },
+  header: {
     flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  stepCol: {
     alignItems: "center",
-    width: 62,
+    justifyContent: "space-between",
+    marginBottom: 16,
   },
-  node: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
+  left: { flexDirection: "row", alignItems: "center", flex: 1 },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
-    borderWidth: 2,
+    alignItems: "center",
+    marginRight: 12,
   },
-  nodeDone: {
-    backgroundColor: T.success,
-    borderColor: T.success,
+  info: { flex: 1 },
+  label: { fontSize: 18, fontWeight: "700", color: C.text },
+  message: { fontSize: 14, color: C.muted, marginTop: 2 },
+  reference: { fontSize: 13, color: C.faint, marginTop: 2 },
+  badge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: C.badgeBg,
+    borderRadius: 12,
   },
-  nodeActive: {
-    backgroundColor: T.brandSoft,
-    borderColor: T.brand,
-  },
-  nodePending: {
-    backgroundColor: "transparent",
-    borderColor: T.muted,
-  },
-  label: {
-    marginTop: 6,
-    fontSize: 10.5,
-    fontWeight: "600",
-    color: T.textPrimary,
-    textAlign: "center",
-  },
-  labelActive: {
-    color: T.brand,
-    fontWeight: "800",
-  },
-  labelPending: {
-    color: T.textTertiary,
-    fontWeight: "500",
-  },
-  barWrap: {
-    flex: 1,
-    // Line up with the centre of the 32pt node above.
-    marginTop: 15,
-  },
-  bar: {
-    height: 3,
+  badgeText: { fontSize: 12, fontWeight: "600", color: C.muted },
+  progressWrap: { marginBottom: 20 },
+  progressTrack: {
+    height: 4,
+    backgroundColor: C.track,
     borderRadius: 2,
-    backgroundColor: T.muted,
+    overflow: "hidden",
   },
-  barFilled: {
-    backgroundColor: T.success,
-  },
+  progressFill: { height: "100%", borderRadius: 2 },
 });
 
 export default DeliveryProgress;

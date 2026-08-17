@@ -1839,9 +1839,17 @@ export default function DeliveryTrackingPage() {
           }
         >
           <View style={s.body}>
-            {/* Where the delivery has got to — the question the
-                sheet is actually opened to answer. */}
-            <DeliveryProgress status={delivery.status} />
+            {/* Status, message and progress — same shape as the ordinary
+                order tracking sheet. */}
+            <DeliveryProgress
+              status={normalizedStatus}
+              label={statusCfg.label}
+              message={previewMessage}
+              color={statusCfg.color}
+              icon={statusCfg.icon}
+              reference={deliveryCode}
+              distanceKm={delivery.estimatedDistanceKm}
+            />
 
             {/* Who has the package. Reaching the rider is a primary
                 action while a delivery is live, so call and message are
@@ -2032,24 +2040,6 @@ export default function DeliveryTrackingPage() {
               )}
             </SectionCard>
 
-            {/* Cancel — only while awaiting admin review/payment, before a driver is assigned */}
-            {normalizedStatus === "PENDING" && (
-              <TouchableOpacity
-                style={s.cancelDeliveryBtn}
-                onPress={handleCancelDelivery}
-                activeOpacity={0.75}
-              >
-                <View style={s.cancelDeliveryIconWrap}>
-                  <Ionicons
-                    name="close-circle-outline"
-                    size={16}
-                    color={T.red}
-                  />
-                </View>
-                <Text style={s.cancelDeliveryText}>Cancel Delivery</Text>
-              </TouchableOpacity>
-            )}
-
             {/* Package */}
             <SectionCard title="Package Details" icon="cube-outline">
               <InfoRow
@@ -2164,7 +2154,27 @@ export default function DeliveryTrackingPage() {
                   <View style={s.timelineHeader}>
                     <View style={s.timelineIconPill}>
                       <Ionicons name="map-outline" size={14} color={T.brand} />
-                    </View>
+                      {/* Cancelling is destructive and rarely wanted, so it sits
+                last — below the delivery's own details — rather than
+                between them where it was previously. */}
+            {normalizedStatus === "PENDING" && (
+              <TouchableOpacity
+                style={s.cancelDeliveryBtn}
+                onPress={handleCancelDelivery}
+                activeOpacity={0.75}
+              >
+                <View style={s.cancelDeliveryIconWrap}>
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={16}
+                    color={T.red}
+                  />
+                </View>
+                <Text style={s.cancelDeliveryText}>Cancel Delivery</Text>
+              </TouchableOpacity>
+            )}
+
+          </View>
                     <Text style={s.timelineTitle}>Tracking History</Text>
                   </View>
                   <TrackingTimeline
@@ -2221,28 +2231,28 @@ export default function DeliveryTrackingPage() {
 }
 
 const s = StyleSheet.create({
+  // Quiet by design. A filled red card mid-sheet read as a primary action
+  // sitting among the delivery's details; cancelling is neither primary nor
+  // common, so it is a plain text action separated by a rule at the end.
   cancelDeliveryBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    alignSelf: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginBottom: 14,
-    backgroundColor: T.redSoft,
-    borderWidth: 1.5,
-    borderColor: "rgba(220,53,69,0.25)",
-    borderRadius: 16,
+    gap: 6,
+    alignSelf: "stretch",
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
   },
   cancelDeliveryIconWrap: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    width: 18,
+    height: 18,
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelDeliveryText: { fontSize: 13.5, fontWeight: "800", color: T.red },
+  cancelDeliveryText: { fontSize: 14, fontWeight: "600", color: T.red },
   safe: { flex: 1, backgroundColor: T.heroBase },
   scroll: { flex: 1, backgroundColor: T.heroBase },
   scrollContent: { paddingBottom: 48 },
