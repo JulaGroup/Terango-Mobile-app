@@ -79,3 +79,13 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+
+# Credentials — never commit. EAS build profiles all use remote credentials,
+# so nothing here needs these files; they only create a leak.
+credentials.json
+*-adminsdk-*.json
+*service-account*.json
+*.jks
+!android/app/debug.keystore
+*.keystore
+!android/app/debug.keystore
