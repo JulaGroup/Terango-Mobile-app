@@ -414,8 +414,8 @@ const TrendingMealsSection = ({ refreshKey }: { refreshKey: number }) => {
                     price: item.discountedPrice || item.price,
                     imageUrl: item.imageUrl || "",
                     vendorId: item.menu?.restaurant?.id || "",
-                    vendorName: item.menu?.restaurant?.name || "restaurant",
-                    entityType: "RESTAURANT",
+                    vendorName: item.menu?.restaurant?.name || "Restaurant",
+                    entityType: "restaurant",
                   })
                 }
                 onRemoveFromCart={() => removeFromCart(item.id)}
