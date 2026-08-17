@@ -47,6 +47,9 @@ import MapView, { Marker, Region, PROVIDER_GOOGLE } from "react-native-maps";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService, Address } from "@/services/AddressService";
+import LocationSearchSheet, {
+  PickedLocation,
+} from "@/components/express/LocationSearchSheet";
 import { GOOGLE_PLACES_API_KEY } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
 import { router } from "expo-router";
@@ -183,6 +186,36 @@ const LocationModal = ({
       }
     },
   });
+
+  const [searchSheetOpen, setSearchSheetOpen] = useState(false);
+
+  /**
+   * Save a place chosen in LocationSearchSheet. Same destination as the old
+   * handlePlaceSelect, but fed by the proxied search rather than a direct
+   * Google call — so it also brings GPS, saved places, recents, plus codes and
+   * pin-drop with it.
+   */
+  const handlePickedLocation = async (place: PickedLocation) => {
+    try {
+      await addAddress({
+        label: selectedTab,
+        street: place.address || place.label,
+        city: place.city || "Banjul",
+        state: "",
+        country: "The Gambia",
+        postalCode: "",
+        latitude: place.latitude,
+        longitude: place.longitude,
+      } as any);
+      await fetchAddresses();
+      setSearchSheetOpen(false);
+      setShowAddForm(false);
+      Alert.alert("Success", "Address added successfully");
+    } catch (error) {
+      console.error("Error adding address:", error);
+      Alert.alert("Error", "Failed to add address");
+    }
+  };
 
   const handlePlaceSelect = async (data: any, details: any) => {
     if (!details?.geometry?.location) {
@@ -723,43 +756,27 @@ const LocationModal = ({
         </View>
 
         <View style={styles.formContent}>
-          {isGooglePlacesAvailable ? (
-            <View style={styles.googlePlacesContainer}>
-              <GooglePlacesAutocomplete
-                placeholder="Type your address here..."
-                onPress={handlePlaceSelect}
-                query={{
-                  key: GOOGLE_PLACES_API_KEY,
-                  language: "en",
-                  components: "country:gm",
-                }}
-                fetchDetails={true}
-                styles={{
-                  container: styles.placesContainer,
-                  textInputContainer: styles.placesTextInputContainer,
-                  textInput: styles.placesTextInput,
-                  listView: styles.placesListView,
-                  row: styles.placesRow,
-                  description: styles.placesDescription,
-                }}
-                textInputProps={{
-                  placeholderTextColor: "#999",
-                  returnKeyType: "search",
-                }}
-                debounce={300}
-                minLength={2}
-                enablePoweredByContainer={false}
-                nearbyPlacesAPI="GooglePlacesSearch"
-                GooglePlacesSearchQuery={{ rankby: "distance" }}
-                renderLeftButton={() => (
-                  <View style={styles.searchIconContainer}>
-                    <Ionicons name="search" size={20} color="#999" />
-                  </View>
-                )}
-              />
+          {/* Search goes through the same sheet Express uses, which calls
+              our server proxy. GooglePlacesAutocomplete used to sit here and
+              query Google straight from the device — always refused with
+              REQUEST_DENIED, because a mobile web-service call carries no
+              referrer and cannot be authorised by key restriction. It failed
+              silently, so the field simply returned nothing. */}
+          <View style={styles.googlePlacesContainer}>
+              <TouchableOpacity
+                style={styles.placesTextInput}
+                onPress={() => setSearchSheetOpen(true)}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <Ionicons name="search" size={20} color="#999" />
+                  <Text style={{ color: "#999", fontSize: 15 }}>
+                    Search for your address
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.manualAddressContainer}>
+          <View style={styles.manualAddressContainer}>
               {/* GPS phase steps */}
               {locationPhase !== "idle" && locationPhase !== "done" && (
                 <View style={styles.phaseContainer}>
@@ -988,8 +1005,7 @@ const LocationModal = ({
                   </View>
                 )
               )}
-            </View>
-          )}
+          </View>
         </View>
 
         {!currentPreview && (
@@ -1189,6 +1205,16 @@ const LocationModal = ({
           {renderContent()}
         </Animated.View>
       </View>
+
+      {/* The same search sheet Express uses: server-proxied Places, GPS, saved
+          places, recents, plus codes and pin drop. */}
+      <LocationSearchSheet
+        visible={searchSheetOpen}
+        mode="dropoff"
+        onClose={() => setSearchSheetOpen(false)}
+        onSelect={handlePickedLocation}
+        reference={null}
+      />
     </Modal>
   );
 };

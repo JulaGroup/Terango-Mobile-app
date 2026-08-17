@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as Location from "expo-location";
 import { API_URL, GOOGLE_PLACES_API_KEY } from "@/constants/config";
+import { apiCall } from "@/lib/apiClient";
 
 export interface Address {
   id: string;
@@ -161,6 +162,23 @@ export class AddressService {
     latitude: number,
     longitude: number,
   ): Promise<string> {
+    // Ask our own server first. It holds the Google key and can actually use
+    // it — a Places/Geocoding call straight from the device is refused with
+    // REQUEST_DENIED because a mobile web-service request carries no referrer
+    // and cannot be authorised by key restriction.
+    //
+    // Nominatim below stays as the fallback, but it is a free OSM service that
+    // rate-limits under real traffic, which is why address lookups worked in
+    // dev and degraded in the built app.
+    try {
+      const viaProxy: any = await apiCall(
+        `/api/places/reverse?lat=${latitude}&lng=${longitude}`,
+      );
+      if (viaProxy?.address) return viaProxy.address as string;
+    } catch {
+      /* fall through to Nominatim */
+    }
+
     try {
       await this.waitForNominatim();
 
@@ -312,38 +330,20 @@ export class AddressService {
     // Prefer Google Geocoding — it's reliable in production. Nominatim (below)
     // is a free OSM service that rate-limits/blocks under real traffic, which
     // is why the fee estimate failed in the built app but worked in dev.
-    const hasGoogleKey =
-      !!GOOGLE_PLACES_API_KEY &&
-      GOOGLE_PLACES_API_KEY !== "YOUR_ACTUAL_API_KEY_HERE";
-    if (hasGoogleKey) {
-      try {
-        const g = await axios.get(
-          "https://maps.googleapis.com/maps/api/geocode/json",
-          {
-            params: {
-              address,
-              key: GOOGLE_PLACES_API_KEY,
-              components: "country:GM", // bias to The Gambia
-              region: "gm",
-            },
-            timeout: 10000,
-          },
-        );
-        if (g.data?.status === "OK" && g.data.results?.length > 0) {
-          const loc = g.data.results[0].geometry.location;
-          return { latitude: loc.lat, longitude: loc.lng };
-        }
-        console.warn(
-          "Google geocoding returned no result:",
-          g.data?.status,
-          g.data?.error_message,
-        );
-      } catch (gErr: any) {
-        console.warn(
-          "Google geocoding failed, falling back to Nominatim:",
-          gErr?.message || gErr,
-        );
+    // Through our server, for the same reason as the reverse lookup above: a
+    // direct Google call from the device is refused with REQUEST_DENIED.
+    try {
+      const viaProxy: any = await apiCall(
+        `/api/places/geocode?address=${encodeURIComponent(address)}`,
+      );
+      if (
+        typeof viaProxy?.latitude === "number" &&
+        typeof viaProxy?.longitude === "number"
+      ) {
+        return { latitude: viaProxy.latitude, longitude: viaProxy.longitude };
       }
+    } catch {
+      /* fall through to Nominatim */
     }
 
     // Fallback: Nominatim (OpenStreetMap).
