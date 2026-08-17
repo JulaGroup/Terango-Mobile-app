@@ -846,6 +846,27 @@ export default function Checkout() {
 
       setLoadingDeliveryFee(true);
       setDeliveryFeeError(false);
+
+      // Every step of the fee path logs under [DELIVERY_FEE] so a failure can
+      // be traced end to end from the Expo Go console.
+      const T0 = Date.now();
+      const log = (step: string, detail?: any) =>
+        console.log(
+          `[DELIVERY_FEE] +${Date.now() - T0}ms ${step}`,
+          detail === undefined ? "" : detail,
+        );
+
+      log("start", {
+        address,
+        orderType: form.orderType,
+        isGift: form.isGiftOrder,
+        hasOverrideCoords: !!overrideCoords,
+        hasSavedAddress: !!currentAddress,
+        savedAddressCoords: currentAddress
+          ? `${currentAddress.latitude}, ${currentAddress.longitude}`
+          : null,
+      });
+
       try {
         // Step 1: Use saved address coordinates if available, otherwise geocode
         let coords: { latitude: number; longitude: number } | null = null;
@@ -856,13 +877,14 @@ export default function Checkout() {
         // branch the quote was built from the buyer's saved address while the
         // order was dispatched to the recipient — two different places.
         if (overrideCoords) {
+          log("coords: using override (gift recipient)", overrideCoords);
           coords = overrideCoords;
         } else if (
           currentAddress &&
           currentAddress.latitude &&
           currentAddress.longitude
         ) {
-          console.log("✅ Using saved address coordinates:", {
+          log("coords: using SAVED address (no geocoding needed)", {
             latitude: currentAddress.latitude,
             longitude: currentAddress.longitude,
             label: currentAddress.label,
@@ -873,13 +895,20 @@ export default function Checkout() {
           };
         } else {
           // Only geocode if there's no saved address (fallback for manual entry)
-          console.log("📍 Geocoding manual address entry:", address);
+          // This is the fragile branch: it hits the network. If the fee fails
+          // intermittently for an address that worked before, it is here.
+          log("coords: NO saved address -> geocoding", address);
           coords = await AddressService.getCoordinatesFromAddress(address);
+          log("coords: geocode returned", coords);
         }
 
         if (!coords) {
+          // This is the exact state behind "We couldn't calculate a delivery
+          // fee for your address" in the UI.
           console.warn(
-            "⚠️ Could not get coordinates for address — cannot estimate a delivery fee",
+            "[DELIVERY_FEE] FAILED: no coordinates — geocoding could not resolve",
+            { address },
+            "A SAVED address would have skipped geocoding entirely, so either none was selected or it carried no coordinates.",
           );
           setDeliveryEstimate(null);
           setCustomerCoordinates(null);
@@ -888,12 +917,13 @@ export default function Checkout() {
           return;
         }
 
-        console.log("✅ Got coordinates:", coords);
+        log("coords: OK", coords);
         setCustomerCoordinates(coords);
 
         // Step 2: Get vendor info from cart
         const firstItem = items[0];
         if (!firstItem) {
+          console.warn("[DELIVERY_FEE] FAILED: cart is empty, nothing to price");
           setLoadingDeliveryFee(false);
           return;
         }
@@ -902,13 +932,12 @@ export default function Checkout() {
         const vendorType = firstItem.entityType || "restaurant";
 
         // Step 3: Call delivery fee estimation API with items for weight calculation
-        console.log("💰 Estimating delivery fee for vendor:", vendorId);
-        console.log("📦 Vendor type:", vendorType);
-        console.log(
-          "🛒 Cart items for weight calculation:",
-          items.length,
-          "items",
-        );
+        log("calling /api/delivery-fee/estimate", {
+          vendorId,
+          vendorType,
+          items: items.length,
+          customer: `${coords.latitude}, ${coords.longitude}`,
+        });
 
         // Transform cart items for weight calculation
         const orderItems = items.map((item) => ({
@@ -932,19 +961,46 @@ export default function Checkout() {
           }),
         });
 
-        const data = await response.json();
+        const raw = await response.text();
+        log(`server responded HTTP ${response.status}`, raw.slice(0, 400));
 
-        if (data.success) {
-          console.log("✅ Delivery fee estimate:", data);
+        let data: any = null;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          console.warn(
+            "[DELIVERY_FEE] FAILED: response was not JSON — usually an HTML error page, meaning the request never reached the API",
+            { API_URL },
+          );
+        }
+
+        if (data?.success) {
+          log("OK", {
+            deliveryFee: data.deliveryFee,
+            distanceKm: data.distanceKm,
+            method: data.pricingMethod,
+          });
           setDeliveryEstimate(data);
           setDeliveryFeeError(false);
         } else {
-          console.warn("⚠️ Delivery fee estimation failed:", data.message);
+          console.warn(
+            "[DELIVERY_FEE] FAILED: server declined to price this leg",
+            {
+              http: response.status,
+              error: data?.error ?? "(none)",
+              message: data?.message ?? "(none)",
+            },
+            "Common causes: vendor has no coordinates set, or the coordinates fall outside the service area.",
+          );
           setDeliveryEstimate(null);
           setDeliveryFeeError(true);
         }
-      } catch (error) {
-        console.error("❌ Failed to estimate delivery fee:", error);
+      } catch (error: any) {
+        console.error(
+          "[DELIVERY_FEE] FAILED: request threw before a response",
+          { error: error?.message ?? String(error), API_URL },
+          "Usually no network, DNS, or the server unreachable.",
+        );
         setDeliveryEstimate(null);
         setDeliveryFeeError(true);
       } finally {

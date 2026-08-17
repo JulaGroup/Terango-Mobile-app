@@ -340,10 +340,15 @@ export class AddressService {
         typeof viaProxy?.latitude === "number" &&
         typeof viaProxy?.longitude === "number"
       ) {
+        console.log("[GEOCODE] resolved via server proxy:", address);
         return { latitude: viaProxy.latitude, longitude: viaProxy.longitude };
       }
-    } catch {
-      /* fall through to Nominatim */
+      console.warn("[GEOCODE] proxy returned no match for:", address);
+    } catch (e: any) {
+      console.warn(
+        "[GEOCODE] proxy call failed, falling back to Nominatim:",
+        e?.message ?? e,
+      );
     }
 
     // Fallback: Nominatim (OpenStreetMap).
