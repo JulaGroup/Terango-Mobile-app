@@ -25,6 +25,7 @@ import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
 import { apiCall } from "@/lib/apiClient";
 import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 import { TrackingTimeline } from "@/components/express/TrackingTimeline";
+import { DeliveryProgress } from "@/components/express/DeliveryProgress";
 import { API_URL } from "@/constants/config";
 import {
   on as socketOn,
@@ -1838,6 +1839,75 @@ export default function DeliveryTrackingPage() {
           }
         >
           <View style={s.body}>
+            {/* Where the delivery has got to — the question the
+                sheet is actually opened to answer. */}
+            <DeliveryProgress status={delivery.status} />
+
+            {/* Who has the package. Reaching the rider is a primary
+                action while a delivery is live, so call and message are
+                full targets rather than one small icon button. */}
+            {delivery.driver && (
+              <View style={s.riderCard}>
+                <View style={s.riderTop}>
+                  <View style={s.riderAvatarRing}>
+                    <View style={s.riderAvatar}>
+                      <Ionicons name="person" size={26} color={T.brand} />
+                    </View>
+                  </View>
+                  <View style={s.riderInfo}>
+                    <Text style={s.riderEyebrow}>YOUR RIDER</Text>
+                    <Text style={s.riderName} numberOfLines={1}>
+                      {delivery.driver.user.fullName}
+                    </Text>
+                    <View style={s.riderMetaRow}>
+                      <View style={s.riderVehicleChip}>
+                        <Ionicons
+                          name="bicycle-outline"
+                          size={11}
+                          color={T.brand}
+                        />
+                        <Text style={s.riderVehicleText}>
+                          {delivery.vehicleType === "KEKE_CARGO"
+                            ? "Keke Cargo"
+                            : String(delivery.vehicleType).replace("_", " ")}
+                        </Text>
+                      </View>
+                      <Text style={s.riderPhone}>
+                        {delivery.driver.user.phone}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={s.riderActions}>
+                  <TouchableOpacity
+                    style={s.riderCallBtn}
+                    onPress={() =>
+                      Linking.openURL(`tel:${delivery.driver!.user.phone}`)
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="call" size={16} color="#fff" />
+                    <Text style={s.riderCallText}>Call</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={s.riderMsgBtn}
+                    onPress={() =>
+                      Linking.openURL(`sms:${delivery.driver!.user.phone}`)
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={16}
+                      color={T.brand}
+                    />
+                    <Text style={s.riderMsgText}>Message</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+
             {/* Delivered card */}
             {isDelivered && delivery.estimatedFee != null && (
               <View style={s.featurePriceCard}>
@@ -1978,34 +2048,6 @@ export default function DeliveryTrackingPage() {
                 </View>
                 <Text style={s.cancelDeliveryText}>Cancel Delivery</Text>
               </TouchableOpacity>
-            )}
-
-            {/* Driver */}
-            {delivery.driver && (
-              <SectionCard title="Your Driver" icon="person-circle-outline">
-                <View style={s.driverRow}>
-                  <View style={s.driverAvatar}>
-                    <Ionicons name="person" size={28} color={T.brand} />
-                  </View>
-                  <View style={s.driverInfo}>
-                    <Text style={s.driverName}>
-                      {delivery.driver.user.fullName}
-                    </Text>
-                    <Text style={s.driverPhone}>
-                      {delivery.driver.user.phone}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={s.callDriverBtn}
-                    onPress={() =>
-                      Linking.openURL(`tel:${delivery.driver!.user.phone}`)
-                    }
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="call" size={18} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-              </SectionCard>
             )}
 
             {/* Package */}
@@ -2839,6 +2881,92 @@ const s = StyleSheet.create({
   },
   paymentBadgeText: { fontSize: 11, fontWeight: "700", color: T.success },
 
+  riderCard: {
+    backgroundColor: T.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: T.border,
+    padding: 14,
+    marginBottom: 12,
+  },
+  riderTop: { flexDirection: "row", alignItems: "center" },
+  riderAvatarRing: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: T.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  riderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: T.brandFaint,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  riderInfo: { flex: 1, marginLeft: 12 },
+  riderEyebrow: {
+    fontSize: 9.5,
+    fontWeight: "800",
+    letterSpacing: 0.8,
+    color: T.textTertiary,
+  },
+  riderName: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: T.textPrimary,
+    marginTop: 2,
+  },
+  riderMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 5,
+    gap: 8,
+  },
+  riderVehicleChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: T.brandSoft,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  riderVehicleText: {
+    fontSize: 10.5,
+    fontWeight: "700",
+    color: T.brand,
+    textTransform: "capitalize",
+  },
+  riderPhone: { fontSize: 11.5, color: T.textTertiary, fontWeight: "500" },
+  riderActions: { flexDirection: "row", gap: 10, marginTop: 14 },
+  riderCallBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: T.brand,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  riderCallText: { color: "#fff", fontSize: 13.5, fontWeight: "800" },
+  riderMsgBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: T.brandFaint,
+    borderWidth: 1,
+    borderColor: T.brandSoft,
+    paddingVertical: 11,
+    borderRadius: 12,
+  },
+  riderMsgText: { color: T.brand, fontSize: 13.5, fontWeight: "800" },
   timelineWrap: { marginBottom: 14 },
   timelineHeader: {
     flexDirection: "row",
