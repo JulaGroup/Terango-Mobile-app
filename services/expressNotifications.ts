@@ -212,7 +212,11 @@ export async function showExpressDeliveryNotification(
         type: "express_delivery",
         status,
       },
-      sound: template.sound === "success" ? "success.wav" : "default",
+      // Only notification.mp3 is bundled (see the expo-notifications plugin
+      // config in app.json). This previously asked for "success.wav", which
+      // does not exist in assets/sounds — a missing sound resource is not
+      // something the OS reports, it just does not play.
+      sound: template.sound === "success" ? "notification.mp3" : "default",
       priority:
         template.priority === "max"
           ? Notifications.AndroidNotificationPriority.MAX
