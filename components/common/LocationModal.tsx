@@ -763,248 +763,239 @@ const LocationModal = ({
               referrer and cannot be authorised by key restriction. It failed
               silently, so the field simply returned nothing. */}
           <View style={styles.googlePlacesContainer}>
-              <TouchableOpacity
-                style={styles.placesTextInput}
-                onPress={() => setSearchSheetOpen(true)}
-                activeOpacity={0.7}
+            <TouchableOpacity
+              style={styles.placesTextInput}
+              onPress={() => setSearchSheetOpen(true)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Ionicons name="search" size={20} color="#999" />
-                  <Text style={{ color: "#999", fontSize: 15 }}>
-                    Search for your address
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
+                <Ionicons name="search" size={20} color="#999" />
+                <Text style={{ color: "#999", fontSize: 15 }}>
+                  Search for your address
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
           <View style={styles.manualAddressContainer}>
-              {/* GPS phase steps */}
-              {locationPhase !== "idle" && locationPhase !== "done" && (
-                <View style={styles.phaseContainer}>
-                  <View style={styles.phaseStep}>
-                    <View
-                      style={[
-                        styles.phaseIcon,
-                        locationPhase === "gps" && styles.phaseIconActive,
-                      ]}
-                    >
-                      {locationPhase === "gps" ? (
-                        <ActivityIndicator size={14} color="#fff" />
-                      ) : (
-                        <Ionicons name="checkmark" size={14} color="#fff" />
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.phaseLabel,
-                        locationPhase === "gps" && styles.phaseLabelActive,
-                      ]}
-                    >
-                      GPS fix
-                    </Text>
-                  </View>
-                  <View style={styles.phaseConnector} />
-                  <View style={styles.phaseStep}>
-                    <View
-                      style={[
-                        styles.phaseIcon,
-                        locationPhase === "geocoding" && styles.phaseIconActive,
-                        locationPhase === "gps" && styles.phaseIconPending,
-                      ]}
-                    >
-                      {locationPhase === "geocoding" ? (
-                        <ActivityIndicator size={14} color="#fff" />
-                      ) : (
-                        <Ionicons name="map" size={14} color="#fff" />
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.phaseLabel,
-                        locationPhase === "geocoding" &&
-                          styles.phaseLabelActive,
-                      ]}
-                    >
-                      Address
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {/* GPS button */}
-              <TouchableOpacity
-                style={[
-                  styles.bigFetchLocationButton,
-                  (locationPhase === "gps" || locationPhase === "geocoding") &&
-                    styles.bigFetchLocationButtonLoading,
-                  currentPreview && styles.bigFetchLocationButtonRetry,
-                ]}
-                onPress={async () => {
-                  if (locationPhase === "gps" || locationPhase === "geocoding")
-                    return;
-                  setCurrentPreview(null);
-                  setLocationPhase("idle");
-                  await handleUseCurrentLocation();
-                }}
-                activeOpacity={0.8}
-                disabled={
-                  locationPhase === "gps" || locationPhase === "geocoding"
-                }
-              >
-                {locationPhase === "gps" ? (
-                  <View style={styles.fetchLoadingContainer}>
-                    <ActivityIndicator size={28} color="#fff" />
-                    <Text style={styles.fetchLoadingText}>
-                      Locking GPS signal...
-                    </Text>
-                    <Text style={styles.fetchLoadingHint}>
-                      Go near a window for best results
-                    </Text>
-                  </View>
-                ) : locationPhase === "geocoding" ? (
-                  <View style={styles.fetchLoadingContainer}>
-                    <ActivityIndicator size={28} color="#fff" />
-                    <Text style={styles.fetchLoadingText}>
-                      Reading address...
-                    </Text>
-                  </View>
-                ) : currentPreview ? (
-                  <View style={styles.fetchContentContainer}>
-                    <Ionicons name="refresh" size={28} color="#fff" />
-                    <Text style={styles.fetchButtonTitle}>
-                      Re-scan Location
-                    </Text>
-                    <Text style={styles.fetchButtonSubtitle}>
-                      Open map to adjust pin
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.fetchContentContainer}>
-                    <Ionicons name="locate" size={40} color="#fff" />
-                    <Text style={styles.fetchButtonTitle}>
-                      Find My Location
-                    </Text>
-                    <Text style={styles.fetchButtonSubtitle}>
-                      GPS + drag pin to exact door
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* Confirmed preview card */}
-              {currentPreview ? (
-                <View style={styles.previewCard}>
-                  <View style={styles.previewHeader}>
-                    <View style={styles.previewTitleRow}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={18}
-                        color="#22c55e"
-                      />
-                      <Text style={styles.previewTitle}>
-                        Confirmed location
-                      </Text>
-                    </View>
-                    {currentPreview.accuracy !== undefined && (
-                      <View
-                        style={[
-                          styles.accuracyBadge,
-                          currentPreview.accuracy <= 20
-                            ? styles.accuracyExcellent
-                            : currentPreview.accuracy <= 50
-                              ? styles.accuracyGood
-                              : styles.accuracyPoor,
-                        ]}
-                      >
-                        <Ionicons
-                          name="radio-button-on"
-                          size={10}
-                          color={
-                            currentPreview.accuracy <= 20
-                              ? "#15803d"
-                              : currentPreview.accuracy <= 50
-                                ? "#854d0e"
-                                : "#991b1b"
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.accuracyText,
-                            currentPreview.accuracy <= 20
-                              ? styles.accuracyTextExcellent
-                              : currentPreview.accuracy <= 50
-                                ? styles.accuracyTextGood
-                                : styles.accuracyTextPoor,
-                          ]}
-                        >
-                          {currentPreview.accuracy <= 20
-                            ? "Precise"
-                            : currentPreview.accuracy <= 50
-                              ? "Good"
-                              : "Rough"}{" "}
-                          ±{Math.round(currentPreview.accuracy)}m
-                        </Text>
-                      </View>
+            {/* GPS phase steps */}
+            {locationPhase !== "idle" && locationPhase !== "done" && (
+              <View style={styles.phaseContainer}>
+                <View style={styles.phaseStep}>
+                  <View
+                    style={[
+                      styles.phaseIcon,
+                      locationPhase === "gps" && styles.phaseIconActive,
+                    ]}
+                  >
+                    {locationPhase === "gps" ? (
+                      <ActivityIndicator size={14} color="#fff" />
+                    ) : (
+                      <Ionicons name="checkmark" size={14} color="#fff" />
                     )}
                   </View>
-                  <View style={styles.previewAddressRow}>
-                    <Ionicons
-                      name="location"
-                      size={16}
-                      color="#ff6b00"
-                      style={{ marginTop: 2 }}
-                    />
-                    <Text style={styles.previewStreet}>
-                      {currentPreview.street}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.editPinButton}
-                    onPress={() => setShowMapPicker(true)}
+                  <Text
+                    style={[
+                      styles.phaseLabel,
+                      locationPhase === "gps" && styles.phaseLabelActive,
+                    ]}
                   >
-                    <Ionicons name="map" size={16} color="#ff6b00" />
-                    <Text style={styles.editPinText}>Adjust pin on map</Text>
-                  </TouchableOpacity>
-                  <View style={styles.previewActions}>
-                    <TouchableOpacity
-                      style={styles.cancelPreviewButton}
-                      onPress={() => {
-                        setCurrentPreview(null);
-                        setLocationPhase("idle");
-                      }}
-                    >
-                      <Text style={styles.cancelPreviewText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.savePreviewButton,
-                        saving && styles.savePreviewButtonDisabled,
-                      ]}
-                      onPress={saveCurrentPreview}
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <ActivityIndicator size={16} color="#fff" />
-                      ) : (
-                        <Text style={styles.savePreviewText}>Save address</Text>
-                      )}
-                    </TouchableOpacity>
+                    GPS fix
+                  </Text>
+                </View>
+                <View style={styles.phaseConnector} />
+                <View style={styles.phaseStep}>
+                  <View
+                    style={[
+                      styles.phaseIcon,
+                      locationPhase === "geocoding" && styles.phaseIconActive,
+                      locationPhase === "gps" && styles.phaseIconPending,
+                    ]}
+                  >
+                    {locationPhase === "geocoding" ? (
+                      <ActivityIndicator size={14} color="#fff" />
+                    ) : (
+                      <Ionicons name="map" size={14} color="#fff" />
+                    )}
                   </View>
+                  <Text
+                    style={[
+                      styles.phaseLabel,
+                      locationPhase === "geocoding" && styles.phaseLabelActive,
+                    ]}
+                  >
+                    Address
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* GPS button */}
+            <TouchableOpacity
+              style={[
+                styles.bigFetchLocationButton,
+                (locationPhase === "gps" || locationPhase === "geocoding") &&
+                  styles.bigFetchLocationButtonLoading,
+                currentPreview && styles.bigFetchLocationButtonRetry,
+              ]}
+              onPress={async () => {
+                if (locationPhase === "gps" || locationPhase === "geocoding")
+                  return;
+                setCurrentPreview(null);
+                setLocationPhase("idle");
+                await handleUseCurrentLocation();
+              }}
+              activeOpacity={0.8}
+              disabled={
+                locationPhase === "gps" || locationPhase === "geocoding"
+              }
+            >
+              {locationPhase === "gps" ? (
+                <View style={styles.fetchLoadingContainer}>
+                  <ActivityIndicator size={28} color="#fff" />
+                  <Text style={styles.fetchLoadingText}>
+                    Locking GPS signal...
+                  </Text>
+                  <Text style={styles.fetchLoadingHint}>
+                    Go near a window for best results
+                  </Text>
+                </View>
+              ) : locationPhase === "geocoding" ? (
+                <View style={styles.fetchLoadingContainer}>
+                  <ActivityIndicator size={28} color="#fff" />
+                  <Text style={styles.fetchLoadingText}>
+                    Reading address...
+                  </Text>
+                </View>
+              ) : currentPreview ? (
+                <View style={styles.fetchContentContainer}>
+                  <Ionicons name="refresh" size={28} color="#fff" />
+                  <Text style={styles.fetchButtonTitle}>Re-scan Location</Text>
+                  <Text style={styles.fetchButtonSubtitle}>
+                    Open map to adjust pin
+                  </Text>
                 </View>
               ) : (
-                locationPhase === "idle" && (
-                  <View style={styles.placeholderContainerSmall}>
-                    <Ionicons
-                      name="navigate-outline"
-                      size={28}
-                      color="#d1d5db"
-                    />
-                    <Text style={styles.placeholderTextSmall}>
-                      Tap the button above — GPS locks your position, then you
-                      drag the pin to your exact door
-                    </Text>
-                  </View>
-                )
+                <View style={styles.fetchContentContainer}>
+                  <Ionicons name="locate" size={40} color="#fff" />
+                  <Text style={styles.fetchButtonTitle}>Find My Location</Text>
+                  <Text style={styles.fetchButtonSubtitle}>
+                    GPS + drag pin to exact door
+                  </Text>
+                </View>
               )}
+            </TouchableOpacity>
+
+            {/* Confirmed preview card */}
+            {currentPreview ? (
+              <View style={styles.previewCard}>
+                <View style={styles.previewHeader}>
+                  <View style={styles.previewTitleRow}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={18}
+                      color="#22c55e"
+                    />
+                    <Text style={styles.previewTitle}>Confirmed location</Text>
+                  </View>
+                  {currentPreview.accuracy !== undefined && (
+                    <View
+                      style={[
+                        styles.accuracyBadge,
+                        currentPreview.accuracy <= 20
+                          ? styles.accuracyExcellent
+                          : currentPreview.accuracy <= 50
+                            ? styles.accuracyGood
+                            : styles.accuracyPoor,
+                      ]}
+                    >
+                      <Ionicons
+                        name="radio-button-on"
+                        size={10}
+                        color={
+                          currentPreview.accuracy <= 20
+                            ? "#15803d"
+                            : currentPreview.accuracy <= 50
+                              ? "#854d0e"
+                              : "#991b1b"
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.accuracyText,
+                          currentPreview.accuracy <= 20
+                            ? styles.accuracyTextExcellent
+                            : currentPreview.accuracy <= 50
+                              ? styles.accuracyTextGood
+                              : styles.accuracyTextPoor,
+                        ]}
+                      >
+                        {currentPreview.accuracy <= 20
+                          ? "Precise"
+                          : currentPreview.accuracy <= 50
+                            ? "Good"
+                            : "Rough"}{" "}
+                        ±{Math.round(currentPreview.accuracy)}m
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.previewAddressRow}>
+                  <Ionicons
+                    name="location"
+                    size={16}
+                    color="#ff6b00"
+                    style={{ marginTop: 2 }}
+                  />
+                  <Text style={styles.previewStreet}>
+                    {currentPreview.street}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.editPinButton}
+                  onPress={() => setShowMapPicker(true)}
+                >
+                  <Ionicons name="map" size={16} color="#ff6b00" />
+                  <Text style={styles.editPinText}>Adjust pin on map</Text>
+                </TouchableOpacity>
+                <View style={styles.previewActions}>
+                  <TouchableOpacity
+                    style={styles.cancelPreviewButton}
+                    onPress={() => {
+                      setCurrentPreview(null);
+                      setLocationPhase("idle");
+                    }}
+                  >
+                    <Text style={styles.cancelPreviewText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.savePreviewButton,
+                      saving && styles.savePreviewButtonDisabled,
+                    ]}
+                    onPress={saveCurrentPreview}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <ActivityIndicator size={16} color="#fff" />
+                    ) : (
+                      <Text style={styles.savePreviewText}>Save address</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              locationPhase === "idle" && (
+                <View style={styles.placeholderContainerSmall}>
+                  <Ionicons name="navigate-outline" size={28} color="#d1d5db" />
+                  <Text style={styles.placeholderTextSmall}>
+                    Tap the button above — GPS locks your position, then you
+                    drag the pin to your exact door
+                  </Text>
+                </View>
+              )
+            )}
           </View>
         </View>
 
@@ -1579,8 +1570,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   googlePlacesContainer: {
-    flex: 1,
     zIndex: 1000,
+    marginBottom: 12,
   },
   placesContainer: {
     flex: 0,

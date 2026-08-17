@@ -569,7 +569,7 @@ const SearchModal: React.FC<SearchModalProps> = ({
                         menuItem.menu?.restaurant?.id ||
                         "",
                       vendorName:
-                        menuItem.menu?.restaurant?.name || "Restaurant",
+                        menuItem.menu?.restaurant?.name || "restaurant",
                       description: menuItem.description || "",
                       entityType: "restaurant",
                     };
