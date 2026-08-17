@@ -42,6 +42,9 @@ import {
   getTownById as getDynamicTownById,
   DeliveryTown,
 } from "@/services/deliveryTowns.service";
+import LocationSearchSheet, {
+  PickedLocation,
+} from "@/components/express/LocationSearchSheet";
 import {
   getZoneInfoForTown,
   GambianTown, // Keep for backward compatibility with components
@@ -219,8 +222,8 @@ export default function Checkout() {
     isGiftOrder: false,
     recipientName: "",
     recipientPhone: "",
-    recipientTown: "", // Town ID for delivery zone calculation
-    recipientTownName: "", // Town name for display
+    recipientTown: "", // Legacy zone id — retained for older rows, no longer set
+    recipientTownName: "", // Legacy display name
     recipientAddress: "", // Address description/landmarks
     recipientDeliveryFee: 0, // Calculated based on town
   });
@@ -291,6 +294,13 @@ export default function Checkout() {
 
   // 🏙️ DYNAMIC DELIVERY TOWNS STATE
   const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
+
+  // Where the gift is actually going. Replaces the town dropdown, whose
+  // coordinates were the town centre — every gift to Serrekunda resolved to
+  // the same point, so a rider got an area rather than an address.
+  const [recipientLocation, setRecipientLocation] =
+    useState<PickedLocation | null>(null);
+  const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
   const [loadingTowns, setLoadingTowns] = useState(true);
   const [townsFromAPI, setTownsFromAPI] = useState(false); // Track if using API or fallback
 
@@ -338,7 +348,7 @@ export default function Checkout() {
     !appliedPromo?.freeDelivery &&
     !loadingDeliveryFee &&
     deliveryFee <= 0 &&
-    (form.isGiftOrder ? !!form.recipientTown : !!form.address.trim());
+    (form.isGiftOrder ? !!recipientLocation : !!form.address.trim());
 
   // ❌ No drivers available overnight (admin-configurable window). Pickup
   // orders don't need a driver, so they're unaffected.
@@ -367,8 +377,7 @@ export default function Checkout() {
       (!form.recipientName.trim() ||
         !form.recipientPhone.trim() ||
         form.recipientPhone.replace(/\D/g, "").length < 7 ||
-        form.recipientAddress.trim().length < 5 ||
-        !form.recipientTown)) ||
+        !recipientLocation)) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
     // ❌ Block order if below vendor's minimum order amount
     isBelowMinimumOrder ||
@@ -827,7 +836,7 @@ export default function Checkout() {
 
   // 🚀 ESTIMATE DELIVERY FEE BASED ON DISTANCE
   const estimateDeliveryFee = useCallback(
-    async (address: string) => {
+    async (address: string, overrideCoords?: { latitude: number; longitude: number } | null) => {
       if (!address || form.orderType !== "DELIVERY") {
         setDeliveryEstimate(null);
         setCustomerCoordinates(null);
@@ -843,7 +852,12 @@ export default function Checkout() {
 
         // 🔴 CRITICAL FIX: If user selected a saved address, USE ITS COORDINATES directly
         // Don't geocode them again — saved addresses already have the correct lat/lng
-        if (
+        // A gift goes to the recipient, so its coordinates win. Without this
+        // branch the quote was built from the buyer's saved address while the
+        // order was dispatched to the recipient — two different places.
+        if (overrideCoords) {
+          coords = overrideCoords;
+        } else if (
           currentAddress &&
           currentAddress.latitude &&
           currentAddress.longitude
@@ -1010,12 +1024,26 @@ export default function Checkout() {
 
     // Mark as loading immediately so the UI doesn't briefly treat the fee as
     // "unavailable" (deliveryFee=0) during the debounce window below.
-    if (form.address && form.orderType === "DELIVERY") {
+    if (
+      form.orderType === "DELIVERY" &&
+      (form.isGiftOrder ? !!recipientLocation : !!form.address)
+    ) {
       setLoadingDeliveryFee(true);
     }
     // Debounce address changes to avoid infinite loop
     const debounceTimeout = setTimeout(() => {
-      if (form.address && form.orderType === "DELIVERY") {
+      if (form.isGiftOrder && form.orderType === "DELIVERY") {
+        // Quote against the gift's destination, not the buyer's address.
+        if (recipientLocation) {
+          estimateDeliveryFee(recipientLocation.address, {
+            latitude: recipientLocation.latitude,
+            longitude: recipientLocation.longitude,
+          });
+        } else {
+          setDeliveryEstimate(null);
+          setCustomerCoordinates(null);
+        }
+      } else if (form.address && form.orderType === "DELIVERY") {
         estimateDeliveryFee(form.address);
       } else {
         setDeliveryEstimate(null);
@@ -1024,7 +1052,14 @@ export default function Checkout() {
     }, 400); // 400ms debounce
     return () => clearTimeout(debounceTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.address, form.orderType, form.isGiftOrder, currentAddress, orderTypeReady]);
+  }, [
+    form.address,
+    form.orderType,
+    form.isGiftOrder,
+    recipientLocation,
+    currentAddress,
+    orderTypeReady,
+  ]);
 
   // Only show the delivery-fee error banner if the error sticks around. A
   // transient error (cleared within ~1.4s by a successful re-estimate) never
@@ -1194,20 +1229,16 @@ export default function Checkout() {
           );
           return;
         }
-        if (!form.recipientTown) {
+        if (!recipientLocation) {
           Alert.alert(
             "Missing Information",
-            "Please select the recipient's town/area for delivery.",
+            "Please search for and select the delivery address.",
           );
           return;
         }
-        if (!form.recipientAddress.trim()) {
-          Alert.alert(
-            "Missing Information",
-            "Please provide delivery directions or landmarks for the driver.",
-          );
-          return;
-        }
+        // Landmarks are optional now — the searched place already carries a
+        // real address and coordinates, so requiring them added friction
+        // without adding information.
       } else {
         // Validate regular delivery address
         if (!form.address.trim()) {
@@ -1339,10 +1370,13 @@ export default function Checkout() {
             deliveryAddress:
               form.orderType === "DELIVERY"
                 ? form.isGiftOrder
-                  ? // Prefix with town name so the driver always sees the area
-                    form.recipientTownName
-                    ? `${form.recipientTownName} - ${form.recipientAddress}`
-                    : form.recipientAddress
+                  ? // The searched address, with any landmark note appended.
+                    [
+                      recipientLocation?.address,
+                      form.recipientAddress.trim() || null,
+                    ]
+                      .filter(Boolean)
+                      .join(" — ")
                   : form.address
                 : null,
             orderType: form.orderType,
@@ -1356,18 +1390,21 @@ export default function Checkout() {
               : null,
             recipientAddress: form.isGiftOrder ? form.recipientAddress : null,
             // 🎁 For gift orders, include the recipient town ID for zone lookup
-            recipientTown: form.isGiftOrder ? form.recipientTown : null,
+            // recipientTown drove the flat zone fee. Gifts now price by
+            // distance from the real drop-off like every other delivery.
+            recipientTown: null,
             items: itemsPayload,
             notes: form.notes,
             promoCode: appliedPromo ? promoCode.toUpperCase() : undefined, // ✅ ADD PROMO CODE
             paymentMethod: "ONLINE", // 💳 Digital payments only
             // 🚀 ADD CUSTOMER COORDINATES FOR DISTANCE-BASED DELIVERY FEE
             // For gift orders, use recipient town coordinates for tracking
+            // The recipient's actual position, not a town centre.
             customerLatitude: form.isGiftOrder
-              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.latitude
+              ? recipientLocation?.latitude
               : customerCoordinates?.latitude,
             customerLongitude: form.isGiftOrder
-              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.longitude
+              ? recipientLocation?.longitude
               : customerCoordinates?.longitude,
             // 🚀 ADD CALCULATED DELIVERY FEE
             deliveryFee: deliveryFee, // Send the calculated delivery fee
@@ -1384,12 +1421,12 @@ export default function Checkout() {
           // 🔍 DEBUG: Log coordinates being sent
           console.log("🔍 Sending coordinates:", {
             isGiftOrder: form.isGiftOrder,
-            recipientTown: form.recipientTown,
+            recipientLocation: recipientLocation?.address,
             customerLatitude: form.isGiftOrder
-              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.latitude
+              ? recipientLocation?.latitude
               : customerCoordinates?.latitude,
             customerLongitude: form.isGiftOrder
-              ? getDynamicTownById(deliveryTowns, form.recipientTown)?.longitude
+              ? recipientLocation?.longitude
               : customerCoordinates?.longitude,
             deliveryFee,
             serviceFee,
@@ -2094,6 +2131,7 @@ export default function Checkout() {
                   ]}
                   onPress={() => {
                     const turningOff = form.isGiftOrder;
+                    if (turningOff) setRecipientLocation(null);
                     setForm({
                       ...form,
                       isGiftOrder: !form.isGiftOrder,
@@ -2204,43 +2242,36 @@ export default function Checkout() {
                   </Text>
                 </View>
 
-                {/* 🏘️ TOWN SELECTOR FOR GIFT ORDERS */}
+                {/* Where the gift is going. A searched place carries real
+                    coordinates, so the rider gets the address rather than the
+                    centre of a town. */}
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Delivery Town/Area *</Text>
+                  <Text style={styles.inputLabel}>Delivery Address *</Text>
                   <TouchableOpacity
                     style={[styles.input, styles.townSelector]}
-                    onPress={() => setTownPickerVisible(true)}
-                    disabled={loading || loadingTowns}
+                    onPress={() => setRecipientSheetOpen(true)}
+                    disabled={loading}
                     activeOpacity={0.7}
                   >
                     <View style={styles.townSelectorContent}>
                       <Ionicons
                         name="location"
                         size={20}
-                        color={form.recipientTown ? PrimaryColor : "#9CA3AF"}
+                        color={recipientLocation ? PrimaryColor : "#9CA3AF"}
                       />
                       <Text
                         style={[
                           styles.townSelectorText,
-                          !form.recipientTown && styles.townSelectorPlaceholder,
+                          !recipientLocation && styles.townSelectorPlaceholder,
                         ]}
+                        numberOfLines={1}
                       >
-                        {loadingTowns
-                          ? "Loading towns..."
-                          : form.recipientTownName ||
-                            (deliveryTowns.length > 0
-                              ? "Select town or area"
-                              : "No towns available")}
+                        {recipientLocation
+                          ? recipientLocation.label
+                          : "Search for the delivery address"}
                       </Text>
                     </View>
                     <View style={styles.townSelectorRight}>
-                      {form.recipientTown && (
-                        <View style={styles.deliveryFeeBadge}>
-                          <Text style={styles.deliveryFeeBadgeText}>
-                            D{Math.ceil(form.recipientDeliveryFee)}
-                          </Text>
-                        </View>
-                      )}
                       <Ionicons
                         name="chevron-forward"
                         size={20}
@@ -2248,17 +2279,16 @@ export default function Checkout() {
                       />
                     </View>
                   </TouchableOpacity>
-                  {form.recipientTown && (
-                    <Text style={styles.inputNoteSuccess}>
-                      ✓ Delivery fee: D{Math.ceil(form.recipientDeliveryFee)} (
-                      {getZoneInfoForTown(form.recipientTown)?.name} zone)
+                  {!!recipientLocation && (
+                    <Text style={styles.inputNoteSuccess} numberOfLines={2}>
+                      ✓ {recipientLocation.address}
                     </Text>
                   )}
                 </View>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>
-                    Delivery Directions/Landmarks *
+                    Delivery Directions/Landmarks (optional)
                   </Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
@@ -2837,29 +2867,24 @@ export default function Checkout() {
           currentAddress={form.address}
         />
 
-        {/* 🏘️ Town Picker Modal for Gift Orders */}
-        <TownPickerModal
-          visible={townPickerVisible}
-          onClose={() => setTownPickerVisible(false)}
-          towns={deliveryTowns}
-          usingFallback={!townsFromAPI}
-          onSelectTown={(town: GambianTown) => {
-            // Set town info immediately with zone fallback, then replace fee
-            // with vehicle-based calculation using town coordinates.
-            setForm((prev) => ({
-              ...prev,
-              recipientTown: town.id,
-              recipientTownName: town.name,
-              recipientDeliveryFee: getZoneFee(town.deliveryZone),
-            }));
-            estimateGiftDeliveryFee(town);
+        {/* Where the gift goes. The same sheet Express uses, so a gift gets
+            real Places coordinates instead of a town centre. */}
+        <LocationSearchSheet
+          visible={recipientSheetOpen}
+          mode="dropoff"
+          onClose={() => setRecipientSheetOpen(false)}
+          onSelect={(place) => {
+            setRecipientLocation(place);
+            setRecipientSheetOpen(false);
           }}
-          selectedTownId={form.recipientTown}
-          vehicleType={deliveryEstimate?.weightAnalysis?.vehicleTypeUsed}
-          vehicleBaseFee={deliveryEstimate?.weightAnalysis?.baseVehicleFee}
-          vehiclePerKmFee={deliveryEstimate?.weightAnalysis?.perKmFee}
-          vendorLatitude={deliveryEstimate?.vendor?.coordinates?.latitude}
-          vendorLongitude={deliveryEstimate?.vendor?.coordinates?.longitude}
+          reference={
+            deliveryEstimate?.vendor?.coordinates?.latitude != null
+              ? {
+                  latitude: deliveryEstimate.vendor.coordinates.latitude,
+                  longitude: deliveryEstimate.vendor.coordinates.longitude,
+                }
+              : null
+          }
         />
 
         {/* Address Picker Modal (dropdown-like) */}
