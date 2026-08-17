@@ -2154,27 +2154,7 @@ export default function DeliveryTrackingPage() {
                   <View style={s.timelineHeader}>
                     <View style={s.timelineIconPill}>
                       <Ionicons name="map-outline" size={14} color={T.brand} />
-                      {/* Cancelling is destructive and rarely wanted, so it sits
-                last — below the delivery's own details — rather than
-                between them where it was previously. */}
-            {normalizedStatus === "PENDING" && (
-              <TouchableOpacity
-                style={s.cancelDeliveryBtn}
-                onPress={handleCancelDelivery}
-                activeOpacity={0.75}
-              >
-                <View style={s.cancelDeliveryIconWrap}>
-                  <Ionicons
-                    name="close-circle-outline"
-                    size={16}
-                    color={T.red}
-                  />
-                </View>
-                <Text style={s.cancelDeliveryText}>Cancel Delivery</Text>
-              </TouchableOpacity>
-            )}
-
-          </View>
+                    </View>
                     <Text style={s.timelineTitle}>Tracking History</Text>
                   </View>
                   <TrackingTimeline
@@ -2183,6 +2163,20 @@ export default function DeliveryTrackingPage() {
                   />
                 </View>
               )}
+
+            {/* Cancelling is destructive and rarely wanted, so it sits last —
+                below the delivery's own details — as a quiet text action
+                rather than a filled card competing with them. */}
+            {normalizedStatus === "PENDING" && (
+              <TouchableOpacity
+                style={s.cancelDeliveryBtn}
+                onPress={handleCancelDelivery}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close-circle-outline" size={16} color={T.red} />
+                <Text style={s.cancelDeliveryText}>Cancel this delivery</Text>
+              </TouchableOpacity>
+            )}
 
             <View style={s.helpSection}>
               <View style={s.helpHeader}>
@@ -2198,19 +2192,19 @@ export default function DeliveryTrackingPage() {
               <View style={s.helpNumbersRow}>
                 <TouchableOpacity
                   style={s.helpNumberChip}
-                  onPress={() => Linking.openURL("tel:+2207595999")}
+                  onPress={() => Linking.openURL("tel:+2207144612")}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="call" size={13} color={T.brand} />
-                  <Text style={s.helpNumberText}>+220 759 5999</Text>
+                  <Text style={s.helpNumberText}>+220 714 4612</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.helpNumberChip}
-                  onPress={() => Linking.openURL("tel:+2203902798")}
+                  onPress={() => Linking.openURL("tel:+2203666678")}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="call" size={13} color={T.brand} />
-                  <Text style={s.helpNumberText}>+220 390 2798</Text>
+                  <Text style={s.helpNumberText}>+220 366 6678</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2245,12 +2239,6 @@ const s = StyleSheet.create({
     marginBottom: 8,
     borderTopWidth: 1,
     borderTopColor: "#E5E7EB",
-  },
-  cancelDeliveryIconWrap: {
-    width: 18,
-    height: 18,
-    alignItems: "center",
-    justifyContent: "center",
   },
   cancelDeliveryText: { fontSize: 14, fontWeight: "600", color: T.red },
   safe: { flex: 1, backgroundColor: T.heroBase },
