@@ -15,6 +15,9 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useLocation } from "@/hooks/useLocation";
 import { useAddress } from "@/context/AddressContext";
 import { AddressService } from "@/services/AddressService";
+import LocationSearchSheet, {
+  PickedLocation,
+} from "@/components/express/LocationSearchSheet";
 import { SecureStorage } from "@/utils/secureStorage";
 import { LinearGradient } from "expo-linear-gradient";
 import { PermissionContext } from "@/context/PermissionContext";
@@ -24,6 +27,7 @@ export default function AddHomeAddress() {
   const router = useRouter();
   const { getCurrentLocation } = useLocation();
   const { addAddress } = useAddress();
+  const [searchOpen, setSearchOpen] = useState(false);
   const permissionContext = useContext(PermissionContext);
 
   const [loading, setLoading] = useState(false);
@@ -271,6 +275,29 @@ export default function AddHomeAddress() {
 
         {/* Action Buttons */}
         <View style={styles.actionsContainer}>
+          {/* Searching has to be an equal option, not a fallback. This screen
+              was GPS-only, so anyone who declined the permission, got a poor
+              fix indoors, or simply was not at home while signing up had no
+              way to continue except Skip — which is how customers end up with
+              no address and then cannot be quoted a delivery fee. */}
+          {!locationFetched && (
+            <TouchableOpacity
+              style={styles.searchAddressButton}
+              onPress={() => setSearchOpen(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="search"
+                size={20}
+                color={PrimaryColor}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.searchAddressButtonText}>
+                Search for your address
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {!locationFetched ? (
             <TouchableOpacity
               style={[
@@ -334,6 +361,23 @@ export default function AddHomeAddress() {
           />
           <BenefitItem icon="pricetag" text="Get accurate delivery fees" />
         </View>
+
+        <LocationSearchSheet
+          visible={searchOpen}
+          mode="dropoff"
+          onClose={() => setSearchOpen(false)}
+          onSelect={(place: PickedLocation) => {
+            setAddressPreview({
+              street: place.address || place.label,
+              city: place.city || "Banjul",
+              latitude: place.latitude,
+              longitude: place.longitude,
+            });
+            setLocationFetched(true);
+            setSearchOpen(false);
+          }}
+          reference={null}
+        />
 
         {/* Skip Option */}
         <View style={styles.skipContainer}>
@@ -448,6 +492,22 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     marginBottom: 30,
+  },
+  searchAddressButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: PrimaryColor,
+    borderRadius: 14,
+    paddingVertical: 15,
+    marginBottom: 12,
+  },
+  searchAddressButtonText: {
+    color: PrimaryColor,
+    fontSize: 16,
+    fontWeight: "700",
   },
   primaryButton: {
     backgroundColor: PrimaryColor,
