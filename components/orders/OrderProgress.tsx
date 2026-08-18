@@ -50,7 +50,12 @@ const LABELS: Record<string, string> = {
  */
 function reached(status: string, isPaid: boolean) {
   const s = (status || "").toUpperCase();
-  if (s === "DELIVERED") return { index: 5, awaitingPayment: false };
+  // Past the end of the list on purpose. DELIVERED is the last stage, so
+  // returning its own index (5) made `done = pos < index` false for it and it
+  // rendered as the *current* step — an orange ring — while every earlier step
+  // showed a green tick. A finished order has no current step; all six are
+  // done.
+  if (s === "DELIVERED") return { index: ORDER.length, awaitingPayment: false };
   if (s === "DISPATCHED" || s === "NEARBY")
     return { index: 4, awaitingPayment: false };
   if (s === "READY" || s === "PREPARING" || s === "PROCESSING")
@@ -97,9 +102,25 @@ export function OrderProgress({
           const current = pos === index;
           const payNext = awaitingPayment && stage === "PAID";
 
+          // The connector is drawn as two halves inside the column it belongs
+          // to, rather than as its own flex item. Columns can then share the
+          // row evenly and shrink with the screen instead of overflowing it.
+          const prevDone = i > 0 && ORDER.indexOf(stages[i - 1]) < index;
+          const nextDone = pos < index;
+
           return (
-            <React.Fragment key={stage}>
-              <View style={st.col}>
+            <View style={st.col} key={stage}>
+              <View style={st.nodeRow}>
+                {i > 0 && (
+                  <View
+                    style={[st.bar, st.barLeft, prevDone && st.barDone]}
+                  />
+                )}
+                {i < stages.length - 1 && (
+                  <View
+                    style={[st.bar, st.barRight, nextDone && st.barDone]}
+                  />
+                )}
                 <View
                   style={[
                     st.node,
@@ -121,23 +142,21 @@ export function OrderProgress({
                     }
                   />
                 </View>
-                <Text
-                  style={[
-                    st.label,
-                    current && st.labelCurrent,
-                    payNext && st.labelWaiting,
-                    !done && !current && !payNext && st.labelPending,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {LABELS[stage]}
-                </Text>
               </View>
-
-              {i < stages.length - 1 && (
-                <View style={[st.bar, pos < index && st.barDone]} />
-              )}
-            </React.Fragment>
+              <Text
+                style={[
+                  st.label,
+                  current && st.labelCurrent,
+                  payNext && st.labelWaiting,
+                  !done && !current && !payNext && st.labelPending,
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {LABELS[stage]}
+              </Text>
+            </View>
           );
         })}
       </View>
@@ -158,11 +177,17 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#F1F3F5",
     paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     marginBottom: 12,
   },
   track: { flexDirection: "row", alignItems: "flex-start" },
-  col: { alignItems: "center", width: 54 },
+  col: { flex: 1, minWidth: 0, alignItems: "center" },
+  nodeRow: {
+    width: "100%",
+    height: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   node: {
     width: 26,
     height: 26,
@@ -180,7 +205,11 @@ const st = StyleSheet.create({
   nodePending: { backgroundColor: "transparent", borderColor: C.track },
   label: {
     marginTop: 6,
-    fontSize: 10,
+    // Sized so the longest label ("On the way") clears a ~49px column on a
+    // 360dp screen without wrapping. adjustsFontSizeToFit is the safety net
+    // for anything narrower.
+    fontSize: 9,
+    letterSpacing: -0.2,
     fontWeight: "600",
     color: C.text,
     textAlign: "center",
@@ -189,12 +218,14 @@ const st = StyleSheet.create({
   labelWaiting: { color: "#B45309", fontWeight: "800" },
   labelPending: { color: C.faint, fontWeight: "500" },
   bar: {
-    flex: 1,
+    position: "absolute",
+    top: 12,
     height: 2,
     borderRadius: 1,
     backgroundColor: C.track,
-    marginTop: 12,
   },
+  barLeft: { left: 0, right: "50%" },
+  barRight: { left: "50%", right: 0 },
   barDone: { backgroundColor: C.done },
   caption: {
     marginTop: 14,
