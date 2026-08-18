@@ -305,10 +305,10 @@ export default function OrderDetailsPage() {
       // Normalize both to strings to handle number/string mismatch from server
       if (String(data?.orderId) === String(orderId)) {
         console.log("[Socket] Payment success for this order - refetching details");
+        // Refresh in place. This used to replace to the Orders tab after 2s,
+        // throwing the customer off the screen they had just landed on and
+        // away from the tracking they wanted to watch.
         fetchOrderDetails(true);
-        setTimeout(() => {
-          router.replace("/(tabs)/orders");
-        }, 2000);
       }
     };
 
@@ -951,6 +951,39 @@ export default function OrderDetailsPage() {
                 <Ionicons name="refresh" size={18} color={PrimaryColor} />
               </TouchableOpacity>
             </View>
+          )}
+
+          {/* The vendor has accepted and payment is now the customer's move.
+              Previously the awaiting-vendor banner simply vanished at this
+              point and the only prompt was a button pinned below a long
+              scroll, so the moment that needs the most direction gave the
+              least. */}
+          {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" && (
+            <TouchableOpacity
+              style={styles.payPromptBanner}
+              onPress={handlePayNow}
+              activeOpacity={0.85}
+            >
+              <View style={styles.payPromptIconWrap}>
+                <Ionicons name="card" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.payPromptTitle}>
+                  Accepted — pay to confirm
+                </Text>
+                <Text style={styles.payPromptSubtitle}>
+                  {order.restaurant?.name ||
+                    order.shop?.name ||
+                    order.pharmacy?.name ||
+                    "The vendor"}{" "}
+                  starts preparing once payment is made.
+                </Text>
+              </View>
+              <View style={styles.payPromptCta}>
+                <Text style={styles.payPromptCtaText}>Pay</Text>
+                <Ionicons name="arrow-forward" size={14} color="#fff" />
+              </View>
+            </TouchableOpacity>
           )}
 
           {/* Payment waiting banner */}
@@ -2447,6 +2480,40 @@ const styles = StyleSheet.create({
   },
 
   // 💳 Pay Now Button (prominent full-width button)
+  payPromptBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: PrimaryColor,
+    borderRadius: 16,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  payPromptIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payPromptTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
+  payPromptSubtitle: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.9)",
+    marginTop: 2,
+  },
+  payPromptCta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  payPromptCtaText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   payNowButton: {
     backgroundColor: PrimaryColor,
     flexDirection: "row",

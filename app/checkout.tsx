@@ -1518,13 +1518,21 @@ export default function Checkout() {
               ) {
                 await handleOrderCreated(created.id);
                 createdOrderIdsShown = true;
-                // Route user to home immediately so the global OrderSuccessModal
-                // (root-level) can display the stored successful order.
+                // Go straight to the order the customer just placed. This used
+                // to replace to home so the root-level OrderSuccessModal could
+                // appear over it — which read as the app throwing you back to
+                // the start, and buried the one screen that shows the order's
+                // status and carries the Pay button.
+                //
+                // The modal is root-level, so it still renders here.
                 try {
-                  router.replace("/");
+                  router.replace({
+                    pathname: "/order-details",
+                    params: { orderId: created.id, from: "checkout" },
+                  });
                 } catch (e) {
                   console.warn(
-                    "Failed to navigate home after order create:",
+                    "Failed to navigate to order details after create:",
                     e,
                   );
                 }
