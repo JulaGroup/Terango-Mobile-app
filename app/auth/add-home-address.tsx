@@ -260,14 +260,26 @@ export default function AddHomeAddress() {
             <Text style={styles.previewAddress}>{addressPreview.street}</Text>
             <Text style={styles.previewCity}>{addressPreview.city}</Text>
 
+            {/* Both ways back. Refresh alone re-ran GPS, so anyone who had
+                searched for their address and wanted to correct it had only
+                an option that overwrote it with wherever they happened to be
+                standing. */}
             <View style={styles.previewActions}>
+              <TouchableOpacity
+                style={styles.changeButton}
+                onPress={() => setSearchOpen(true)}
+                disabled={loading}
+              >
+                <Ionicons name="search" size={16} color={PrimaryColor} />
+                <Text style={styles.changeButtonText}>Search again</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.changeButton}
                 onPress={handleUseCurrentLocation}
                 disabled={loading}
               >
-                <Ionicons name="refresh" size={16} color={PrimaryColor} />
-                <Text style={styles.changeButtonText}>Refresh</Text>
+                <Ionicons name="navigate" size={16} color={PrimaryColor} />
+                <Text style={styles.changeButtonText}>Use my location</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -477,6 +489,8 @@ const styles = StyleSheet.create({
   previewActions: {
     flexDirection: "row",
     justifyContent: "flex-end",
+    gap: 8,
+    flexWrap: "wrap",
   },
   changeButton: {
     flexDirection: "row",
