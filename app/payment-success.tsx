@@ -10,7 +10,7 @@ import { orderApi } from "@/lib/api";
  * Minimal fallback screen — only reached on cold-launch or if the deep-link
  * bypasses _layout.tsx (rare). Just confirms payment with the server (idempotent)
  * then routes to Home. The toast in _layout.tsx fires via the deep-link handler;
- * the OrderSuccessModal is for order *creation* (checkout), not payment.
+ * order creation (checkout) is confirmed by order-details, not by this.
  */
 export default function PaymentSuccessScreen() {
   const router = useRouter();

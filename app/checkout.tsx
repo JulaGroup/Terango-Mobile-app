@@ -29,8 +29,6 @@ import { useAddress } from "@/context/AddressContext";
 import { useMaintenance } from "@/context/MaintenanceContext";
 import LocationModal from "@/components/common/LocationModal";
 import {
-  storeSuccessfulOrder,
-  clearSuccessfulOrder,
   NotificationService,
 } from "@/services/NotificationService";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -128,41 +126,38 @@ export default function Checkout() {
   // surface the "couldn't calculate" banner if the error persists — avoiding a
   // brief flash before the fee populates.
   const [showFeeError, setShowFeeError] = useState(false);
-  const [orderCreated, setOrderCreated] = useState<{
-    visible: boolean;
-    orderId?: string | null;
-  }>({ visible: false, orderId: null });
+  // Order created handler: announce it and clear the cart
+  // Orders already announced, so a retry or a second vendor cannot fire the
+  // notification twice. This used to be handled by storeSuccessfulOrder
+  // returning false for a duplicate, which has been removed along with the
+  // deferred success modal it fed.
+  const announcedOrders = useRef<Set<string>>(new Set());
 
-  // Order created handler: show modal and clear cart
   const handleOrderCreated = useCallback(
     async (orderId: string) => {
       try {
-        const storedNew = await storeSuccessfulOrder({
-          orderId,
-          timestamp: Date.now(),
-          data: { orderId, status: "completed" },
-        });
-
-        // Only schedule an in-app notification if this is newly stored
-        if (storedNew) {
+        if (!announcedOrders.current.has(orderId)) {
+          announcedOrders.current.add(orderId);
           await NotificationService.scheduleOrderNotification({
             orderId,
             title: "Order Placed! 🎉",
             body: "Your order has been placed successfully. Tap to view details.",
             data: { orderId, type: "payment_success" },
           });
-        } else {
-          console.log(
-            "handleOrderCreated: successful order already stored, skipping notification",
-          );
         }
       } catch (e) {
         console.log("handleOrderCreated: auxiliary steps failed", e);
       }
 
-      // Clear cart and show modal
+      // The cart must still be emptied here — this is the only place it
+      // happens after a successful order.
+      //
+      // What is gone: storeSuccessfulOrder, which parked the order in
+      // AsyncStorage for a root-level modal that fired whenever the customer
+      // next opened the home tab, up to 24 hours later; and the in-checkout
+      // modal, which appeared for an instant before the navigation to order
+      // details replaced it. Order details is the confirmation now.
       clearCart();
-      setOrderCreated({ visible: true, orderId });
       setPaymentStatus("completed");
     },
     [clearCart],
@@ -1521,12 +1516,11 @@ export default function Checkout() {
                 await handleOrderCreated(created.id);
                 createdOrderIdsShown = true;
                 // Go straight to the order the customer just placed. This used
-                // to replace to home so the root-level OrderSuccessModal could
-                // appear over it — which read as the app throwing you back to
-                // the start, and buried the one screen that shows the order's
-                // status and carries the Pay button.
-                //
-                // The modal is root-level, so it still renders here.
+                // to replace to home so a root-level success modal could appear
+                // over it — which read as the app throwing you back to the
+                // start, and buried the one screen that shows the order's
+                // status and carries the Pay button. That modal has since been
+                // removed; this screen is the confirmation.
                 try {
                   router.replace({
                     pathname: "/order-details",
@@ -1586,9 +1580,20 @@ export default function Checkout() {
               setPaymentStatus(null);
             }
           } else if (!createdOrderIdsShown) {
-            // If we already showed the modal when the first order was created,
-            // skip calling handleOrderCreated again. Otherwise show it now.
+            // Several vendors, so several orders. This previously ended here
+            // with no navigation at all: the customer sat on checkout with no
+            // confirmation until they happened to open the home tab and the
+            // deferred modal fired.
+            //
+            // The orders list is the honest destination — it shows every order
+            // just placed, each with its own status, which a single-order modal
+            // could never do.
             await handleOrderCreated(createdOrderIds[0]);
+            try {
+              router.replace("/(tabs)/orders");
+            } catch (e) {
+              console.warn("Failed to navigate to orders after create:", e);
+            }
           }
         } else {
           Alert.alert(
@@ -2875,47 +2880,6 @@ export default function Checkout() {
         </Modal>
 
         {/* Order Created Modal */}
-        <Modal visible={orderCreated.visible} animationType="slide" transparent>
-          <SafeAreaView style={styles.modalCentered}>
-            <View style={styles.modalContainer}>
-              <Text style={styles.modalTitle}>Order placed 🎉</Text>
-              <Text style={styles.modalMessage}>
-                Your order is in! No payment yet — you&apos;ll pay once the
-                vendor accepts it. We&apos;ll alert you, then just tap
-                &quot;Pay Now&quot; to confirm.
-              </Text>
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => {
-                    clearSuccessfulOrder();
-                    setOrderCreated({ visible: false, orderId: null });
-                    router.replace("/");
-                  }}
-                >
-                  <Text style={styles.modalButtonText}>Go Home</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalPrimary]}
-                  onPress={() => {
-                    const id = orderCreated.orderId;
-                    clearSuccessfulOrder();
-                    setOrderCreated({ visible: false, orderId: null });
-                    if (id)
-                      router.replace({
-                        pathname: "/order-details",
-                        params: { orderId: id, from: "checkout" },
-                      });
-                  }}
-                >
-                  <Text style={[styles.modalButtonText, { color: "#fff" }]}>
-                    View Order
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </SafeAreaView>
-        </Modal>
 
         {/* Location Modal (for adding/selecting address when none saved) */}
         <LocationModal

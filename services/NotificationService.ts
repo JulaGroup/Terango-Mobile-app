@@ -146,90 +146,7 @@ export function setNavigateToOrderCallback(cb: (orderId: string) => void) {
 }
 
 // Store successful order data for modal on app reopen
-const SUCCESSFUL_ORDER_KEY = "teranggo_last_successful_order";
 
-export async function storeSuccessfulOrder(orderData: {
-  orderId: string;
-  timestamp: number;
-  data?: any;
-}): Promise<boolean> {
-  try {
-    console.log("[NotificationService] Storing successful order:", orderData);
-    // Check existing stored order and avoid overwriting the same order
-    const existingRaw = await AsyncStorage.getItem(SUCCESSFUL_ORDER_KEY);
-    if (existingRaw) {
-      try {
-        const existing = JSON.parse(existingRaw);
-        if (
-          existing &&
-          existing.orderId &&
-          existing.orderId === orderData.orderId
-        ) {
-          console.log(
-            "[NotificationService] Same order already stored, skipping store",
-          );
-          return false; // not new
-        }
-      } catch (e) {
-        // If parse fails, fall through and overwrite
-        console.warn(
-          "[NotificationService] Failed to parse existing successful order, will overwrite",
-          e,
-        );
-      }
-    }
-
-    await AsyncStorage.setItem(SUCCESSFUL_ORDER_KEY, JSON.stringify(orderData));
-    console.log("[NotificationService] Successfully stored order data");
-    return true; // newly stored
-  } catch (error) {
-    console.warn(
-      "[NotificationService] Failed to store successful order:",
-      error,
-    );
-    return false;
-  }
-}
-
-export async function getSuccessfulOrder() {
-  try {
-    console.log("[NotificationService] Checking for successful order data");
-    const data = await AsyncStorage.getItem(SUCCESSFUL_ORDER_KEY);
-    if (data) {
-      const orderData = JSON.parse(data);
-      console.log("[NotificationService] Found order data:", orderData);
-      // Check if order is recent (within last 24 hours)
-      const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
-      if (orderData.timestamp > oneDayAgo) {
-        console.log("[NotificationService] Order is recent, returning data");
-        return orderData;
-      } else {
-        console.log("[NotificationService] Order is old, clearing data");
-        // Clear old data
-        await AsyncStorage.removeItem(SUCCESSFUL_ORDER_KEY);
-      }
-    } else {
-      console.log("[NotificationService] No order data found");
-    }
-  } catch (error) {
-    console.warn(
-      "[NotificationService] Failed to get successful order:",
-      error,
-    );
-  }
-  return null;
-}
-
-export async function clearSuccessfulOrder() {
-  try {
-    await AsyncStorage.removeItem(SUCCESSFUL_ORDER_KEY);
-  } catch (error) {
-    console.warn(
-      "[NotificationService] Failed to clear successful order:",
-      error,
-    );
-  }
-}
 
 /**
  * FIX: Improved push token registration with proper sequencing
@@ -280,14 +197,7 @@ export function useRegisterPushToken(userId: string) {
         );
       }
 
-      // Store successful order data for modal on app reopen
       if (data && data.orderId) {
-        await storeSuccessfulOrder({
-          orderId: data.orderId,
-          timestamp: Date.now(),
-          data: data,
-        });
-
         // Send instant push notification for successful payment
         try {
           await NotificationService.scheduleOrderNotification({

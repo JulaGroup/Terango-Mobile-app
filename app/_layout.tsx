@@ -23,11 +23,8 @@ import {
   NotificationService,
   BrowserNotificationService,
   useRegisterPushToken,
-  getSuccessfulOrder,
-  clearSuccessfulOrder,
   useBrowserNotifications,
 } from "@/services/NotificationService";
-import OrderSuccessModal from "@/components/OrderSuccessModal";
 import { useAutoUpdate } from "@/hooks/useAutoUpdate";
 import { useEffect, useRef, useState } from "react";
 import { safeGetItem } from "@/actions/auth.ts/action";
@@ -62,13 +59,6 @@ export default function RootLayout() {
 
   const [userId, setUserId] = useState<string | null>(null);
 
-  // OrderSuccessModal — shown when checkout creates a new order successfully
-  const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
-  const [successfulOrderData, setSuccessfulOrderData] = useState<{
-    orderId: string;
-    data?: any;
-  } | null>(null);
-  const orderModalShown = useRef(false);
 
   // Transient payment toast — shows for 3.2s after Wave payment confirmed
   const [paymentToast, setPaymentToast] = useState<{
@@ -90,31 +80,6 @@ export default function RootLayout() {
     safeGetItem("userId").then((id) => setUserId(id));
   }, [pathname]);
 
-  // Reset modal guard when user leaves Home so it can show again after next order
-  useEffect(() => {
-    if (pathname !== "/") orderModalShown.current = false;
-  }, [pathname]);
-
-  // Show OrderSuccessModal when user lands on Home after a successful order creation
-  // (written by checkout flow via storeSuccessfulOrder)
-  useEffect(() => {
-    const checkSuccessfulOrder = async () => {
-      if (pathname !== "/") return;
-      if (orderModalShown.current) return;
-      const orderData = await getSuccessfulOrder();
-      if (!orderData) return;
-      orderModalShown.current = true;
-      setSuccessfulOrderData(orderData);
-      setShowOrderSuccessModal(true);
-    };
-    checkSuccessfulOrder();
-  }, [pathname]);
-
-  const handleCloseOrderSuccessModal = () => {
-    setShowOrderSuccessModal(false);
-    setSuccessfulOrderData(null);
-    clearSuccessfulOrder();
-  };
 
   // ─────────────────────────────────────────────────────────────────────────
   // Deep-link handler for Wave payment callbacks.
@@ -906,12 +871,6 @@ export default function RootLayout() {
           </PermissionProvider>
         </MaintenanceProvider>
 
-        <OrderSuccessModal
-          visible={showOrderSuccessModal}
-          onClose={handleCloseOrderSuccessModal}
-          orderId={successfulOrderData?.orderId || ""}
-          orderData={successfulOrderData?.data}
-        />
         <CookieConsent />
       </ThemeProvider>
     </ErrorBoundary>
