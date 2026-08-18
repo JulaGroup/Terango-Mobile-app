@@ -142,7 +142,7 @@ export default function CompleteProfile() {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={true}
         >
           {/* Two steps follow verification — name, then address. Saying so up
               front stops the second one feeling like the app moving the goal

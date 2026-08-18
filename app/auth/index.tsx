@@ -150,15 +150,15 @@ export default function AuthScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+        showsVerticalScrollIndicator={true}
         onScrollBeginDrag={() => Keyboard.dismiss()}
       >
         <View style={styles.container}>
           <StatusBar translucent backgroundColor="transparent" />
           <View
             style={{
-              marginBottom: 40,
-              marginTop: 20,
+              marginBottom: 20,
+              marginTop: 4,
               borderRadius: 12,
               overflow: "hidden",
               ...(Platform.OS === "ios"
@@ -175,8 +175,8 @@ export default function AuthScreen() {
             <Image
               source={require("../../assets/logo-no-background.png")}
               style={{
-                width: 300,
-                height: 100,
+                width: 240,
+                height: 76,
                 resizeMode: "contain",
                 alignSelf: "center",
               }}
@@ -340,7 +340,8 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: 80,
+    paddingTop: 24,
+    paddingBottom: 24,
     paddingHorizontal: 26,
     backgroundColor: "#fff",
   },
