@@ -26,6 +26,7 @@ import { SecureStorage } from "@/utils/secureStorage";
 import { orderApi, Order } from "../lib/api";
 import { useVendor } from "@/context/VendorContext";
 import { PrimaryColor } from "@/constants/Colors";
+import OrderProgress from "@/components/orders/OrderProgress";
 import { useCart } from "@/context/CartContext";
 import {
   on as socketOn,
@@ -924,66 +925,42 @@ export default function OrderDetailsPage() {
             </View>
           </View>
 
-          {/* Awaiting-vendor banner: the order is placed but the vendor hasn't
-              accepted yet, so payment isn't available. Shown until ACCEPTED. */}
-          {order.status === "PENDING" && order.paymentStatus !== "PAID" && (
-            <View style={styles.pendingBanner}>
-              <View style={styles.pendingIconWrap}>
-                <Ionicons name="hourglass-outline" size={18} color="#B45309" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pendingTitle}>
-                  Waiting for the vendor to accept
-                </Text>
-                <Text style={styles.pendingSubtitle}>
-                  You&apos;ll be able to pay once{" "}
-                  {order.restaurant?.name ||
-                    order.shop?.name ||
-                    order.pharmacy?.name ||
-                    "the vendor"}{" "}
-                  confirms your order.
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => fetchOrderDetails(true)}
-                style={styles.waitingRefresh}
-              >
-                <Ionicons name="refresh" size={18} color={PrimaryColor} />
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Where the order is, and whose move is next. Shows Paid as a step
+              still ahead while waiting on the vendor, which is how a customer
+              learns that payment comes after acceptance — prose never landed. */}
+          <OrderProgress
+            status={order.status}
+            isPaid={
+              order.paymentStatus === "PAID" ||
+              (order as any).paymentStatus === "SUCCEEDED"
+            }
+            isPickup={order.orderType === "PICKUP"}
+            vendorName={
+              order.restaurant?.name ||
+              order.shop?.name ||
+              order.pharmacy?.name ||
+              null
+            }
+          />
 
-          {/* The vendor has accepted and payment is now the customer's move.
-              Previously the awaiting-vendor banner simply vanished at this
-              point and the only prompt was a button pinned below a long
-              scroll, so the moment that needs the most direction gave the
-              least. */}
-          {order.status === "ACCEPTED" && order.paymentStatus !== "PAID" && (
-            <TouchableOpacity
-              style={styles.payPromptBanner}
-              onPress={handlePayNow}
-              activeOpacity={0.85}
-            >
-              <View style={styles.payPromptIconWrap}>
-                <Ionicons name="card" size={20} color="#fff" />
+          {/* Payment confirmed. The screen previously said nothing positive
+              once payment landed — the waiting spinner simply disappeared. */}
+          {(order.paymentStatus === "PAID" ||
+            (order as any).paymentStatus === "SUCCEEDED") && (
+            <View style={styles.paidBanner}>
+              <View style={styles.paidIconWrap}>
+                <Ionicons name="checkmark" size={16} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.payPromptTitle}>
-                  Accepted — pay to confirm
-                </Text>
-                <Text style={styles.payPromptSubtitle}>
-                  {order.restaurant?.name ||
-                    order.shop?.name ||
-                    order.pharmacy?.name ||
-                    "The vendor"}{" "}
-                  starts preparing once payment is made.
+                <Text style={styles.paidTitle}>Payment confirmed</Text>
+                <Text style={styles.paidSubtitle}>
+                  D{Number(order.totalAmount ?? 0).toFixed(2)} paid
+                  {order.status === "ACCEPTED" || order.status === "PREPARING"
+                    ? " · your order is being prepared"
+                    : ""}
                 </Text>
               </View>
-              <View style={styles.payPromptCta}>
-                <Text style={styles.payPromptCtaText}>Pay</Text>
-                <Ionicons name="arrow-forward" size={14} color="#fff" />
-              </View>
-            </TouchableOpacity>
+            </View>
           )}
 
           {/* Payment waiting banner */}
@@ -2065,34 +2042,6 @@ const styles = StyleSheet.create({
   waitingText: { color: "#92400E", fontWeight: "600" },
   waitingRefresh: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 6 },
   waitingRefreshText: { color: PrimaryColor, fontWeight: "700" },
-  pendingBanner: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: "#FFFBEB",
-    borderWidth: 1,
-    borderColor: "#FDE68A",
-    borderLeftWidth: 4,
-    borderLeftColor: "#F59E0B",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  pendingIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#FEF3C7",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pendingTitle: { color: "#92400E", fontWeight: "700", fontSize: 14 },
-  pendingSubtitle: {
-    color: "#B45309",
-    fontSize: 12,
-    marginTop: 2,
-    lineHeight: 16,
-  },
   statusBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -2480,40 +2429,28 @@ const styles = StyleSheet.create({
   },
 
   // 💳 Pay Now Button (prominent full-width button)
-  payPromptBanner: {
+  paidBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: PrimaryColor,
-    borderRadius: 16,
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    borderRadius: 14,
     padding: 14,
     marginHorizontal: 16,
     marginBottom: 12,
   },
-  payPromptIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.2)",
+  paidIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#10B981",
     alignItems: "center",
     justifyContent: "center",
   },
-  payPromptTitle: { fontSize: 15, fontWeight: "800", color: "#fff" },
-  payPromptSubtitle: {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 2,
-  },
-  payPromptCta: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(255,255,255,0.22)",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
-  },
-  payPromptCtaText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  paidTitle: { fontSize: 15, fontWeight: "800", color: "#065F46" },
+  paidSubtitle: { fontSize: 12.5, color: "#047857", marginTop: 2 },
   payNowButton: {
     backgroundColor: PrimaryColor,
     flexDirection: "row",
