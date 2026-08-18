@@ -232,7 +232,7 @@ export default function Checkout() {
   const [townPickerVisible, setTownPickerVisible] = useState(false);
 
   // Address context for selecting delivery address
-  const { addresses, selectedAddress, setSelectedAddress, fetchAddresses } =
+  const { addresses, selectedAddress, setSelectedAddress, fetchAddresses, addAddress } =
     useAddress();
   const { flags: maintenanceFlags } = useMaintenance();
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -301,6 +301,8 @@ export default function Checkout() {
   const [recipientLocation, setRecipientLocation] =
     useState<PickedLocation | null>(null);
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
+  // Adding a delivery address without leaving checkout.
+  const [newAddressSheetOpen, setNewAddressSheetOpen] = useState(false);
   const [loadingTowns, setLoadingTowns] = useState(true);
   const [townsFromAPI, setTownsFromAPI] = useState(false); // Track if using API or fallback
 
@@ -2931,6 +2933,53 @@ export default function Checkout() {
           currentAddress={form.address}
         />
 
+        {/* Add a delivery address mid-checkout. Saves it and selects it for
+            this order, so the basket is never abandoned to go and add one. */}
+        <LocationSearchSheet
+          visible={newAddressSheetOpen}
+          mode="dropoff"
+          onClose={() => setNewAddressSheetOpen(false)}
+          onSelect={async (place) => {
+            setNewAddressSheetOpen(false);
+            try {
+              await addAddress({
+                label: "Delivery",
+                street: place.address || place.label,
+                addressLine: place.address || place.label,
+                city: place.city || "",
+                country: "The Gambia",
+                latitude: place.latitude,
+                longitude: place.longitude,
+              } as any);
+              await fetchAddresses();
+              // Drive the fee estimate straight off the picked coordinates —
+              // waiting for the refreshed list to settle would leave the
+              // customer looking at a stale fee.
+              setForm((prev) => ({
+                ...prev,
+                address: place.address || place.label,
+              }));
+              estimateDeliveryFee(place.address || place.label, {
+                latitude: place.latitude,
+                longitude: place.longitude,
+              });
+            } catch {
+              Alert.alert(
+                "Couldn't save that address",
+                "Please try again, or pick one of your saved addresses.",
+              );
+            }
+          }}
+          reference={
+            deliveryEstimate?.vendor?.coordinates?.latitude != null
+              ? {
+                  latitude: deliveryEstimate.vendor.coordinates.latitude,
+                  longitude: deliveryEstimate.vendor.coordinates.longitude,
+                }
+              : null
+          }
+        />
+
         {/* Where the gift goes. The same sheet Express uses, so a gift gets
             real Places coordinates instead of a town centre. */}
         <LocationSearchSheet
@@ -2959,7 +3008,7 @@ export default function Checkout() {
             >
               <Text style={styles.modalTitle}>Choose delivery address</Text>
               <Text style={styles.modalMessage}>
-                Select one of your saved addresses
+                Choose a saved address, or add a new one
               </Text>
               <ScrollView style={{ width: "100%" }}>
                 {addresses.map((addr: any) => {
@@ -3014,6 +3063,28 @@ export default function Checkout() {
                   );
                 })}
               </ScrollView>
+              {/* Delivering somewhere new should not mean abandoning the
+                  basket to go and save an address first. */}
+              <TouchableOpacity
+                style={styles.addAddressRow}
+                onPress={() => {
+                  setAddressPickerVisible(false);
+                  setNewAddressSheetOpen(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.addAddressIcon}>
+                  <Ionicons name="add" size={18} color="#ff6b00" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.addAddressTitle}>Deliver somewhere else</Text>
+                  <Text style={styles.addAddressSubtitle}>
+                    Search for a new address
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+              </TouchableOpacity>
+
               <View
                 style={{ flexDirection: "row", width: "100%", marginTop: 8 }}
               >
@@ -4303,6 +4374,27 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     width: "100%",
   },
+  addAddressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    marginTop: 4,
+  },
+  addAddressIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(255,107,0,0.10)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addAddressTitle: { fontSize: 14.5, fontWeight: "700", color: "#111827" },
+  addAddressSubtitle: { fontSize: 12, color: "#6B7280", marginTop: 1 },
   modalButton: {
     flex: 1,
     paddingVertical: 12,
