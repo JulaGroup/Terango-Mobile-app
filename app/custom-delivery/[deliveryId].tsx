@@ -1111,6 +1111,8 @@ export default function DeliveryTrackingPage() {
   );
 
   // ── Socket: real-time driver location ─────────────────
+  const refreshRef = useRef<null | (() => void)>(null);
+
   useEffect(() => {
     if (!deliveryId) return;
     const serverUrl = (
@@ -1129,8 +1131,21 @@ export default function DeliveryTrackingPage() {
     };
     socketOn("driver:locationUpdated", onLocation);
 
+    // Status changes were only ever picked up by the 10s poll, so the screen
+    // could sit up to ten seconds behind a driver being assigned or a package
+    // being picked up. The server already emits both of these; nothing here
+    // was listening.
+    const onStatus = (data: any) => {
+      const id = data?.deliveryId ?? data?.id ?? data?.delivery?.id;
+      if (!id || id === deliveryId) refreshRef.current?.();
+    };
+    socketOn("express:delivery-status", onStatus);
+    socketOn("express-payment-update", onStatus);
+
     return () => {
       socketOff("driver:locationUpdated", onLocation);
+      socketOff("express:delivery-status", onStatus);
+      socketOff("express-payment-update", onStatus);
       socketEmit("customer:stopTracking", deliveryId);
     };
   }, [deliveryId]);
@@ -1281,6 +1296,12 @@ export default function DeliveryTrackingPage() {
       ],
     );
   }, [deliveryId, fetchDelivery]);
+
+  // Keep the socket handler pointing at the current fetchDelivery without
+  // making it a dependency of the subscription effect.
+  useEffect(() => {
+    refreshRef.current = fetchDelivery;
+  }, [fetchDelivery]);
 
   useEffect(() => {
     fetchDelivery();
@@ -1936,8 +1957,14 @@ export default function DeliveryTrackingPage() {
               </View>
             )}
 
-            {/* Payment Success Badge */}
+            {/* Only while genuinely waiting for a rider. This used to test
+                paymentStatus alone, so "Awaiting driver assignment" stayed on
+                screen through DRIVER_ASSIGNED, PICKED_UP and IN_TRANSIT —
+                contradicting the status header directly above it. Once a rider
+                exists the progress header says everything this did. */}
             {delivery.paymentStatus === "PAID" &&
+              normalizedStatus === "PENDING" &&
+              !delivery.driver &&
               !isDelivered &&
               !isCancelled && (
                 <View style={s.paymentSuccessBanner}>
