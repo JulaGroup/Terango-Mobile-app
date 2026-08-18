@@ -23,11 +23,16 @@ import { LinearGradient } from "expo-linear-gradient";
 import { userApi } from "@/lib/api";
 import { SecureStorage } from "@/utils/secureStorage";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import LocationSearchSheet, {
+  PickedLocation,
+} from "@/components/express/LocationSearchSheet";
+import { AddressService } from "@/services/AddressService";
 const { width } = Dimensions.get("window");
 
 export default function AddressSetup() {
   const router = useRouter();
   const [address, setAddress] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checkingExistingAddress, setCheckingExistingAddress] = useState(true);
   const [fetchingLocation, setFetchingLocation] = useState(false);
@@ -52,11 +57,14 @@ export default function AddressSetup() {
           return;
         }
 
-        const profile = await userApi.getUserProfile(userId);
-
-        // If user already has home address, skip this screen
-        if (profile?.homeAddress && profile.homeAddress.trim()) {
-          console.log("✅ User already has home address, skipping onboarding");
+        // Skip this screen if they already have a saved address.
+        //
+        // This used to read profile.homeAddress, a field that exists nowhere
+        // in the schema, so the check could never pass and returning users
+        // were asked for their address every time.
+        const existing = await AddressService.getUserAddresses(userId);
+        if (Array.isArray(existing) && existing.length > 0) {
+          console.log("✅ User already has an address, skipping onboarding");
           router.replace("/(tabs)");
           return;
         }
@@ -169,28 +177,45 @@ export default function AddressSetup() {
       const userId = await SecureStorage.getItem("userId");
       if (!userId) throw new Error("User ID not found");
 
-      // Get coordinates if not already detected
+      // Get coordinates if not already detected.
+      //
+      // Location.geocodeAsync is the OS geocoder, which has effectively no
+      // coverage in The Gambia — it returns nothing, so a typed address used
+      // to be saved with no coordinates at all. The server proxy is tried
+      // first now; searching for the place is still the reliable route, which
+      // is why the search sheet is the primary control above.
       let finalCoords = coordinates;
       if (!finalCoords && address.trim()) {
         try {
-          const geocoded = await Location.geocodeAsync(address);
-          if (geocoded && geocoded.length > 0) {
-            finalCoords = {
-              latitude: geocoded[0].latitude,
-              longitude: geocoded[0].longitude,
-            };
-          }
+          finalCoords = await AddressService.getCoordinatesFromAddress(address);
         } catch (err) {
           console.log("Could not geocode address:", err);
         }
       }
 
-      // Save address to backend
-      await userApi.updateProfile({
-        homeAddress: address,
-        homeLatitude: finalCoords?.latitude,
-        homeLongitude: finalCoords?.longitude,
-      });
+      if (!finalCoords) {
+        setLoading(false);
+        Alert.alert(
+          "Pick your location",
+          "Search for your address or use your current location, so we can work out delivery to you.",
+        );
+        return;
+      }
+
+      // Save as a real Address. This previously called updateProfile with
+      // homeAddress/homeLatitude/homeLongitude — fields that exist nowhere in
+      // the schema or the server, so Prisma rejected them and the request
+      // returned 500 every time. The address was never stored, which is why
+      // 158 of 603 profiles have none, and why those customers then hit
+      // "we couldn't calculate a delivery fee" at checkout.
+      await AddressService.createAddress(userId, {
+        label: "Home",
+        addressLine: address,
+        city: "",
+        latitude: finalCoords.latitude,
+        longitude: finalCoords.longitude,
+        isDefault: true,
+      } as any);
 
       console.log("✅ Home address saved successfully");
 
@@ -308,6 +333,33 @@ export default function AddressSetup() {
             <View style={styles.dividerLine} />
           </View>
 
+          {/* Search is the primary control. Typing is kept as a fallback, but
+              OS geocoding has effectively no coverage here, so a typed address
+              often cannot be resolved to coordinates — and without coordinates
+              no delivery fee can be calculated. A searched place always
+              carries them. */}
+          <TouchableOpacity
+            style={styles.inputContainer}
+            onPress={() => setSearchOpen(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="search"
+              size={20}
+              color={PrimaryColor}
+              style={styles.inputIcon}
+            />
+            <Text
+              style={[
+                styles.input,
+                { paddingTop: 14, color: address ? "#111827" : "#9CA3AF" },
+              ]}
+              numberOfLines={2}
+            >
+              {address || "Search for your address"}
+            </Text>
+          </TouchableOpacity>
+
           {/* Manual Address Input */}
           <View style={styles.inputContainer}>
             <Ionicons
@@ -375,6 +427,21 @@ export default function AddressSetup() {
               </View>
             </>
           )}
+
+          <LocationSearchSheet
+            visible={searchOpen}
+            mode="dropoff"
+            onClose={() => setSearchOpen(false)}
+            onSelect={(place: PickedLocation) => {
+              setAddress(place.address || place.label);
+              setCoordinates({
+                latitude: place.latitude,
+                longitude: place.longitude,
+              });
+              setSearchOpen(false);
+            }}
+            reference={null}
+          />
 
           {/* Continue Button */}
           <TouchableOpacity
