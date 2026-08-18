@@ -1,10 +1,14 @@
-﻿// app/complete-profile.tsx
+// app/complete-profile.tsx
 import { completeProfile } from "@/actions/auth.ts/action";
 import { PrimaryColor } from "@/constants/Colors";
 import { SecureStorage } from "@/utils/secureStorage";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -13,6 +17,8 @@ import {
   View,
   Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { UserCacheManager } from "@/utils/userCache";
 import TermsModal from "@/components/modals/TermsModal";
 
@@ -36,12 +42,11 @@ export default function CompleteProfile() {
       if (accepted === "true") {
         setTermsAccepted(true);
       } else {
-        // Show terms modal for new users
-        setTimeout(() => setShowTermsModal(true), 500);
+        setShowTermsModal(true);
       }
     } catch (error) {
-      // If error, show terms modal to be safe
-      setTimeout(() => setShowTermsModal(true), 500);
+      console.error("Error checking terms acceptance:", error);
+      setShowTermsModal(true);
     }
   };
 
@@ -56,13 +61,12 @@ export default function CompleteProfile() {
   };
 
   const handleTermsDecline = () => {
-    setShowTermsModal(false);
     Alert.alert(
       "Terms Required",
-      "You must accept the Terms and Conditions to use TeranGO. Would you like to review them again?",
+      "You must accept the Terms and Conditions to use TeranGO.",
       [
         {
-          text: "Review Terms",
+          text: "Review Again",
           onPress: () => setShowTermsModal(true),
         },
         {
@@ -126,45 +130,110 @@ export default function CompleteProfile() {
     }
   };
 
+  const canContinue = name.trim().length >= 2;
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <Text style={styles.title}>Complete Your Profile</Text>
-      <Text style={styles.subtitle}>Enter your full name to get started</Text>
-      <TextInput
-        placeholder="Full Name"
-        value={name}
-        onChangeText={setName}
-        style={styles.input}
-        placeholderTextColor="#9CA3AF"
-        autoFocus
-      />
-
-      <TouchableOpacity
-        disabled={loading || !termsAccepted}
-        style={[
-          styles.button,
-          (!termsAccepted || loading) && styles.buttonDisabled,
-        ]}
-        onPress={handleComplete}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {loading ? (
-          <Text style={styles.buttonText}>Loading...</Text>
-        ) : (
-          <Text style={styles.buttonText}>
-            {termsAccepted ? "Finish" : "Accept Terms to Continue"}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      {termsAccepted && (
-        <TouchableOpacity
-          style={styles.reviewTermsButton}
-          onPress={() => setShowTermsModal(true)}
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.reviewTermsText}>Review Terms & Privacy</Text>
-        </TouchableOpacity>
-      )}
+          {/* Two steps follow verification — name, then address. Saying so up
+              front stops the second one feeling like the app moving the goal
+              posts. */}
+          <View style={styles.stepRow}>
+            <View style={styles.stepDotActive} />
+            <View style={styles.stepDot} />
+            <Text style={styles.stepText}>Step 1 of 2</Text>
+          </View>
+
+          <View style={styles.hero}>
+            <View style={styles.markWrap}>
+              <Text style={styles.mark}>
+                Teran<Text style={styles.markAccent}>GO</Text>
+              </Text>
+            </View>
+
+            <Text style={styles.title}>Welcome aboard</Text>
+            {/* Says why the field exists. A bare "Full Name" on a stranger's
+                first screen asks for personal data with no reason given. */}
+            <Text style={styles.subtitle}>
+              What should we call you? Your name is what vendors and riders see
+              when they bring your order.
+            </Text>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Full name</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons
+                name="person-outline"
+                size={20}
+                color="#9CA3AF"
+                style={styles.inputIcon}
+              />
+              <TextInput
+                placeholder="e.g. Muhammed Darboe"
+                value={name}
+                onChangeText={setName}
+                style={styles.input}
+                placeholderTextColor="#9CA3AF"
+                autoFocus
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={handleComplete}
+              />
+            </View>
+          </View>
+
+          <View style={{ flex: 1 }} />
+
+          <TouchableOpacity
+            disabled={loading}
+            style={[
+              styles.button,
+              (!canContinue || loading) && styles.buttonDisabled,
+            ]}
+            onPress={handleComplete}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <>
+                <Text style={styles.buttonText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={18} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* The terms line is permanent rather than appearing only after
+              acceptance — someone deciding whether to accept is exactly who
+              needs the link. */}
+          <TouchableOpacity
+            style={styles.termsRow}
+            onPress={() => setShowTermsModal(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={termsAccepted ? "checkmark-circle" : "information-circle-outline"}
+              size={15}
+              color={termsAccepted ? "#10B981" : "#9CA3AF"}
+            />
+            <Text style={styles.termsText}>
+              {termsAccepted
+                ? "You've accepted our Terms & Privacy Policy"
+                : "Read our Terms & Privacy Policy"}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Terms and Conditions Modal */}
       <TermsModal
@@ -172,61 +241,99 @@ export default function CompleteProfile() {
         onAccept={handleTermsAccept}
         onDecline={handleTermsDecline}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: "#fff" },
   container: {
-    flex: 1,
-    paddingTop: 80,
+    flexGrow: 1,
     paddingHorizontal: 24,
-    backgroundColor: "#fff",
+    paddingTop: 12,
+    paddingBottom: 24,
   },
+
+  stepRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  stepDotActive: {
+    width: 22,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: PrimaryColor,
+  },
+  stepDot: {
+    width: 22,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E5E7EB",
+  },
+  stepText: {
+    marginLeft: 6,
+    fontSize: 12,
+    color: "#9CA3AF",
+    fontWeight: "600",
+  },
+
+  hero: { marginTop: 36 },
+  markWrap: { marginBottom: 20 },
+  mark: { fontSize: 22, fontWeight: "800", color: "#1A3C34" },
+  markAccent: { color: PrimaryColor, fontWeight: "800" },
   title: {
-    fontSize: 26,
+    fontSize: 30,
     fontWeight: "800",
-    textAlign: "center",
     color: "#111827",
-    marginBottom: 8,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 15,
+    lineHeight: 22,
     color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 32,
-  },
-  input: {
-    backgroundColor: "#F3F4F6",
-    padding: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    color: "#111827",
-    marginBottom: 16,
-  },
-  button: {
-    backgroundColor: PrimaryColor,
-    paddingVertical: 18,
-    borderRadius: 12,
-    alignItems: "center",
     marginTop: 10,
   },
-  buttonDisabled: {
-    backgroundColor: "#E5E7EB",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
+
+  field: { marginTop: 32 },
+  label: {
+    fontSize: 13,
     fontWeight: "700",
+    color: "#374151",
+    marginBottom: 8,
   },
-  reviewTermsButton: {
-    marginTop: 16,
-    paddingVertical: 12,
+  inputWrap: {
+    flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 14,
   },
-  reviewTermsText: {
-    color: PrimaryColor,
-    fontSize: 15,
-    fontWeight: "600",
+  inputIcon: { marginRight: 10 },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: "#111827",
   },
+
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: PrimaryColor,
+    borderRadius: 14,
+    paddingVertical: 17,
+    marginTop: 24,
+  },
+  buttonDisabled: { backgroundColor: "#E5E7EB" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "800" },
+
+  termsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 16,
+  },
+  termsText: { fontSize: 12.5, color: "#9CA3AF" },
 });
