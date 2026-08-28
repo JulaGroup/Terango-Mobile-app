@@ -31,6 +31,7 @@ import { orderApi, Order } from "../lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
 import { SecureStorage } from "@/utils/secureStorage";
+import { useSmoothedMarker } from "@/utils/smoothMarker";
 import {
   on as socketOn,
   off as socketOff,
@@ -40,12 +41,17 @@ import { LinearGradient } from "expo-linear-gradient";
 import { fetchDeliveryTowns, getTownById as getDynamicTownById, DeliveryTown } from "@/services/deliveryTowns.service";
 
 // Conditionally import MapView only for native platforms
-let MapView: any, Marker: any, PROVIDER_GOOGLE: any, Polyline: any;
+let MapView: any,
+  Marker: any,
+  MarkerAnimated: any,
+  PROVIDER_GOOGLE: any,
+  Polyline: any;
 if (Platform.OS !== "web") {
   try {
     const Maps = require("react-native-maps");
     MapView = Maps.default;
     Marker = Maps.Marker;
+    MarkerAnimated = Maps.MarkerAnimated;
     PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
     Polyline = Maps.Polyline;
   } catch (e) {
@@ -183,6 +189,13 @@ export default function OrderTrackingPage() {
     longitude: number;
     timestamp?: number;
   } | null>(null);
+  // Read by the camera effect, which deliberately does not depend on the
+  // coordinate itself — see the comment on that effect.
+  const driverLocationRef = useRef<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  driverLocationRef.current = driverLocation;
   const [deliveryLocation, setDeliveryLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -443,26 +456,45 @@ export default function OrderTrackingPage() {
     }
   }, [driverLocation, deliveryLocation, fetchRoute, routeCoordinates.length]);
 
-  // Center map on markers
-  useEffect(() => {
-    if (mapRef.current && deliveryLocation) {
-      const markers = [deliveryLocation];
-      if (driverLocation) markers.push(driverLocation);
-      if (vendorLocation) markers.push(vendorLocation);
+  /**
+   * Frame the markers when the picture actually changes — not on every ping.
+   *
+   * This used to depend on `driverLocation`, which updates every few seconds
+   * while a driver is moving. Each update re-fitted the camera, so anyone who
+   * pinched in to see which street the rider was on had the map yanked back
+   * out from under them a moment later. The Recenter button already exists for
+   * when someone does want the whole route framed again.
+   *
+   * `hasDriverLocation` is a boolean rather than the coordinate, so the first
+   * appearance of the driver still triggers one fit.
+   */
+  // Interpolates between socket pings and derives a bearing from them.
+  const smoothedDriver = useSmoothedMarker(driverLocation, {
+    durationMs: 2500,
+  });
 
-      setTimeout(() => {
-        mapRef.current?.fitToCoordinates(markers, {
-          edgePadding: {
-            top: 100,
-            right: 50,
-            bottom: SNAP_POINTS.half + 50,
-            left: 50,
-          },
-          animated: true,
-        });
-      }, 500);
-    }
-  }, [driverLocation, deliveryLocation, vendorLocation]);
+  const hasDriverLocation = !!driverLocation;
+  useEffect(() => {
+    if (!mapRef.current || !deliveryLocation) return;
+
+    const markers = [deliveryLocation];
+    if (driverLocationRef.current) markers.push(driverLocationRef.current);
+    if (vendorLocation) markers.push(vendorLocation);
+
+    const timer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(markers, {
+        edgePadding: {
+          top: 100,
+          right: 50,
+          bottom: SNAP_POINTS.half + 50,
+          left: 50,
+        },
+        animated: true,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasDriverLocation, deliveryLocation, vendorLocation]);
 
   // Track order via socket
   useEffect(() => {
@@ -686,37 +718,46 @@ export default function OrderTrackingPage() {
             </Marker>
           )}
 
-          {/* Driver Marker — live while dispatched, frozen/green after delivered */}
-          {driverLocation && !isPickup && (isDispatched || isDelivered) && (
-            <Marker
-              coordinate={driverLocation}
-              title={isDelivered ? "Delivered Here" : "Driver"}
-            >
-              <View style={styles.driverMarkerContainer}>
-                <LinearGradient
-                  colors={
-                    isDelivered
-                      ? ["#22C55E", "#16A34A"]
-                      : [PrimaryColor, "#FF8C00"]
-                  }
-                  style={styles.driverMarker}
-                >
-                  <Ionicons
-                    name={
+          {/* Driver Marker — live while dispatched, frozen/green after
+              delivered. Glides between fixes and turns to face the direction
+              of travel; binding straight to the socket updates made it
+              teleport every few seconds. Once delivered it is a fixed point,
+              so it stops rotating. */}
+          {smoothedDriver.region &&
+            !isPickup &&
+            (isDispatched || isDelivered) && (
+              <MarkerAnimated
+                coordinate={smoothedDriver.region}
+                title={isDelivered ? "Delivered Here" : "Driver"}
+                anchor={{ x: 0.5, y: 0.5 }}
+                flat={!isDelivered}
+                rotation={isDelivered ? 0 : smoothedDriver.heading}
+              >
+                <View style={styles.driverMarkerContainer}>
+                  <LinearGradient
+                    colors={
                       isDelivered
-                        ? "checkmark"
-                        : order?.driverVehicleType === "BIKE"
-                          ? "bicycle"
-                          : "car"
+                        ? ["#22C55E", "#16A34A"]
+                        : [PrimaryColor, "#FF8C00"]
                     }
-                    size={20}
-                    color="#FFF"
-                  />
-                </LinearGradient>
-                {!isDelivered && <View style={styles.driverMarkerPulse} />}
-              </View>
-            </Marker>
-          )}
+                    style={styles.driverMarker}
+                  >
+                    <Ionicons
+                      name={
+                        isDelivered
+                          ? "checkmark"
+                          : order?.driverVehicleType === "BIKE"
+                            ? "bicycle"
+                            : "car"
+                      }
+                      size={20}
+                      color="#FFF"
+                    />
+                  </LinearGradient>
+                  {!isDelivered && <View style={styles.driverMarkerPulse} />}
+                </View>
+              </MarkerAnimated>
+            )}
 
           {/* Delivery Location (only for delivery orders) */}
           {deliveryLocation && !isPickup && (
