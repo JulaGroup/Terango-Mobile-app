@@ -160,6 +160,8 @@ interface DeliveryDetails {
   priorityLevel?: string | null;
   packageDescription?: string | null;
   customerNote?: string | null;
+  senderName?: string | null;
+  senderPhone?: string | null;
   receiverName?: string | null;
   receiverPhone?: string | null;
   paymentStatus?: "UNPAID" | "PAID" | "FAILED" | "REFUNDED" | null;
@@ -2083,6 +2085,27 @@ export default function DeliveryTrackingPage() {
                     : String(delivery.vehicleType).replace("_", " ")
                 }
               />
+              {/* The pickup contact is entered on the booking form but was
+                  never shown back, so nobody could check what they typed or
+                  spot a wrong digit. Listed before the receiver, in the order
+                  the delivery actually happens. */}
+              {delivery.senderName && (
+                <InfoRow
+                  icon="person-outline"
+                  label="Pickup contact"
+                  value={delivery.senderName}
+                  accent
+                />
+              )}
+              {delivery.senderPhone && (
+                <InfoRow
+                  icon="call-outline"
+                  label="Pickup phone"
+                  value={delivery.senderPhone}
+                  accent
+                  onPress={() => Linking.openURL(`tel:${delivery.senderPhone}`)}
+                />
+              )}
               {delivery.receiverName && (
                 <InfoRow
                   icon="person-outline"
