@@ -326,50 +326,26 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
 
               {pickupExtraContent}
 
-              {/* Sender Contact - In "saved" mode, show as editable (unknown sender). 
-                  In normal mode, show as read-only (user is the sender) */}
-              {pickupTown && dropoffMode !== "saved" && (
-                <View style={styles.contactSection}>
-                  <Text style={styles.contactLabel}>Sender Details (You)</Text>
-                  <View style={styles.contactStack}>
-                    <View style={styles.contactFieldFull}>
-                      <View style={styles.readOnlyContactContainer}>
-                        <Ionicons
-                          name="person-outline"
-                          size={16}
-                          color={Colors.inkMid}
-                        />
-                        <Text
-                          style={styles.readOnlyContactText}
-                          numberOfLines={1}
-                        >
-                          {senderName || "Loading..."}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.contactFieldFull}>
-                      <View style={styles.readOnlyContactContainer}>
-                        <Ionicons
-                          name="call-outline"
-                          size={16}
-                          color={Colors.inkMid}
-                        />
-                        <Text
-                          style={styles.readOnlyContactText}
-                          numberOfLines={1}
-                        >
-                          {senderPhone || "Loading..."}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                </View>
-              )}
+              {/*
+                Pickup contact — one editable block, every mode.
 
-              {/* In "saved" mode: Show EMPTY sender fields (editable) */}
-              {dropoffMode === "saved" && selectedDropoffAddress && (
+                This used to be read-only ("Sender Details (You)"), auto-filled
+                from the account holder, in every mode except "saved". Two
+                problems. It showed "Loading..." forever and submitted an empty
+                string whenever the profile had no name or phone — 10 of 65
+                deliveries ended up with no sender name and 6 with no sender
+                phone, while receiver phone was filled on all 65 because those
+                were real inputs. And it assumed the account holder is always
+                the person the rider collects from, which is wrong the moment
+                someone is having something sent TO them.
+
+                Prefilled from the profile, but editable and required.
+              */}
+              {pickupTown && (
                 <View style={styles.contactSection}>
-                  <Text style={styles.contactLabel}>Sender Details *</Text>
+                  <Text style={styles.contactLabel}>
+                    Who is the rider collecting from? *
+                  </Text>
                   <View style={styles.contactStack}>
                     <View style={styles.contactFieldFull}>
                       <View style={styles.contactInputWrapper}>

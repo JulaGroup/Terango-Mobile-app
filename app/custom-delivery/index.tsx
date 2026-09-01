@@ -520,6 +520,14 @@ export default function CustomDeliveryScreen() {
         "Receiver required",
         "Add the receiver's name and 7-digit phone number.",
       );
+    // The pickup contact used to be filled silently from the account holder,
+    // and went out empty whenever that profile had no name or phone. A rider
+    // reaching the pickup with nobody to call cannot do the job.
+    if (!senderName.trim() || senderPhone.trim().length !== 7)
+      return Alert.alert(
+        "Pickup contact required",
+        "Add the name and 7-digit phone number of whoever the rider collects from.",
+      );
     setIsSubmitting(true);
     try {
       // Driver notes are optional; when empty the address is sent on its own.
@@ -602,7 +610,10 @@ export default function CustomDeliveryScreen() {
   const step1Done = !!(pickup && dropoff);
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
-    receiverName.trim() && receiverPhone.trim().replace(/\s/g, "").length === 7
+    receiverName.trim() &&
+    receiverPhone.trim().replace(/\s/g, "").length === 7 &&
+    senderName.trim() &&
+    senderPhone.trim().replace(/\s/g, "").length === 7
   );
   const canSubmit =
     step1Done &&
