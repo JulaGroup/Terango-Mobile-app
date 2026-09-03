@@ -486,8 +486,11 @@ export default function CustomDeliveryScreen() {
       try {
         const { cached } = await UserCacheManager.smartLoadUserData();
         if (cached) {
-          setSenderName(cached.fullName || "");
-          setSenderPhone(cached.phone || "");
+          // Prefill only. The fields are editable now, and this resolves
+          // asynchronously — overwriting unconditionally would wipe anything
+          // typed before the cache came back.
+          setSenderName((prev) => prev || cached.fullName || "");
+          setSenderPhone((prev) => prev || cached.phone || "");
         }
       } catch {
         /* sender falls back to empty; the server accepts null */
@@ -915,6 +918,47 @@ export default function CustomDeliveryScreen() {
             <View style={s.warnBanner}>
               <Ionicons name="moon-outline" size={16} color="#B45309" />
               <Text style={s.warnText}>{quoteBlockedReason}</Text>
+            </View>
+          )}
+
+          {/* Pickup contact — who the rider collects FROM.
+              Prefilled from the signed-in profile, but editable: the account
+              holder is not always the sender, and when the profile has no name
+              or phone this used to submit empty strings with no field to fix
+              them in. 10 of 65 deliveries had no sender name, 6 no phone. */}
+          {step1Done && (
+            <View style={s.receiverCard}>
+              <Text style={s.receiverTitle}>
+                Pickup contact
+                <Text style={{ color: "red" }}>*</Text>
+              </Text>
+              <Text style={s.receiverHint}>
+                The rider calls this person when they arrive to collect.
+              </Text>
+              <TextInput
+                style={s.receiverInput}
+                placeholder="Full name"
+                placeholderTextColor={T.textTertiary}
+                value={senderName}
+                onChangeText={setSenderName}
+                autoCapitalize="words"
+              />
+              <View style={s.phoneRow}>
+                <View style={s.phonePrefix}>
+                  <Text style={s.phonePrefixText}>+220</Text>
+                </View>
+                <TextInput
+                  style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
+                  placeholder="7 digits"
+                  placeholderTextColor={T.textTertiary}
+                  value={senderPhone}
+                  onChangeText={(t) =>
+                    setSenderPhone(t.replace(/[^0-9]/g, "").slice(0, 7))
+                  }
+                  keyboardType="phone-pad"
+                  maxLength={7}
+                />
+              </View>
             </View>
           )}
 
@@ -1353,6 +1397,13 @@ const s = StyleSheet.create({
     fontSize: 13.5,
     fontWeight: "800",
     color: T.textPrimary,
+    marginBottom: 8,
+  },
+  receiverHint: {
+    fontSize: 12.5,
+    color: T.textSecondary,
+    lineHeight: 18,
+    marginTop: -4,
     marginBottom: 8,
   },
   receiverInput: {
