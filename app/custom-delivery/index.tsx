@@ -156,6 +156,84 @@ function StepBadge({ n }: { n: number }) {
 }
 
 // ── Main Screen ────────────────────────────────────────────
+/**
+ * One stop's contact — the same card for pickup and drop-off.
+ *
+ * Symmetric on purpose. A booking is a set of stops and the rider needs
+ * someone to ring at each one; which stop happens to be the account holder is
+ * incidental, and is said by the "That's me" chip rather than by the two cards
+ * being different shapes.
+ */
+function StopContact({
+  label,
+  hint,
+  name,
+  phone,
+  onName,
+  onPhone,
+  isMe,
+  onClaim,
+  canClaim,
+}: {
+  label: string;
+  hint: string;
+  name: string;
+  phone: string;
+  onName: (v: string) => void;
+  onPhone: (v: string) => void;
+  isMe: boolean;
+  onClaim: () => void;
+  canClaim: boolean;
+}) {
+  return (
+    <View style={s.receiverCard}>
+      <View style={s.stopHeader}>
+        <Text style={s.receiverTitle}>
+          {label}
+          <Text style={{ color: "red" }}>*</Text>
+        </Text>
+        {canClaim && (
+          <TouchableOpacity
+            onPress={onClaim}
+            style={[s.meChip, isMe && s.meChipOn]}
+            hitSlop={8}
+            activeOpacity={0.7}
+          >
+            {isMe && <Ionicons name="checkmark" size={12} color={T.brand} />}
+            <Text style={[s.meChipText, isMe && s.meChipTextOn]}>
+              That&apos;s me
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      <Text style={s.receiverHint}>{hint}</Text>
+
+      <TextInput
+        style={s.receiverInput}
+        placeholder="Full name"
+        placeholderTextColor={T.textTertiary}
+        value={name}
+        onChangeText={onName}
+        autoCapitalize="words"
+      />
+      <View style={s.phoneRow}>
+        <View style={s.phonePrefix}>
+          <Text style={s.phonePrefixText}>+220</Text>
+        </View>
+        <TextInput
+          style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
+          placeholder="7 digits"
+          placeholderTextColor={T.textTertiary}
+          value={phone}
+          onChangeText={(t) => onPhone(t.replace(/[^0-9]/g, "").slice(0, 7))}
+          keyboardType="phone-pad"
+          maxLength={7}
+        />
+      </View>
+    </View>
+  );
+}
+
 export default function CustomDeliveryScreen() {
   const { flags, refetch: refetchMaintenanceFlags } = useMaintenance();
   const router = useRouter();
@@ -215,6 +293,28 @@ export default function CustomDeliveryScreen() {
 
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
+
+  /**
+   * Which stop the account holder is at, if either.
+   *
+   * There is deliberately no "am I sending or receiving" toggle. Grab and
+   * Lalamove both model a booking as stops, each carrying its own contact,
+   * because a mode has no setting for the third case — collect from a shop,
+   * deliver to a friend — where the customer is at neither end. Your own data
+   * shows that case happening: senders arrive as +220XXXXXXX (auto-filled from
+   * the account) while receivers are typed 7-digit numbers.
+   *
+   * A mode also fails quietly. Left in the wrong position it produces a
+   * plausible delivery where the rider rings the customer instead of the shop.
+   * Two named contacts cannot fail that way.
+   *
+   * Defaults to pickup because sending is the common case — the same
+   * behaviour as before, now visible and movable.
+   */
+  const [meAt, setMeAt] = useState<"pickup" | "dropoff" | null>("pickup");
+  const [profile, setProfile] = useState<{ name: string; phone: string } | null>(
+    null,
+  );
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
 
@@ -487,14 +587,22 @@ export default function CustomDeliveryScreen() {
       try {
         const { cached } = await UserCacheManager.smartLoadUserData();
         if (cached) {
-          // Prefill only. The fields are editable now, and this resolves
-          // asynchronously — overwriting unconditionally would wipe anything
+          // Profiles store +220XXXXXXX (673 of 718 users) and the inputs are
+          // 7-digit boxes already labelled +220, so the country code comes off
+          // here — the strip on the input only runs when someone types.
+          const me = {
+            name: cached.fullName || "",
+            phone: toLocalDigits(cached.phone),
+          };
+          setProfile(me);
+
+          // Prefill only, and only the end currently claimed. This resolves
+          // asynchronously, so overwriting unconditionally would wipe anything
           // typed before the cache came back.
-          // Profiles store +220XXXXXXX (673 of 718 users). The field is a
-          // 7-digit box already labelled +220, so the country code has to come
-          // off here — the strip on the input only runs when someone types.
-          setSenderName((prev) => prev || cached.fullName || "");
-          setSenderPhone((prev) => prev || toLocalDigits(cached.phone));
+          if (meAt === "pickup") {
+            setSenderName((prev) => prev || me.name);
+            setSenderPhone((prev) => prev || me.phone);
+          }
         }
       } catch {
         /* sender falls back to empty; the server accepts null */
@@ -512,6 +620,49 @@ export default function CustomDeliveryScreen() {
     setDropoff(pickup);
     setPickupLandmark(dropoffLandmark);
     setDropoffLandmark(pickupLandmark);
+  };
+
+  /**
+   * Move "that's me" to a stop, or clear it.
+   *
+   * Claiming one end releases the other, so the account holder can only be at
+   * one — and clearing wipes the fields that were auto-filled, so a stale name
+   * cannot be left behind pointing the rider at the wrong person.
+   */
+  const claimStop = (stop: "pickup" | "dropoff") => {
+    const releasing = meAt === stop;
+    const next = releasing ? null : stop;
+    setMeAt(next);
+
+    const fillName = profile?.name ?? "";
+    const fillPhone = profile?.phone ?? "";
+
+    if (releasing) {
+      if (stop === "pickup") {
+        setSenderName("");
+        setSenderPhone("");
+      } else {
+        setReceiverName("");
+        setReceiverPhone("");
+      }
+      return;
+    }
+
+    if (stop === "pickup") {
+      setSenderName(fillName);
+      setSenderPhone(fillPhone);
+      if (meAt === "dropoff") {
+        setReceiverName("");
+        setReceiverPhone("");
+      }
+    } else {
+      setReceiverName(fillName);
+      setReceiverPhone(fillPhone);
+      if (meAt === "pickup") {
+        setSenderName("");
+        setSenderPhone("");
+      }
+    }
   };
 
   const handleCreateDelivery = async () => {
@@ -928,80 +1079,35 @@ export default function CustomDeliveryScreen() {
             </View>
           )}
 
-          {/* Pickup contact — who the rider collects FROM.
-              Prefilled from the signed-in profile, but editable: the account
-              holder is not always the sender, and when the profile has no name
-              or phone this used to submit empty strings with no field to fix
-              them in. 10 of 65 deliveries had no sender name, 6 no phone. */}
+          {/* One contact per stop, and no send/receive mode — see meAt. */}
           {step1Done && (
-            <View style={s.receiverCard}>
-              <Text style={s.receiverTitle}>
-                Pickup contact
-                <Text style={{ color: "red" }}>*</Text>
-              </Text>
-              <Text style={s.receiverHint}>
-                The rider calls this person when they arrive to collect.
-              </Text>
-              <TextInput
-                style={s.receiverInput}
-                placeholder="Full name"
-                placeholderTextColor={T.textTertiary}
-                value={senderName}
-                onChangeText={setSenderName}
-                autoCapitalize="words"
-              />
-              <View style={s.phoneRow}>
-                <View style={s.phonePrefix}>
-                  <Text style={s.phonePrefixText}>+220</Text>
-                </View>
-                <TextInput
-                  style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
-                  placeholder="7 digits"
-                  placeholderTextColor={T.textTertiary}
-                  value={senderPhone}
-                  onChangeText={(t) =>
-                    setSenderPhone(t.replace(/[^0-9]/g, "").slice(0, 7))
-                  }
-                  keyboardType="phone-pad"
-                  maxLength={7}
-                />
-              </View>
-            </View>
+            <StopContact
+              label="Pickup contact"
+              hint="The rider calls this person when they arrive to collect."
+              name={senderName}
+              phone={senderPhone}
+              onName={setSenderName}
+              onPhone={setSenderPhone}
+              isMe={meAt === "pickup"}
+              onClaim={() => claimStop("pickup")}
+              canClaim={!!profile}
+            />
           )}
 
-          {/* Receiver — who the rider hands the package to */}
           {step1Done && (
-            <View style={s.receiverCard}>
-              <Text style={s.receiverTitle}>
-                Receiver details
-                <Text style={{ color: "red" }}>*</Text>
-              </Text>
-              <TextInput
-                style={s.receiverInput}
-                placeholder="Full name"
-                placeholderTextColor={T.textTertiary}
-                value={receiverName}
-                onChangeText={setReceiverName}
-                autoCapitalize="words"
-              />
-              <View style={s.phoneRow}>
-                <View style={s.phonePrefix}>
-                  <Text style={s.phonePrefixText}>+220</Text>
-                </View>
-                <TextInput
-                  style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
-                  placeholder="7 digits"
-                  placeholderTextColor={T.textTertiary}
-                  value={receiverPhone}
-                  onChangeText={(t) =>
-                    setReceiverPhone(t.replace(/[^0-9]/g, "").slice(0, 7))
-                  }
-                  keyboardType="phone-pad"
-                  maxLength={7}
-                />
-              </View>
-            </View>
+            <StopContact
+              label="Drop-off contact"
+              hint="The rider calls this person on arrival to hand over."
+              name={receiverName}
+              phone={receiverPhone}
+              onName={setReceiverName}
+              onPhone={setReceiverPhone}
+              isMe={meAt === "dropoff"}
+              onClaim={() => claimStop("dropoff")}
+              canClaim={!!profile}
+            />
           )}
+
         </View>
 
         {/* ── Step 2: Package weight ── */}
@@ -1406,6 +1512,25 @@ const s = StyleSheet.create({
     color: T.textPrimary,
     marginBottom: 8,
   },
+  stopHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  meChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  meChipOn: { borderColor: T.brand, backgroundColor: "#FFF4ED" },
+  meChipText: { fontSize: 11, fontWeight: "700", color: T.textSecondary },
+  meChipTextOn: { color: T.brand },
   receiverHint: {
     fontSize: 12.5,
     color: T.textSecondary,
