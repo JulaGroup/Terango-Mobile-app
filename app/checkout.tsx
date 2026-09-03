@@ -34,21 +34,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AddressService } from "@/services/AddressService";
 import { API_URL } from "@/constants/config";
-import TownPickerModal from "@/components/modals/TownPickerModal";
-import {
-  fetchDeliveryTowns,
-  getTownById as getDynamicTownById,
-  DeliveryTown,
-} from "@/services/deliveryTowns.service";
 import LocationSearchSheet, {
   PickedLocation,
 } from "@/components/express/LocationSearchSheet";
-import {
-  getZoneInfoForTown,
-  GambianTown, // Keep for backward compatibility with components
-  TOWNS_BY_AREA, // Fallback when API is unavailable
-} from "@/constants/gambianTowns";
-import { useDeliverySettings } from "@/hooks/useDeliverySettings";
 /*
  Try to use expo-linear-gradient if it's available in the project; otherwise
  fall back to a lightweight stub that uses a plain View so TypeScript and the
@@ -101,9 +89,6 @@ export default function Checkout() {
     getCartByVendor,
   } = useCart();
 
-  // Fetch dynamic delivery settings from admin panel
-  const { getZoneFee } = useDeliverySettings();
-
   // 🗺️ Client-side delivery zone check — instant feedback before API call (hook moved below state declarations)
 
   // Animation values
@@ -126,6 +111,14 @@ export default function Checkout() {
   // surface the "couldn't calculate" banner if the error persists — avoiding a
   // brief flash before the fee populates.
   const [showFeeError, setShowFeeError] = useState(false);
+  // The reason the server gave, when it gave one. A declined quote ("outside
+  // our delivery area", "vendor location not set") is not a connection
+  // problem, and telling the customer to check their internet sends them
+  // chasing the wrong thing. Null means we never got a response — the only
+  // case where retrying actually helps.
+  const [deliveryFeeReason, setDeliveryFeeReason] = useState<string | null>(
+    null,
+  );
   // Order created handler: announce it and clear the cart
   // Orders already announced, so a retry or a second vendor cannot fire the
   // notification twice. This used to be handled by storeSuccessfulOrder
@@ -217,14 +210,8 @@ export default function Checkout() {
     isGiftOrder: false,
     recipientName: "",
     recipientPhone: "",
-    recipientTown: "", // Legacy zone id — retained for older rows, no longer set
-    recipientTownName: "", // Legacy display name
     recipientAddress: "", // Address description/landmarks
-    recipientDeliveryFee: 0, // Calculated based on town
   });
-
-  // 🎁 Town picker modal for gift orders
-  const [townPickerVisible, setTownPickerVisible] = useState(false);
 
   // Address context for selecting delivery address
   const { addresses, selectedAddress, setSelectedAddress, fetchAddresses, addAddress } =
@@ -287,9 +274,6 @@ export default function Checkout() {
     longitude: number;
   } | null>(null);
 
-  // 🏙️ DYNAMIC DELIVERY TOWNS STATE
-  const [deliveryTowns, setDeliveryTowns] = useState<DeliveryTown[]>([]);
-
   // Where the gift is actually going. Replaces the town dropdown, whose
   // coordinates were the town centre — every gift to Serrekunda resolved to
   // the same point, so a rider got an area rather than an address.
@@ -298,8 +282,6 @@ export default function Checkout() {
   const [recipientSheetOpen, setRecipientSheetOpen] = useState(false);
   // Adding a delivery address without leaving checkout.
   const [newAddressSheetOpen, setNewAddressSheetOpen] = useState(false);
-  const [loadingTowns, setLoadingTowns] = useState(true);
-  const [townsFromAPI, setTownsFromAPI] = useState(false); // Track if using API or fallback
 
   const restaurantCarts = getCartByVendor();
   const restaurantIds = Object.keys(restaurantCarts);
@@ -318,12 +300,14 @@ export default function Checkout() {
   // 🎉 DYNAMIC DELIVERY FEE CALCULATION WITH DISTANCE
   const DEFAULT_DELIVERY_FEE = 0; // GMD - fallback if distance calculation fails
 
-  // For gift orders, use town-based fee; otherwise use distance-based calculation
+  // Gifts and self-delivery both read the same estimate. The difference between
+  // them is upstream — which coordinates get quoted (see the effect that calls
+  // estimateDeliveryFee with recipientLocation). Gifts used to read a separate
+  // town-based field here, which stopped being written when the town picker was
+  // replaced by the Places search, leaving every gift order at a 0 fee.
   let deliveryFee =
     form.orderType === "DELIVERY"
-      ? form.isGiftOrder
-        ? form.recipientDeliveryFee // Town-based fee for gift orders
-        : (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE)
+      ? (deliveryEstimate?.deliveryFee ?? DEFAULT_DELIVERY_FEE)
       : 0;
 
   // First-order delivery discount removed — all customers pay the standard
@@ -475,44 +459,6 @@ export default function Checkout() {
     };
   }, [fetchAddresses]);
 
-  // 🏙️ Fetch delivery towns from backend API on mount with fallback to hardcoded towns
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        console.log("[Delivery Towns] Fetching from API...");
-        const response = await fetchDeliveryTowns();
-        if (mounted && response.success && response.data.length > 0) {
-          console.log(
-            `[Delivery Towns] ✅ Loaded ${response.data.length} towns from API`,
-          );
-          setDeliveryTowns(response.data);
-          setTownsFromAPI(true);
-        } else {
-          throw new Error("No towns returned from API");
-        }
-      } catch (error) {
-        console.warn(
-          "[Delivery Towns] ⚠️ API failed, using fallback towns:",
-          error,
-        );
-        // Fallback: Use hardcoded towns for offline reliability
-        const fallbackTowns = Object.values(TOWNS_BY_AREA).flat();
-        if (mounted) {
-          setDeliveryTowns(fallbackTowns);
-          setTownsFromAPI(false);
-          console.log(
-            `[Delivery Towns] 📦 Using ${fallbackTowns.length} fallback towns`,
-          );
-        }
-      } finally {
-        if (mounted) setLoadingTowns(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   // If there is a default address available, prefill the form.address
   useEffect(() => {
@@ -979,6 +925,7 @@ export default function Checkout() {
           });
           setDeliveryEstimate(data);
           setDeliveryFeeError(false);
+          setDeliveryFeeReason(null);
         } else {
           console.warn(
             "[DELIVERY_FEE] FAILED: server declined to price this leg",
@@ -991,6 +938,11 @@ export default function Checkout() {
           );
           setDeliveryEstimate(null);
           setDeliveryFeeError(true);
+          setDeliveryFeeReason(
+            typeof data?.error === "string" && data.error.trim()
+              ? data.error.trim()
+              : null,
+          );
         }
       } catch (error: any) {
         console.error(
@@ -1000,6 +952,7 @@ export default function Checkout() {
         );
         setDeliveryEstimate(null);
         setDeliveryFeeError(true);
+        setDeliveryFeeReason(null);
       } finally {
         setLoadingDeliveryFee(false);
       }
@@ -1007,64 +960,6 @@ export default function Checkout() {
     [form.orderType, items, restaurantIds, subtotal, appliedPromo],
   );
 
-  // ── Gift order: estimate fee using the selected town's known coordinates ──
-  // This gives the same vehicle-based price as regular orders (no geocoding needed).
-  const estimateGiftDeliveryFee = useCallback(
-    async (town: DeliveryTown) => {
-      const fallbackFee = getZoneFee(town.deliveryZone);
-
-      const firstItem = items[0];
-      if (!firstItem) {
-        // No cart items — just use zone flat fee
-        setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
-        return;
-      }
-
-      setLoadingDeliveryFee(true);
-      try {
-        const vendorId = firstItem.vendorId || restaurantIds[0];
-        const vendorType = firstItem.entityType || "restaurant";
-        const orderItems = items.map((item) => ({
-          menuItemId: item.entityType === "restaurant" ? item.id : undefined,
-          productId: item.entityType === "shop" ? item.id : undefined,
-          medicineId: item.entityType === "pharmacy" ? item.id : undefined,
-          quantity: item.quantity,
-        }));
-
-        const response = await fetch(`${API_URL}/api/delivery-fee/estimate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vendorId,
-            vendorType,
-            customerLatitude: town.latitude,
-            customerLongitude: town.longitude,
-            orderAmount: subtotal,
-            hasFreeDeliveryPromo: appliedPromo?.freeDelivery || false,
-            items: orderItems,
-          }),
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          setDeliveryEstimate(data);
-          setForm((prev) => ({
-            ...prev,
-            recipientDeliveryFee: data.deliveryFee ?? fallbackFee,
-          }));
-        } else {
-          setDeliveryEstimate(null);
-          setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
-        }
-      } catch {
-        setDeliveryEstimate(null);
-        setForm((prev) => ({ ...prev, recipientDeliveryFee: fallbackFee }));
-      } finally {
-        setLoadingDeliveryFee(false);
-      }
-    },
-    [getZoneFee, items, restaurantIds, subtotal, appliedPromo],
-  );
 
   // Call estimation when address changes
   // 🔴 CRITICAL: Added currentAddress to dependencies to re-estimate when saved address is selected
@@ -2206,14 +2101,6 @@ export default function Checkout() {
                     setForm({
                       ...form,
                       isGiftOrder: !form.isGiftOrder,
-                      // Reset gift fields when toggling off
-                      ...(turningOff
-                        ? {
-                            recipientTown: "",
-                            recipientTownName: "",
-                            recipientDeliveryFee: 0,
-                          }
-                        : {}),
                     });
                     // Clear estimate when leaving gift mode so it doesn't bleed into regular flow
                     if (turningOff) setDeliveryEstimate(null);
@@ -2653,8 +2540,23 @@ export default function Checkout() {
                     !loadingDeliveryFee &&
                     !deliveryEstimate && (
                       <TouchableOpacity
-                        onPress={() => estimateDeliveryFee(form.address)}
-                        activeOpacity={0.7}
+                        // Retry the gift's destination, not the buyer's
+                        // address — for a gift, form.address is the wrong
+                        // place and carries no coordinates.
+                        onPress={() => {
+                          if (deliveryFeeReason) return; // retry won't help
+                          if (form.isGiftOrder) {
+                            if (recipientLocation) {
+                              estimateDeliveryFee(recipientLocation.address, {
+                                latitude: recipientLocation.latitude,
+                                longitude: recipientLocation.longitude,
+                              });
+                            }
+                          } else {
+                            estimateDeliveryFee(form.address);
+                          }
+                        }}
+                        activeOpacity={deliveryFeeReason ? 1 : 0.7}
                         style={{
                           flexDirection: "row",
                           alignItems: "center",
@@ -2671,10 +2573,12 @@ export default function Checkout() {
                         <Text
                           style={{ fontSize: 12, color: "#F97316", flex: 1 }}
                         >
-                          Could not calculate delivery fee. Check your
-                          connection and tap here to retry.
+                          {deliveryFeeReason ??
+                            "Could not calculate delivery fee. Check your connection and tap here to retry."}
                         </Text>
-                        <Ionicons name="refresh" size={14} color="#F97316" />
+                        {!deliveryFeeReason && (
+                          <Ionicons name="refresh" size={14} color="#F97316" />
+                        )}
                       </TouchableOpacity>
                     )}
 
