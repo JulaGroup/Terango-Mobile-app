@@ -39,6 +39,7 @@ import {
   WEIGHT_CONFIG,
 } from "@/components/express/ExpressWeightClassCard";
 import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
+import { toLocalDigits, isCompleteLocal } from "@/utils/phone";
 import { UserCacheManager } from "@/utils/userCache";
 
 // Server-side ceilings from EXPRESS_CONFIG.VEHICLE_SUPPORT — create() throws
@@ -489,8 +490,11 @@ export default function CustomDeliveryScreen() {
           // Prefill only. The fields are editable now, and this resolves
           // asynchronously — overwriting unconditionally would wipe anything
           // typed before the cache came back.
+          // Profiles store +220XXXXXXX (673 of 718 users). The field is a
+          // 7-digit box already labelled +220, so the country code has to come
+          // off here — the strip on the input only runs when someone types.
           setSenderName((prev) => prev || cached.fullName || "");
-          setSenderPhone((prev) => prev || cached.phone || "");
+          setSenderPhone((prev) => prev || toLocalDigits(cached.phone));
         }
       } catch {
         /* sender falls back to empty; the server accepts null */
@@ -526,7 +530,7 @@ export default function CustomDeliveryScreen() {
     // The pickup contact used to be filled silently from the account holder,
     // and went out empty whenever that profile had no name or phone. A rider
     // reaching the pickup with nobody to call cannot do the job.
-    if (!senderName.trim() || senderPhone.trim().length !== 7)
+    if (!senderName.trim() || !isCompleteLocal(senderPhone))
       return Alert.alert(
         "Pickup contact required",
         "Add the name and 7-digit phone number of whoever the rider collects from.",
@@ -556,7 +560,10 @@ export default function CustomDeliveryScreen() {
         weightClass: selectedWeight,
         vehicleType: selectedVehicle,
         senderName: senderName.trim(),
-        senderPhone: senderPhone.trim(),
+        // Local 7-digit, matching receiverPhone. Sender used to go out as
+        // +220XXXXXXX straight from the profile while receiver was 7 digits,
+        // so the same row held two formats.
+        senderPhone: toLocalDigits(senderPhone),
         receiverName: receiverName.trim(),
         receiverPhone: receiverPhone.trim(),
         priorityLevel: "EXPRESS" as const,
@@ -616,7 +623,7 @@ export default function CustomDeliveryScreen() {
     receiverName.trim() &&
     receiverPhone.trim().replace(/\s/g, "").length === 7 &&
     senderName.trim() &&
-    senderPhone.trim().replace(/\s/g, "").length === 7
+    isCompleteLocal(senderPhone)
   );
   const canSubmit =
     step1Done &&
