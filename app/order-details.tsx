@@ -494,13 +494,17 @@ export default function OrderDetailsPage() {
               // On iOS/Android Wave intercepts this URL and opens the native app.
               // After payment Wave browser loads our /api/redirect/payment-success
               // which does an instant teranggo:// redirect back here.
-              const canOpen = await Linking.canOpenURL(launchUrl);
-              if (!canOpen) {
+              // openURL directly rather than gating on canOpenURL, which
+              // returns a false negative on some phones (Samsung One UI) for
+              // Wave's verified App Link even when Wave is installed. openURL
+              // opens whenever a handler exists and throws only when none does.
+              try {
+                await Linking.openURL(launchUrl);
+              } catch {
                 throw new Error(
-                  "Cannot open Wave URL. Ensure Wave app is installed.",
+                  "Couldn't open Wave. Make sure the Wave app is installed and up to date.",
                 );
               }
-              await Linking.openURL(launchUrl);
             } catch (error: any) {
               console.error("❌ Payment error:", error);
               Alert.alert(

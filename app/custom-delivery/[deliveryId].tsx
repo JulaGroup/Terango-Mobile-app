@@ -530,17 +530,21 @@ function PaymentSheet({
       if (!launchUrl)
         throw new Error(response?.message || "No Wave launch URL returned");
 
-      const canOpen = await Linking.canOpenURL(launchUrl);
-      if (!canOpen)
-        throw new Error(
-          "Cannot open Wave app. Please ensure Wave is installed.",
-        );
+      // No canOpenURL gate: it returns a false negative on some phones
+      // (Samsung One UI) for Wave's verified App Link even with Wave
+      // installed. openURL below opens whenever a handler exists.
 
       // No alert here — regular orders don't show one either, and an Alert
       // fired while the app is backgrounding just sits there stale when the
       // user returns from Wave. The AppState/polling effects on the tracking
       // screen pick up the confirmed payment automatically.
-      await Linking.openURL(launchUrl);
+      try {
+        await Linking.openURL(launchUrl);
+      } catch {
+        throw new Error(
+          "Couldn't open Wave. Make sure the Wave app is installed and up to date.",
+        );
+      }
       closeSheet();
     } catch (error) {
       Alert.alert(

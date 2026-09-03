@@ -1,4 +1,10 @@
-﻿import React, { useEffect, useState, useRef, useCallback } from "react";
+﻿import React, {
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   View,
   Text,
@@ -136,65 +142,144 @@ const isDeliveryVisibleInActivities = (delivery: DeliveryActivity) => {
   return true;
 };
 
+// Deliveries and bookings come back as full history with joins attached, so
+// they are the slowest part of this screen. Activities only ever shows recent
+// items, so there is no reason to pull years of them.
+const HISTORY_LIMIT = 20;
+
+/**
+ * Last-loaded activities, kept in module scope so switching tabs and coming
+ * back renders instantly instead of blanking to a skeleton and paying for a
+ * fresh round trip. Deliberately not persisted: it should survive a tab switch,
+ * which is what makes the screen feel slow, and reset on app restart so nothing
+ * goes stale across sessions.
+ */
+type Scope = "live" | "past";
+
+// How long a cached load counts as fresh. Within this window, re-focusing the
+// tab renders from cache without refetching — real changes still arrive via the
+// notification/socket refresh callbacks, so this only suppresses idle churn.
+const FRESH_MS = 60 * 1000;
+
+let activitiesCache: {
+  userId: string;
+  ordersByScope: Record<Scope, Order[]>;
+  totalByScope: Record<Scope, number | null>;
+  loadedScopes: Record<Scope, boolean>;
+  deliveries: DeliveryActivity[];
+  bookings: Booking[];
+  fetchedAt: number;
+} | null = null;
+
 export default function Orders() {
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [deliveries, setDeliveries] = useState<DeliveryActivity[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Orders are paged per tab, because the server now filters by scope. Sharing
+  // one list across both tabs is what made a Live tab look empty while live
+  // orders sat on a later page of a status-blind list.
+  const [ordersByScope, setOrdersByScope] = useState<Record<Scope, Order[]>>(
+    () => ({
+      live: activitiesCache?.ordersByScope.live ?? [],
+      past: activitiesCache?.ordersByScope.past ?? [],
+    }),
+  );
+  // Server-reported total per tab (null = not loaded), so the tab counters show
+  // the real number rather than however many rows happen to be paged in.
+  const [totalByScope, setTotalByScope] = useState<
+    Record<Scope, number | null>
+  >(() => activitiesCache?.totalByScope ?? { live: null, past: null });
+  const [deliveries, setDeliveries] = useState<DeliveryActivity[]>(
+    () => activitiesCache?.deliveries ?? [],
+  );
+  const [bookings, setBookings] = useState<Booking[]>(
+    () => activitiesCache?.bookings ?? [],
+  );
+  // Only skeleton when there is genuinely nothing to show.
+  const [loading, setLoading] = useState(activitiesCache === null);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"live" | "past">("live");
+  const [activeTab, setActiveTab] = useState<Scope>("live");
+  // fetchOrders is registered as a notification callback, so it must not close
+  // over activeTab as a dependency — read the current tab through a ref.
+  const activeTabRef = useRef<Scope>("live");
+  useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
 
-  // Server-backed total of live orders for header (null = not loaded yet)
-  const [liveCount, setLiveCount] = useState<number | null>(null);
+  // Server-backed total of live *orders* for the header (null = not loaded).
+  // The delivery half of the count is derived from state below rather than
+  // fetched: fetchOrders is already loading that exact list, and refetching it
+  // here was doubling the slowest request on the screen.
+  const [liveOrderTotal, setLiveOrderTotal] = useState<number | null>(null);
 
   const refreshLiveCount = useCallback(async () => {
     try {
       const logged = await SecureStorage.getItem("isLoggedIn");
       if (logged !== "true") {
-        setLiveCount(0);
+        setLiveOrderTotal(0);
         return;
       }
 
-      const [res, deliveryResponse] = await Promise.all([
-        orderApi.getOrderStatusCounts(),
-        customDeliveryApi.listDeliveries().catch(() => []),
-      ]);
+      const res = await orderApi.getOrderStatusCounts();
       const statuses = res?.byStatus || {};
-      const totalOrders = LIVE_ORDER_STATUSES.reduce(
-        (sum, s) => sum + (statuses[s] || 0),
-        0,
+      setLiveOrderTotal(
+        LIVE_ORDER_STATUSES.reduce((sum, s) => sum + (statuses[s] || 0), 0),
       );
-
-      const parsedDeliveries = parseDeliveryList(deliveryResponse);
-      const liveDeliveries = parsedDeliveries.filter(
-        (delivery) =>
-          isDeliveryVisibleInActivities(delivery) &&
-          LIVE_DELIVERY_STATUSES.includes(delivery.status),
-      ).length;
-
-      setLiveCount(totalOrders + liveDeliveries);
     } catch (err) {
       console.warn("Failed to load live orders count:", err);
     }
   }, []);
 
-  // Keep the header count in sync with real-time events
+  const liveDeliveryCount = useMemo(
+    () =>
+      deliveries.filter(
+        (delivery) =>
+          isDeliveryVisibleInActivities(delivery) &&
+          LIVE_DELIVERY_STATUSES.includes(delivery.status),
+      ).length,
+    [deliveries],
+  );
+
+  // Stays null until the server total lands, so the header can tell "no live
+  // orders" apart from "not loaded yet" exactly as before.
+  const liveCount = useMemo(
+    () => (liveOrderTotal === null ? null : liveOrderTotal + liveDeliveryCount),
+    [liveOrderTotal, liveDeliveryCount],
+  );
+
+  // Keep the header count in sync with real-time events. The initial load is
+  // driven by checkAuthentication on focus, so no fetch is kicked off here.
   useEffect(() => {
-    refreshLiveCount();
     const l = () => refreshLiveCount();
     addOrdersRefreshListener(l);
     return () => removeOrdersRefreshListener(l);
   }, [refreshLiveCount]);
 
-  // Pagination state
-  const PAGE_SIZE = 5; // fetch 5 orders per page (lazy load)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  // Pagination state, tracked per tab
+  const PAGE_SIZE = 10; // orders per page (lazy loaded on scroll)
+  const [pageByScope, setPageByScope] = useState<Record<Scope, number>>({
+    live: 1,
+    past: 1,
+  });
+  const [hasMoreByScope, setHasMoreByScope] = useState<Record<Scope, boolean>>({
+    live: true,
+    past: true,
+  });
+  const [loadedScopes, setLoadedScopes] = useState<Record<Scope, boolean>>(
+    () => activitiesCache?.loadedScopes ?? { live: false, past: false },
+  );
+
+  // Guards against two code paths requesting the same tab at once — the focus
+  // handler and the tab-switch effect can otherwise both fire page 1.
+  const inFlightScopes = useRef<Record<Scope, boolean>>({
+    live: false,
+    past: false,
+  });
+
+  const orders = ordersByScope[activeTab];
+  const hasMore = hasMoreByScope[activeTab];
 
   // Skeleton animation
   const skeletonOpacity = useRef(new Animated.Value(0.3)).current;
@@ -224,46 +309,69 @@ export default function Orders() {
     return () => skeletonAnimation.stop();
   }, [loading, skeletonOpacity]);
 
+  /**
+   * Deliveries and bookings. Loaded once per refresh and filtered into both
+   * tabs client-side — unlike orders these are capped to a recent window
+   * rather than paged, so History shows the most recent HISTORY_LIMIT of each.
+   */
+  const fetchSecondary = useCallback(async () => {
+    await Promise.allSettled([
+      customDeliveryApi
+        .listDeliveries({ limit: HISTORY_LIMIT })
+        .then((response) => setDeliveries(parseDeliveryList(response)))
+        .catch(() => {
+          /* secondary — never block or fail the screen */
+        }),
+      experienceApi
+        .getMyBookings(HISTORY_LIMIT)
+        .then((response) => {
+          if (Array.isArray(response)) setBookings(response);
+        })
+        .catch(() => {
+          /* secondary — never block or fail the screen */
+        }),
+    ]);
+  }, []);
+
+  /**
+   * One page of orders for one tab. The server applies the status filter, so
+   * a page of Live is PAGE_SIZE actual live orders and hasMore/totalCount
+   * describe that tab alone.
+   */
   const fetchOrders = useCallback(
-    async (page: number = 1, append: boolean = false) => {
+    async (
+      page: number = 1,
+      append: boolean = false,
+      scope: Scope = activeTabRef.current,
+    ) => {
+      if (inFlightScopes.current[scope]) return;
+      inFlightScopes.current[scope] = true;
+
+      setError(null);
+      if (append) {
+        setLoadingMore(true);
+      } else if (!activitiesCache) {
+        // Nothing cached to show, so the skeleton is the honest thing to
+        // render. With a cache we refresh silently behind the visible list.
+        setLoading(true);
+      }
+
       try {
-        setError(null);
-        if (!append) {
-          setLoading(true);
-        } else {
-          setLoadingMore(true);
-        }
-
-        const [result, deliveryResponse, bookingResponse] = await Promise.all([
-          orderApi.getCustomerOrders(page, PAGE_SIZE),
-          customDeliveryApi.listDeliveries().catch(() => []),
-          append
-            ? Promise.resolve(null)
-            : experienceApi.getMyBookings().catch(() => []),
-        ]);
-
-        if (append) {
-          setOrders((prev) => [...prev, ...result.orders]);
-        } else {
-          setOrders(result.orders);
-        }
-
-        const parsedDeliveries = parseDeliveryList(deliveryResponse);
-        setDeliveries(parsedDeliveries);
-
-        if (!append && Array.isArray(bookingResponse)) {
-          setBookings(bookingResponse);
-        }
-
-        setHasMore(result.hasMore);
-        setCurrentPage(page);
-      } catch (error: any) {
-        console.error("Failed to fetch orders:", error);
-        const errorMessage = error.message || "Failed to load orders";
-        setError(errorMessage);
+        const result = await orderApi.getCustomerOrders(page, PAGE_SIZE, scope);
+        setOrdersByScope((prev) => ({
+          ...prev,
+          [scope]: append ? [...prev[scope], ...result.orders] : result.orders,
+        }));
+        setTotalByScope((prev) => ({ ...prev, [scope]: result.totalCount }));
+        setHasMoreByScope((prev) => ({ ...prev, [scope]: result.hasMore }));
+        setPageByScope((prev) => ({ ...prev, [scope]: page }));
+      } catch (err: any) {
+        console.error("Failed to fetch orders:", err);
+        setError(err?.message || "Failed to load orders");
       } finally {
+        inFlightScopes.current[scope] = false;
+        setLoadedScopes((prev) => ({ ...prev, [scope]: true }));
         setLoading(false);
-        setRefreshing(false);
         setLoadingMore(false);
       }
     },
@@ -276,21 +384,46 @@ export default function Orders() {
       const loggedInStatus = await SecureStorage.getItem("isLoggedIn");
 
       if (storedUserId && loggedInStatus === "true") {
+        // A different account signing in during the same JS session must never
+        // see the previous user's activities while the refresh is in flight.
+        if (activitiesCache && activitiesCache.userId !== storedUserId) {
+          activitiesCache = null;
+          setOrdersByScope({ live: [], past: [] });
+          setTotalByScope({ live: null, past: null });
+          setLoadedScopes({ live: false, past: false });
+          inFlightScopes.current = { live: false, past: false };
+          setDeliveries([]);
+          setBookings([]);
+          setLiveOrderTotal(null);
+          setLoading(true);
+        }
         setUserId(storedUserId);
         setIsLoggedIn(true);
-        setLoading(true); // Ensure loading state before fetching
-        fetchOrders();
+
+        // Re-focusing a tab loaded seconds ago shouldn't re-hit the network.
+        // The badge is cheap, so it always refreshes.
+        const fresh =
+          activitiesCache !== null &&
+          activitiesCache.userId === storedUserId &&
+          Date.now() - activitiesCache.fetchedAt < FRESH_MS;
+
+        if (!fresh) {
+          fetchOrders(1, false, activeTabRef.current);
+          fetchSecondary();
+        }
         refreshLiveCount();
       } else {
+        activitiesCache = null;
         setIsLoggedIn(false);
         setLoading(false);
       }
     } catch (error) {
       console.error("Failed to check authentication:", error);
+      activitiesCache = null;
       setIsLoggedIn(false);
       setLoading(false);
     }
-  }, [fetchOrders, refreshLiveCount]);
+  }, [fetchOrders, fetchSecondary, refreshLiveCount]);
 
   const handleNavigateToOrder = useCallback(
     (orderId: string) => {
@@ -304,37 +437,88 @@ export default function Orders() {
     [router, fetchOrders],
   );
 
+  /**
+   * Refresh driven from outside (push notification, payment callback). A status
+   * change can move an order between tabs, so the tab that isn't visible is
+   * marked unloaded and refetches when opened rather than showing a stale row.
+   */
+  const handleExternalRefresh = useCallback(() => {
+    const scope = activeTabRef.current;
+    const other: Scope = scope === "live" ? "past" : "live";
+    setLoadedScopes((prev) => ({ ...prev, [other]: false }));
+    fetchOrders(1, false, scope);
+    fetchSecondary();
+  }, [fetchOrders, fetchSecondary]);
+
   useEffect(() => {
-    checkAuthentication();
-    setOrdersRefreshCallback(fetchOrders);
+    setOrdersRefreshCallback(handleExternalRefresh);
     setNavigateToOrderCallback(handleNavigateToOrder);
     return () => {
       setOrdersRefreshCallback(() => {});
       setNavigateToOrderCallback(() => {});
     };
-  }, [checkAuthentication, fetchOrders, handleNavigateToOrder]);
+  }, [handleExternalRefresh, handleNavigateToOrder]);
 
+  // Single entry point for loading. useFocusEffect already fires on mount when
+  // the tab is focused, so calling checkAuthentication from a mount effect too
+  // was running the whole fetch chain twice on first open.
   useFocusEffect(
     useCallback(() => {
       checkAuthentication();
     }, [checkAuthentication]),
   );
 
+  // Keep the cache in step with what is actually on screen, so the next visit
+  // to this tab can render immediately.
+  useEffect(() => {
+    if (loading || !userId) return;
+    activitiesCache = {
+      userId,
+      ordersByScope,
+      totalByScope,
+      loadedScopes,
+      deliveries,
+      bookings,
+      fetchedAt: Date.now(),
+    };
+  }, [
+    loading,
+    userId,
+    ordersByScope,
+    totalByScope,
+    loadedScopes,
+    deliveries,
+    bookings,
+  ]);
+
+  // Switching to a tab that has never been fetched loads its first page. The
+  // two tabs are separate server queries now, so Past isn't populated as a
+  // side effect of paging Live.
+  useEffect(() => {
+    if (!isLoggedIn || loadedScopes[activeTab]) return;
+    fetchOrders(1, false, activeTab);
+  }, [activeTab, isLoggedIn, loadedScopes, fetchOrders]);
+
   const onRefresh = () => {
-    if (userId) {
-      setRefreshing(true);
-      setCurrentPage(1);
-      setHasMore(true);
-      fetchOrders(1, false);
-      refreshLiveCount();
-    }
+    if (!userId) return;
+    setRefreshing(true);
+    // Only the visible tab is re-paged; the other is marked unloaded so it
+    // refetches when opened rather than showing rows from before the refresh.
+    const scope = activeTabRef.current;
+    const other: Scope = scope === "live" ? "past" : "live";
+    setLoadedScopes((prev) => ({ ...prev, [other]: false }));
+    setHasMoreByScope((prev) => ({ ...prev, [scope]: true }));
+    Promise.allSettled([
+      fetchOrders(1, false, scope),
+      fetchSecondary(),
+      refreshLiveCount(),
+    ]).finally(() => setRefreshing(false));
   };
 
   const loadMoreOrders = () => {
-    if (!loadingMore && hasMore && !loading) {
-      console.log(`[Orders] Loading more orders, page ${currentPage + 1}`);
-      fetchOrders(currentPage + 1, true);
-    }
+    const scope = activeTabRef.current;
+    if (loadingMore || loading || !hasMoreByScope[scope]) return;
+    fetchOrders(pageByScope[scope] + 1, true, scope);
   };
 
   const handleCancelOrder = async (orderId: string) => {
@@ -412,14 +596,20 @@ export default function Orders() {
 
               console.log("💳 Opening Wave URL:", launchUrl);
 
-              const canOpen = await Linking.canOpenURL(launchUrl);
-              if (!canOpen) {
+              // Open Wave directly. The canOpenURL pre-check that used to
+              // gate this returned false on some phones (Samsung One UI in
+              // particular) even with Wave installed and the manifest
+              // queries declared — a known false negative for verified App
+              // Links. openURL uses startActivity, which opens whenever any
+              // handler exists and throws only when none does, so the catch
+              // keeps a useful message for the genuinely-broken case.
+              try {
+                await Linking.openURL(launchUrl);
+              } catch {
                 throw new Error(
-                  "Cannot open Wave URL. Ensure the Wave app is installed.",
+                  "Couldn't open Wave. Make sure the Wave app is installed and up to date.",
                 );
               }
-
-              await Linking.openURL(launchUrl);
 
               console.log(
                 "[Orders] Wave opened — awaiting deep-link callback via backend redirect",
@@ -531,11 +721,13 @@ export default function Orders() {
     return `D ${amount.toFixed(2)}`;
   };
 
-  const getFilteredOrders = () => {
-    const filteredOrders =
-      activeTab === "live"
-        ? orders.filter((order) => LIVE_ORDER_STATUSES.includes(order.status))
-        : orders.filter((order) => PAST_STATUSES.includes(order.status));
+  // Rebuilt and re-sorted on every render before; now only when the inputs
+  // it actually reads change.
+  const filteredActivities = useMemo(() => {
+    // No status filter on orders any more: the server returned exactly this
+    // tab's orders. Filtering again here would re-hide any status missing from
+    // the local LIVE_ORDER_STATUSES list.
+    const filteredOrders = orders;
 
     const filteredDeliveries = deliveries.filter(
       (delivery) =>
@@ -576,14 +768,12 @@ export default function Orders() {
       (a, b) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
-  };
+  }, [orders, deliveries, bookings, activeTab]);
 
-  const getTabCount = (tab: "live" | "past") => {
-    const orderCount =
-      tab === "live"
-        ? orders.filter((order) => LIVE_ORDER_STATUSES.includes(order.status))
-            .length
-        : orders.filter((order) => PAST_STATUSES.includes(order.status)).length;
+  const getTabCount = useCallback((tab: Scope) => {
+    // Server total for the tab when we have it, so the counter reflects every
+    // order in that tab rather than just the pages scrolled in so far.
+    const orderCount = totalByScope[tab] ?? ordersByScope[tab].length;
 
     const deliveryCount = deliveries.filter(
       (delivery) =>
@@ -600,7 +790,7 @@ export default function Orders() {
     ).length;
 
     return orderCount + deliveryCount + bookingCount;
-  };
+  }, [totalByScope, ordersByScope, deliveries, bookings]);
 
   const bookingStatusStyle = (status: string) => {
     switch (status) {
@@ -1597,7 +1787,7 @@ export default function Orders() {
 
       {/* Content */}
       <FlatList
-        data={getFilteredOrders()}
+        data={filteredActivities}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) =>
           item.kind === "order"

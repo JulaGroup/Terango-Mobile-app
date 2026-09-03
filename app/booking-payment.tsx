@@ -194,12 +194,16 @@ export default function BookingPaymentScreen() {
       const launchUrl = res?.wave_launch_url;
       if (!launchUrl) throw new Error("No Wave launch URL returned");
 
-      const canOpen = await Linking.canOpenURL(launchUrl);
-      if (!canOpen) {
-        throw new Error("Cannot open Wave app URL. Ensure Wave is installed.");
+      // openURL directly rather than gating on canOpenURL, which returns a
+      // false negative on some phones (Samsung One UI) for Wave's verified
+      // App Link even when Wave is installed.
+      try {
+        await Linking.openURL(launchUrl);
+      } catch {
+        throw new Error(
+          "Couldn't open Wave. Make sure the Wave app is installed and up to date.",
+        );
       }
-
-      await Linking.openURL(launchUrl);
 
       Alert.alert(
         "Wave Opened",
