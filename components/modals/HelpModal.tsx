@@ -11,6 +11,7 @@ import {
   TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LegalConfig } from "@/constants/legal";
 
 interface HelpModalProps {
   visible: boolean;
@@ -89,7 +90,9 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
   };
 
   const handleWhatsApp = () => {
-    const phoneNumber = "+220XXXXXXX"; // Replace with actual WhatsApp number
+    // Was a hardcoded placeholder ("+220XXXXXXX") that had never been wired
+    // to a real number, so this button silently failed for every user.
+    const phoneNumber = LegalConfig.SUPPORT_PHONE.replace(/[^\d+]/g, "");
     const message = contactMessage || "Hi, I need help with TeranGo app";
     const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
       message,
