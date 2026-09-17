@@ -317,6 +317,15 @@ export default function CustomDeliveryScreen() {
    * behaviour as before, now visible and movable.
    */
   const [meAt, setMeAt] = useState<"pickup" | "dropoff" | null>("pickup");
+  /**
+   * The account's number isn't a Gambian one (diaspora customers). They are
+   * arranging a delivery between two people in The Gambia and are at neither
+   * stop, and the contact boxes are +220 numbers a rider can call locally —
+   * so nothing is prefilled, "That's me" is hidden, and both contacts are
+   * asked for. Prefilling used to drop a foreign number into a +220 box
+   * (once silently cut to its last 7 digits — a wrong number for the rider).
+   */
+  const [isAbroad, setIsAbroad] = useState(false);
   const [profile, setProfile] = useState<{ name: string; phone: string } | null>(
     null,
   );
@@ -592,6 +601,16 @@ export default function CustomDeliveryScreen() {
       try {
         const { cached } = await UserCacheManager.smartLoadUserData();
         if (cached) {
+          const savedPhone = String(cached.phone || "");
+          if (
+            savedPhone &&
+            !isAcceptedGambiaInput(stripGambiaCountryCode(savedPhone))
+          ) {
+            setIsAbroad(true);
+            setMeAt(null);
+            return;
+          }
+
           // Profiles store +220 numbers and the inputs are boxes already
           // labelled +220, so the country code comes off here. The number
           // itself is shown exactly as saved — never converted to 9 digits.
@@ -1085,6 +1104,16 @@ export default function CustomDeliveryScreen() {
           )}
 
           {/* One contact per stop, and no send/receive mode — see meAt. */}
+          {step1Done && isAbroad && (
+            <View style={s.infoBanner}>
+              <Ionicons name="globe-outline" size={16} color="#1D4ED8" />
+              <Text style={s.infoText}>
+                Ordering from abroad? Add the name and Gambian number of the
+                person the rider meets at each stop.
+              </Text>
+            </View>
+          )}
+
           {step1Done && (
             <StopContact
               label="Pickup contact"
@@ -1508,6 +1537,16 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   warnText: { flex: 1, fontSize: 12.5, color: "#92400E", lineHeight: 17 },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: T.blueSoft,
+    borderRadius: 12,
+    padding: 11,
+    marginTop: 12,
+  },
+  infoText: { flex: 1, fontSize: 12.5, color: "#1E3A8A", lineHeight: 17 },
 
   // Receiver
   receiverCard: { marginTop: 16 },
