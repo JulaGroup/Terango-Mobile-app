@@ -34,6 +34,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AddressService } from "@/services/AddressService";
 import { API_URL } from "@/constants/config";
+import {
+  GAMBIA_PHONE_MAX_LENGTH,
+  isCompleteLocal,
+  newNumberHint,
+  sanitizeGambiaInput,
+  toE164,
+} from "@/utils/phone";
 import LocationSearchSheet, {
   PickedLocation,
 } from "@/components/express/LocationSearchSheet";
@@ -357,7 +364,7 @@ export default function Checkout() {
       form.isGiftOrder &&
       (!form.recipientName.trim() ||
         !form.recipientPhone.trim() ||
-        form.recipientPhone.replace(/\D/g, "").length < 7 ||
+        !isCompleteLocal(form.recipientPhone) ||
         !recipientLocation)) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
     // ❌ Block order if below vendor's minimum order amount
@@ -1168,12 +1175,11 @@ export default function Checkout() {
           );
           return;
         }
-        // Validate phone number is 7 digits
-        const phoneDigits = form.recipientPhone.replace(/\D/g, "");
-        if (phoneDigits.length < 7) {
+        // A new 9-digit number, or an old 7-digit one (converted on submit)
+        if (!isCompleteLocal(form.recipientPhone)) {
           Alert.alert(
             "Invalid Phone Number",
-            "Please enter a valid 7-digit Gambian phone number.",
+            "Please enter a valid 9-digit Gambian phone number.",
           );
           return;
         }
@@ -1333,8 +1339,9 @@ export default function Checkout() {
             // 🎁 ADD RECIPIENT INFORMATION FOR GIFT ORDERS
             isGiftOrder: form.isGiftOrder || false,
             recipientName: form.isGiftOrder ? form.recipientName : null,
+            // Always sent in 9-digit form, even if an old number was typed
             recipientPhone: form.isGiftOrder
-              ? `+220${form.recipientPhone.replace(/^\+220/, "")}`
+              ? toE164(form.recipientPhone)
               : null,
             recipientAddress: form.isGiftOrder ? form.recipientAddress : null,
             // 🎁 For gift orders, include the recipient town ID for zone lookup
@@ -2183,20 +2190,22 @@ export default function Checkout() {
                     <Text style={styles.phonePrefix}>+220</Text>
                     <TextInput
                       style={[styles.input, styles.phoneInput]}
-                      placeholder="XXX XXXX"
+                      placeholder="9-digit number"
                       value={form.recipientPhone.replace(/^\+220/, "")}
                       onChangeText={(text: string) => {
-                        // Remove any non-digit characters and limit to 7 digits
-                        const digits = text.replace(/\D/g, "").slice(0, 7);
-                        setForm({ ...form, recipientPhone: digits });
+                        setForm({
+                          ...form,
+                          recipientPhone: sanitizeGambiaInput(text),
+                        });
                       }}
                       keyboardType="phone-pad"
                       editable={!loading}
-                      maxLength={7}
+                      maxLength={GAMBIA_PHONE_MAX_LENGTH}
                     />
                   </View>
                   <Text style={styles.inputNote}>
-                    The driver will call this number for delivery
+                    {newNumberHint(form.recipientPhone) ??
+                      "The driver will call this number for delivery"}
                   </Text>
                 </View>
 

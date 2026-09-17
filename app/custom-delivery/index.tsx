@@ -39,7 +39,13 @@ import {
   WEIGHT_CONFIG,
 } from "@/components/express/ExpressWeightClassCard";
 import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
-import { toLocalDigits, isCompleteLocal } from "@/utils/phone";
+import {
+  GAMBIA_PHONE_MAX_LENGTH,
+  isCompleteLocal,
+  newNumberHint,
+  sanitizeGambiaInput,
+  toLocalDigits,
+} from "@/utils/phone";
 import { UserCacheManager } from "@/utils/userCache";
 
 // Server-side ceilings from EXPRESS_CONFIG.VEHICLE_SUPPORT — create() throws
@@ -222,14 +228,17 @@ function StopContact({
         </View>
         <TextInput
           style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
-          placeholder="7 digits"
+          placeholder="9 digits"
           placeholderTextColor={T.textTertiary}
           value={phone}
-          onChangeText={(t) => onPhone(t.replace(/[^0-9]/g, "").slice(0, 7))}
+          onChangeText={(t) => onPhone(sanitizeGambiaInput(t))}
           keyboardType="phone-pad"
-          maxLength={7}
+          maxLength={GAMBIA_PHONE_MAX_LENGTH}
         />
       </View>
+      {newNumberHint(phone) && (
+        <Text style={s.newNumberHint}>{newNumberHint(phone)}</Text>
+      )}
     </View>
   );
 }
@@ -587,9 +596,9 @@ export default function CustomDeliveryScreen() {
       try {
         const { cached } = await UserCacheManager.smartLoadUserData();
         if (cached) {
-          // Profiles store +220XXXXXXX (673 of 718 users) and the inputs are
-          // 7-digit boxes already labelled +220, so the country code comes off
-          // here — the strip on the input only runs when someone types.
+          // Profiles store +220 numbers and the inputs are boxes already
+          // labelled +220, so the country code comes off here (and an old
+          // 7-digit profile number is shown in its new 9-digit form).
           const me = {
             name: cached.fullName || "",
             phone: toLocalDigits(cached.phone),
@@ -673,10 +682,10 @@ export default function CustomDeliveryScreen() {
         "Select delivery option",
         "Pick a vehicle and weight class.",
       );
-    if (!receiverName.trim() || receiverPhone.trim().length !== 7)
+    if (!receiverName.trim() || !isCompleteLocal(receiverPhone))
       return Alert.alert(
         "Receiver required",
-        "Add the receiver's name and 7-digit phone number.",
+        "Add the receiver's name and 9-digit phone number.",
       );
     // The pickup contact used to be filled silently from the account holder,
     // and went out empty whenever that profile had no name or phone. A rider
@@ -684,7 +693,7 @@ export default function CustomDeliveryScreen() {
     if (!senderName.trim() || !isCompleteLocal(senderPhone))
       return Alert.alert(
         "Pickup contact required",
-        "Add the name and 7-digit phone number of whoever the rider collects from.",
+        "Add the name and 9-digit phone number of whoever the rider collects from.",
       );
     setIsSubmitting(true);
     try {
@@ -711,12 +720,12 @@ export default function CustomDeliveryScreen() {
         weightClass: selectedWeight,
         vehicleType: selectedVehicle,
         senderName: senderName.trim(),
-        // Local 7-digit, matching receiverPhone. Sender used to go out as
-        // +220XXXXXXX straight from the profile while receiver was 7 digits,
-        // so the same row held two formats.
+        // Both in the same local 9-digit form (old 7-digit input converted),
+        // so one row never holds two formats and the rider's receiver check
+        // matches.
         senderPhone: toLocalDigits(senderPhone),
         receiverName: receiverName.trim(),
-        receiverPhone: receiverPhone.trim(),
+        receiverPhone: toLocalDigits(receiverPhone),
         priorityLevel: "EXPRESS" as const,
         expressDeadlineMinutes: 60,
       };
@@ -772,7 +781,7 @@ export default function CustomDeliveryScreen() {
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
     receiverName.trim() &&
-    receiverPhone.trim().replace(/\s/g, "").length === 7 &&
+    isCompleteLocal(receiverPhone) &&
     senderName.trim() &&
     isCompleteLocal(senderPhone)
   );
@@ -1565,6 +1574,11 @@ const s = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: "700",
     color: T.textSecondary,
+  },
+  newNumberHint: {
+    marginTop: 6,
+    fontSize: 12.5,
+    color: "#15803D",
   },
 
   // Blocks

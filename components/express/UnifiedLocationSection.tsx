@@ -15,6 +15,11 @@ import { SavedLocationDropdown } from "./SavedLocationDropdown";
 import { Address } from "@/services/AddressService";
 import { UserCacheManager } from "@/utils/userCache";
 import {
+  GAMBIA_PHONE_MAX_LENGTH,
+  sanitizeGambiaInput,
+  toLocalDigits,
+} from "@/utils/phone";
+import {
   Colors,
   Typography,
   Spacing,
@@ -166,11 +171,10 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
         if (cached) {
           const name = cached.fullName || "";
           const phone = cached.phone || "";
-          // Normalize to the 7-digit local format (strip +220 etc.) — the
-          // read-only display adds its own "+220" prefix, and the booking
-          // screen validates receiverPhone as exactly 7 digits.
-          const digits = phone.replace(/\D/g, "");
-          const localPhone = digits.length > 7 ? digits.slice(-7) : digits;
+          // Local national number without +220 (the read-only display adds
+          // its own prefix). Old 7-digit profile numbers come out in 9-digit
+          // form; slicing the last 7 digits would truncate a 9-digit number.
+          const localPhone = toLocalDigits(phone);
           setUserCachedName(name);
           setUserCachedPhone(localPhone);
           // Propagate to the parent form too — the booking screen only
@@ -402,18 +406,16 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Text style={styles.phonePrefix}>+220</Text>
                         <TextInput
                           style={styles.contactInput}
-                          placeholder="7 digit number"
+                          placeholder="9 digit number"
                           placeholderTextColor={Colors.inkLighter}
                           value={senderPhone}
                           onChangeText={(text) => {
-                            const digitsOnly = text
-                              .replace(/[^0-9]/g, "")
-                              .slice(0, 7);
+                            const digitsOnly = sanitizeGambiaInput(text);
                             setSenderPhone(digitsOnly);
                             onSenderPhoneChange?.(digitsOnly);
                           }}
                           keyboardType="phone-pad"
-                          maxLength={7}
+                          maxLength={GAMBIA_PHONE_MAX_LENGTH}
                           autoCorrect={false}
                         />
                       </View>
@@ -678,17 +680,14 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Text style={styles.phonePrefix}>+220</Text>
                           <TextInput
                             style={styles.contactInput}
-                            placeholder="7 digit number"
+                            placeholder="9 digit number"
                             placeholderTextColor={Colors.inkLighter}
                             value={receiverPhone}
                             onChangeText={(text) => {
-                              const digitsOnly = text
-                                .replace(/[^0-9]/g, "")
-                                .slice(0, 7);
-                              onReceiverPhoneChange?.(digitsOnly);
+                              onReceiverPhoneChange?.(sanitizeGambiaInput(text));
                             }}
                             keyboardType="phone-pad"
-                            maxLength={7}
+                            maxLength={GAMBIA_PHONE_MAX_LENGTH}
                             autoCorrect={false}
                           />
                         </View>

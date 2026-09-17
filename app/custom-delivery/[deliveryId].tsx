@@ -27,6 +27,7 @@ import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 import { TrackingTimeline } from "@/components/express/TrackingTimeline";
 import { DeliveryProgress } from "@/components/express/DeliveryProgress";
 import { API_URL } from "@/constants/config";
+import { LegalConfig } from "@/constants/legal";
 import {
   on as socketOn,
   off as socketOff,
@@ -2246,19 +2247,31 @@ export default function DeliveryTrackingPage() {
               <View style={s.helpNumbersRow}>
                 <TouchableOpacity
                   style={s.helpNumberChip}
-                  onPress={() => Linking.openURL("tel:+2207144612")}
+                  onPress={() =>
+                    Linking.openURL(
+                      `tel:${LegalConfig.SUPPORT_PHONE.replace(/[^\d+]/g, "")}`,
+                    )
+                  }
                   activeOpacity={0.7}
                 >
                   <Ionicons name="call" size={13} color={T.brand} />
-                  <Text style={s.helpNumberText}>+220 714 4612</Text>
+                  <Text style={s.helpNumberText}>
+                    {LegalConfig.SUPPORT_PHONE}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={s.helpNumberChip}
-                  onPress={() => Linking.openURL("tel:+2203666678")}
+                  onPress={() =>
+                    Linking.openURL(
+                      `tel:${LegalConfig.SUPPORT_LINE_PHONE.replace(/[^\d+]/g, "")}`,
+                    )
+                  }
                   activeOpacity={0.7}
                 >
                   <Ionicons name="call" size={13} color={T.brand} />
-                  <Text style={s.helpNumberText}>+220 366 6678</Text>
+                  <Text style={s.helpNumberText}>
+                    {LegalConfig.SUPPORT_LINE_PHONE}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>

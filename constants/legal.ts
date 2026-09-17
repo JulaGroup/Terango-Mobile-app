@@ -18,8 +18,11 @@ export const LegalConfig = {
   // Support Email
   SUPPORT_EMAIL: "info@terango.gm",
 
-  // Support Phone
-  SUPPORT_PHONE: "+220 6335524",
+  // Support phones — 9-digit numbers since PURA's migration, matching
+  // terango.gm. All three take calls and WhatsApp.
+  SUPPORT_PHONE: "+220 83 3666678", // main line
+  TECH_SUPPORT_PHONE: "+220 87 7595999",
+  SUPPORT_LINE_PHONE: "+220 83 3902798",
 
   // Company Information
   COMPANY_NAME: "TeranGO",

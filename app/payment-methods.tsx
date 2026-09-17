@@ -12,6 +12,12 @@ import { useRouter } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  isCompleteLocal,
+  newNumberHint,
+  sanitizeGambiaInput,
+  toLocalDigits,
+} from "@/utils/phone";
 
 interface PaymentMethods {
   wave?: string;
@@ -40,7 +46,15 @@ export default function PaymentMethodsPage() {
     try {
       const stored = await SecureStorage.getItem("paymentMethods");
       if (stored) {
-        setPaymentData(JSON.parse(stored));
+        const data: PaymentData = JSON.parse(stored);
+        // A Wave number saved before PURA's 9-digit migration is upgraded in
+        // place (7123456 → 877123456) — old numbers stop working 1 Dec 2026.
+        const wave = data.methods?.wave;
+        if (wave && isCompleteLocal(wave) && toLocalDigits(wave) !== wave) {
+          data.methods.wave = toLocalDigits(wave);
+          await SecureStorage.setItem("paymentMethods", JSON.stringify(data));
+        }
+        setPaymentData(data);
       }
     } catch (e) {
       console.log("Failed to load payment methods:", e);
@@ -48,12 +62,24 @@ export default function PaymentMethodsPage() {
   };
 
   const savePaymentMethods = async () => {
+    const wave = paymentData.methods.wave;
+    if (wave && !isCompleteLocal(wave)) {
+      Alert.alert(
+        "Invalid Wave number",
+        "Please enter your 9-digit Wave phone number.",
+      );
+      return;
+    }
     setLoading(true);
     try {
-      await SecureStorage.setItem(
-        "paymentMethods",
-        JSON.stringify(paymentData),
-      );
+      // Always stored in 9-digit form, even if an old number was typed
+      const toSave: PaymentData = wave
+        ? {
+            ...paymentData,
+            methods: { ...paymentData.methods, wave: toLocalDigits(wave) },
+          }
+        : paymentData;
+      await SecureStorage.setItem("paymentMethods", JSON.stringify(toSave));
       Alert.alert("Success", "Payment methods saved!");
       router.back();
     } catch (e) {
@@ -65,12 +91,15 @@ export default function PaymentMethodsPage() {
   };
 
   const updateMethod = (provider: keyof PaymentMethods, value: string) => {
-    // Remove +220 prefix if present for Wave numbers
+    // Wave: drop a pasted +220 / 220 country code, keep up to 9 digits
     let cleanedValue = value;
-    if (provider === "wave" && value.startsWith("+220")) {
-      cleanedValue = value.substring(4); // Remove +220
-    } else if (provider === "wave" && value.startsWith("220")) {
-      cleanedValue = value.substring(3); // Remove 220
+    if (provider === "wave") {
+      const withoutCode = value.trim().startsWith("+220")
+        ? value.trim().substring(4)
+        : value.replace(/\D/g, "").length > 9 && value.replace(/\D/g, "").startsWith("220")
+          ? value.replace(/\D/g, "").substring(3)
+          : value;
+      cleanedValue = sanitizeGambiaInput(withoutCode);
     }
 
     setPaymentData((prev) => ({
@@ -113,12 +142,18 @@ export default function PaymentMethodsPage() {
             </TouchableOpacity>
           </View>
           <TextInput
-            placeholder="Enter Wave phone number (e.g., 7012345)"
+            placeholder="Enter Wave phone number (e.g., 877012345)"
             value={paymentData.methods.wave || ""}
             onChangeText={(value) => updateMethod("wave", value)}
             style={styles.input}
             keyboardType="phone-pad"
           />
+          {newNumberHint(paymentData.methods.wave) && (
+            <Text style={styles.newNumberHint}>
+              {newNumberHint(paymentData.methods.wave)} — it will be saved
+              in this format.
+            </Text>
+          )}
         </View>
 
         {/* Afrimoney */}
@@ -223,6 +258,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  newNumberHint: {
+    marginTop: 6,
+    fontSize: 13,
+    color: "#15803D",
   },
   saveButton: {
     backgroundColor: "#FF6B35",

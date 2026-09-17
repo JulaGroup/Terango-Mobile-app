@@ -63,7 +63,7 @@ export default function OrderTrackingWeb() {
         {
           text: "Call Support",
           onPress: () => {
-            Linking.openURL(`tel:${LegalConfig.SUPPORT_PHONE}`);
+            Linking.openURL(`tel:${LegalConfig.SUPPORT_PHONE.replace(/[^\d+]/g, "")}`);
           },
         },
         {
@@ -294,7 +294,7 @@ export default function OrderTrackingWeb() {
                 style={[styles.modalButton, styles.modalButtonSecondary]}
                 onPress={() => {
                   setContactModalVisible(false);
-                  Linking.openURL(`tel:${LegalConfig.SUPPORT_PHONE}`);
+                  Linking.openURL(`tel:${LegalConfig.SUPPORT_PHONE.replace(/[^\d+]/g, "")}`);
                 }}
               >
                 <Ionicons name="call" size={20} color="#666" />
