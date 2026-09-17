@@ -20,7 +20,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { API_URL } from "@/constants/config";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { normalizeContactPhone } from "@/utils/phone";
 
 const ORANGE = "#ff6b00";
 const DARK = "#1a1a1a";
@@ -108,10 +107,7 @@ export default function AppointmentScreen() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...form,
-            phone: normalizeContactPhone(form.phone),
-          }),
+          body: JSON.stringify(form),
         },
       );
       if (!res.ok) throw new Error();

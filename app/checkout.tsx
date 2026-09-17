@@ -36,10 +36,8 @@ import { AddressService } from "@/services/AddressService";
 import { API_URL } from "@/constants/config";
 import {
   GAMBIA_PHONE_MAX_LENGTH,
-  isCompleteLocal,
-  newNumberHint,
+  isAcceptedGambiaInput,
   sanitizeGambiaInput,
-  toE164,
 } from "@/utils/phone";
 import LocationSearchSheet, {
   PickedLocation,
@@ -364,7 +362,7 @@ export default function Checkout() {
       form.isGiftOrder &&
       (!form.recipientName.trim() ||
         !form.recipientPhone.trim() ||
-        !isCompleteLocal(form.recipientPhone) ||
+        !isAcceptedGambiaInput(form.recipientPhone) ||
         !recipientLocation)) ||
     (form.orderType === "DELIVERY" && loadingDeliveryFee) ||
     // ❌ Block order if below vendor's minimum order amount
@@ -1175,11 +1173,11 @@ export default function Checkout() {
           );
           return;
         }
-        // A new 9-digit number, or an old 7-digit one (converted on submit)
-        if (!isCompleteLocal(form.recipientPhone)) {
+        // 7 digits (old number) or a new 9-digit number, saved as typed
+        if (!isAcceptedGambiaInput(form.recipientPhone)) {
           Alert.alert(
             "Invalid Phone Number",
-            "Please enter a valid 9-digit Gambian phone number.",
+            "Please enter a valid Gambian phone number (7 or 9 digits).",
           );
           return;
         }
@@ -1339,9 +1337,9 @@ export default function Checkout() {
             // 🎁 ADD RECIPIENT INFORMATION FOR GIFT ORDERS
             isGiftOrder: form.isGiftOrder || false,
             recipientName: form.isGiftOrder ? form.recipientName : null,
-            // Always sent in 9-digit form, even if an old number was typed
+            // Sent exactly as typed — never converted between 7 and 9 digits
             recipientPhone: form.isGiftOrder
-              ? toE164(form.recipientPhone)
+              ? `+220${form.recipientPhone.replace(/^\+220/, "")}`
               : null,
             recipientAddress: form.isGiftOrder ? form.recipientAddress : null,
             // 🎁 For gift orders, include the recipient town ID for zone lookup
@@ -2190,7 +2188,7 @@ export default function Checkout() {
                     <Text style={styles.phonePrefix}>+220</Text>
                     <TextInput
                       style={[styles.input, styles.phoneInput]}
-                      placeholder="9-digit number"
+                      placeholder="7 or 9 digits"
                       value={form.recipientPhone.replace(/^\+220/, "")}
                       onChangeText={(text: string) => {
                         setForm({
@@ -2204,8 +2202,7 @@ export default function Checkout() {
                     />
                   </View>
                   <Text style={styles.inputNote}>
-                    {newNumberHint(form.recipientPhone) ??
-                      "The driver will call this number for delivery"}
+                    The driver will call this number for delivery
                   </Text>
                 </View>
 

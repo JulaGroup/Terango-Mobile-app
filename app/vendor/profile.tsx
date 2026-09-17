@@ -23,7 +23,6 @@ import { PrimaryColor } from "@/constants/Colors";
 import { useLocation } from "@/hooks/useLocation";
 import { AddressService } from "@/services/AddressService";
 import TimePickerInput from "@/components/common/TimePickerInput";
-import { normalizeContactPhone } from "@/utils/phone";
 
 interface BusinessHours {
   day: string;
@@ -390,9 +389,7 @@ export default function VendorProfile() {
         description: formData.description,
         address: formData.address,
         city: formData.city,
-        phone: formData.phone
-          ? normalizeContactPhone(formData.phone)
-          : formData.phone,
+        phone: formData.phone,
         email: formData.email,
         website: formData.website,
         isActive: formData.isActive,

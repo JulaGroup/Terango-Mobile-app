@@ -17,7 +17,6 @@ import { useRouter } from "expo-router";
 import { PrimaryColor } from "@/constants/Colors";
 import { SecureStorage } from "@/utils/secureStorage";
 import VendorApplicationAPI from "@/lib/vendorApplicationAPI";
-import { normalizeContactPhone } from "@/utils/phone";
 
 interface VendorApplicationFormData {
   businessName: string;
@@ -136,9 +135,7 @@ export default function VendorApplicationForm() {
           | "PHARMACY",
         description: formData.description || undefined,
         businessAddress: formData.businessAddress,
-        businessPhone: formData.businessPhone
-          ? normalizeContactPhone(formData.businessPhone)
-          : undefined,
+        businessPhone: formData.businessPhone || undefined,
         businessEmail: formData.businessEmail || undefined,
         experience: formData.experience || undefined,
       };

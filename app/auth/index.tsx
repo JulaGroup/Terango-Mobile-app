@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import RateLimitModal from "@/components/modals/RateLimitModal";
 import { router } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
-import { isCompleteLocal, newNumberHint } from "@/utils/phone";
+import { isAcceptedGambiaInput } from "@/utils/phone";
 import React, { useState } from "react";
 import {
   Image,
@@ -31,8 +31,7 @@ interface Country {
 }
 
 const COUNTRIES: Country[] = [
-  // 9 since PURA's migration; old 7-digit numbers are still accepted until
-  // 1 Dec 2026 and converted server-side (see isValidPhone below).
+  // Up to 9 since PURA's migration; 7 is still accepted (see isValidPhone).
   { code: "GM", name: "Gambia", flag: "🇬🇲", dialCode: "+220", maxLength: 9 },
   {
     code: "US",
@@ -93,13 +92,14 @@ export default function AuthScreen() {
   });
 
   const isGambia = selectedCountry.code === "GM";
-  // Gambia: a valid new 9-digit number, or any 7-digit number — old numbers
-  // work until 1 Dec 2026, Gamcel stays 7 digits, and the App Store reviewer
-  // account is 0000000. The server converts to the account's stored form.
+  // Gambia: min 7, max 9 — an old 7-digit number (still valid until
+  // 1 Dec 2026, Gamcel stays 7, App Store reviewer is 0000000) or a new
+  // 9-digit one. The OTP goes to exactly what was typed, because people's
+  // WhatsApp is on the number they actually use; the server finds their
+  // account under either form.
   const isValidPhone = isGambia
-    ? phone.length === 7 || isCompleteLocal(phone)
+    ? isAcceptedGambiaInput(phone)
     : phone.length === selectedCountry.maxLength;
-  const gambiaHint = isGambia ? newNumberHint(phone) : null;
 
   const handlePhoneChange = (text: string) => {
     // Only allow numbers
@@ -125,7 +125,7 @@ export default function AuthScreen() {
     if (!isValidPhone) {
       alert(
         isGambia
-          ? "Please enter a valid Gambian phone number (9 digits)"
+          ? "Please enter a valid Gambian phone number (7 or 9 digits)"
           : `Please enter a valid ${selectedCountry.name} phone number (${selectedCountry.maxLength} digits)`,
       );
       return;
@@ -241,9 +241,6 @@ export default function AuthScreen() {
                 {phone.length}/{selectedCountry.maxLength} digits
               </Text>
             </View>
-            {gambiaHint && (
-              <Text style={styles.newNumberHint}>{gambiaHint}</Text>
-            )}
           </View>
 
           <TouchableOpacity
@@ -415,12 +412,6 @@ const styles = StyleSheet.create({
   lengthTextValid: {
     color: PrimaryColor,
     fontWeight: "600",
-  },
-  newNumberHint: {
-    marginTop: 6,
-    fontSize: 13,
-    color: "#15803D",
-    fontWeight: "500",
   },
   input: {
     backgroundColor: "#F3F4F6",

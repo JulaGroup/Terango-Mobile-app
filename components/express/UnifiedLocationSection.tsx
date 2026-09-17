@@ -17,7 +17,7 @@ import { UserCacheManager } from "@/utils/userCache";
 import {
   GAMBIA_PHONE_MAX_LENGTH,
   sanitizeGambiaInput,
-  toLocalDigits,
+  stripGambiaCountryCode,
 } from "@/utils/phone";
 import {
   Colors,
@@ -171,10 +171,10 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
         if (cached) {
           const name = cached.fullName || "";
           const phone = cached.phone || "";
-          // Local national number without +220 (the read-only display adds
-          // its own prefix). Old 7-digit profile numbers come out in 9-digit
-          // form; slicing the last 7 digits would truncate a 9-digit number.
-          const localPhone = toLocalDigits(phone);
+          // Number without +220 (the read-only display adds its own prefix),
+          // exactly as saved. Slicing the last 7 digits would truncate a
+          // 9-digit number.
+          const localPhone = stripGambiaCountryCode(phone);
           setUserCachedName(name);
           setUserCachedPhone(localPhone);
           // Propagate to the parent form too — the booking screen only
@@ -406,7 +406,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                         <Text style={styles.phonePrefix}>+220</Text>
                         <TextInput
                           style={styles.contactInput}
-                          placeholder="9 digit number"
+                          placeholder="7 or 9 digits"
                           placeholderTextColor={Colors.inkLighter}
                           value={senderPhone}
                           onChangeText={(text) => {
@@ -680,7 +680,7 @@ export const UnifiedLocationSection: React.FC<UnifiedLocationSectionProps> = ({
                           <Text style={styles.phonePrefix}>+220</Text>
                           <TextInput
                             style={styles.contactInput}
-                            placeholder="9 digit number"
+                            placeholder="7 or 9 digits"
                             placeholderTextColor={Colors.inkLighter}
                             value={receiverPhone}
                             onChangeText={(text) => {

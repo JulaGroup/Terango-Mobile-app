@@ -41,10 +41,9 @@ import {
 import { VehicleType, WeightClass } from "@/utils/expressPriceCalculator";
 import {
   GAMBIA_PHONE_MAX_LENGTH,
-  isCompleteLocal,
-  newNumberHint,
+  isAcceptedGambiaInput,
   sanitizeGambiaInput,
-  toLocalDigits,
+  stripGambiaCountryCode,
 } from "@/utils/phone";
 import { UserCacheManager } from "@/utils/userCache";
 
@@ -228,7 +227,7 @@ function StopContact({
         </View>
         <TextInput
           style={[s.receiverInput, { flex: 1, marginTop: 0 }]}
-          placeholder="9 digits"
+          placeholder="7 or 9 digits"
           placeholderTextColor={T.textTertiary}
           value={phone}
           onChangeText={(t) => onPhone(sanitizeGambiaInput(t))}
@@ -236,9 +235,6 @@ function StopContact({
           maxLength={GAMBIA_PHONE_MAX_LENGTH}
         />
       </View>
-      {newNumberHint(phone) && (
-        <Text style={s.newNumberHint}>{newNumberHint(phone)}</Text>
-      )}
     </View>
   );
 }
@@ -597,11 +593,11 @@ export default function CustomDeliveryScreen() {
         const { cached } = await UserCacheManager.smartLoadUserData();
         if (cached) {
           // Profiles store +220 numbers and the inputs are boxes already
-          // labelled +220, so the country code comes off here (and an old
-          // 7-digit profile number is shown in its new 9-digit form).
+          // labelled +220, so the country code comes off here. The number
+          // itself is shown exactly as saved — never converted to 9 digits.
           const me = {
             name: cached.fullName || "",
-            phone: toLocalDigits(cached.phone),
+            phone: stripGambiaCountryCode(cached.phone),
           };
           setProfile(me);
 
@@ -682,18 +678,18 @@ export default function CustomDeliveryScreen() {
         "Select delivery option",
         "Pick a vehicle and weight class.",
       );
-    if (!receiverName.trim() || !isCompleteLocal(receiverPhone))
+    if (!receiverName.trim() || !isAcceptedGambiaInput(receiverPhone))
       return Alert.alert(
         "Receiver required",
-        "Add the receiver's name and 9-digit phone number.",
+        "Add the receiver's name and phone number (7 or 9 digits).",
       );
     // The pickup contact used to be filled silently from the account holder,
     // and went out empty whenever that profile had no name or phone. A rider
     // reaching the pickup with nobody to call cannot do the job.
-    if (!senderName.trim() || !isCompleteLocal(senderPhone))
+    if (!senderName.trim() || !isAcceptedGambiaInput(senderPhone))
       return Alert.alert(
         "Pickup contact required",
-        "Add the name and 9-digit phone number of whoever the rider collects from.",
+        "Add the name and phone number (7 or 9 digits) of whoever the rider collects from.",
       );
     setIsSubmitting(true);
     try {
@@ -720,12 +716,12 @@ export default function CustomDeliveryScreen() {
         weightClass: selectedWeight,
         vehicleType: selectedVehicle,
         senderName: senderName.trim(),
-        // Both in the same local 9-digit form (old 7-digit input converted),
-        // so one row never holds two formats and the rider's receiver check
-        // matches.
-        senderPhone: toLocalDigits(senderPhone),
+        // Both local, without +220, exactly as typed — never converted
+        // between 7 and 9 digits. The server's receiver check matches either
+        // form of the same number.
+        senderPhone: stripGambiaCountryCode(senderPhone),
         receiverName: receiverName.trim(),
-        receiverPhone: toLocalDigits(receiverPhone),
+        receiverPhone: stripGambiaCountryCode(receiverPhone),
         priorityLevel: "EXPRESS" as const,
         expressDeadlineMinutes: 60,
       };
@@ -781,9 +777,9 @@ export default function CustomDeliveryScreen() {
   const step2Done = !!(selectedVehicle && selectedWeight);
   const step3Done = !!(
     receiverName.trim() &&
-    isCompleteLocal(receiverPhone) &&
+    isAcceptedGambiaInput(receiverPhone) &&
     senderName.trim() &&
-    isCompleteLocal(senderPhone)
+    isAcceptedGambiaInput(senderPhone)
   );
   const canSubmit =
     step1Done &&
@@ -1574,11 +1570,6 @@ const s = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: "700",
     color: T.textSecondary,
-  },
-  newNumberHint: {
-    marginTop: 6,
-    fontSize: 12.5,
-    color: "#15803D",
   },
 
   // Blocks
