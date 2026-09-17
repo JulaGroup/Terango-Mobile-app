@@ -19,6 +19,7 @@ import { useRouter } from "expo-router";
 import { useVendor } from "@/context/VendorContext";
 import { vendorApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { LegalConfig } from "@/constants/legal";
 import SubscriptionStatus from "@/components/vendor/SubscriptionStatus";
 
 interface NotificationSettings {
@@ -587,7 +588,10 @@ export default function VendorSettings() {
             icon="help-circle"
             onPress={() => {
               // Navigate to help screen or open support
-              Alert.alert("Support", "Contact support at info@teranggo.com");
+              Alert.alert(
+                "Support",
+                `Email ${LegalConfig.SUPPORT_EMAIL}, or call or WhatsApp ${LegalConfig.SUPPORT_PHONE} (main line) or ${LegalConfig.SUPPORT_LINE_PHONE} (support).`,
+              );
             }}
           />
 

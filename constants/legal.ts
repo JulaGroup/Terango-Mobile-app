@@ -15,16 +15,16 @@ export const LegalConfig = {
   // You can create a Google Doc and make it public, or host on your website
   PRIVACY_URL: "https://terango.gm/privacy-policy.html",
 
-  // Support Email
-  SUPPORT_EMAIL: "info@terango.gm",
-
-  // Support phones — 9-digit numbers since PURA's migration, matching
-  // terango.gm. All three take calls and WhatsApp.
+  // Contact details — keep in step with the Contact section on terango.gm.
+  // All three phone lines take calls and WhatsApp.
+  SUPPORT_EMAIL: "info@terango.gm", // general & partnerships
   SUPPORT_PHONE: "+220 83 3666678", // main line
   TECH_SUPPORT_PHONE: "+220 87 7595999",
+  TECH_SUPPORT_EMAIL: "mdarboe@terango.gm",
   SUPPORT_LINE_PHONE: "+220 83 3902798",
+  SUPPORT_LINE_EMAIL: "bmanneh@terango.gm",
 
   // Company Information
   COMPANY_NAME: "TeranGO",
-  COMPANY_ADDRESS: "Banjul, The Gambia",
+  COMPANY_ADDRESS: "Brusubi, The Gambia",
 };

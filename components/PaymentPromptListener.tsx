@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { CantPayLink } from "@/components/common/CantPayLink";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -21,6 +22,8 @@ export default function PaymentPromptListener() {
     visible: boolean;
     orderId: string | null;
     vendorName: string;
+    customerName?: string | null;
+    amount?: number | null;
   }>({ visible: false, orderId: null, vendorName: "" });
 
   // Orders we've already prompted for this session, so we never nag twice.
@@ -50,7 +53,13 @@ export default function PaymentPromptListener() {
           order?.shop?.name ||
           order?.pharmacy?.name ||
           "The vendor";
-        setPrompt({ visible: true, orderId, vendorName });
+        setPrompt({
+          visible: true,
+          orderId,
+          vendorName,
+          customerName: order?.customerName ?? null,
+          amount: order?.totalAmount ?? null,
+        });
       } catch {
         /* ignore — order-details is still authoritative if they open it */
       }
@@ -111,6 +120,18 @@ export default function PaymentPromptListener() {
             <Ionicons name="card-outline" size={18} color="#fff" />
             <Text style={styles.payButtonText}>Pay Now</Text>
           </TouchableOpacity>
+          {prompt.orderId && (
+            <CantPayLink
+              details={{
+                kind: "order",
+                reference: `TG${prompt.orderId.slice(-6).toUpperCase()}`,
+                customerName: prompt.customerName,
+                vendor: prompt.vendorName,
+                amount: prompt.amount,
+              }}
+              style={{ marginTop: 4, marginBottom: 0 }}
+            />
+          )}
           <TouchableOpacity style={styles.laterButton} onPress={dismiss}>
             <Text style={styles.laterButtonText}>Later</Text>
           </TouchableOpacity>

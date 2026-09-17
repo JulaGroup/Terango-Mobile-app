@@ -17,6 +17,8 @@ import { apiCall } from "@/lib/apiClient";
 import { expressDeliveryApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 import { API_URL } from "@/constants/config";
+import { CantPayLink } from "@/components/common/CantPayLink";
+import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
 
 const C = {
   primary: "#FF6B00",
@@ -456,6 +458,19 @@ export default function ExpressPaymentScreen() {
             </>
           )}
         </TouchableOpacity>
+        {delivery?.paymentStatus !== "PAID" && (
+          <CantPayLink
+            details={{
+              kind: "delivery",
+              reference: formatExpressDeliveryId(delivery?.id ?? deliveryId),
+              vendor: `${delivery?.pickupAddress ?? pickupAddress ?? "?"} → ${
+                delivery?.dropoffAddress ?? dropoffAddress ?? "?"
+              }`,
+              amount: delivery?.estimatedFee ?? (Number(amount) || null),
+            }}
+            style={{ marginTop: 6, marginBottom: 0 }}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

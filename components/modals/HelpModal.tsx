@@ -73,7 +73,7 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
   const [contactMessage, setContactMessage] = useState("");
 
   const handleContactEmail = () => {
-    const email = "info@terango.gm";
+    const email = LegalConfig.SUPPORT_EMAIL;
     const subject = contactSubject || "Support Request";
     const body = contactMessage || "Please describe your issue...";
     const mailto = `mailto:${email}?subject=${encodeURIComponent(
@@ -286,10 +286,26 @@ export default function HelpModal({ visible, onClose }: HelpModalProps) {
                 <Text style={styles.contactInfoTitle}>
                   Other Ways to Reach Us
                 </Text>
-                <Text style={styles.contactInfoText}>📧 info@terango.gm</Text>
+                {/* Same contact set as the Contact section on terango.gm */}
                 <Text style={styles.contactInfoText}>
-                  📱 {LegalConfig.SUPPORT_PHONE} · {LegalConfig.TECH_SUPPORT_PHONE}{" "}
-                  · {LegalConfig.SUPPORT_LINE_PHONE}
+                  📱 Main line: {LegalConfig.SUPPORT_PHONE}
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  🛠️ Technical support: {LegalConfig.TECH_SUPPORT_PHONE} ·{" "}
+                  {LegalConfig.TECH_SUPPORT_EMAIL}
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  🎧 Support: {LegalConfig.SUPPORT_LINE_PHONE} ·{" "}
+                  {LegalConfig.SUPPORT_LINE_EMAIL}
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  📧 {LegalConfig.SUPPORT_EMAIL}
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  📍 {LegalConfig.COMPANY_ADDRESS}
+                </Text>
+                <Text style={styles.contactInfoText}>
+                  All phone lines take calls and WhatsApp.
                 </Text>
                 <Text style={styles.contactInfoText}>
                   🕒 Support Hours: 9 AM - 12 PM

@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { experienceApi, Booking } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
+import { CantPayLink } from "@/components/common/CantPayLink";
 
 // Mirrors the Express delivery payment screen so both verticals pay the same
 // way: summary -> pricing breakdown -> payment method -> sticky pay button.
@@ -438,6 +439,22 @@ export default function BookingPaymentScreen() {
             </>
           )}
         </TouchableOpacity>
+        {!alreadyPaid && (
+          <CantPayLink
+            details={{
+              kind: "booking",
+              reference: booking
+                ? `BK${String(booking.id).slice(-6).toUpperCase()}`
+                : "Not booked yet",
+              customerName: booking?.userProfile?.user?.fullName,
+              vendor: summary.option
+                ? `${summary.name} (${summary.option})`
+                : summary.name,
+              amount: summary.total,
+            }}
+            style={{ marginTop: 6, marginBottom: 0 }}
+          />
+        )}
       </View>
     </SafeAreaView>
   );

@@ -187,7 +187,7 @@ export class AddressService {
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`,
           {
             headers: {
-              "User-Agent": "TeranGo-App/1.0 (contact@terango.com)",
+              "User-Agent": "TeranGo-App/1.0 (info@terango.gm)",
               "Accept-Language": "en",
             },
             timeout: 10000,
@@ -275,7 +275,7 @@ export class AddressService {
           `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1&zoom=18`,
           {
             headers: {
-              "User-Agent": "TeranGo-App/1.0 (contact@terango.com)",
+              "User-Agent": "TeranGo-App/1.0 (info@terango.gm)",
               "Accept-Language": "en",
             },
             timeout: 10000,
@@ -364,7 +364,7 @@ export class AddressService {
           )}&limit=1&countrycodes=gm`, // Added country code filter for The Gambia
           {
             headers: {
-              "User-Agent": "TeranGo-App/1.0 (contact@terango.com)", // Required by Nominatim
+              "User-Agent": "TeranGo-App/1.0 (info@terango.gm)", // Required by Nominatim
               "Accept-Language": "en",
             },
             timeout: 10000, // 10 second timeout

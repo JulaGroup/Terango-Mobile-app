@@ -28,6 +28,7 @@ import { TrackingTimeline } from "@/components/express/TrackingTimeline";
 import { DeliveryProgress } from "@/components/express/DeliveryProgress";
 import { API_URL } from "@/constants/config";
 import { LegalConfig } from "@/constants/legal";
+import { CantPayLink } from "@/components/common/CantPayLink";
 import {
   on as socketOn,
   off as socketOff,
@@ -780,6 +781,15 @@ function PaymentSheet({
               </LinearGradient>
             )}
           </TouchableOpacity>
+          <CantPayLink
+            details={{
+              kind: "delivery",
+              reference: formatExpressDeliveryId(delivery.id),
+              vendor: `${delivery.pickupAddress} → ${delivery.dropoffAddress}`,
+              amount: delivery.estimatedFee,
+            }}
+            style={{ marginTop: 8 }}
+          />
         </ScrollView>
       </Animated.View>
     </Modal>

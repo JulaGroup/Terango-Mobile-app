@@ -26,7 +26,7 @@ import { SecureStorage } from "@/utils/secureStorage";
 import { orderApi, Order } from "../lib/api";
 import { useVendor } from "@/context/VendorContext";
 import { PrimaryColor } from "@/constants/Colors";
-import { LegalConfig } from "@/constants/legal";
+import { CantPayLink } from "@/components/common/CantPayLink";
 import OrderProgress from "@/components/orders/OrderProgress";
 import { useCart } from "@/context/CartContext";
 import {
@@ -524,45 +524,6 @@ export default function OrderDetailsPage() {
         },
       ],
     );
-  };
-
-  /**
-   * "Can't pay? Message us on WhatsApp" — for a customer with no Wave app,
-   * an expired session, or a payment that just won't go through. Opens
-   * WhatsApp with the order details pre-filled so support can take payment
-   * another way and then mark the order paid from the admin panel
-   * (POST /api/admin/orders/:id/mark-paid — already the same flow used for
-   * any payment that happened outside the app).
-   */
-  const handleCantPay = () => {
-    if (!order) return;
-
-    const vendorName =
-      order.restaurant?.name ||
-      order.shop?.name ||
-      order.pharmacy?.name ||
-      "the store";
-    const orderNumber = `TG${order.id.slice(-6).toUpperCase()}`;
-
-    const message =
-      `Hi TeranGO, I can't complete payment in the app for my order.\n\n` +
-      `Name: ${order.customerName || "N/A"}\n` +
-      `Order: ${orderNumber}\n` +
-      `Restaurant/Shop: ${vendorName}\n` +
-      `Amount: ${formatAmount(order.totalAmount)}\n\n` +
-      `Please help me pay another way.`;
-
-    const phoneNumber = LegalConfig.SUPPORT_PHONE.replace(/[^\d+]/g, "");
-    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(
-      message,
-    )}`;
-
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert(
-        "WhatsApp Not Available",
-        `Please install WhatsApp, or call us at ${LegalConfig.SUPPORT_PHONE}`,
-      );
-    });
   };
 
   // ⭐ Submit driver rating
@@ -1636,19 +1597,19 @@ export default function OrderDetailsPage() {
               <Text style={styles.payNowButtonText}>Pay Now</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.cantPayLink,
-                Platform.OS === "web" && { cursor: "pointer" },
-              ]}
-              onPress={handleCantPay}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-              <Text style={styles.cantPayLinkText}>
-                Can&apos;t pay? Message us on WhatsApp
-              </Text>
-            </TouchableOpacity>
+            <CantPayLink
+              details={{
+                kind: "order",
+                reference: `TG${order.id.slice(-6).toUpperCase()}`,
+                customerName: order.customerName,
+                vendor:
+                  order.restaurant?.name ||
+                  order.shop?.name ||
+                  order.pharmacy?.name ||
+                  null,
+                amount: order.totalAmount,
+              }}
+            />
           </>
         )}
 
@@ -2531,19 +2492,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "700",
     letterSpacing: 0.3,
-  },
-  cantPayLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    marginBottom: 4,
-  },
-  cantPayLinkText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "600",
   },
 
   // ❌ Cancel Button (full-width secondary button)

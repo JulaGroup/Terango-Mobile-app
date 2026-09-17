@@ -39,6 +39,7 @@ import { useRouter } from "expo-router";
 import { SecureStorage } from "@/utils/secureStorage";
 import { API_URL } from "@/constants/config";
 import { formatExpressDeliveryId } from "@/utils/formatExpressDeliveryId";
+import { openPaymentHelp } from "@/utils/paymentHelp";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const statusColors = {
@@ -545,12 +546,29 @@ export default function Orders() {
   // the backend.  Wave will *never* hit those, so orders stayed in PENDING
   // and Slack notifications never fired.  We now build HTTPS redirect URLs
   // pointing at our server and let the backend deep-link to the app.
-  const handlePayFromList = async (orderId: string, amount: number) => {
+  const handlePayFromList = async (
+    orderId: string,
+    amount: number,
+    vendorName?: string | null,
+  ) => {
+    // "Can't pay?" — the Pay control is a small chip in the card, so the
+    // WhatsApp help lives in these alerts rather than as a link per card.
+    const cantPay = {
+      text: "Can't pay? WhatsApp us",
+      onPress: () =>
+        openPaymentHelp({
+          kind: "order",
+          reference: `TG${orderId.slice(-6).toUpperCase()}`,
+          vendor: vendorName,
+          amount,
+        }),
+    };
     Alert.alert(
       "Confirm Payment",
       `Proceed with payment of ${formatAmount(amount)}?`,
       [
         { text: "Cancel", style: "cancel" },
+        cantPay,
         {
           text: "Pay Now",
           onPress: async () => {
@@ -629,9 +647,10 @@ export default function Orders() {
 
               Alert.alert("Payment Failed", errorMessage, [
                 { text: "Cancel", style: "cancel" },
+                cantPay,
                 {
                   text: "Retry",
-                  onPress: () => handlePayFromList(orderId, amount),
+                  onPress: () => handlePayFromList(orderId, amount, vendorName),
                 },
               ]);
             } finally {
@@ -1184,7 +1203,15 @@ export default function Orders() {
                   borderWidth: 1,
                   borderColor: PrimaryColor,
                 }}
-                onPress={() => handlePayFromList(order.id, order.totalAmount)}
+                onPress={() =>
+                  handlePayFromList(
+                    order.id,
+                    order.totalAmount,
+                    order.restaurant?.name ||
+                      order.shop?.name ||
+                      order.pharmacy?.name,
+                  )
+                }
               >
                 <Text
                   style={{ fontSize: 12, color: "#fff", fontWeight: "700" }}
