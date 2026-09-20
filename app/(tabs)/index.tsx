@@ -21,6 +21,7 @@ import { LinearGradient } from "expo-linear-gradient";
 // Hub-specific components
 import HubHeader from "@/components/ui/home/HubHeader";
 import ServiceGrid from "@/components/ui/home/ServiceGrid";
+import MealTypesRow from "@/components/ui/home/MealTypesRow";
 import HubDealBanners from "@/components/ui/home/HubDealBanners";
 
 // Existing reusable components
@@ -615,6 +616,11 @@ export default function HomeScreen() {
           {/* ③ Service cards grid */}
           <ServiceGrid />
 
+          {/* ③b Meal types — server-driven from the Food category's
+              subcategories, editable in admin. Renders nothing if the
+              fetch fails or returns empty. */}
+          <MealTypesRow />
+
           {/* ④ Quick actions */}
           {/* <QuickActions /> */}
 
@@ -630,8 +636,8 @@ export default function HomeScreen() {
           <Divider />
 
           {/* ⑤ Deal banners */}
-          <HubDealBanners />
-          <Divider />
+          {/* <HubDealBanners />
+          <Divider /> */}
 
           {/* ⑦ Top Meals */}
           <TrendingMealsSection refreshKey={refreshKey} />
