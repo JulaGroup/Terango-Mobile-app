@@ -46,6 +46,7 @@ const HeroCard = ({
   badge,
   fullWidth,
   dark,
+  ctaLabel = "Order now",
   onPress,
 }: {
   label: string;
@@ -60,6 +61,8 @@ const HeroCard = ({
   fullWidth?: boolean;
   /** Light text on a dark background (Delivery, to match its orange/black art). */
   dark?: boolean;
+  /** Button text, e.g. "Shop now" for Mart, "Book now" for Delivery. */
+  ctaLabel?: string;
   /** Takes precedence over `route` (Delivery needs its auth gate first). */
   onPress?: () => void;
 }) => {
@@ -178,7 +181,7 @@ const HeroCard = ({
                 { color: comingSoon ? "#ABABAB" : accentColor },
               ]}
             >
-              {comingSoon ? "Coming soon" : "Order now"}
+              {comingSoon ? "Coming soon" : ctaLabel}
             </Text>
             <View
               style={[
@@ -997,6 +1000,7 @@ const ServiceGrid = () => {
           image={require("@/assets/images/mart_icon.png")}
           bg="#E8F5E9"
           accentColor="#2E7D32"
+          ctaLabel="Shop now"
           route="/mart"
         />
       </View>
@@ -1011,6 +1015,7 @@ const ServiceGrid = () => {
         dark
         bg="#1A1A1A"
         accentColor="#FF6B00"
+        ctaLabel="Book now"
         // openExpress auth-gates before routing to /custom-delivery
         onPress={openExpress}
         badge={expressIsNew ? "NEW" : undefined}
