@@ -29,13 +29,10 @@ const DARK = "#1a1a1a";
 const GAP = 10;
 const H_PAD = 16;
 const HERO_W = (width - H_PAD * 2 - GAP) / 2;
-// Three across. The full-size hero layout can't survive this width — its
-// illustration alone is 148px — so cards rendered at TRIO_W use HeroCard's
-// `compact` mode: image on top, label beneath.
-const TRIO_W = (width - H_PAD * 2 - GAP * 2) / 3;
-// Cap the artwork so it can't crowd the card edges on narrow phones — at
-// 320pt the card is only ~89pt wide.
-const COMPACT_ART = Math.min(80, TRIO_W - 24);
+// Delivery sits on its own row beneath Food and Mart, keeping the same
+// horizontal card design at full width — the layout doesn't survive being
+// squeezed to a third of the row, since the illustration alone is 148px.
+const FULL_W = width - H_PAD * 2;
 
 // ─── Hero card (Food / Mart) ─────────────────────────────────────────────────
 const HeroCard = ({
@@ -47,7 +44,7 @@ const HeroCard = ({
   route,
   comingSoon,
   badge,
-  compact,
+  fullWidth,
   onPress,
 }: {
   label: string;
@@ -58,8 +55,8 @@ const HeroCard = ({
   route?: string;
   comingSoon?: boolean;
   badge?: string;
-  /** Vertical layout for the 3-across row — image on top, label beneath. */
-  compact?: boolean;
+  /** Span the whole row instead of sitting half-width beside another card. */
+  fullWidth?: boolean;
   /** Takes precedence over `route` (Delivery needs its auth gate first). */
   onPress?: () => void;
 }) => {
@@ -91,74 +88,13 @@ const HeroCard = ({
     if (route) router.push(route as any);
   };
 
-  if (compact) {
-    return (
-      <Animated.View
-        style={[
-          heroStyles.shadow,
-          {
-            transform: [{ scale }],
-            width: TRIO_W,
-            borderRadius: 18,
-            backgroundColor: bg,
-          },
-        ]}
-      >
-        <TouchableOpacity
-          onPress={handlePress}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          activeOpacity={1}
-          style={[heroStyles.compactCard, { backgroundColor: bg }]}
-        >
-          <Image
-            source={image}
-            style={[
-              heroStyles.compactIllustration,
-              { opacity: comingSoon ? 0.18 : 1 },
-            ]}
-            contentFit="contain"
-          />
-
-          {/* Top-to-bottom scrim so the label stays readable over the art */}
-          <LinearGradient
-            colors={[`${bg}00`, `${bg}CC`, bg]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 0, y: 1 }}
-            style={StyleSheet.absoluteFillObject}
-            pointerEvents="none"
-          />
-
-          <View style={heroStyles.topHighlight} />
-
-          {(badge || comingSoon) && (
-            <View
-              style={[
-                heroStyles.compactBadge,
-                { backgroundColor: comingSoon ? "#A0A0A0" : accentColor },
-              ]}
-            >
-              <Text style={heroStyles.badgeText}>
-                {comingSoon ? "SOON" : badge}
-              </Text>
-            </View>
-          )}
-
-          <Text style={heroStyles.compactLabel} numberOfLines={1}>
-            {label}
-          </Text>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  }
-
   return (
     <Animated.View
       style={[
         heroStyles.shadow,
         {
           transform: [{ scale }],
-          width: HERO_W,
+          width: fullWidth ? FULL_W : HERO_W,
           borderRadius: 18,
           backgroundColor: bg,
         },
@@ -174,7 +110,14 @@ const HeroCard = ({
         {/* Large illustration — fills right side */}
         <Image
           source={image}
-          style={[heroStyles.illustration, { opacity: comingSoon ? 0.18 : 1 }]}
+          style={[
+            heroStyles.illustration,
+            // On a full-width card the art would otherwise read small against
+            // twice the width, so scale it to keep the same visual weight as
+            // the 2-up cards beside it.
+            fullWidth && { width: 168, height: 168, top: -8 },
+            { opacity: comingSoon ? 0.18 : 1 },
+          ]}
           contentFit="contain"
         />
 
@@ -258,40 +201,6 @@ const heroStyles = StyleSheet.create({
     height: 148,
   },
 
-  // ── Compact (3-across) variant ──
-  compactCard: {
-    borderRadius: 18,
-    height: 140,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.055)",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingHorizontal: 8,
-    paddingBottom: 12,
-  },
-  compactIllustration: {
-    position: "absolute",
-    top: 12,
-    alignSelf: "center",
-    width: COMPACT_ART,
-    height: COMPACT_ART,
-  },
-  compactBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  compactLabel: {
-    fontSize: 15,
-    fontWeight: "800",
-    color: DARK,
-    letterSpacing: -0.2,
-    textAlign: "center",
-  },
   topHighlight: {
     position: "absolute",
     top: 0,
@@ -1058,7 +967,6 @@ const ServiceGrid = () => {
           only ever fired a "Coming Soon" alert. */}
       <View style={{ flexDirection: "row", gap: GAP }}>
         <HeroCard
-          compact
           label="Food"
           subtitle="Order food & drinks"
           image={require("@/assets/images/food_icon.png")}
@@ -1067,7 +975,6 @@ const ServiceGrid = () => {
           route="/food"
         />
         <HeroCard
-          compact
           label="Mart"
           subtitle="Delivered to your door"
           image={require("@/assets/images/mart_icon.png")}
@@ -1075,18 +982,21 @@ const ServiceGrid = () => {
           accentColor="#2E7D32"
           route="/mart"
         />
-        <HeroCard
-          compact
-          label="Delivery"
-          subtitle="Send a package"
-          image={require("@/assets/images/motorbike.png")}
-          bg="#E3F2FD"
-          accentColor="#1565C0"
-          // openExpress auth-gates before routing to /custom-delivery
-          onPress={openExpress}
-          badge={expressIsNew ? "NEW" : undefined}
-        />
       </View>
+
+      {/* Delivery keeps the same card design at full width rather than being
+          squeezed into a third slot, which the layout can't take. */}
+      <HeroCard
+        fullWidth
+        label="Delivery"
+        subtitle="Send a package anywhere"
+        image={require("@/assets/images/motorbike.png")}
+        bg="#E3F2FD"
+        accentColor="#1565C0"
+        // openExpress auth-gates before routing to /custom-delivery
+        onPress={openExpress}
+        badge={expressIsNew ? "NEW" : undefined}
+      />
 
       {/* Parked until these services go live. SmallTile, MORE_SERVICES and
           MoreServicesSheet are all still defined above/below and unused —
