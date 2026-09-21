@@ -45,6 +45,7 @@ const HeroCard = ({
   comingSoon,
   badge,
   fullWidth,
+  dark,
   onPress,
 }: {
   label: string;
@@ -57,6 +58,8 @@ const HeroCard = ({
   badge?: string;
   /** Span the whole row instead of sitting half-width beside another card. */
   fullWidth?: boolean;
+  /** Light text on a dark background (Delivery, to match its orange/black art). */
+  dark?: boolean;
   /** Takes precedence over `route` (Delivery needs its auth gate first). */
   onPress?: () => void;
 }) => {
@@ -131,7 +134,12 @@ const HeroCard = ({
         />
 
         {/* Top inner highlight line — glass feel */}
-        <View style={heroStyles.topHighlight} />
+        <View
+          style={[
+            heroStyles.topHighlight,
+            dark && { backgroundColor: "rgba(255,255,255,0.12)" },
+          ]}
+        />
 
         {/* ── Content ── */}
         <View style={heroStyles.content}>
@@ -149,8 +157,17 @@ const HeroCard = ({
                 </Text>
               </View>
             )}
-            <Text style={heroStyles.label}>{label}</Text>
-            <Text style={heroStyles.subtitle}>{subtitle}</Text>
+            <Text style={[heroStyles.label, dark && { color: "#fff" }]}>
+              {label}
+            </Text>
+            <Text
+              style={[
+                heroStyles.subtitle,
+                dark && { color: "rgba(255,255,255,0.7)" },
+              ]}
+            >
+              {subtitle}
+            </Text>
           </View>
 
           {/* CTA row */}
@@ -991,8 +1008,9 @@ const ServiceGrid = () => {
         label="Delivery"
         subtitle="Send a package anywhere"
         image={require("@/assets/images/motorbike.png")}
-        bg="#E3F2FD"
-        accentColor="#1565C0"
+        dark
+        bg="#1A1A1A"
+        accentColor="#FF6B00"
         // openExpress auth-gates before routing to /custom-delivery
         onPress={openExpress}
         badge={expressIsNew ? "NEW" : undefined}
