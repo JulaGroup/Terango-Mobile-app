@@ -62,6 +62,14 @@ export default function VendorOrdersEnhanced() {
     visible: boolean;
     orderId: string;
   }>({ visible: false, orderId: "" });
+  // "Mark items unavailable" sheet — remove out-of-stock items from an order
+  // without declining the whole thing.
+  const [removeItemsModal, setRemoveItemsModal] = useState<{
+    visible: boolean;
+    order: Order | null;
+    selected: string[];
+  }>({ visible: false, order: null, selected: [] });
+  const [removingItems, setRemovingItems] = useState(false);
   const scanLineAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -341,6 +349,48 @@ export default function VendorOrdersEnhanced() {
       actions.map((a) => a.label),
     );
     return actions;
+  };
+
+  const openRemoveItems = (order: Order) => {
+    setRemoveItemsModal({ visible: true, order, selected: [] });
+  };
+
+  const toggleRemoveItem = (itemId: string) => {
+    setRemoveItemsModal((m) => ({
+      ...m,
+      selected: m.selected.includes(itemId)
+        ? m.selected.filter((x) => x !== itemId)
+        : [...m.selected, itemId],
+    }));
+  };
+
+  const submitRemoveItems = async () => {
+    const { order, selected } = removeItemsModal;
+    if (!order || selected.length === 0) return;
+    try {
+      setRemovingItems(true);
+      const res = await orderApi.vendorCancelOrderItems(
+        order.id,
+        selected,
+        "OUT_OF_STOCK",
+      );
+      await fetchOrders();
+      setRemoveItemsModal({ visible: false, order: null, selected: [] });
+      setDetailsModalVisible(false);
+      await Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Success,
+      );
+      Alert.alert(
+        res.fullyCancelled ? "Order cancelled" : "Items removed",
+        res.fullyCancelled
+          ? "Every item was unavailable, so the order was cancelled and the customer notified."
+          : "The selected items were removed from the order and the customer was notified.",
+      );
+    } catch (e: any) {
+      Alert.alert("Couldn't remove items", e?.message || "Please try again.");
+    } finally {
+      setRemovingItems(false);
+    }
   };
 
   const handleUpdateStatus = async (
@@ -854,6 +904,92 @@ export default function VendorOrdersEnhanced() {
         </View>
       )}
 
+      {/* Mark items unavailable sheet */}
+      <Modal
+        visible={removeItemsModal.visible}
+        transparent
+        animationType="slide"
+        onRequestClose={() =>
+          setRemoveItemsModal({ visible: false, order: null, selected: [] })
+        }
+      >
+        <View style={styles.cancelOverlay}>
+          <View style={styles.cancelSheet}>
+            <View style={styles.cancelHandle} />
+            <Text style={styles.cancelTitle}>Which items are unavailable?</Text>
+            <Text style={styles.cancelSubtitle}>
+              The selected items are removed from the order; the customer only
+              pays for what's left (or is refunded if already paid) and is
+              notified.
+            </Text>
+            {(removeItemsModal.order?.items || [])
+              .filter((it) => it.status !== "CANCELLED")
+              .map((it) => {
+                const checked = removeItemsModal.selected.includes(it.id);
+                const name =
+                  it.menuItem?.name || it.product?.name || "Item";
+                return (
+                  <TouchableOpacity
+                    key={it.id}
+                    style={styles.cancelReasonBtn}
+                    activeOpacity={0.75}
+                    onPress={() => toggleRemoveItem(it.id)}
+                  >
+                    <View
+                      style={[
+                        styles.removeCheckbox,
+                        checked && styles.removeCheckboxOn,
+                      ]}
+                    >
+                      {checked && (
+                        <Ionicons name="checkmark" size={14} color="#fff" />
+                      )}
+                    </View>
+                    <Text
+                      style={[styles.cancelReasonText, { flex: 1 }]}
+                      numberOfLines={1}
+                    >
+                      {name} ×{it.quantity}
+                    </Text>
+                    <Text style={styles.detailValue}>
+                      GMD {(it.price * it.quantity).toLocaleString()}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            <TouchableOpacity
+              style={[
+                styles.removeSubmitBtn,
+                (removeItemsModal.selected.length === 0 || removingItems) && {
+                  opacity: 0.5,
+                },
+              ]}
+              disabled={removeItemsModal.selected.length === 0 || removingItems}
+              onPress={submitRemoveItems}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.removeSubmitText}>
+                {removingItems
+                  ? "Removing…"
+                  : `Remove ${removeItemsModal.selected.length || ""} item(s)`}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelDismissBtn}
+              onPress={() =>
+                setRemoveItemsModal({
+                  visible: false,
+                  order: null,
+                  selected: [],
+                })
+              }
+            >
+              <Text style={styles.cancelDismissText}>Keep all items</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Cancel Reason Picker */}
       <Modal
         visible={cancelReasonModal.visible}
@@ -1153,6 +1289,31 @@ export default function VendorOrdersEnhanced() {
                   ))}
                 </View>
               )}
+
+              {/* Mark items unavailable — remove out-of-stock items without
+                  declining the whole order. */}
+              {selectedOrder.status !== "DELIVERED" &&
+                selectedOrder.status !== "CANCELLED" &&
+                (selectedOrder.items?.filter(
+                  (it) => it.status !== "CANCELLED",
+                ).length || 0) > 0 && (
+                  <TouchableOpacity
+                    style={styles.markUnavailableBtn}
+                    onPress={() => {
+                      setDetailsModalVisible(false);
+                      setTimeout(() => openRemoveItems(selectedOrder), 300);
+                    }}
+                  >
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={16}
+                      color="#B91C1C"
+                    />
+                    <Text style={styles.markUnavailableText}>
+                      Mark item(s) unavailable
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
               {/* Pickup QR scan action */}
               {selectedOrder.orderType === "PICKUP" &&
@@ -2069,5 +2230,48 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999",
     fontWeight: "500",
+  },
+  markUnavailableBtn: {
+    marginTop: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+  },
+  markUnavailableText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#B91C1C",
+  },
+  removeCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  removeCheckboxOn: {
+    backgroundColor: "#B91C1C",
+    borderColor: "#B91C1C",
+  },
+  removeSubmitBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#B91C1C",
+  },
+  removeSubmitText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#fff",
   },
 });

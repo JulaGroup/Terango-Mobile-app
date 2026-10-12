@@ -132,6 +132,8 @@ export interface OrderItem {
   medicineId?: string; // For pharmacy orders
   quantity: number;
   price: number;
+  // "ACTIVE" normally; "CANCELLED" once removed (out of stock etc.).
+  status?: "ACTIVE" | "CANCELLED" | string;
   menuItem?: {
     id: string;
     name: string;
@@ -1031,6 +1033,19 @@ export const orderApi = {
     return apiCall(`/api/orders/${orderId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status, estimatedDeliveryTime, cancelReason }),
+    });
+  },
+
+  // Vendor removes out-of-stock items from their own order (keeps the rest).
+  vendorCancelOrderItems: async (
+    orderId: string,
+    itemIds: string[],
+    reason: string = "OUT_OF_STOCK",
+    note?: string,
+  ): Promise<{ message: string; fullyCancelled: boolean; order: Order }> => {
+    return apiCall(`/api/orders/${orderId}/cancel-items`, {
+      method: "PATCH",
+      body: JSON.stringify({ itemIds, reason, note }),
     });
   },
 
