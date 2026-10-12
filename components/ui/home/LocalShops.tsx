@@ -71,25 +71,18 @@ const ShopCard = React.memo(
 
     return (
       <TouchableOpacity
-        style={{
-          width: 280,
-          backgroundColor: "#fff",
-          borderRadius: 16,
-          elevation: 12,
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.25,
-          shadowRadius: 15,
-          overflow: "hidden",
-          // Additional shadow for better distinction
-          borderWidth: 0.5,
-          borderColor: "rgba(0, 0, 0, 0.08)",
-        }}
+        style={{ width: 280, marginRight: 14, marginVertical: 6 }}
         onPress={() => onPress(shop.id)}
-        activeOpacity={0.8}
+        activeOpacity={0.9}
       >
-        {/* Shop Image */}
-        <View style={{ height: 120, position: "relative" }}>
+        <View
+          style={{
+            height: 150,
+            borderRadius: 18,
+            overflow: "hidden",
+            backgroundColor: "#F2F2F4",
+          }}
+        >
           {shop.imageUrl ? (
             <Image
               source={{ uri: shop.imageUrl }}
@@ -100,123 +93,102 @@ const ShopCard = React.memo(
             />
           ) : (
             <View
+              style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+            >
+              <Ionicons name="storefront" size={38} color="#CDCDD2" />
+            </View>
+          )}
+          {!isShopOpen && (
+            <View
               style={{
-                width: "100%",
-                height: "100%",
-                backgroundColor: "#F3F4F6",
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(255,255,255,0.5)",
                 justifyContent: "center",
                 alignItems: "center",
               }}
             >
-              <Ionicons name="storefront" size={32} color="#9CA3AF" />
+              <View
+                style={{
+                  backgroundColor: "rgba(0,0,0,0.78)",
+                  borderRadius: 999,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                }}
+              >
+                <Text style={{ color: "#fff", fontSize: 12, fontWeight: "700" }}>
+                  Closed
+                </Text>
+              </View>
             </View>
           )}
-
-          {/* Status Badge */}
-          <View
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              backgroundColor: isShopOpen
-                ? "rgba(0,200,81,0.9)"
-                : "rgba(239,68,68,0.9)",
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: 12,
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 10, fontWeight: "600" }}>
-              {isShopOpen ? "Open" : "Closed"}
-            </Text>
-          </View>
         </View>
 
-        {/* Shop Info */}
-        <View style={{ padding: 16 }}>
+        <View style={{ paddingTop: 10, paddingHorizontal: 2 }}>
           <Text
+            numberOfLines={1}
             style={{
               fontSize: 16,
               fontWeight: "700",
-              color: "#1F2937",
-              marginBottom: 4,
+              color: "#1C1C1E",
+              letterSpacing: -0.2,
             }}
-            numberOfLines={1}
           >
             {shop.name}
           </Text>
-
-          {shop.description ? (
-            <Text
-              style={{
-                fontSize: 12,
-                color: "#6B7280",
-                marginBottom: 8,
-                lineHeight: 16,
-              }}
-              numberOfLines={2}
-            >
-              {shop.description}
-            </Text>
-          ) : null}
-
-          {/* Shop Type */}
-          {shop.shopType && (
-            <View
-              style={{
-                backgroundColor: "#F3F4F6",
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                borderRadius: 8,
-                alignSelf: "flex-start",
-                marginBottom: 8,
-              }}
-            >
-              <Text
-                style={{ fontSize: 10, color: "#6B7280", fontWeight: "500" }}
-              >
-                {shop.shopType}
-              </Text>
-            </View>
-          )}
-
-          {/* Rating and Location */}
           <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginTop: 4,
-            }}
+            style={{ flexDirection: "row", alignItems: "center", marginTop: 5 }}
           >
-            <View
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: 3,
-                backgroundColor: PrimaryColor,
-                marginRight: 6,
-              }}
-            />
+            <Ionicons name="star" size={13} color="#F5A623" />
             <Text
               style={{
-                fontSize: 12,
-                color: "#6B7280",
-                fontWeight: "500",
-                flex: 1,
+                fontSize: 13,
+                fontWeight: "600",
+                color: "#1C1C1E",
+                marginLeft: 3,
               }}
-              numberOfLines={1}
             >
-              {displayAddress}
+              {shop.rating && shop.rating > 0 ? shop.rating.toFixed(1) : "New"}
             </Text>
+            {shop.shopType ? (
+              <>
+                <Text
+                  style={{ marginHorizontal: 6, color: "#C7C7CC", fontSize: 12 }}
+                >
+                  ·
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{ fontSize: 13, color: "#6B6B6E", fontWeight: "500" }}
+                >
+                  {shop.shopType}
+                </Text>
+              </>
+            ) : null}
+            {displayAddress ? (
+              <>
+                <Text
+                  style={{ marginHorizontal: 6, color: "#C7C7CC", fontSize: 12 }}
+                >
+                  ·
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    fontSize: 13,
+                    color: "#6B6B6E",
+                    fontWeight: "500",
+                    flexShrink: 1,
+                  }}
+                >
+                  {displayAddress}
+                </Text>
+              </>
+            ) : null}
           </View>
-
-          {/* Minimum Order */}
-          {typeof shop.minimumOrderAmount === "number" &&
-            shop.minimumOrderAmount > 0 && (
-              <Text style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8 }}>
-                Min. order: D{shop.minimumOrderAmount.toFixed(2)}
-              </Text>
-            )}
         </View>
       </TouchableOpacity>
     );

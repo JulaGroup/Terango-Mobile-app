@@ -132,13 +132,13 @@ const ProductCard = ({
     card: {
       width: cardWidth || "100%",
       backgroundColor: "#fff",
-      borderRadius: 12,
+      borderRadius: 16,
       overflow: "hidden",
       shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.06,
-      shadowRadius: 8,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      elevation: 2,
     },
   });
 
@@ -280,15 +280,13 @@ const styles = StyleSheet.create({
     // Base card styles (width will be overridden by dynamic styles)
     marginRight: 0, // Remove marginRight since parent handles spacing
     backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 7,
-    borderWidth: 0.8,
-    borderColor: "#DFDFDFFF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   cardDisabled: {
     opacity: 0.55,

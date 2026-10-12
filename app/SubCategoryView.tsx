@@ -777,7 +777,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
+    paddingBottom: 16,
     backgroundColor: "#ff6b00",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   backButton: {
     backgroundColor: "rgba(255,255,255,0.22)",
