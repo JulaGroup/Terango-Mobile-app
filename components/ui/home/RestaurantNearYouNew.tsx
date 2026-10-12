@@ -544,7 +544,7 @@ const RestaurantNearYou = ({
         snapToInterval={CARD_WIDTH + 16}
         snapToAlignment="center"
       >
-        {restaurants.slice(0, 8).map((restaurant, index) => {
+        {restaurants.map((restaurant, index) => {
           const cuisineTypes = getCuisineTypes(restaurant);
           const isOpen = getOperatingStatus({
             openingHours: restaurant.openingHours,
