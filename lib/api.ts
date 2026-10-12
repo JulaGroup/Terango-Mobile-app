@@ -987,6 +987,9 @@ export const orderApi = {
   getCustomerOrders: async (
     page: number = 1,
     limit: number = 15,
+    // "live" / "past" filter server-side so each tab pages independently.
+    // Omit for every status.
+    scope?: "live" | "past",
   ): Promise<{
     orders: Order[];
     totalCount: number;
@@ -994,7 +997,9 @@ export const orderApi = {
     currentPage: number;
     hasMore: boolean;
   }> => {
-    return apiCall(`/api/orders/customer?page=${page}&limit=${limit}`);
+    return apiCall(
+      `/api/orders/customer?page=${page}&limit=${limit}${scope ? `&scope=${scope}` : ""}`,
+    );
   },
 
   // Lightweight: get order counts grouped by status (and accepted unpaid count)
@@ -1985,8 +1990,8 @@ export const experienceApi = {
   getBooking: async (bookingId: string): Promise<Booking> =>
     apiCall(`/api/experiences/bookings/${bookingId}`),
 
-  getMyBookings: async (): Promise<Booking[]> =>
-    apiCall("/api/experiences/bookings/mine"),
+  getMyBookings: async (limit?: number): Promise<Booking[]> =>
+    apiCall(`/api/experiences/bookings/mine${limit ? `?limit=${limit}` : ""}`),
 
   cancelBooking: async (
     bookingId: string,

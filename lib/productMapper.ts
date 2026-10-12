@@ -1,11 +1,11 @@
-export const FALLBACK_IMAGE = "https://via.placeholder.com/300";
-
 export interface Product {
   id: string;
   name: string;
   price: number;
   discountedPrice?: number;
-  imageUrl: string;
+  // Optional: cards render their own Ionicons placeholder when this is absent,
+  // which is better than a remote placeholder that has to be fetched.
+  imageUrl?: string;
   shopName?: string;
   shop?: { name: string; id: string };
   _count?: { orderItems: number };
@@ -22,7 +22,7 @@ export const mapProductResponse = (raw: any): Product => ({
     raw.discountedPrice !== null && raw.discountedPrice !== undefined
       ? Number(raw.discountedPrice)
       : undefined,
-  imageUrl: raw.imageUrl || FALLBACK_IMAGE,
+  imageUrl: raw.imageUrl || undefined,
   shopName: raw.shop?.name || raw.shopName,
   shop: raw.shop
     ? {

@@ -28,11 +28,10 @@ import { uuidv4 } from "@/utils/uuid";
 
 // Maps are native-only in this app — every other screen requires them lazily so
 // the web build doesn't blow up. Same treatment here.
-let MapView: any, Marker: any, PROVIDER_GOOGLE: any;
+let MapView: any, PROVIDER_GOOGLE: any;
 if (Platform.OS !== "web") {
   const Maps = require("react-native-maps");
   MapView = Maps.default;
-  Marker = Maps.Marker;
   PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
 }
 
@@ -43,6 +42,14 @@ const INK_LIGHT = "#6B6B6E";
 const DIVIDER = "#E8E8EA";
 
 const RECENTS_KEY = "express_recent_places_v1";
+
+/** Region span we zoom to when we know where the customer is (~330 m across). */
+const PIN_ZOOM_DELTA = 0.003;
+/**
+ * Widest span we'll accept a pin at. Above this the map is showing kilometres
+ * and "the spot" is really "the neighbourhood" — no use to a rider.
+ */
+const MAX_PIN_DELTA = 0.01;
 const MAX_RECENTS = 5;
 
 /** Bounding box roughly covering The Gambia (same box LocationModal uses). */
@@ -183,10 +190,20 @@ export default function LocationSearchSheet({
   const [pinCoords, setPinCoords] = useState(DEFAULT_REGION);
   const [pinAddress, setPinAddress] = useState("");
   const [geocodingPin, setGeocodingPin] = useState(false);
+  // Google's vector map has almost no building footprints in The Gambia, so
+  // satellite imagery is the only view where people can actually recognise
+  // their own compound. Default to it; let them flip back to the road map.
+  const [pinMapType, setPinMapType] = useState<"hybrid" | "standard">("hybrid");
+  const [recentring, setRecentring] = useState(false);
+  const mapRef = useRef<any>(null);
+  const mapReady = useRef(false);
+  const pendingRegion = useRef<any>(null);
   const geocodeDebounce = useRef<any>(null);
 
   const title = mode === "pickup" ? "Set pickup location" : "Set drop-off";
   const dotColor = mode === "pickup" ? ORANGE : "#111827";
+  // Too zoomed out for the pin to mean anything precise.
+  const pinTooWide = pinCoords.latitudeDelta > MAX_PIN_DELTA;
 
   useEffect(() => {
     if (visible) {
@@ -330,7 +347,74 @@ export default function LocationSearchSheet({
   };
 
   // ── Pin drop ──────────────────────────────────────────────────────────────
+  /**
+   * Move the map itself. `initialRegion` only applies on mount, so once the
+   * map is up the only way to move it is animateToRegion — and GPS often
+   * resolves before the map is ready, hence the pending slot.
+   */
+  const gotoRegion = (r: any) => {
+    setPinCoords(r);
+    if (mapReady.current && mapRef.current) {
+      mapRef.current.animateToRegion(r, 450);
+    } else {
+      pendingRegion.current = r;
+    }
+  };
+
+  const onMapReady = () => {
+    mapReady.current = true;
+    if (pendingRegion.current) {
+      mapRef.current?.animateToRegion(pendingRegion.current, 450);
+      pendingRegion.current = null;
+    }
+  };
+
+  /** The map settled — its centre is the pin, so that's the address. */
+  const onRegionSettled = (r: any) => {
+    setPinCoords(r);
+    reverseGeocodePin(r.latitude, r.longitude);
+  };
+
+  const recentrePin = async () => {
+    setRecentring(true);
+    try {
+      let { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== "granted") {
+        ({ status } = await Location.requestForegroundPermissionsAsync());
+      }
+      if (status !== "granted") {
+        Alert.alert(
+          "Location is off",
+          "Allow location access to centre the map on you.",
+        );
+        return;
+      }
+      const pos = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      gotoRegion({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        latitudeDelta: PIN_ZOOM_DELTA,
+        longitudeDelta: PIN_ZOOM_DELTA,
+      });
+    } catch {
+      Alert.alert("Couldn't get your location", "Move the map by hand instead.");
+    } finally {
+      setRecentring(false);
+    }
+  };
+
+  const zoomInForPrecision = () =>
+    gotoRegion({
+      ...pinCoords,
+      latitudeDelta: PIN_ZOOM_DELTA,
+      longitudeDelta: PIN_ZOOM_DELTA,
+    });
+
   const openPinMode = async () => {
+    mapReady.current = false;
+    pendingRegion.current = null;
     setPinMode(true);
     setPinAddress("");
     // Centre on the customer if we can, so they're not dragging from Banjul.
@@ -344,10 +428,10 @@ export default function LocationSearchSheet({
           ...DEFAULT_REGION,
           latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitudeDelta: PIN_ZOOM_DELTA,
+          longitudeDelta: PIN_ZOOM_DELTA,
         };
-        setPinCoords(next);
+        gotoRegion(next);
         reverseGeocodePin(next.latitude, next.longitude);
         return;
       }
@@ -377,13 +461,11 @@ export default function LocationSearchSheet({
     }, 600);
   };
 
-  const onPinDragEnd = (e: any) => {
-    const { latitude, longitude } = e.nativeEvent.coordinate;
-    setPinCoords((prev) => ({ ...prev, latitude, longitude }));
-    reverseGeocodePin(latitude, longitude);
-  };
-
   const confirmPin = () => {
+    if (pinCoords.latitudeDelta > MAX_PIN_DELTA) {
+      zoomInForPrecision();
+      return;
+    }
     if (!isWithinGambia(pinCoords.latitude, pinCoords.longitude)) {
       Alert.alert(
         "Outside service area",
@@ -440,24 +522,70 @@ export default function LocationSearchSheet({
           // ── Pin fallback ────────────────────────────────────────────────
           <View style={{ flex: 1 }}>
             {MapView ? (
-              <MapView
-                style={{ flex: 1 }}
-                provider={
-                  Platform.OS === "android" ? PROVIDER_GOOGLE : undefined
-                }
-                initialRegion={pinCoords}
-                onPress={(e: any) => onPinDragEnd(e)}
-              >
-                <Marker
-                  draggable
-                  coordinate={{
-                    latitude: pinCoords.latitude,
-                    longitude: pinCoords.longitude,
-                  }}
-                  onDragEnd={onPinDragEnd}
-                  pinColor={mode === "pickup" ? "orange" : "red"}
+              <View style={{ flex: 1 }}>
+                <MapView
+                  ref={mapRef}
+                  style={{ flex: 1 }}
+                  // Force Google on iOS too — Apple Maps has next to no detail
+                  // for The Gambia.
+                  provider={PROVIDER_GOOGLE}
+                  mapType={pinMapType}
+                  showsBuildings
+                  showsPointsOfInterest
+                  showsUserLocation
+                  showsMyLocationButton={false}
+                  initialRegion={pinCoords}
+                  onMapReady={onMapReady}
+                  onRegionChangeComplete={onRegionSettled}
                 />
-              </MapView>
+
+                {/* Fixed centre pin: the map moves under it. A draggable
+                    marker puts your thumb over the very spot you're aiming at,
+                    and can't be dragged past the edge of the screen. */}
+                <View pointerEvents="none" style={s.pinOverlay}>
+                  <Ionicons
+                    name="location"
+                    size={44}
+                    color={dotColor}
+                    style={s.pinGlyph}
+                  />
+                  <View style={s.pinDot} />
+                </View>
+
+                <TouchableOpacity
+                  style={s.mapTypeBtn}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    setPinMapType((t) =>
+                      t === "hybrid" ? "standard" : "hybrid",
+                    )
+                  }
+                >
+                  <Ionicons
+                    name={
+                      pinMapType === "hybrid" ? "map-outline" : "globe-outline"
+                    }
+                    size={16}
+                    color={INK}
+                  />
+                  <Text style={s.mapTypeLabel}>
+                    {pinMapType === "hybrid" ? "Map" : "Satellite"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={s.recentreBtn}
+                  activeOpacity={0.85}
+                  onPress={recentrePin}
+                  disabled={recentring}
+                >
+                  {recentring ? (
+                    <ActivityIndicator size="small" color={ORANGE} />
+                  ) : (
+                    <Ionicons name="locate" size={20} color={ORANGE} />
+                  )}
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={s.center}>
                 <Text style={s.muted}>Map unavailable on this device.</Text>
@@ -466,7 +594,7 @@ export default function LocationSearchSheet({
 
             <View style={s.pinFooter}>
               <Text style={s.pinHint}>
-                Drag the pin or tap the map to move it
+                Move the map to put the pin on the spot
               </Text>
               <View style={s.pinAddressRow}>
                 <Ionicons name="location" size={16} color={ORANGE} />
@@ -483,11 +611,13 @@ export default function LocationSearchSheet({
                   s.confirmBtn,
                   pinAddress === "Outside service area" && s.confirmBtnDisabled,
                 ]}
-                onPress={confirmPin}
+                onPress={pinTooWide ? zoomInForPrecision : confirmPin}
                 disabled={pinAddress === "Outside service area"}
                 activeOpacity={0.9}
               >
-                <Text style={s.confirmBtnText}>Use this location</Text>
+                <Text style={s.confirmBtnText}>
+                  {pinTooWide ? "Zoom in to place the pin" : "Use this location"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -619,6 +749,25 @@ export default function LocationSearchSheet({
                 <Text style={s.rowTitle}>Use my current location</Text>
               </TouchableOpacity>
 
+              {/* Pin fallback — always available, because Places coverage in
+                  The Gambia thins out fast outside the main strip. */}
+              <TouchableOpacity
+                style={s.row}
+                onPress={openPinMode}
+                activeOpacity={0.7}
+              >
+                <View style={[s.rowIcon, { backgroundColor: "#EEF2F7" }]}>
+                  <Ionicons name="map-outline" size={18} color={INK_MID} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.rowTitle}>Can&apos;t find it? Drop a pin</Text>
+                  <Text style={s.rowSub}>Pick the exact spot on a map</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={INK_LIGHT} />
+              </TouchableOpacity>
+
+              <View style={s.divider} />
+
               {/* Saved */}
               {savedWithCoords.length > 0 && (
                 <>
@@ -688,23 +837,6 @@ export default function LocationSearchSheet({
                 </>
               )}
 
-              {/* Pin fallback — always available, because Places coverage in
-                  The Gambia thins out fast outside the main strip. */}
-              <View style={s.divider} />
-              <TouchableOpacity
-                style={s.row}
-                onPress={openPinMode}
-                activeOpacity={0.7}
-              >
-                <View style={[s.rowIcon, { backgroundColor: "#EEF2F7" }]}>
-                  <Ionicons name="map-outline" size={18} color={INK_MID} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.rowTitle}>Can&apos;t find it? Drop a pin</Text>
-                  <Text style={s.rowSub}>Pick the exact spot on a map</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={INK_LIGHT} />
-              </TouchableOpacity>
             </ScrollView>
             )}
           </View>
@@ -840,6 +972,59 @@ const s = StyleSheet.create({
     borderTopColor: DIVIDER,
   },
   pinHint: { fontSize: 12.5, color: INK_LIGHT, textAlign: "center" },
+  mapTypeBtn: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  mapTypeLabel: { fontSize: 13, fontWeight: "600", color: INK },
+  pinOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // The glyph's tip is its bottom edge, so lift it half its height to sit the
+  // tip exactly on the map centre.
+  pinGlyph: { transform: [{ translateY: -22 }] },
+  pinDot: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    width: 8,
+    height: 8,
+    marginTop: -4,
+    marginLeft: -4,
+    borderRadius: 4,
+    backgroundColor: "rgba(0,0,0,0.35)",
+  },
+  recentreBtn: {
+    position: "absolute",
+    right: 12,
+    bottom: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
   pinAddressRow: {
     flexDirection: "row",
     alignItems: "center",

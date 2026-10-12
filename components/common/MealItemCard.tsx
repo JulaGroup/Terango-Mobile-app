@@ -3,6 +3,13 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
+import { cldUrl, cldWidthForBox } from "@/utils/cloudinaryImage";
+
+/**
+ * Fixed 84x84 container with contentFit="cover". Sized on the larger edge
+ * because a covering image scales until it fills both axes.
+ */
+const IMG_W = cldWidthForBox(84, 84, "cover");
 
 export interface UniversalProduct {
   id: number;
@@ -159,9 +166,7 @@ const MealItemCard = ({
 
         {product.image && !imageLoadError ? (
           <Image
-            source={
-              typeof product.image === "string" ? product.image : product.image
-            }
+            source={cldUrl(product.image, IMG_W)}
             style={styles.image}
             contentFit="cover"
             transition={200}

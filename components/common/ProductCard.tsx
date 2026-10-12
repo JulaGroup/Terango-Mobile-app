@@ -3,6 +3,18 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { PrimaryColor } from "@/constants/Colors";
+import { cldUrl, cldWidthForBox } from "@/utils/cloudinaryImage";
+
+/**
+ * One rung for every caller, chosen from the widest of them (173dp, the 2-column
+ * grid) rather than from the `cardWidth` prop.
+ *
+ * Nine screens pass widths between 105 and 173. Deriving the rung per render
+ * would split those across two rungs — and each rung is a separately billed
+ * derived asset per image. One rung for all nine callers is the whole point.
+ * The container is 90dp tall with contentFit="contain", so width is what binds.
+ */
+const IMG_W = cldWidthForBox(173, 90, "contain");
 
 export interface UniversalProduct {
   id: string | number;
@@ -143,9 +155,7 @@ const ProductCard = ({
       <View style={styles.productImageContainer}>
         {product.image && !imageLoadError ? (
           <Image
-            source={
-              typeof product.image === "string" ? product.image : product.image
-            }
+            source={cldUrl(product.image, IMG_W)}
             style={styles.image}
             contentFit="contain"
             transition={200}
