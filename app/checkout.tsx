@@ -273,6 +273,11 @@ export default function Checkout() {
 
   // 🚀 DISTANCE-BASED DELIVERY FEE STATE
   const [deliveryEstimate, setDeliveryEstimate] = useState<any>(null);
+  // Some vendors absorb TeranGO's 5% service fee (the customer pays the bare
+  // item price; the fee comes out of the vendor's share). Resolved per-vendor
+  // from the server — the cart is single-vendor, so one lookup covers it, and
+  // it applies to pickup and delivery alike.
+  const [absorbsServiceFee, setAbsorbsServiceFee] = useState(false);
   const [loadingDeliveryFee, setLoadingDeliveryFee] = useState(false);
   const [customerCoordinates, setCustomerCoordinates] = useState<{
     latitude: number;
@@ -342,8 +347,12 @@ export default function Checkout() {
     form.orderType === "DELIVERY" && !!maintenanceFlags.noDriversWindow?.active;
 
   const discountAmount = appliedPromo?.discountAmount || 0;
-  // 💰 SERVICE FEE: 5% of subtotal, rounded to nearest whole number, minimum GMD 1 (Wave only accepts whole numbers)
-  const serviceFee = Math.max(1, Math.round(subtotal * 0.05));
+  // 💰 SERVICE FEE: 5% of subtotal, rounded to nearest whole number, minimum GMD 1 (Wave only accepts whole numbers).
+  // When the vendor absorbs it, the customer isn't charged — the server takes
+  // the 5% out of the vendor's share instead.
+  const serviceFee = absorbsServiceFee
+    ? 0
+    : Math.max(1, Math.round(subtotal * 0.05));
   const total = subtotal - discountAmount + deliveryFee + serviceFee;
 
   // Disable placing order if:
@@ -1013,6 +1022,35 @@ export default function Checkout() {
     currentAddress,
     orderTypeReady,
   ]);
+
+  // Resolve whether this cart's vendor absorbs the service fee. Single-vendor
+  // cart, so one lookup; independent of order type.
+  useEffect(() => {
+    const first = items[0];
+    const vendorId = first?.vendorId;
+    const vendorType = first?.entityType;
+    if (!vendorId || !vendorType) {
+      setAbsorbsServiceFee(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/delivery-fee/service-fee-mode?entityType=${encodeURIComponent(
+            vendorType,
+          )}&vendorId=${encodeURIComponent(vendorId)}`,
+        );
+        const data = await res.json();
+        if (!cancelled) setAbsorbsServiceFee(!!data?.absorbsServiceFee);
+      } catch {
+        if (!cancelled) setAbsorbsServiceFee(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [items]);
 
   // Only show the delivery-fee error banner if the error sticks around. A
   // transient error (cleared within ~1.4s by a successful re-estimate) never
@@ -2455,10 +2493,12 @@ export default function Checkout() {
                 <Text style={styles.totalLabel}>Subtotal</Text>
                 <Text style={styles.totalValue}>D{Math.ceil(subtotal)}</Text>
               </View>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Service Fee</Text>
-                <Text style={styles.totalValue}>D{serviceFee}</Text>
-              </View>
+              {!absorbsServiceFee && (
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Service Fee</Text>
+                  <Text style={styles.totalValue}>D{serviceFee}</Text>
+                </View>
+              )}
               {form.orderType === "DELIVERY" && (
                 <>
                   <View style={styles.totalRow}>
