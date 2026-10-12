@@ -279,6 +279,7 @@ interface MenuItem {
   requiredChoice?: {
     label: string;
     options: RequiredChoiceOption[];
+    optional?: boolean;
   };
 }
 
@@ -719,19 +720,22 @@ export default function RestaurantDetails() {
   // Confirm the required complementary choice: add the main item AND the chosen
   // option (each as its own cart line, so pricing/vendor ticket work as usual).
   const confirmRequiredChoice = useCallback(() => {
-    if (!choiceItem || !selectedOptionId) return;
-    const option = choiceItem.requiredChoice?.options.find(
-      (o) => o.id === selectedOptionId,
-    );
-    if (!option) return;
+    if (!choiceItem) return;
+    const option = selectedOptionId
+      ? choiceItem.requiredChoice?.options.find((o) => o.id === selectedOptionId)
+      : null;
+    // A required choice needs a selection; an optional one can be skipped.
+    if (!option && !choiceItem.requiredChoice?.optional) return;
 
     addLineToCart(choiceItem);
-    addLineToCart({
-      id: option.id,
-      name: option.name,
-      price: option.price,
-      description: `With ${choiceItem.name}`,
-    });
+    if (option) {
+      addLineToCart({
+        id: option.id,
+        name: option.name,
+        price: option.price,
+        description: `With ${choiceItem.name}`,
+      });
+    }
     pulseCart();
     setChoiceItem(null);
     setSelectedOptionId(null);
@@ -1180,7 +1184,7 @@ export default function RestaurantDetails() {
             <Text style={styles.choiceTitle}>{choiceItem?.name}</Text>
             <Text style={styles.choiceSubtitle}>
               {choiceItem?.requiredChoice?.label || "Choose a complementary meal"}{" "}
-              · required
+              · {choiceItem?.requiredChoice?.optional ? "optional" : "required"}
             </Text>
             <ScrollView style={{ maxHeight: 340 }}>
               {choiceItem?.requiredChoice?.options.map((opt) => {
@@ -1216,13 +1220,21 @@ export default function RestaurantDetails() {
             <TouchableOpacity
               style={[
                 styles.choiceAddBtn,
-                !selectedOptionId && styles.choiceAddBtnDisabled,
+                !selectedOptionId &&
+                  !choiceItem?.requiredChoice?.optional &&
+                  styles.choiceAddBtnDisabled,
               ]}
-              disabled={!selectedOptionId}
+              disabled={
+                !selectedOptionId && !choiceItem?.requiredChoice?.optional
+              }
               onPress={confirmRequiredChoice}
               activeOpacity={0.85}
             >
-              <Text style={styles.choiceAddBtnText}>Add to cart</Text>
+              <Text style={styles.choiceAddBtnText}>
+                {choiceItem?.requiredChoice?.optional && !selectedOptionId
+                  ? "Add without topping"
+                  : "Add to cart"}
+              </Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>

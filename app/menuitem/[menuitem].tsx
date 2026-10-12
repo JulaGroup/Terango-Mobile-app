@@ -136,6 +136,7 @@ interface MenuItem {
   requiredChoice?: {
     label: string;
     options: RequiredChoiceOption[];
+    optional?: boolean;
   } | null;
   menu: {
     id: string;
@@ -275,11 +276,12 @@ export default function MenuItemDetailPage() {
   // Confirm the required complementary choice: add the main item AND the chosen
   // option, each as its own cart line (so pricing / vendor ticket work as usual).
   const confirmRequiredChoice = () => {
-    if (!menuItem || !selectedOptionId) return;
-    const option = menuItem.requiredChoice?.options.find(
-      (o) => o.id === selectedOptionId,
-    );
-    if (!option) return;
+    if (!menuItem) return;
+    const option = selectedOptionId
+      ? menuItem.requiredChoice?.options.find((o) => o.id === selectedOptionId)
+      : null;
+    // A required choice needs a selection; an optional one can be skipped.
+    if (!option && !menuItem.requiredChoice?.optional) return;
 
     addLineToCart({
       id: menuItem.id,
@@ -288,12 +290,14 @@ export default function MenuItemDetailPage() {
       description: menuItem.description || "",
       imageUrl: menuItem.imageUrl || "",
     });
-    addLineToCart({
-      id: option.id,
-      name: option.name,
-      price: option.price,
-      description: `With ${menuItem.name}`,
-    });
+    if (option) {
+      addLineToCart({
+        id: option.id,
+        name: option.name,
+        price: option.price,
+        description: `With ${menuItem.name}`,
+      });
+    }
     setShowChoice(false);
     setSelectedOptionId(null);
   };
@@ -755,8 +759,8 @@ export default function MenuItemDetailPage() {
             <View style={styles.choiceHandle} />
             <Text style={styles.choiceTitle}>{menuItem?.name}</Text>
             <Text style={styles.choiceSubtitle}>
-              {menuItem?.requiredChoice?.label || "Choose a complementary meal"} ·
-              required
+              {menuItem?.requiredChoice?.label || "Choose a complementary meal"} ·{" "}
+              {menuItem?.requiredChoice?.optional ? "optional" : "required"}
             </Text>
             <ScrollView style={{ maxHeight: 340 }}>
               {menuItem?.requiredChoice?.options.map((opt) => {
@@ -792,13 +796,21 @@ export default function MenuItemDetailPage() {
             <TouchableOpacity
               style={[
                 styles.choiceAddBtn,
-                !selectedOptionId && styles.choiceAddBtnDisabled,
+                !selectedOptionId &&
+                  !menuItem?.requiredChoice?.optional &&
+                  styles.choiceAddBtnDisabled,
               ]}
-              disabled={!selectedOptionId}
+              disabled={
+                !selectedOptionId && !menuItem?.requiredChoice?.optional
+              }
               onPress={confirmRequiredChoice}
               activeOpacity={0.85}
             >
-              <Text style={styles.choiceAddBtnText}>Add to cart</Text>
+              <Text style={styles.choiceAddBtnText}>
+                {menuItem?.requiredChoice?.optional && !selectedOptionId
+                  ? "Add without topping"
+                  : "Add to cart"}
+              </Text>
             </TouchableOpacity>
           </TouchableOpacity>
         </TouchableOpacity>
