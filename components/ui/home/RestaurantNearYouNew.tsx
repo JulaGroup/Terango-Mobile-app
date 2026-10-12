@@ -136,6 +136,7 @@ interface Restaurant {
   imageUrl?: string;
   address?: string;
   city?: string;
+  rating?: number;
   isActive: boolean;
   acceptsOrders: boolean;
   openingHours?: any;
@@ -556,213 +557,173 @@ const RestaurantNearYou = ({
           const displayAddress =
             restaurant.address || restaurant.service?.location || "Location";
 
-          return (
-            <TouchableOpacity
-              key={restaurant.id}
-              style={{
-                width: CARD_WIDTH,
-                backgroundColor: "#fff",
-                borderRadius: 16,
-                marginRight: index === restaurants.length - 1 ? 0 : 16,
-                marginVertical: 8,
-                elevation: 12,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 8 },
-                shadowOpacity: 0.25,
-                shadowRadius: 15,
-                overflow: "hidden",
-                // Additional shadow for better distinction
-                borderWidth: 0.5,
-                borderColor: "rgba(0, 0, 0, 0.08)",
-              }}
-              activeOpacity={0.85}
-              onPress={() => {
-                router.push({
-                  pathname: "/restaurant-details",
-                  params: { restaurantId: restaurant.id },
-                });
-              }}
-            >
-              {/* Restaurant Image */}
-              <View
+            return (
+              <TouchableOpacity
+                key={restaurant.id}
                 style={{
-                  height: 140,
-                  backgroundColor: "#f8f8f8",
-                  position: "relative",
-                  overflow: "hidden",
+                  width: CARD_WIDTH,
+                  marginRight: index === restaurants.length - 1 ? 0 : 14,
+                  marginVertical: 6,
+                }}
+                activeOpacity={0.9}
+                onPress={() => {
+                  router.push({
+                    pathname: "/restaurant-details",
+                    params: { restaurantId: restaurant.id },
+                  });
                 }}
               >
-                {restaurant.imageUrl || restaurant.service?.imageUrl ? (
-                  <Image
-                    source={{
-                      uri: restaurant.imageUrl || restaurant.service?.imageUrl,
-                    }}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      resizeMode: "cover",
-                    }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      backgroundColor: "#f8f8f8",
-                    }}
-                  >
-                    <Ionicons
-                      name="restaurant-outline"
-                      size={40}
-                      color="#ccc"
-                    />
-                  </View>
-                )}
-
-                {/* Active Status Badge */}
+                {/* Cover image */}
                 <View
                   style={{
-                    position: "absolute",
-                    top: 12,
-                    left: 12,
-                    backgroundColor: isOpen ? "#27AE60" : "#EF4444",
-                    borderRadius: 12,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
+                    height: 150,
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    backgroundColor: "#F2F2F4",
                   }}
                 >
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 10,
-                      fontWeight: "600",
-                    }}
-                  >
-                    {isOpen ? "OPEN" : "CLOSED"}
-                  </Text>
-                </View>
-
-                {/* Rating Badge */}
-                {/* <View
-                  style={{
-                    position: "absolute",
-                    top: 12,
-                    right: 12,
-                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                    borderRadius: 12,
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    flexDirection: "row",
-                    alignItems: "center",
-                  }}
-                >
-                  <Ionicons name="star" size={12} color="#FFD700" />
-                  <Text
-                    style={{
-                      color: "#fff",
-                      fontSize: 10,
-                      fontWeight: "600",
-                      marginLeft: 2,
-                    }}
-                  >
-                    {rating}
-                  </Text>
-                </View> */}
-              </View>
-
-              {/* Restaurant Info */}
-              <View style={{ padding: 16 }}>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    color: "#333",
-                    marginBottom: 4,
-                  }}
-                  numberOfLines={1}
-                >
-                  {restaurant.name}
-                </Text>
-
-                <Text
-                  style={{
-                    fontSize: 12,
-                    color: "#666",
-                    marginBottom: 8,
-                    lineHeight: 16,
-                  }}
-                  numberOfLines={2}
-                >
-                  {restaurant.description ||
-                    restaurant.service?.name ||
-                    "Delicious food served fresh"}
-                </Text>
-
-                {/* Categories */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={{ marginBottom: 12 }}
-                >
-                  {cuisineTypes.map((category, catIndex) => (
+                  {restaurant.imageUrl || restaurant.service?.imageUrl ? (
+                    <Image
+                      source={{
+                        uri: restaurant.imageUrl || restaurant.service?.imageUrl,
+                      }}
+                      style={{ width: "100%", height: "100%" }}
+                      resizeMode="cover"
+                    />
+                  ) : (
                     <View
-                      key={catIndex}
                       style={{
-                        backgroundColor: "#f0f0f0",
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        marginRight: 6,
+                        flex: 1,
+                        justifyContent: "center",
+                        alignItems: "center",
                       }}
                     >
-                      <Text
+                      <Ionicons
+                        name="restaurant-outline"
+                        size={40}
+                        color="#CDCDD2"
+                      />
+                    </View>
+                  )}
+                  {!isOpen && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: "rgba(255,255,255,0.5)",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <View
                         style={{
-                          fontSize: 10,
-                          color: "#666",
-                          fontWeight: "500",
+                          backgroundColor: "rgba(0,0,0,0.78)",
+                          borderRadius: 999,
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
                         }}
                       >
-                        {category}
-                      </Text>
+                        <Text
+                          style={{
+                            color: "#fff",
+                            fontSize: 12,
+                            fontWeight: "700",
+                          }}
+                        >
+                          Closed
+                        </Text>
+                      </View>
                     </View>
-                  ))}
-                </ScrollView>
+                  )}
+                </View>
 
-                {/* Footer Info */}
-                {/* Footer Info */}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 4,
-                  }}
-                >
+                {/* Info */}
+                <View style={{ paddingTop: 10, paddingHorizontal: 2 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      fontSize: 16,
+                      fontWeight: "700",
+                      color: "#1C1C1E",
+                      letterSpacing: -0.2,
+                    }}
+                  >
+                    {restaurant.name}
+                  </Text>
                   <View
                     style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: PrimaryColor,
-                      marginRight: 6,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 5,
                     }}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      color: "#6B7280",
-                      fontWeight: "500",
-                      flex: 1,
-                    }}
-                    numberOfLines={1}
                   >
-                    {displayAddress}
-                  </Text>
+                    <Ionicons name="star" size={13} color="#F5A623" />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "600",
+                        color: "#1C1C1E",
+                        marginLeft: 3,
+                      }}
+                    >
+                      {restaurant.rating && restaurant.rating > 0
+                        ? restaurant.rating.toFixed(1)
+                        : "New"}
+                    </Text>
+                    {cuisineTypes[0] ? (
+                      <>
+                        <Text
+                          style={{
+                            marginHorizontal: 6,
+                            color: "#C7C7CC",
+                            fontSize: 12,
+                          }}
+                        >
+                          ·
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontSize: 13,
+                            color: "#6B6B6E",
+                            fontWeight: "500",
+                          }}
+                        >
+                          {cuisineTypes[0]}
+                        </Text>
+                      </>
+                    ) : null}
+                    {displayAddress ? (
+                      <>
+                        <Text
+                          style={{
+                            marginHorizontal: 6,
+                            color: "#C7C7CC",
+                            fontSize: 12,
+                          }}
+                        >
+                          ·
+                        </Text>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            fontSize: 13,
+                            color: "#6B6B6E",
+                            fontWeight: "500",
+                            flexShrink: 1,
+                          }}
+                        >
+                          {displayAddress}
+                        </Text>
+                      </>
+                    ) : null}
+                  </View>
                 </View>
-              </View>
-            </TouchableOpacity>
-          );
+              </TouchableOpacity>
+            );
         })}
       </ScrollView>
     </View>

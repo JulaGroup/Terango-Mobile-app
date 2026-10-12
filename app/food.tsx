@@ -204,11 +204,18 @@ const SectionHeader = ({
     }}
   >
     <View>
-      <Text style={{ fontSize: 17, fontWeight: "700", color: "#1a1a1a" }}>
+      <Text
+        style={{
+          fontSize: 20,
+          fontWeight: "800",
+          color: "#1C1C1E",
+          letterSpacing: -0.4,
+        }}
+      >
         {title}
       </Text>
       {subtitle && (
-        <Text style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+        <Text style={{ fontSize: 13, color: "#8E8E93", marginTop: 2 }}>
           {subtitle}
         </Text>
       )}
@@ -228,9 +235,7 @@ const SectionHeader = ({
   </View>
 );
 
-const Divider = () => (
-  <View style={{ height: 8, backgroundColor: "#f5f5f5", marginVertical: 4 }} />
-);
+const Divider = () => <View style={{ height: 8 }} />;
 
 // ─── Food Page ────────────────────────────────────────────────────────────────
 export default function FoodPage() {
@@ -366,9 +371,11 @@ export default function FoodPage() {
         style={{
           backgroundColor: "#ff6b00",
           paddingHorizontal: 16,
-          paddingBottom: 10,
+          paddingBottom: 14,
           paddingTop: 6,
           gap: 10,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
         }}
       >
         {/* Row 1: Back · Location · Cart */}
@@ -449,59 +456,53 @@ export default function FoodPage() {
       {/* ── Scrollable content ────────────────────────── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={{ flex: 1, backgroundColor: "#ff6b00" }}
+        style={{ flex: 1, backgroundColor: "#F6F6F8" }}
         contentContainerStyle={{ paddingBottom: 36 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#fff"
+            tintColor="#ff6b00"
             colors={["#ff6b00"]}
           />
         }
       >
-        <View style={{ backgroundColor: "#ff6b00" }}>
+        <View style={{ backgroundColor: "#F6F6F8" }}>
           {/* ── Page title ──────────────────────────────── */}
           <View
             style={{
-              backgroundColor: "#ff6b00",
               paddingHorizontal: 16,
-              paddingBottom: 16,
-              paddingTop: 4,
+              paddingBottom: 8,
+              paddingTop: 16,
             }}
           >
-            <Text style={{ fontSize: 22, fontWeight: "800", color: "#fff" }}>
-              Food
-            </Text>
             <Text
               style={{
-                fontSize: 13,
-                color: "rgba(255,255,255,0.85)",
-                marginTop: 2,
+                fontSize: 28,
+                fontWeight: "800",
+                color: "#1C1C1E",
+                letterSpacing: -0.5,
               }}
             >
+              Food
+            </Text>
+            <Text style={{ fontSize: 14, color: "#8E8E93", marginTop: 2 }}>
               Restaurants, local dishes & more
             </Text>
           </View>
 
-          {/* ── White content card — swoosh ── */}
-          <View
-            style={{
-              backgroundColor: "#fff",
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-            }}
-          >
+          {/* ── Content area (light, airy) ── */}
+          <View style={{ backgroundColor: "transparent" }}>
             {/* ── Filter chips ────────────────────────────── */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{
                 paddingHorizontal: 16,
-                paddingVertical: 14,
+                paddingVertical: 10,
                 gap: 8,
               }}
-              style={{ backgroundColor: "#fff" }}
+              style={{ backgroundColor: "transparent" }}
             >
               {FOOD_FILTERS.map((f) => {
                 const isActive = activeFilter === f.id;
@@ -514,11 +515,11 @@ export default function FoodPage() {
                       flexDirection: "row",
                       alignItems: "center",
                       paddingHorizontal: 14,
-                      height: 40,
-                      borderRadius: 20,
-                      backgroundColor: isActive ? "#ff6b00" : "#f5f5f5",
-                      borderWidth: isActive ? 0 : 1,
-                      borderColor: "#eee",
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: isActive ? "#ff6b00" : "#fff",
+                      borderWidth: 1,
+                      borderColor: isActive ? "#ff6b00" : "#ECECEF",
                       gap: 5,
                     }}
                   >
