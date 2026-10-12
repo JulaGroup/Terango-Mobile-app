@@ -448,9 +448,7 @@ const TrendingMealsSection = ({ refreshKey }: { refreshKey: number }) => {
 };
 
 // ─── Divider ─────────────────────────────────────────────────────────────────
-export const Divider = () => (
-  <View style={{ height: 8, backgroundColor: "#f5f5f5", marginVertical: 4 }} />
-);
+export const Divider = () => <View style={{ height: 8 }} />;
 
 // ─── Quick Actions row (wallet / vouchers / rewards) ─────────────────────────
 const QUICK_ACTIONS = [
@@ -600,8 +598,8 @@ export default function HomeScreen() {
         {/* ① Orange header (location + notif + profile) */}
         <HubHeader />
 
-        {/* White body — carries the bottom padding so no orange shows below it */}
-        <View style={{ backgroundColor: "#fff", paddingBottom: 32 }}>
+        {/* Light body — carries the bottom padding so no orange shows below it */}
+        <View style={{ backgroundColor: "#F6F6F8", paddingBottom: 32 }}>
           {/* ② Search bar */}
           <View style={{ paddingVertical: 10 }}>
             <SearchBar

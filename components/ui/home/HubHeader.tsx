@@ -81,7 +81,9 @@ const HubHeader = () => {
           backgroundColor: "#ff6b00",
           paddingHorizontal: 16,
           paddingTop: 12,
-          paddingBottom: 14,
+          paddingBottom: 16,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
         }}
       >
         <View
