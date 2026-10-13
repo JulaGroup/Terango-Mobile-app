@@ -891,7 +891,7 @@ const BrowseScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: "#F6F6F8",
     paddingTop: Platform.OS === "android" ? 20 : 0,
     paddingBottom: 40,
   },
@@ -902,8 +902,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: PrimaryColor,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingTop: 10,
+    paddingBottom: 16,
     gap: 10,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   searchBar: {
     flex: 1,

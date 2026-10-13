@@ -862,7 +862,7 @@ export default function ProductDetail() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F6F6F8",
   },
   errorContainer: {
     flex: 1,
@@ -987,6 +987,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   productInfo: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 16,
@@ -1084,11 +1088,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 4,
-    borderWidth: 1,
-    borderColor: "rgba(0, 0, 0, 0.04)",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   relatedProductImageContainer: {
     width: "100%",
@@ -1119,11 +1121,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: PrimaryColor,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   cartQuantityBadge: {
     position: "absolute",

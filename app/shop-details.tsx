@@ -1390,7 +1390,7 @@ export default function ShopDetails() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F6F6F8",
   },
   errorContainer: {
     flex: 1,
@@ -1939,20 +1939,18 @@ const styles = StyleSheet.create({
   },
 
   cartSummaryButton: {
-    borderRadius: 32,
-    elevation: 20,
+    borderRadius: 28,
+    elevation: 8,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
   },
 
   cartSummaryContainer: {
-    backgroundColor: "#0F172A",
-    borderRadius: 32,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "#1C1C1E",
+    borderRadius: 28,
+    padding: 18,
     overflow: "hidden",
     position: "relative",
   },

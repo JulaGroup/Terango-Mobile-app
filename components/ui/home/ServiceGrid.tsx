@@ -201,17 +201,15 @@ const HeroCard = ({
 const heroStyles = StyleSheet.create({
   shadow: {
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.13,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 3,
   },
   card: {
     borderRadius: 18,
     height: 152,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.055)",
   },
   illustration: {
     position: "absolute",
