@@ -278,7 +278,7 @@ const CategoryDetailsPage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#F6F6F8",
   },
   header: {
     flexDirection: "row",
@@ -338,12 +338,10 @@ const styles = StyleSheet.create({
     minHeight: 160,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#F1F5F9",
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+    marginBottom: 18,
   },
   subCategoryImage: {
     width: 110,

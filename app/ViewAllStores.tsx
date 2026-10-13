@@ -155,7 +155,7 @@ export default function ViewAllStores() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, backgroundColor: "#F6F6F8" }}>
       <StatusBar barStyle="light-content" backgroundColor="#ff6b00" />
       {/* Header */}
       <View style={styles.header}>
@@ -459,15 +459,13 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    marginBottom: 18,
-    elevation: 12,
+    marginBottom: 16,
+    elevation: 2,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
     overflow: "hidden",
-    borderWidth: 0.5,
-    borderColor: "rgba(0, 0, 0, 0.08)",
   },
   imageContainer: {
     height: 140,

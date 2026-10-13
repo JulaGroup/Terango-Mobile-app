@@ -1996,9 +1996,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Platform.OS === "web" ? 12 : 20,
-    paddingVertical: 15,
+    paddingTop: 15,
+    paddingBottom: 18,
     backgroundColor: PrimaryColor,
     borderBottomWidth: 0,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   backButton: {
     backgroundColor: "rgba(255,255,255,0.22)",

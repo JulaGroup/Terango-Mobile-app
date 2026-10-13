@@ -706,14 +706,6 @@ const BrowseScreen: React.FC = () => {
           ))}
         </View>
 
-        {/* ── Hero Ad Banner ── */}
-        <View style={styles.heroBannerWrap}>
-          <AdvertCard />
-        </View>
-        <Divider />
-
-        <TeranGOPicks />
-        <Divider />
         {/* ── Browse Categories ── */}
         <View style={styles.categoriesSection}>
           {/* Section header */}
@@ -790,6 +782,15 @@ const BrowseScreen: React.FC = () => {
             </View>
           )}
         </View>
+
+        {/* ── Hero Ad Banner ── */}
+        <View style={styles.heroBannerWrap}>
+          <AdvertCard />
+        </View>
+        <Divider />
+
+        <TeranGOPicks />
+        <Divider />
 
         {/* ── Trending Now ── */}
         <View style={styles.sectionBlock}>

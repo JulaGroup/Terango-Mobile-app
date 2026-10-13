@@ -524,7 +524,7 @@ const ShopCategoryPage = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#F6F6F8" },
   header: {
     flexDirection: "row",
     alignItems: "center",

@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { HapticTab } from "@/components/HapticTab";
-import { IconSymbol } from "@/components/ui/IconSymbol";
+import { Ionicons } from "@expo/vector-icons";
 import TabBarBackground from "@/components/ui/TabBarBackground";
 import { Colors, PrimaryColor } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -162,8 +162,12 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house" color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={26}
+              name={focused ? "home" : "home-outline"}
+              color={color}
+            />
           ),
         }}
       />
@@ -171,8 +175,12 @@ export default function TabLayout() {
         name="browse"
         options={{
           title: "Browse",
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="square.grid.2x2" color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={26}
+              name={focused ? "grid" : "grid-outline"}
+              color={color}
+            />
           ),
         }}
       />
@@ -181,8 +189,12 @@ export default function TabLayout() {
         options={{
           title: "Activities",
           tabBarBadge: liveOrderCount > 0 ? liveOrderCount : undefined,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="list.bullet.rectangle" color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={26}
+              name={focused ? "receipt" : "receipt-outline"}
+              color={color}
+            />
           ),
         }}
       />
@@ -192,8 +204,12 @@ export default function TabLayout() {
           title: "Profile",
           tabBarBadge:
             vendorPendingOrders > 0 ? vendorPendingOrders : undefined,
-          tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person" color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              size={26}
+              name={focused ? "person" : "person-outline"}
+              color={color}
+            />
           ),
         }}
       />
