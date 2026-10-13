@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useCart } from "@/context/CartContext";
 import { PrimaryColor } from "@/constants/Colors";
+import { API_URL } from "@/constants/config";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendorOrderingStatus } from "@/hooks/useVendorOrderingStatus";
@@ -151,6 +152,64 @@ export default function Cart() {
   const MIN_ORDER_AMOUNT = 1;
   const meetsMinimum = subtotal >= MIN_ORDER_AMOUNT;
   const remaining = MIN_ORDER_AMOUNT - subtotal;
+
+  // Some vendors absorb TeranGO's 5% service fee (the customer pays the bare
+  // subtotal). Checkout already resolves this per vendor; mirror it here so the
+  // cart estimate matches and we don't show a fee the customer won't be charged.
+  const vendorKey = vendorEntries
+    .map((v) => `${v.vendorType}:${v.vendorId}`)
+    .join("|");
+  const [absorbsFeeByVendor, setAbsorbsFeeByVendor] = useState<
+    Record<string, boolean>
+  >({});
+  useEffect(() => {
+    if (!vendorKey) {
+      setAbsorbsFeeByVendor({});
+      return;
+    }
+    const pairs = vendorKey.split("|").map((s) => {
+      const [vendorType, ...rest] = s.split(":");
+      return { vendorType, vendorId: rest.join(":") };
+    });
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        pairs.map(async ({ vendorId, vendorType }) => {
+          try {
+            const res = await fetch(
+              `${API_URL}/api/delivery-fee/service-fee-mode?entityType=${encodeURIComponent(
+                vendorType,
+              )}&vendorId=${encodeURIComponent(vendorId)}`,
+            );
+            const data = await res.json();
+            return [vendorId, !!data?.absorbsServiceFee] as const;
+          } catch {
+            return [vendorId, false] as const;
+          }
+        }),
+      );
+      if (!cancelled) setAbsorbsFeeByVendor(Object.fromEntries(entries));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [vendorKey]);
+
+  // Service fee applies only to vendors that don't absorb it, computed on each
+  // vendor's own subtotal so a mixed cart stays correct.
+  const serviceFee = useMemo(
+    () =>
+      vendorEntries.reduce((sum, { vendorId }) => {
+        if (absorbsFeeByVendor[vendorId]) return sum;
+        const vendorSubtotal = (restaurantCarts[vendorId] || []).reduce(
+          (s, it) => s + (it.discountedPrice ?? it.price) * it.quantity,
+          0,
+        );
+        return sum + vendorSubtotal * 0.05;
+      }, 0),
+    [vendorEntries, absorbsFeeByVendor, restaurantCarts],
+  );
+  const estimatedTotal = subtotal + serviceFee;
   const CartItemCard = ({
     item,
     index,
@@ -521,12 +580,14 @@ export default function Cart() {
             <Text style={styles.summaryValue}>D{subtotal.toFixed(2)}</Text>
           </View>
 
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Service Fee (5%)</Text>
-            <Text style={styles.summaryValue}>
-              D{(subtotal * 0.05).toFixed(1)}
-            </Text>
-          </View>
+          {serviceFee > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Service Fee</Text>
+              <Text style={styles.summaryValue}>
+                D{serviceFee.toFixed(1)}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Delivery Fee</Text>
@@ -543,7 +604,7 @@ export default function Cart() {
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Estimated Total</Text>
             <Text style={styles.totalValue}>
-              D{(subtotal + subtotal * 0.05).toFixed(2)}+
+              D{estimatedTotal.toFixed(2)}+
             </Text>
           </View>
 
