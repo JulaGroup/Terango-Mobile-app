@@ -114,12 +114,18 @@ export default function Cart() {
 
   const vendorEntries = useMemo(
     () =>
-      restaurantIds.map((vendorId) => ({
-        vendorId,
-        vendorType: (restaurantCarts[vendorId]?.[0]?.entityType === "menuItem"
-          ? "restaurant"
-          : "shop") as VendorType,
-      })),
+      restaurantIds.map((vendorId) => {
+        // entityType is already normalized to restaurant|shop|pharmacy by
+        // CartContext; use it directly (the old "menuItem" check never matched
+        // the normalized value and collapsed every vendor to "shop").
+        const raw = restaurantCarts[vendorId]?.[0]?.entityType;
+        const vendorType = (
+          raw && ["restaurant", "shop", "pharmacy"].includes(raw)
+            ? raw
+            : "shop"
+        ) as VendorType;
+        return { vendorId, vendorType };
+      }),
     [restaurantIds, restaurantCarts],
   );
 
@@ -221,9 +227,13 @@ export default function Cart() {
     const itemSlideAnim = useRef(new Animated.Value(50)).current;
     const itemFadeAnim = useRef(new Animated.Value(0)).current;
 
-    // Determine vendor type from entity type
-    const vendorType: VendorType =
-      item.entityType === "menuItem" ? "restaurant" : "shop";
+    // Determine vendor type from entity type (already normalized to
+    // restaurant|shop|pharmacy by CartContext).
+    const vendorType: VendorType = (
+      ["restaurant", "shop", "pharmacy"].includes(item.entityType)
+        ? item.entityType
+        : "shop"
+    ) as VendorType;
 
     // Check vendor ordering status
     const { orderingDisabled, disabledReason } = useVendorOrderingStatus({
