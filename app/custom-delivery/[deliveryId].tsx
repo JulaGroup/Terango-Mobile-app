@@ -1057,6 +1057,16 @@ export default function DeliveryTrackingPage() {
   >([]);
   const isFetchingRoute = useRef(false);
 
+  // Live driver tracking only applies once the driver actually has the package.
+  // Before PICKED_UP the driver is still heading to the pickup point, so the
+  // customer must not see or track their location yet. Gate all location
+  // seeding/updates on this; a ref keeps the socket handler's view current.
+  const trackingActive = ["PICKED_UP", "IN_TRANSIT", "ARRIVED"].includes(
+    String(delivery?.status ?? ""),
+  );
+  const trackingActiveRef = useRef(trackingActive);
+  trackingActiveRef.current = trackingActive;
+
   const sheetY = useRef(new Animated.Value(SCREEN_H - MID)).current;
   const lastSheetY = useRef(SCREEN_H - MID);
 
@@ -1139,6 +1149,8 @@ export default function DeliveryTrackingPage() {
     socketEmit("customer:trackOrder", deliveryId);
 
     const onLocation = (data: any) => {
+      // Ignore location pings until the package has been picked up.
+      if (!trackingActiveRef.current) return;
       if (data?.latitude && data?.longitude) {
         setDriverLocation({
           latitude: data.latitude,
@@ -1167,8 +1179,14 @@ export default function DeliveryTrackingPage() {
     };
   }, [deliveryId]);
 
-  // Seed driver location from delivery data
+  // Seed driver location from delivery data — but only once tracking is active
+  // (package picked up). Before that, keep the driver off the map, and clear
+  // any location we may have shown if the status regresses.
   useEffect(() => {
+    if (!trackingActive) {
+      setDriverLocation(null);
+      return;
+    }
     if (
       delivery?.driver?.currentLatitude &&
       delivery?.driver?.currentLongitude
@@ -1178,7 +1196,11 @@ export default function DeliveryTrackingPage() {
         longitude: delivery.driver.currentLongitude,
       });
     }
-  }, [delivery?.driver?.currentLatitude, delivery?.driver?.currentLongitude]);
+  }, [
+    trackingActive,
+    delivery?.driver?.currentLatitude,
+    delivery?.driver?.currentLongitude,
+  ]);
 
   // Recalculate route when driver moves
   useEffect(() => {
