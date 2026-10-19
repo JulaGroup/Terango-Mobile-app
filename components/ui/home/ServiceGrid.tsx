@@ -758,15 +758,11 @@ const MoreServicesSheet = ({
 const MiniHero = ({
   label,
   image,
-  bg,
-  accentColor,
   onPress,
   badge,
 }: {
   label: string;
   image: any;
-  bg: string;
-  accentColor: string;
   onPress: () => void;
   badge?: string;
 }) => {
@@ -795,17 +791,12 @@ const MiniHero = ({
             speed: 40,
           }).start()
         }
-        style={[miniStyles.card, { backgroundColor: bg }]}
+        style={miniStyles.card}
       >
-        <View style={heroStyles.topHighlight} />
-        <Image
-          source={image}
-          style={miniStyles.image}
-          contentFit="contain"
-        />
-        <Text style={[miniStyles.label, { color: accentColor }]}>{label}</Text>
+        <Image source={image} style={miniStyles.image} contentFit="contain" />
+        <Text style={miniStyles.label}>{label}</Text>
         {badge && (
-          <View style={[miniStyles.badge, { backgroundColor: accentColor }]}>
+          <View style={miniStyles.badge}>
             <Text style={miniStyles.badgeText}>{badge}</Text>
           </View>
         )}
@@ -816,27 +807,30 @@ const MiniHero = ({
 
 const miniStyles = StyleSheet.create({
   card: {
-    borderRadius: 18,
-    height: 118,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    height: 96,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   image: {
-    width: "62%",
-    height: 58,
+    width: "72%",
+    height: 50,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#1C1C1E",
     letterSpacing: -0.2,
-    marginTop: 8,
+    marginTop: 4,
   },
   badge: {
     position: "absolute",
-    top: 8,
-    right: 8,
+    top: 7,
+    right: 7,
+    backgroundColor: "#FF6B00",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -949,10 +943,10 @@ const ServiceGrid = () => {
   return (
     <View
       style={{
-        backgroundColor: "#fff",
+        backgroundColor: "transparent",
         paddingHorizontal: H_PAD,
-        paddingTop: 16,
-        paddingBottom: 20,
+        paddingTop: 12,
+        paddingBottom: 12,
         gap: 12,
       }}
     >
@@ -1079,27 +1073,21 @@ const ServiceGrid = () => {
           "More" sheet of Wholesale / Furniture / Electronics / Experiences /
           TeranPro) is commented out below until it actually launches — they
           only ever fired a "Coming Soon" alert. */}
-      {/* Three services in one compact row, keeping the hero look. */}
+      {/* Three services in one compact row — clean white tiles, big icons. */}
       <View style={{ flexDirection: "row", gap: GAP }}>
         <MiniHero
           label="Food"
           image={require("@/assets/images/food_icon.png")}
-          bg="#FFF3E6"
-          accentColor="#FF8C00"
           onPress={() => router.push("/food" as any)}
         />
         <MiniHero
           label="Mart"
           image={require("@/assets/images/mart_icon.png")}
-          bg="#E8F5E9"
-          accentColor="#2E7D32"
           onPress={() => router.push("/mart" as any)}
         />
         <MiniHero
           label="Express"
           image={require("@/assets/images/motorbike.png")}
-          bg="#FFF0E6"
-          accentColor="#FF6B00"
           // openExpress auth-gates before routing to /custom-delivery
           onPress={openExpress}
           badge={expressIsNew ? "NEW" : undefined}
