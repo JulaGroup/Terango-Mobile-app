@@ -752,6 +752,102 @@ const MoreServicesSheet = ({
   );
 };
 
+// ─── Compact 3-up hero (Food / Mart / Express) ──────────────────────────────
+// Keeps the hero card's look — colored rounded card, illustration, soft shadow,
+// accent — but vertical and subtitle-free so all three services fit one row.
+const MiniHero = ({
+  label,
+  image,
+  bg,
+  accentColor,
+  onPress,
+  badge,
+}: {
+  label: string;
+  image: any;
+  bg: string;
+  accentColor: string;
+  onPress: () => void;
+  badge?: string;
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  return (
+    <Animated.View
+      style={[
+        heroStyles.shadow,
+        { flex: 1, borderRadius: 18, transform: [{ scale }] },
+      ]}
+    >
+      <TouchableOpacity
+        activeOpacity={1}
+        onPress={onPress}
+        onPressIn={() =>
+          Animated.spring(scale, {
+            toValue: 0.96,
+            useNativeDriver: true,
+            speed: 40,
+          }).start()
+        }
+        onPressOut={() =>
+          Animated.spring(scale, {
+            toValue: 1,
+            useNativeDriver: true,
+            speed: 40,
+          }).start()
+        }
+        style={[miniStyles.card, { backgroundColor: bg }]}
+      >
+        <View style={heroStyles.topHighlight} />
+        <Image
+          source={image}
+          style={miniStyles.image}
+          contentFit="contain"
+        />
+        <Text style={[miniStyles.label, { color: accentColor }]}>{label}</Text>
+        {badge && (
+          <View style={[miniStyles.badge, { backgroundColor: accentColor }]}>
+            <Text style={miniStyles.badgeText}>{badge}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+const miniStyles = StyleSheet.create({
+  card: {
+    borderRadius: 18,
+    height: 118,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+  },
+  image: {
+    width: "62%",
+    height: 58,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: -0.2,
+    marginTop: 8,
+  },
+  badge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+});
+
 // ─── Main Grid ────────────────────────────────────────────────────────────────
 const PROMO_KEY = "terango_express_promo_seen_v1";
 
@@ -983,41 +1079,32 @@ const ServiceGrid = () => {
           "More" sheet of Wholesale / Furniture / Electronics / Experiences /
           TeranPro) is commented out below until it actually launches — they
           only ever fired a "Coming Soon" alert. */}
+      {/* Three services in one compact row, keeping the hero look. */}
       <View style={{ flexDirection: "row", gap: GAP }}>
-        <HeroCard
+        <MiniHero
           label="Food"
-          subtitle="Order food & drinks"
           image={require("@/assets/images/food_icon.png")}
           bg="#FFF3E6"
           accentColor="#FF8C00"
-          route="/food"
+          onPress={() => router.push("/food" as any)}
         />
-        <HeroCard
+        <MiniHero
           label="Mart"
-          subtitle="Delivered to your door"
           image={require("@/assets/images/mart_icon.png")}
           bg="#E8F5E9"
           accentColor="#2E7D32"
-          ctaLabel="Shop now"
-          route="/mart"
+          onPress={() => router.push("/mart" as any)}
+        />
+        <MiniHero
+          label="Express"
+          image={require("@/assets/images/motorbike.png")}
+          bg="#FFF0E6"
+          accentColor="#FF6B00"
+          // openExpress auth-gates before routing to /custom-delivery
+          onPress={openExpress}
+          badge={expressIsNew ? "NEW" : undefined}
         />
       </View>
-
-      {/* Delivery keeps the same card design at full width rather than being
-          squeezed into a third slot, which the layout can't take. */}
-      <HeroCard
-        fullWidth
-        label="Delivery"
-        subtitle="Send a package anywhere"
-        image={require("@/assets/images/motorbike.png")}
-        dark
-        bg="#1A1A1A"
-        accentColor="#FF6B00"
-        ctaLabel="Book now"
-        // openExpress auth-gates before routing to /custom-delivery
-        onPress={openExpress}
-        badge={expressIsNew ? "NEW" : undefined}
-      />
 
       {/* Parked until these services go live. SmallTile, MORE_SERVICES and
           MoreServicesSheet are all still defined above/below and unused —

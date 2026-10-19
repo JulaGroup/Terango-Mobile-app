@@ -477,36 +477,26 @@ const RestaurantNearYou = ({
             marginBottom: 1,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
+          <View>
+            <Text
               style={{
-                width: 4,
-                height: 38,
-                borderRadius: 2,
-                backgroundColor: PrimaryColor,
-                marginRight: 10,
+                fontSize: 20,
+                fontWeight: "800",
+                color: "#1C1C1E",
+                letterSpacing: -0.4,
               }}
-            />
-            <View>
-              <Text
-                style={{
-                  fontSize: 20,
-                  fontWeight: "800",
-                  color: "#111827",
-                }}
-              >
-                Restaurants and Bakeries
-              </Text>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: "#6B7280",
-                  marginTop: 2,
-                }}
-              >
-                Delicious food at your fingertips
-              </Text>
-            </View>
+            >
+              Restaurants & Bakeries
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: "#8E8E93",
+                marginTop: 2,
+              }}
+            >
+              Delicious food at your fingertips
+            </Text>
           </View>
 
           <TouchableOpacity
@@ -521,15 +511,15 @@ const RestaurantNearYou = ({
           >
             <Text
               style={{
-                fontSize: 14,
-                color: "#979797FF",
-                fontWeight: "500",
-                marginRight: 4,
+                fontSize: 13,
+                color: "#FF6B00",
+                fontWeight: "600",
+                marginRight: 2,
               }}
             >
-              See All
+              See all
             </Text>
-            <Ionicons name="chevron-forward" size={14} color="#979797FF" />
+            <Ionicons name="chevron-forward" size={14} color="#FF6B00" />
           </TouchableOpacity>
         </View>
       )}
