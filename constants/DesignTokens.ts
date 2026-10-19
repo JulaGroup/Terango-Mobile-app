@@ -68,6 +68,71 @@ export const Colors = {
 };
 
 // ══════════════════════════════════════════════════════════
+// PER-VERTICAL THEMES
+// Each primary surface (Home / Food / Mart / Express) gets its own
+// calm header tint and page-tint, but they ALL share the TeranGO orange
+// accent for buttons, active states, and brand marks. This is the
+// "same brand, different flavor" identity: varied soft headers over a
+// single consistent orange action color.
+// ══════════════════════════════════════════════════════════
+
+export interface VerticalTheme {
+  /** Shared TeranGO action/active/brand color (orange) for every vertical. */
+  accent: string;
+  /** Header gradient (top → bottom). */
+  headerFrom: string;
+  headerTo: string;
+  /** true → white text/icons on the header (dark header); false → dark text. */
+  headerOnDark: boolean;
+  /** Soft tint for chips/pills and subtle fills on this surface. */
+  soft: string;
+  /** Page background below the header. */
+  pageBg: string;
+}
+
+export const VerticalThemes: Record<
+  "home" | "food" | "mart" | "express",
+  VerticalTheme
+> = {
+  // Home keeps the full-strength orange brand identity (white on orange).
+  home: {
+    accent: Colors.primary,
+    headerFrom: "#FF8A3D",
+    headerTo: "#FF6B00",
+    headerOnDark: true,
+    soft: "#FFF4EC",
+    pageBg: "#F6F6F8",
+  },
+  // Food → warm peach (on-brand, dark text).
+  food: {
+    accent: Colors.primary,
+    headerFrom: "#FFE9D8",
+    headerTo: "#FFD9BE",
+    headerOnDark: false,
+    soft: "#FFF4EC",
+    pageBg: "#F6F6F8",
+  },
+  // Mart → soft teal/green.
+  mart: {
+    accent: Colors.primary,
+    headerFrom: "#D9F3EA",
+    headerTo: "#C3EADF",
+    headerOnDark: false,
+    soft: "#EAF8F2",
+    pageBg: "#F6F6F8",
+  },
+  // Express → mint.
+  express: {
+    accent: Colors.primary,
+    headerFrom: "#E6F8F1",
+    headerTo: "#D3F0E6",
+    headerOnDark: false,
+    soft: "#EAFBF4",
+    pageBg: "#F6F6F8",
+  },
+};
+
+// ══════════════════════════════════════════════════════════
 // TYPOGRAPHY SYSTEM
 // ══════════════════════════════════════════════════════════
 

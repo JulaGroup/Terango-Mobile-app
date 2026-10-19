@@ -34,6 +34,7 @@ import { API_URL } from "@/constants/config";
 import { useCart } from "@/context/CartContext";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 import TeranGOPicks from "@/components/ui/home/TerangoPicks";
+import FoodCategorySliders from "@/components/ui/home/FoodCategorySliders";
 
 // ─── KërSpace Featured Section ──────────────────────────────────────────────
 interface KerSpaceProperty {
@@ -622,6 +623,10 @@ export default function HomeScreen() {
 
           {/* ⑥ Promo adverts from backend */}
           <AdvertCard position="HOME_TOP" refreshKey={refreshKey} />
+          <Divider />
+
+          {/* Explore by cuisine + one slider per food subcategory */}
+          <FoodCategorySliders refreshKey={refreshKey} />
           <Divider />
 
           <TeranGOPicks />
