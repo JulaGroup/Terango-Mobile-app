@@ -17,6 +17,7 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  StatusBar,
   Text,
   TouchableOpacity,
   View,
@@ -363,14 +364,15 @@ export default function FoodPage() {
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: "#ff6b00",
+        backgroundColor: "#FFE0CC",
         paddingTop: Platform.OS === "android" ? 20 : 0,
       }}
     >
-      {/* ── Fixed orange top-bar (2 rows) ────────────── */}
+      <StatusBar barStyle="dark-content" backgroundColor="#FFE0CC" />
+      {/* ── Fixed peach top-bar (2 rows) ────────────── */}
       <View
         style={{
-          backgroundColor: "#ff6b00",
+          backgroundColor: "#FFE0CC",
           paddingHorizontal: 16,
           paddingBottom: 14,
           paddingTop: 6,
@@ -384,13 +386,13 @@ export default function FoodPage() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              backgroundColor: "rgba(255,255,255,0.22)",
+              backgroundColor: "rgba(0,0,0,0.05)",
               padding: 8,
               borderRadius: 10,
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#1C1C1E" />
           </TouchableOpacity>
 
           {/* Delivery location — tappable, opens full modal */}
@@ -401,19 +403,19 @@ export default function FoodPage() {
           >
             <View
               style={{
-                backgroundColor: "rgba(255,255,255,0.25)",
+                backgroundColor: "rgba(255,107,0,0.12)",
                 borderRadius: 8,
                 padding: 5,
                 marginRight: 8,
               }}
             >
-              <Ionicons name="location-sharp" size={18} color="#fff" />
+              <Ionicons name="location-sharp" size={18} color="#FF6B00" />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 11,
-                  color: "rgba(255,255,255,0.85)",
+                  color: "#6B6B6E",
                   fontWeight: "400",
                 }}
               >
@@ -424,7 +426,7 @@ export default function FoodPage() {
                   numberOfLines={1}
                   style={{
                     fontSize: 14,
-                    color: "#fff",
+                    color: "#1C1C1E",
                     fontWeight: "700",
                     flex: 1,
                   }}
@@ -434,14 +436,14 @@ export default function FoodPage() {
                 <Ionicons
                   name="chevron-down"
                   size={14}
-                  color="#fff"
+                  color="#3A3A3C"
                   style={{ marginLeft: 4 }}
                 />
               </View>
             </View>
           </TouchableOpacity>
 
-          <Cart />
+          <Cart iconColor="#1C1C1E" circleColor="rgba(0,0,0,0.05)" />
         </View>
 
         {/* Row 2: Search bar */}

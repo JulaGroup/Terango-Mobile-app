@@ -5,7 +5,13 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import { Text, TouchableOpacity, Animated } from "react-native";
 
-const Cart = () => {
+const Cart = ({
+  iconColor = "#fff",
+  circleColor = "rgba(255,255,255,0.22)",
+}: {
+  iconColor?: string;
+  circleColor?: string;
+} = {}) => {
   const { getTotalQuantity } = useCart();
   const router = useRouter();
 
@@ -54,7 +60,7 @@ const Cart = () => {
   return (
     <TouchableOpacity
       style={{
-        backgroundColor: "rgba(255,255,255,0.22)",
+        backgroundColor: circleColor,
         padding: 8,
         borderRadius: 10,
       }}
@@ -67,7 +73,7 @@ const Cart = () => {
           transform: [{ scale: bounceAnim }],
         }}
       >
-        <Ionicons name="cart-outline" size={22} color="#fff" />
+        <Ionicons name="cart-outline" size={22} color={iconColor} />
         {currentQuantity > 0 && (
           <Animated.View
             style={{
