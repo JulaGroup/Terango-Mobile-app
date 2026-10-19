@@ -809,15 +809,15 @@ const miniStyles = StyleSheet.create({
   card: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    height: 96,
+    height: 84,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   image: {
-    width: "72%",
-    height: 50,
+    width: "82%",
+    height: 54,
   },
   label: {
     fontSize: 12.5,

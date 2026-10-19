@@ -227,7 +227,7 @@ export default function TeranGOPicks({
                 marginRight: 12,
               }}
             >
-              <Ionicons name="diamond" size={20} color="#FF6B00" />
+              <Ionicons name="basket" size={20} color="#FF6B00" />
             </View>
             <View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>

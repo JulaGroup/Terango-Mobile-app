@@ -621,11 +621,11 @@ export default function HomeScreen() {
           <FoodCategorySliders refreshKey={refreshKey} />
           <Divider />
 
-          {/* Order again — recent vendors (hidden if signed out / no orders) */}
-          <OrderAgain refreshKey={refreshKey} />
+          <TeranGOPicks />
           <Divider />
 
-          <TeranGOPicks />
+          {/* Order again — recent vendors (hidden if signed out / no orders) */}
+          <OrderAgain refreshKey={refreshKey} />
           <Divider />
 
           {/* ⑤ Deal banners */}
