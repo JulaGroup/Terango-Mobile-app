@@ -17,6 +17,7 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
+  StatusBar,
   Text,
   TouchableOpacity,
   View,
@@ -32,6 +33,7 @@ import Cart from "@/components/common/Cart";
 import SearchBar from "@/components/common/SearchBar";
 import LocationModal from "@/components/common/LocationModal";
 import LocalShops from "@/components/ui/home/LocalShops";
+import CategoryCircleRow from "@/components/ui/shared/CategoryCircleRow";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import ActiveOrderBanner from "@/components/ui/home/ActiveOrderBanner";
 import PromoBanner from "@/components/ui/home/PromoBanner";
@@ -397,14 +399,15 @@ export default function MartPage() {
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: "#ff6b00",
+        backgroundColor: "#CFEDE3",
         paddingTop: Platform.OS === "android" ? 20 : 0,
       }}
     >
-      {/* Orange top-bar (2 rows: location + search) */}
+      <StatusBar barStyle="dark-content" backgroundColor="#CFEDE3" />
+      {/* Teal top-bar (2 rows: location + search) */}
       <View
         style={{
-          backgroundColor: "#ff6b00",
+          backgroundColor: "#CFEDE3",
           paddingHorizontal: 16,
           paddingBottom: 14,
           paddingTop: 6,
@@ -418,13 +421,13 @@ export default function MartPage() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              backgroundColor: "rgba(255,255,255,0.22)",
+              backgroundColor: "rgba(0,0,0,0.05)",
               padding: 8,
               borderRadius: 10,
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#1C1C1E" />
           </TouchableOpacity>
 
           {/* Delivery location — tappable, opens full modal */}
@@ -435,19 +438,19 @@ export default function MartPage() {
           >
             <View
               style={{
-                backgroundColor: "rgba(255,255,255,0.25)",
+                backgroundColor: "rgba(255,107,0,0.12)",
                 borderRadius: 8,
                 padding: 5,
                 marginRight: 8,
               }}
             >
-              <Ionicons name="location-sharp" size={18} color="#fff" />
+              <Ionicons name="location-sharp" size={18} color="#FF6B00" />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 11,
-                  color: "rgba(255,255,255,0.85)",
+                  color: "#6B6B6E",
                   fontWeight: "400",
                 }}
               >
@@ -458,7 +461,7 @@ export default function MartPage() {
                   numberOfLines={1}
                   style={{
                     fontSize: 14,
-                    color: "#fff",
+                    color: "#1C1C1E",
                     fontWeight: "700",
                     flex: 1,
                   }}
@@ -468,14 +471,14 @@ export default function MartPage() {
                 <Ionicons
                   name="chevron-down"
                   size={14}
-                  color="#fff"
+                  color="#3A3A3C"
                   style={{ marginLeft: 4 }}
                 />
               </View>
             </View>
           </TouchableOpacity>
 
-          <Cart />
+          <Cart iconColor="#1C1C1E" circleColor="rgba(0,0,0,0.05)" />
         </View>
 
         {/* Row 2: Search bar */}
@@ -626,54 +629,30 @@ export default function MartPage() {
             {/* ── Browse all categories ─────── */}
             <SectionHeader title="All Categories" />
             {catLoading ? (
-              <FlatList
-                horizontal
-                data={[1, 2, 3, 4, 5, 6]}
-                keyExtractor={(i) => `cat-sk-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
+              <View
+                style={{
+                  flexDirection: "row",
                   paddingHorizontal: 16,
-                  paddingVertical: 8,
-                  gap: 10,
+                  gap: 16,
+                  paddingVertical: 6,
                 }}
-                renderItem={() => (
-                  <View style={{ gap: 8 }}>
-                    <View style={{ alignItems: "center" }}>
-                      <Skeleton w={CARD_W} h={CARD_W} radius={14} />
-                      <View style={{ marginTop: 5 }}>
-                        <Skeleton w={CARD_W * 0.75} h={10} />
-                      </View>
-                    </View>
-                    <View style={{ alignItems: "center" }}>
-                      <Skeleton w={CARD_W} h={CARD_W} radius={14} />
-                      <View style={{ marginTop: 5 }}>
-                        <Skeleton w={CARD_W * 0.75} h={10} />
-                      </View>
-                    </View>
-                  </View>
-                )}
-              />
+              >
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <View
+                    key={`cat-sk-${i}`}
+                    style={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: 33,
+                      backgroundColor: "#ECECEF",
+                    }}
+                  />
+                ))}
+              </View>
             ) : (
-              <FlatList
-                horizontal
-                data={categoryPairs}
-                keyExtractor={(_, i) => `cat-col-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}
-                renderItem={({ item: pair }) => (
-                  <View style={{ marginRight: 10 }}>
-                    {pair.map((cat) => (
-                      <CategoryCard
-                        key={cat.id}
-                        item={cat}
-                        onPress={handleCategoryPress}
-                      />
-                    ))}
-                  </View>
-                )}
+              <CategoryCircleRow
+                data={categories}
+                onPress={(item) => handleCategoryPress(item.id, item.name)}
               />
             )}
 
