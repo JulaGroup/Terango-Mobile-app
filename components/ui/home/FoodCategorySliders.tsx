@@ -17,8 +17,9 @@ import { Colors } from "@/constants/DesignTokens";
 // The Food top-level category whose subcategories (Burgers, Pizza, Local
 // Dishes, …) drive one slider each. Same id the Food landing uses.
 const FOOD_CATEGORY_ID = "095eb4ff-362f-455b-90eb-a1df9f86e442";
-// How many subcategory sliders to show on Home (keep it scannable).
-const MAX_SLIDERS = 6;
+// How many subcategory sliders to render on Home (each is a full section; the
+// "Explore" circle row above shows ALL categories regardless).
+const MAX_SLIDERS = 12;
 const CARD_W = 160;
 
 interface SubCategory {
@@ -166,7 +167,7 @@ const FoodCategorySliders = ({ refreshKey }: { refreshKey?: number }) => {
       );
       const data = await res.json();
       const list: SubCategory[] = Array.isArray(data) ? data : data?.data ?? [];
-      setSubs(list.filter((s) => s && s.id).slice(0, MAX_SLIDERS));
+      setSubs(list.filter((s) => s && s.id));
     } catch {
       setSubs([]);
     }
@@ -196,8 +197,8 @@ const FoodCategorySliders = ({ refreshKey }: { refreshKey?: number }) => {
         }
       />
 
-      {/* One slider per cuisine */}
-      {subs.map((sub) => (
+      {/* One slider per cuisine (empty ones hide themselves) */}
+      {subs.slice(0, MAX_SLIDERS).map((sub) => (
         <SubcategoryMealRow key={sub.id} sub={sub} />
       ))}
     </View>

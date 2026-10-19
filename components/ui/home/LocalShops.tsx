@@ -467,36 +467,26 @@ export default function LocalShops({
             marginBottom: 16,
           }}
         >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <View
+          <View>
+            <Text
               style={{
-                width: 4,
-                height: 38,
-                borderRadius: 2,
-                backgroundColor: "#6366F1",
-                marginRight: 10,
+                fontSize: 20,
+                fontWeight: "800",
+                color: "#1C1C1E",
+                letterSpacing: -0.4,
               }}
-            />
-            <View>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "800",
-                  color: "#111827",
-                }}
-              >
-                Stores
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "#6B7280",
-                  marginTop: 2,
-                }}
-              >
-                Quality products near you
-              </Text>
-            </View>
+            >
+              Shops near you
+            </Text>
+            <Text
+              style={{
+                fontSize: 13,
+                color: "#8E8E93",
+                marginTop: 2,
+              }}
+            >
+              Fresh groceries & everyday essentials
+            </Text>
           </View>
           <TouchableOpacity
             onPress={handleViewAll}
@@ -510,54 +500,16 @@ export default function LocalShops({
           >
             <Text
               style={{
-                fontSize: 14,
-                color: "#979797FF",
-                fontWeight: "500",
-                marginRight: 4,
-              }}
-            >
-              See All
-            </Text>
-            <Ionicons name="chevron-forward" size={14} color="#979797FF" />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {!hideHeader && (
-        <View
-          style={{
-            marginHorizontal: 16,
-            backgroundColor: "#EFF6FF",
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 20,
-            borderLeftWidth: 4,
-            borderLeftColor: "#6366F1",
-          }}
-        >
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Ionicons name="shield-checkmark" size={20} color="#6366F1" />
-            <Text
-              style={{
-                fontSize: 14,
+                fontSize: 13,
+                color: "#FF6B00",
                 fontWeight: "600",
-                color: "#6366F1",
-                marginLeft: 8,
+                marginRight: 2,
               }}
             >
-              Verified Local Businesses
+              See all
             </Text>
-          </View>
-          <Text
-            style={{
-              fontSize: 12,
-              color: "#3730A3",
-              marginTop: 4,
-              lineHeight: 16,
-            }}
-          >
-            Trusted local shops/stores • Quality products • Fast delivery
-          </Text>
+            <Ionicons name="chevron-forward" size={14} color="#FF6B00" />
+          </TouchableOpacity>
         </View>
       )}
 

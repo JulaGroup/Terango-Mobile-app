@@ -613,15 +613,16 @@ export default function HomeScreen() {
 
           <Divider />
 
-          {/* Order again — recent vendors (hidden if signed out / no orders) */}
-          <OrderAgain refreshKey={refreshKey} />
-
           {/* ⑥ Promo adverts from backend */}
           <AdvertCard position="HOME_TOP" refreshKey={refreshKey} />
           <Divider />
 
           {/* Explore by cuisine + one slider per food subcategory */}
           <FoodCategorySliders refreshKey={refreshKey} />
+          <Divider />
+
+          {/* Order again — recent vendors (hidden if signed out / no orders) */}
+          <OrderAgain refreshKey={refreshKey} />
           <Divider />
 
           <TeranGOPicks />
