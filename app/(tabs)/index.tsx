@@ -35,6 +35,7 @@ import { useCart } from "@/context/CartContext";
 import VendorAwareMealItemCard from "@/components/common/VendorAwareMealItemCard";
 import TeranGOPicks from "@/components/ui/home/TerangoPicks";
 import FoodCategorySliders from "@/components/ui/home/FoodCategorySliders";
+import OrderAgain from "@/components/ui/home/OrderAgain";
 
 // ─── KërSpace Featured Section ──────────────────────────────────────────────
 interface KerSpaceProperty {
@@ -620,6 +621,9 @@ export default function HomeScreen() {
           {/* <Divider /> */}
 
           <Divider />
+
+          {/* Order again — recent vendors (hidden if signed out / no orders) */}
+          <OrderAgain refreshKey={refreshKey} />
 
           {/* ⑥ Promo adverts from backend */}
           <AdvertCard position="HOME_TOP" refreshKey={refreshKey} />
