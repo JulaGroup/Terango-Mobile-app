@@ -174,9 +174,12 @@ interface Restaurant {
 const RestaurantNearYou = ({
   refreshKey,
   hideHeader,
+  vertical,
 }: {
   refreshKey?: number;
   hideHeader?: boolean;
+  /** Stack cards as a full-width vertical list instead of a horizontal slider. */
+  vertical?: boolean;
 }) => {
   const router = useRouter();
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
@@ -524,16 +527,17 @@ const RestaurantNearYou = ({
         </View>
       )}
 
-      {/* Restaurants Horizontal Scroll */}
+      {/* Restaurants — horizontal slider, or full-width vertical list */}
       <ScrollView
-        horizontal
+        horizontal={!vertical}
+        scrollEnabled={!vertical}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{
           paddingHorizontal: 16,
         }}
         decelerationRate="fast"
-        snapToInterval={CARD_WIDTH + 16}
-        snapToAlignment="center"
+        snapToInterval={vertical ? undefined : CARD_WIDTH + 16}
+        snapToAlignment={vertical ? undefined : "center"}
       >
         {restaurants.map((restaurant, index) => {
           const cuisineTypes = getCuisineTypes(restaurant);
@@ -551,9 +555,11 @@ const RestaurantNearYou = ({
               <TouchableOpacity
                 key={restaurant.id}
                 style={{
-                  width: CARD_WIDTH,
-                  marginRight: index === restaurants.length - 1 ? 0 : 14,
-                  marginVertical: 6,
+                  width: vertical ? "100%" : CARD_WIDTH,
+                  marginRight:
+                    vertical || index === restaurants.length - 1 ? 0 : 14,
+                  marginBottom: vertical ? 16 : 0,
+                  marginVertical: vertical ? 0 : 6,
                 }}
                 activeOpacity={0.9}
                 onPress={() => {

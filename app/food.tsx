@@ -33,6 +33,7 @@ import Cart from "@/components/common/Cart";
 import SearchBar from "@/components/common/SearchBar";
 import LocationModal from "@/components/common/LocationModal";
 import RestaurantNearYou from "@/components/ui/home/RestaurantNearYouNew";
+import CategoryCircleRow from "@/components/ui/shared/CategoryCircleRow";
 import VendorAwareProductCard from "@/components/common/VendorAwareProductCard";
 import ActiveOrderBanner from "@/components/ui/home/ActiveOrderBanner";
 import PromoBanner from "@/components/ui/home/PromoBanner";
@@ -547,46 +548,33 @@ export default function FoodPage() {
             {/* ── Promo banners (free delivery + launch offer) ── */}
             {/* <PromoBanner /> */}
 
-            {/* ── Category grid (3-col) ──── */}
+            {/* ── Category circles (image-in-circle) ──── */}
             <SectionHeader title="Categories" />
             {catLoading ? (
-              <FlatList
-                horizontal
-                data={[1, 2, 3, 4, 5, 6]}
-                keyExtractor={(i) => `cat-sk-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
+              <View
+                style={{
+                  flexDirection: "row",
                   paddingHorizontal: 16,
-                  paddingVertical: 8,
+                  gap: 16,
+                  paddingVertical: 6,
                 }}
-                renderItem={() => (
-                  <View style={{ gap: 8, marginRight: 8 }}>
-                    <Skeleton w={CAT_W} h={CAT_H} radius={14} />
-                    <Skeleton w={CAT_W} h={CAT_H} radius={14} />
-                  </View>
-                )}
-              />
+              >
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <View
+                    key={`cat-sk-${i}`}
+                    style={{
+                      width: 66,
+                      height: 66,
+                      borderRadius: 33,
+                      backgroundColor: "#ECECEF",
+                    }}
+                  />
+                ))}
+              </View>
             ) : (
-              <FlatList
-                horizontal
-                data={categoryPairs}
-                keyExtractor={(_, i) => `cat-col-${i}`}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}
-                renderItem={({ item: pair }) => (
-                  <View style={{ gap: 8, marginRight: 8 }}>
-                    {pair.map((cat) => (
-                      <CategoryCard3Col
-                        key={cat.id}
-                        item={cat}
-                        onPress={handleCategoryPress}
-                      />
-                    ))}
-                  </View>
-                )}
+              <CategoryCircleRow
+                data={categories}
+                onPress={(item) => handleCategoryPress(item.id, item.name)}
               />
             )}
 
@@ -679,7 +667,11 @@ export default function FoodPage() {
               subtitle="Order from local favourites"
               onSeeAll={() => router.push("/ViewAllRestaurants" as any)}
             />
-            <RestaurantNearYou refreshKey={refreshKey} hideHeader={true} />
+            <RestaurantNearYou
+              refreshKey={refreshKey}
+              hideHeader={true}
+              vertical={true}
+            />
           </View>
         </View>
       </ScrollView>
