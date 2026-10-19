@@ -602,15 +602,6 @@ export default function HomeScreen() {
 
         {/* Light body — carries the bottom padding so no orange shows below it */}
         <View style={{ backgroundColor: "#F6F6F8", paddingBottom: 32 }}>
-          {/* ② Search bar */}
-          <View style={{ paddingVertical: 10 }}>
-            <SearchBar
-              value=""
-              onChangeText={() => {}}
-              onPress={() => router.push("/search")}
-              editable={false}
-            />
-          </View>
 
           {/* ③ Service cards grid */}
           <ServiceGrid />

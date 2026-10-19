@@ -752,6 +752,75 @@ const MoreServicesSheet = ({
   );
 };
 
+// ─── Compact service tile (Food / Mart / Express) ───────────────────────────
+// Small square icon tile so the three services sit in one tidy row instead of
+// taking a full screen of hero cards.
+const CompactService = ({
+  label,
+  image,
+  bg,
+  onPress,
+  badge,
+}: {
+  label: string;
+  image: any;
+  bg: string;
+  onPress: () => void;
+  badge?: string;
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.85}
+    style={{ flex: 1, alignItems: "center" }}
+  >
+    <View
+      style={{
+        width: "100%",
+        aspectRatio: 1,
+        borderRadius: 18,
+        backgroundColor: bg,
+        justifyContent: "center",
+        alignItems: "center",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <Image
+        source={image}
+        style={{ width: "60%", height: "60%" }}
+        contentFit="contain"
+      />
+      {badge && (
+        <View
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            backgroundColor: ORANGE,
+            borderRadius: 8,
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+          }}
+        >
+          <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>
+            {badge}
+          </Text>
+        </View>
+      )}
+    </View>
+    <Text
+      style={{
+        fontSize: 13,
+        fontWeight: "700",
+        color: DARK,
+        marginTop: 8,
+      }}
+    >
+      {label}
+    </Text>
+  </TouchableOpacity>
+);
+
 // ─── Main Grid ────────────────────────────────────────────────────────────────
 const PROMO_KEY = "terango_express_promo_seen_v1";
 
@@ -983,41 +1052,30 @@ const ServiceGrid = () => {
           "More" sheet of Wholesale / Furniture / Electronics / Experiences /
           TeranPro) is commented out below until it actually launches — they
           only ever fired a "Coming Soon" alert. */}
+      {/* Three live services in one compact row — frees the screen for
+          content below (Order again, cuisine sliders, nearby). */}
       <View style={{ flexDirection: "row", gap: GAP }}>
-        <HeroCard
+        <CompactService
           label="Food"
-          subtitle="Order food & drinks"
           image={require("@/assets/images/food_icon.png")}
           bg="#FFF3E6"
-          accentColor="#FF8C00"
-          route="/food"
+          onPress={() => router.push("/food" as any)}
         />
-        <HeroCard
+        <CompactService
           label="Mart"
-          subtitle="Delivered to your door"
           image={require("@/assets/images/mart_icon.png")}
           bg="#E8F5E9"
-          accentColor="#2E7D32"
-          ctaLabel="Shop now"
-          route="/mart"
+          onPress={() => router.push("/mart" as any)}
+        />
+        <CompactService
+          label="Express"
+          image={require("@/assets/images/motorbike.png")}
+          bg="#FFF0E6"
+          // openExpress auth-gates before routing to /custom-delivery
+          onPress={openExpress}
+          badge={expressIsNew ? "NEW" : undefined}
         />
       </View>
-
-      {/* Delivery keeps the same card design at full width rather than being
-          squeezed into a third slot, which the layout can't take. */}
-      <HeroCard
-        fullWidth
-        label="Delivery"
-        subtitle="Send a package anywhere"
-        image={require("@/assets/images/motorbike.png")}
-        dark
-        bg="#1A1A1A"
-        accentColor="#FF6B00"
-        ctaLabel="Book now"
-        // openExpress auth-gates before routing to /custom-delivery
-        onPress={openExpress}
-        badge={expressIsNew ? "NEW" : undefined}
-      />
 
       {/* Parked until these services go live. SmallTile, MORE_SERVICES and
           MoreServicesSheet are all still defined above/below and unused —
