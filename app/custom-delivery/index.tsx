@@ -1261,26 +1261,6 @@ export default function CustomDeliveryScreen() {
           </View>
         )}
 
-        {/* ── Book Button ── */}
-        <View style={s.ctaWrap}>
-          <TouchableOpacity
-            style={[s.bookBtn, !canSubmit && s.bookBtnOff]}
-            onPress={handleCreateDelivery}
-            disabled={!canSubmit}
-            activeOpacity={0.85}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
-                {canSubmit
-                  ? `Book · D${estimatedPrice?.toFixed(0)}`
-                  : "Complete all steps above"}
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         {/* ── Recent Deliveries (last 5 — full history lives in Activities) ── */}
         <View style={s.recentWrap}>
           <View style={s.recentHeader}>
@@ -1318,6 +1298,26 @@ export default function CustomDeliveryScreen() {
         </View>
       </ScrollView>
 
+      {/* ── Sticky book bar (always visible, like Grab/Uber) ── */}
+      <View style={s.stickyBar}>
+        <TouchableOpacity
+          style={[s.bookBtn, !canSubmit && s.bookBtnOff]}
+          onPress={handleCreateDelivery}
+          disabled={!canSubmit}
+          activeOpacity={0.85}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
+              {canSubmit
+                ? `Book · D${estimatedPrice?.toFixed(0)}`
+                : "Complete all steps above"}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
       <LocationSearchSheet
         visible={sheetFor !== null}
         mode={sheetFor ?? "pickup"}
@@ -1337,7 +1337,7 @@ export default function CustomDeliveryScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#1B1714" },
   scroll: { flex: 1, backgroundColor: T.pageBg },
-  scrollContent: { paddingBottom: 48 },
+  scrollContent: { paddingBottom: 120 },
 
   // Hero
   hero: {
@@ -1779,6 +1779,18 @@ const s = StyleSheet.create({
 
   // CTA
   ctaWrap: { paddingHorizontal: 16, marginBottom: 8 },
+  stickyBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 26,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#EEF0F2",
+  },
   bookBtn: {
     backgroundColor: T.brand,
     borderRadius: 18,
