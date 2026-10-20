@@ -7,7 +7,6 @@ import {
   Image,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -909,9 +908,17 @@ export default function CustomDeliveryScreen() {
           />
         }
       >
-        {/* ── Hero (light, Grab-style) ── */}
+        {/* ── Hero ── */}
         <View style={s.hero}>
-          <StatusBar barStyle="dark-content" backgroundColor="#E6F8F1" />
+          <LinearGradient
+            colors={["#1B1714", "#2A211A", "#171310"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Ambient orange glow */}
+          <View style={s.heroGlowTop} />
+
           {/* Top bar */}
           <View style={s.heroTopBar}>
             <TouchableOpacity
@@ -919,26 +926,38 @@ export default function CustomDeliveryScreen() {
               onPress={() => router.back()}
               activeOpacity={0.8}
             >
-              <Ionicons name="arrow-back" size={20} color="#1C1C1E" />
+              <Ionicons name="arrow-back" size={20} color="#fff" />
             </TouchableOpacity>
-            <Text style={s.heroBrand}>Express</Text>
-            <TouchableOpacity
-              style={s.heroIconBtn}
-              activeOpacity={0.8}
-              onPress={() => router.push("/(tabs)/orders")}
-            >
-              <Ionicons name="receipt-outline" size={20} color="#1C1C1E" />
+            <Text style={s.heroBrand}>
+              TeranGO <Text style={s.heroBrandAccent}>Express</Text>
+            </Text>
+            <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.8}>
+              <Ionicons
+                name="help-circle-outline"
+                size={20}
+                color="rgba(255,255,255,0.55)"
+              />
             </TouchableOpacity>
           </View>
 
-          {/* Welcome + courier */}
-          <View style={s.heroWelcome}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Text style={s.heroWelcomeTitle}>Welcome to Express</Text>
-              <Text style={s.heroWelcomeSub}>
-                Get your items delivered,{"\n"}whenever, wherever
-              </Text>
+          {/* Headline */}
+          <View style={s.heroContent}>
+            <View style={s.heroPill}>
+              <View style={s.heroPillDot} />
+              <Text style={s.heroPillText}>LIVE TRACKING</Text>
             </View>
+            <Text style={s.heroHeadline}>Send it now.{"\n"}Track it live.</Text>
+            <Text style={s.heroSub}>Fast local riders, anywhere in Gambia</Text>
+          </View>
+
+          {/* Driver graphic */}
+          <View style={s.heroImageWrap} pointerEvents="none">
+            <View style={s.heroImageGlow} />
+            <View style={[s.speedLine, { top: 52, width: 26, opacity: 0.4 }]} />
+            <View style={[s.speedLine, { top: 70, width: 42, opacity: 0.6 }]} />
+            <View
+              style={[s.speedLine, { top: 88, width: 20, opacity: 0.35 }]}
+            />
             <Animated.Image
               source={require("@/assets/images/motorbike.png")}
               style={[
@@ -1316,36 +1335,17 @@ export default function CustomDeliveryScreen() {
 
 // ── Styles ─────────────────────────────────────────────────
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#E6F8F1" },
+  safe: { flex: 1, backgroundColor: "#1B1714" },
   scroll: { flex: 1, backgroundColor: T.pageBg },
   scrollContent: { paddingBottom: 120 },
 
-  // Hero (light Grab-style)
+  // Hero
   hero: {
-    backgroundColor: "#E6F8F1",
-    paddingBottom: 18,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
+    paddingBottom: 34,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     overflow: "hidden",
     position: "relative",
-  },
-  heroWelcome: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  heroWelcomeTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#143D31",
-    letterSpacing: -0.4,
-  },
-  heroWelcomeSub: {
-    fontSize: 14,
-    color: "#4B6B5E",
-    marginTop: 4,
-    lineHeight: 19,
   },
   heroGlowTop: {
     position: "absolute",
@@ -1367,16 +1367,18 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 13,
-    backgroundColor: "rgba(255,255,255,0.7)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
     alignItems: "center",
     justifyContent: "center",
   },
   heroBrand: {
     flex: 1,
     textAlign: "center",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "800",
-    color: "#143D31",
+    color: "#fff",
     letterSpacing: -0.3,
   },
   heroBrandAccent: { color: T.brand, fontWeight: "600" },
@@ -1441,7 +1443,7 @@ const s = StyleSheet.create({
     borderRadius: 78,
     backgroundColor: "rgba(255,107,0,0.20)",
   },
-  heroImage: { width: 132, height: 112 },
+  heroImage: { width: 186, height: 164 },
   speedLine: {
     position: "absolute",
     left: 2,
