@@ -17,7 +17,6 @@ import {
   Platform,
   RefreshControl,
   ScrollView,
-  StatusBar,
   Text,
   TouchableOpacity,
   View,
@@ -399,15 +398,14 @@ export default function MartPage() {
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: "#CFEDE3",
+        backgroundColor: "#ff6b00",
         paddingTop: Platform.OS === "android" ? 20 : 0,
       }}
     >
-      <StatusBar barStyle="dark-content" backgroundColor="#CFEDE3" />
-      {/* Teal top-bar (2 rows: location + search) */}
+      {/* Orange top-bar (2 rows: location + search) */}
       <View
         style={{
-          backgroundColor: "#CFEDE3",
+          backgroundColor: "#ff6b00",
           paddingHorizontal: 16,
           paddingBottom: 14,
           paddingTop: 6,
@@ -421,13 +419,13 @@ export default function MartPage() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{
-              backgroundColor: "rgba(0,0,0,0.05)",
+              backgroundColor: "rgba(255,255,255,0.22)",
               padding: 8,
               borderRadius: 10,
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="arrow-back" size={20} color="#1C1C1E" />
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
 
           {/* Delivery location — tappable, opens full modal */}
@@ -438,19 +436,19 @@ export default function MartPage() {
           >
             <View
               style={{
-                backgroundColor: "rgba(255,107,0,0.12)",
+                backgroundColor: "rgba(255,255,255,0.25)",
                 borderRadius: 8,
                 padding: 5,
                 marginRight: 8,
               }}
             >
-              <Ionicons name="location-sharp" size={18} color="#FF6B00" />
+              <Ionicons name="location-sharp" size={18} color="#fff" />
             </View>
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontSize: 11,
-                  color: "#6B6B6E",
+                  color: "rgba(255,255,255,0.85)",
                   fontWeight: "400",
                 }}
               >
@@ -461,7 +459,7 @@ export default function MartPage() {
                   numberOfLines={1}
                   style={{
                     fontSize: 14,
-                    color: "#1C1C1E",
+                    color: "#fff",
                     fontWeight: "700",
                     flex: 1,
                   }}
@@ -471,14 +469,14 @@ export default function MartPage() {
                 <Ionicons
                   name="chevron-down"
                   size={14}
-                  color="#3A3A3C"
+                  color="#fff"
                   style={{ marginLeft: 4 }}
                 />
               </View>
             </View>
           </TouchableOpacity>
 
-          <Cart iconColor="#1C1C1E" circleColor="rgba(0,0,0,0.05)" />
+          <Cart />
         </View>
 
         {/* Row 2: Search bar */}
