@@ -5,6 +5,7 @@ import {
   Animated,
   FlatList,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -335,6 +336,7 @@ export default function CustomDeliveryScreen() {
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleType | null>(
     null,
   );
+  const [sheet, setSheet] = useState<"weight" | "vehicle" | null>(null);
   const [selectedWeight, setSelectedWeight] = useState<WeightClass | null>(
     null,
   );
@@ -1144,13 +1146,13 @@ export default function CustomDeliveryScreen() {
 
         </View>
 
-        {/* ── Step 2: Package weight ── */}
+        {/* ── Step 2: Package & vehicle — Grab-style summary rows ── */}
         {step1Done && (
           <View style={s.block}>
             <View style={s.blockHeader}>
               <StepBadge n={2} />
-              <Text style={s.blockTitle}>Package Size</Text>
-              {selectedWeight && (
+              <Text style={s.blockTitle}>Delivery details</Text>
+              {step2Done && (
                 <Ionicons
                   name="checkmark-circle"
                   size={18}
@@ -1159,59 +1161,94 @@ export default function CustomDeliveryScreen() {
                 />
               )}
             </View>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.hScrollContent}
-            >
-              {weightOptions.map((w) => (
-                <ExpressWeightClassCard
-                  key={w.key}
-                  weightClass={w}
-                  selected={selectedWeight === w.key}
-                  onPress={() => setSelectedWeight(w.key)}
-                />
-              ))}
-            </ScrollView>
-          </View>
-        )}
 
-        {/* ── Step 2b: Vehicle ── */}
-        {step1Done && selectedWeight && (
-          <View style={s.block}>
-            <View style={s.blockHeader}>
-              <StepBadge n={3} />
-              <Text style={s.blockTitle}>Vehicle</Text>
-              {selectedVehicle && (
+            <View style={s.summaryCard}>
+              {/* Package size row */}
+              <TouchableOpacity
+                style={s.summaryRow}
+                activeOpacity={0.7}
+                onPress={() => setSheet("weight")}
+              >
+                <View style={s.summaryIcon}>
+                  <Ionicons name="cube-outline" size={22} color={T.brand} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.summaryTitle}>
+                    {selectedWeight
+                      ? WEIGHT_CONFIG[selectedWeight].label
+                      : "Package size"}
+                  </Text>
+                  <Text style={s.summarySub} numberOfLines={1}>
+                    {selectedWeight
+                      ? WEIGHT_CONFIG[selectedWeight].description
+                      : "How big is your item?"}
+                  </Text>
+                </View>
                 <Ionicons
-                  name="checkmark-circle"
+                  name="chevron-forward"
                   size={18}
-                  color={T.success}
-                  style={{ marginLeft: "auto" }}
+                  color={T.textTertiary}
                 />
-              )}
+              </TouchableOpacity>
+
+              <View style={s.summaryDivider} />
+
+              {/* Vehicle row */}
+              <TouchableOpacity
+                style={s.summaryRow}
+                activeOpacity={0.7}
+                onPress={() =>
+                  selectedWeight ? setSheet("vehicle") : setSheet("weight")
+                }
+              >
+                <View style={s.summaryIcon}>
+                  <Ionicons
+                    name={
+                      (selectedVehicle
+                        ? VEHICLE_CONFIG[selectedVehicle].iconName
+                        : "bicycle-outline") as any
+                    }
+                    size={22}
+                    color={T.brand}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.summaryTitle}>
+                    {selectedVehicle
+                      ? VEHICLE_CONFIG[selectedVehicle].label
+                      : "Vehicle"}
+                  </Text>
+                  <Text style={s.summarySub} numberOfLines={1}>
+                    {selectedVehicle
+                      ? "Recommended for your package"
+                      : selectedWeight
+                        ? "Choose a vehicle"
+                        : "Select package size first"}
+                  </Text>
+                </View>
+                {selectedVehicle &&
+                  quotesByVehicle[selectedVehicle]?.estimatedPrice != null && (
+                    <Text style={s.summaryPrice}>
+                      D
+                      {quotesByVehicle[
+                        selectedVehicle
+                      ]!.estimatedPrice!.toFixed(0)}
+                    </Text>
+                  )}
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={T.textTertiary}
+                />
+              </TouchableOpacity>
             </View>
+
             {loadingQuotes && (
               <View style={s.quotingRow}>
                 <ActivityIndicator size="small" color={T.brand} />
                 <Text style={s.quotingText}>Getting prices…</Text>
               </View>
             )}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={s.hScrollContent}
-            >
-              {vehicleOptions.map((v) => (
-                <ExpressVehicleCard
-                  key={v.key}
-                  vehicle={v}
-                  selected={selectedVehicle === v.key}
-                  onPress={() => setSelectedVehicle(v.key)}
-                  showPrice
-                />
-              ))}
-            </ScrollView>
           </View>
         )}
 
@@ -1317,6 +1354,110 @@ export default function CustomDeliveryScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* ── Option bottom sheet (package size / vehicle) ── */}
+      <Modal
+        visible={sheet !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheet(null)}
+      >
+        <TouchableOpacity
+          style={s.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setSheet(null)}
+        />
+        <View style={s.sheet}>
+          <View style={s.sheetHandle} />
+          <Text style={s.sheetTitle}>
+            {sheet === "weight" ? "Package size" : "Vehicle type"}
+          </Text>
+
+          {sheet === "weight" &&
+            weightOptions.map((w) => {
+              const sel = selectedWeight === w.key;
+              return (
+                <TouchableOpacity
+                  key={w.key}
+                  style={[s.optRow, sel && s.optRowSel]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedWeight(w.key);
+                    setSheet(null);
+                  }}
+                >
+                  <View style={s.optIcon}>
+                    <Ionicons
+                      name={w.iconName as any}
+                      size={22}
+                      color={sel ? T.brand : "#6B7280"}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.optLabel, sel && { color: T.brand }]}>
+                      {w.label}
+                    </Text>
+                    <Text style={s.optSub}>{w.description}</Text>
+                  </View>
+                  {sel && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color={T.brand}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+          {sheet === "vehicle" &&
+            vehicleOptions.map((v) => {
+              const sel = selectedVehicle === v.key;
+              return (
+                <TouchableOpacity
+                  key={v.key}
+                  style={[s.optRow, sel && s.optRowSel]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSelectedVehicle(v.key);
+                    setSheet(null);
+                  }}
+                >
+                  <View style={s.optIcon}>
+                    <Ionicons
+                      name={v.iconName as any}
+                      size={22}
+                      color={sel ? T.brand : "#6B7280"}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[s.optLabel, sel && { color: T.brand }]}>
+                      {v.label}
+                    </Text>
+                    <Text style={s.optSub} numberOfLines={1}>
+                      {VEHICLE_CONFIG[v.key].weightRange} · {v.description}
+                    </Text>
+                  </View>
+                  {v.estimatedPrice != null && (
+                    <Text style={s.optPrice}>
+                      D{v.estimatedPrice.toFixed(0)}
+                    </Text>
+                  )}
+                  {sel && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={22}
+                      color={T.brand}
+                      style={{ marginLeft: 8 }}
+                    />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+          <View style={{ height: 10 }} />
+        </View>
+      </Modal>
 
       <LocationSearchSheet
         visible={sheetFor !== null}
@@ -1791,6 +1932,94 @@ const s = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#EEF0F2",
   },
+  // Grab-style summary rows
+  summaryCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: T.border,
+    overflow: "hidden",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  summaryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: T.brandSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryTitle: { fontSize: 15, fontWeight: "700", color: "#111827" },
+  summarySub: { fontSize: 12.5, color: "#6B7280", marginTop: 2 },
+  summaryPrice: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111827",
+    marginRight: 6,
+  },
+  summaryDivider: { height: 1, backgroundColor: T.border, marginLeft: 68 },
+
+  // Bottom sheet for selecting package size / vehicle
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E0E0E0",
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  optRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#EDEFF2",
+    marginBottom: 10,
+  },
+  optRowSel: { borderColor: T.brand, backgroundColor: T.brandSoft },
+  optIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  optLabel: { fontSize: 15, fontWeight: "700", color: "#111827" },
+  optSub: { fontSize: 12.5, color: "#6B7280", marginTop: 2 },
+  optPrice: { fontSize: 15, fontWeight: "800", color: "#111827" },
+
   bookBtn: {
     backgroundColor: T.brand,
     borderRadius: 18,
