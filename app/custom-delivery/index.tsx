@@ -810,6 +810,20 @@ export default function CustomDeliveryScreen() {
     !loadingQuotes &&
     !isSubmitting;
 
+  // Tell the user exactly what's still blocking the booking, instead of a
+  // generic "complete all steps" that leaves a grey button unexplained.
+  const bookBlocker = !step1Done
+    ? "Add pickup & drop-off"
+    : !step2Done
+      ? "Select package size & vehicle"
+      : !step3Done
+        ? "Add sender & recipient details"
+        : loadingQuotes
+          ? "Getting price…"
+          : estimatedPrice == null
+            ? "Price unavailable — try again"
+            : "Complete all steps above";
+
   // ── Render delivery card ───────────────────────────────────
   const renderDeliveryCard = ({ item }: { item: DeliverySummary }) => {
     let displayStatus = item.status;
@@ -1347,9 +1361,7 @@ export default function CustomDeliveryScreen() {
             <ActivityIndicator color="#fff" size="small" />
           ) : (
             <Text style={[s.bookBtnText, !canSubmit && s.bookBtnTextOff]}>
-              {canSubmit
-                ? `Book · D${estimatedPrice?.toFixed(0)}`
-                : "Complete all steps above"}
+              {canSubmit ? `Book · D${estimatedPrice?.toFixed(0)}` : bookBlocker}
             </Text>
           )}
         </TouchableOpacity>
