@@ -227,6 +227,10 @@ export default function Checkout() {
   // customer understands they must collect it from the store themselves.
   const [showPickupModal, setShowPickupModal] = useState(false);
   const pickupConfirmedRef = useRef(false);
+  // Delivery confirmation: show the delivery address back to the customer once
+  // before creating a DELIVERY order, the same way pickup is confirmed.
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const deliveryConfirmedRef = useRef(false);
   const [addressPickerVisible, setAddressPickerVisible] = useState(false);
   const [addressesLoaded, setAddressesLoaded] = useState(false);
   const [paymentMethodPickerVisible, setPaymentMethodPickerVisible] =
@@ -1254,6 +1258,14 @@ export default function Checkout() {
       return;
     }
     pickupConfirmedRef.current = false;
+
+    // For delivery orders, confirm the delivery address with the customer
+    // before creating the order (mirrors the pickup confirmation above).
+    if (form.orderType === "DELIVERY" && !deliveryConfirmedRef.current) {
+      setShowDeliveryModal(true);
+      return;
+    }
+    deliveryConfirmedRef.current = false;
 
     setLoading(true);
 
@@ -2829,6 +2841,63 @@ export default function Checkout() {
           </View>
         </Modal>
 
+        {/* Delivery Address Confirmation Modal */}
+        <Modal
+          visible={showDeliveryModal}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowDeliveryModal(false)}
+        >
+          <View style={styles.modalCentered}>
+            <View style={styles.modalContainer}>
+              <View style={styles.pickupModalIcon}>
+                <Ionicons name="location" size={34} color={PrimaryColor} />
+              </View>
+              <Text style={styles.modalTitle}>Deliver to this address?</Text>
+              <Text style={styles.modalMessage}>
+                Please confirm where your order should be delivered.
+              </Text>
+              <View style={styles.deliveryConfirmAddress}>
+                <Ionicons
+                  name="navigate"
+                  size={16}
+                  color={PrimaryColor}
+                  style={{ marginTop: 2 }}
+                />
+                <Text style={styles.deliveryConfirmAddressText}>
+                  {(() => {
+                    const parts = [
+                      selectedAddress?.addressLine || form.address,
+                      selectedAddress?.city,
+                    ].filter(Boolean) as string[];
+                    return parts.join(", ") || "Your selected address";
+                  })()}
+                </Text>
+              </View>
+              <View style={styles.pickupModalButtons}>
+                <TouchableOpacity
+                  style={styles.pickupModalCancel}
+                  onPress={() => setShowDeliveryModal(false)}
+                >
+                  <Text style={styles.pickupModalCancelText}>Change</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.pickupModalConfirm}
+                  onPress={() => {
+                    deliveryConfirmedRef.current = true;
+                    setShowDeliveryModal(false);
+                    handlePlaceOrder();
+                  }}
+                >
+                  <Text style={styles.pickupModalConfirmText}>
+                    Confirm & place order
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         {/* Order Created Modal */}
 
         {/* Location Modal (for adding/selecting address when none saved) */}
@@ -4252,6 +4321,24 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 14,
+  },
+  deliveryConfirmAddress: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: `${PrimaryColor}0D`,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 16,
+    width: "100%",
+  },
+  deliveryConfirmAddressText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1f2937",
+    lineHeight: 20,
   },
   pickupModalButtons: {
     flexDirection: "row",
