@@ -89,6 +89,8 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Which item is currently being removed (customer, before payment).
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null);
 
   // ⭐ Driver Rating Modal State
   const [ratingModalVisible, setRatingModalVisible] = useState(false);
@@ -193,6 +195,53 @@ export default function OrderDetailsPage() {
       fetchOrderDetails();
     }
   }, [orderId, fetchOrderDetails]);
+
+  // The customer may remove items only before paying (ACCEPTED + unpaid).
+  const canEditItems =
+    !!order &&
+    order.status === "ACCEPTED" &&
+    order.paymentStatus !== "PAID" &&
+    (order as any).paymentStatus !== "SUCCEEDED";
+
+  const handleRemoveItem = (item: any) => {
+    if (!order) return;
+    const activeCount = order.items.filter(
+      (it: any) => (it as any).status !== "CANCELLED",
+    ).length;
+    const name =
+      item.menuItem?.name ||
+      item.product?.name ||
+      item.medicine?.name ||
+      "this item";
+    const isLast = activeCount <= 1;
+    Alert.alert(
+      isLast ? "Cancel the whole order?" : "Remove item?",
+      isLast
+        ? "This is the only item left — removing it will cancel the entire order."
+        : `Remove "${name}" from your order? Your total updates and you won't be charged for it.`,
+      [
+        { text: "Keep", style: "cancel" },
+        {
+          text: isLast ? "Cancel order" : "Remove",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setRemovingItemId(item.id);
+              await orderApi.customerCancelOrderItems(order.id, [item.id]);
+              await fetchOrderDetails(true);
+            } catch (e: any) {
+              Alert.alert(
+                "Couldn't remove item",
+                e?.message || "Please try again.",
+              );
+            } finally {
+              setRemovingItemId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
 
   // If opened from payment deep-link and order is not yet updated, poll + show waiting UI.
   useEffect(() => {
@@ -1442,6 +1491,14 @@ export default function OrderDetailsPage() {
           <Text style={styles.sectionTitle}>
             Order Items ({order.items.length})
           </Text>
+          {canEditItems && (
+            <View style={styles.removeHintRow}>
+              <Ionicons name="create-outline" size={14} color="#B45309" />
+              <Text style={styles.removeHintText}>
+                Changed your mind? Tap ✕ to remove an item before you pay.
+              </Text>
+            </View>
+          )}
 
           {order.items.map((item, index) => {
             const itemData = item.menuItem || item.product || item.medicine;
@@ -1513,6 +1570,24 @@ export default function OrderDetailsPage() {
                     </Text>
                   </View>
                 </View>
+                {canEditItems && !isUnavailable && (
+                  <TouchableOpacity
+                    style={styles.removeItemBtn}
+                    onPress={() => handleRemoveItem(item)}
+                    disabled={removingItemId === item.id}
+                    hitSlop={8}
+                  >
+                    {removingItemId === item.id ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <Ionicons
+                        name="close-circle"
+                        size={24}
+                        color="#EF4444"
+                      />
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -2274,9 +2349,31 @@ const styles = StyleSheet.create({
   },
   orderItem: {
     flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
+  },
+  removeItemBtn: {
+    marginLeft: 8,
+    padding: 4,
+    alignSelf: "center",
+  },
+  removeHintRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#FFFBEB",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  removeHintText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#92400E",
+    lineHeight: 17,
   },
   itemImageContainer: {
     marginRight: 12,

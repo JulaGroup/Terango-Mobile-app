@@ -1049,6 +1049,18 @@ export const orderApi = {
     });
   },
 
+  // Customer removes items from their own order before paying.
+  customerCancelOrderItems: async (
+    orderId: string,
+    itemIds: string[],
+    note?: string,
+  ): Promise<{ message: string; fullyCancelled: boolean; order: Order }> => {
+    return apiCall(`/api/orders/${orderId}/customer-cancel-items`, {
+      method: "PATCH",
+      body: JSON.stringify({ itemIds, note }),
+    });
+  },
+
   // Get order by ID
   getOrderById: async (orderId: string): Promise<Order> => {
     return apiCall(`/api/orders/${orderId}`);
