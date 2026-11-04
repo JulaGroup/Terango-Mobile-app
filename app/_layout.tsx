@@ -787,6 +787,20 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="custom-delivery/details/[deliveryId]"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
+                                name="custom-delivery/all-deliveries"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="express-payment"
                                 options={{
                                   animation: "slide_from_right",
