@@ -945,11 +945,15 @@ export default function CustomDeliveryScreen() {
             <Text style={s.heroBrand}>
               TeranGO <Text style={s.heroBrandAccent}>Express</Text>
             </Text>
-            <TouchableOpacity style={s.heroIconBtn} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={s.heroIconBtn}
+              activeOpacity={0.8}
+              onPress={() => router.push("/(tabs)/orders")}
+            >
               <Ionicons
-                name="help-circle-outline"
+                name="receipt-outline"
                 size={20}
-                color="rgba(255,255,255,0.55)"
+                color="rgba(255,255,255,0.9)"
               />
             </TouchableOpacity>
           </View>
@@ -1275,41 +1279,8 @@ export default function CustomDeliveryScreen() {
           </View>
         )}
 
-        {/* ── Recent Deliveries (last 5 — full history lives in Activities) ── */}
-        <View style={s.recentWrap}>
-          <View style={s.recentHeader}>
-            <Text style={s.recentTitle}>Recent Deliveries</Text>
-          </View>
-
-          {loadingDeliveries ? (
-            <View style={s.stateBox}>
-              <ActivityIndicator color={T.brand} size="small" />
-            </View>
-          ) : recentDeliveries.length === 0 ? (
-            <View style={s.emptyBox}>
-              <Ionicons name="cube-outline" size={28} color={T.textTertiary} />
-              <Text style={s.emptyText}>No deliveries yet</Text>
-            </View>
-          ) : (
-            <>
-              <FlatList
-                data={recentDeliveries}
-                keyExtractor={(item) => item.id}
-                renderItem={renderDeliveryCard}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-              />
-              <TouchableOpacity
-                style={s.seeMoreBtn}
-                onPress={() => router.push("/(tabs)/orders")}
-                activeOpacity={0.75}
-              >
-                <Text style={s.seeMoreText}>See more</Text>
-                <Ionicons name="chevron-forward" size={14} color={T.brand} />
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
+        {/* Recent deliveries moved to the ▦ history icon in the header to keep
+            this page focused on booking. */}
       </ScrollView>
 
       {/* ── Sticky book bar (always visible, like Grab/Uber) ── */}
