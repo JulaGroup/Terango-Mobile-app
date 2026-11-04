@@ -755,10 +755,10 @@ export default function CustomDeliveryScreen() {
       const deliveryId = result?.data?.id ?? result?.id;
 
       if (deliveryId) {
-        // Go straight to the delivery's page instead of popping an alert — the
-        // detail page shows the booking state and next steps.
+        // Go straight to the delivery's details page instead of popping an
+        // alert — it shows the booking state and next steps (Pay / Track).
         router.replace({
-          pathname: "/custom-delivery/[deliveryId]",
+          pathname: "/custom-delivery/details/[deliveryId]" as any,
           params: { deliveryId },
         });
       }
@@ -991,7 +991,7 @@ export default function CustomDeliveryScreen() {
             activeOpacity={0.85}
             onPress={() =>
               router.push({
-                pathname: "/custom-delivery/[deliveryId]",
+                pathname: "/custom-delivery/details/[deliveryId]" as any,
                 params: { deliveryId: activeDeliveries[0].id },
               })
             }

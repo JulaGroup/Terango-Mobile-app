@@ -1295,7 +1295,7 @@ export default function Orders() {
         activeOpacity={0.6}
         onPress={() =>
           router.push({
-            pathname: "/custom-delivery/[deliveryId]",
+            pathname: "/custom-delivery/details/[deliveryId]" as any,
             params: { deliveryId: delivery.id },
           })
         }
@@ -1488,7 +1488,7 @@ export default function Orders() {
                 }}
                 onPress={() =>
                   router.push({
-                    pathname: "/custom-delivery/[deliveryId]",
+                    pathname: "/custom-delivery/details/[deliveryId]" as any,
                     params: { deliveryId: delivery.id },
                   })
                 }
