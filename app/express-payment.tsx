@@ -73,9 +73,11 @@ export default function ExpressPaymentScreen() {
 
   const router = useRouter();
   const [delivery, setDelivery] = useState<DeliveryDetails | null>(null);
+  // Wave is the only method, so pre-select it — the user shouldn't have to
+  // tap to select the single available option before paying.
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     string | null
-  >(null);
+  >("wave");
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
 

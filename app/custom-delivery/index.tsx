@@ -990,10 +990,15 @@ export default function CustomDeliveryScreen() {
             style={s.activeBanner}
             activeOpacity={0.85}
             onPress={() =>
-              router.push({
-                pathname: "/custom-delivery/details/[deliveryId]" as any,
-                params: { deliveryId: activeDeliveries[0].id },
-              })
+              // One active delivery → open it directly. Several → go to the
+              // Activities list so the user picks which one, instead of
+              // silently opening only the first.
+              activeDeliveries.length > 1
+                ? router.push("/(tabs)/orders")
+                : router.push({
+                    pathname: "/custom-delivery/details/[deliveryId]" as any,
+                    params: { deliveryId: activeDeliveries[0].id },
+                  })
             }
           >
             <View style={s.activeBannerDot} />
@@ -1004,10 +1009,12 @@ export default function CustomDeliveryScreen() {
                   : "Delivery in progress"}
               </Text>
               <Text style={s.activeBannerSub} numberOfLines={1}>
-                {STATUS_MAP[String(activeDeliveries[0].status)]?.label ??
-                  activeDeliveries[0].status}
-                {" · "}
-                {activeDeliveries[0].dropoffAddress}
+                {activeDeliveries.length > 1
+                  ? "Tap to see all in Activities"
+                  : `${
+                      STATUS_MAP[String(activeDeliveries[0].status)]?.label ??
+                      activeDeliveries[0].status
+                    } · ${activeDeliveries[0].dropoffAddress}`}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={T.brand} />

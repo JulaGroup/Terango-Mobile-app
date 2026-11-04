@@ -8,11 +8,12 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { customDeliveryApi } from "@/lib/api";
+import { customDeliveryApi, expressDeliveryApi } from "@/lib/api";
 import { PrimaryColor } from "@/constants/Colors";
 
 const ORANGE = PrimaryColor;
@@ -83,6 +84,7 @@ export default function ExpressDeliveryDetails() {
   const [delivery, setDelivery] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const fetchDelivery = useCallback(async () => {
     if (!deliveryId) return;
@@ -107,6 +109,50 @@ export default function ExpressDeliveryDetails() {
       params: { deliveryId: String(deliveryId) },
     });
 
+  // Pay on the dedicated express-payment screen — same route the Activities
+  // list uses, so paying is consistent everywhere (not the map).
+  const goToPay = () =>
+    router.push({
+      pathname: "/express-payment",
+      params: {
+        deliveryId: String(deliveryId),
+        amount: String(delivery?.estimatedFee ?? delivery?.subtotalFee ?? 0),
+        pickupAddress: delivery?.pickupAddress ?? "",
+        dropoffAddress: delivery?.dropoffAddress ?? "",
+      },
+    });
+
+  const handleCancel = () => {
+    Alert.alert(
+      "Cancel delivery?",
+      "This will cancel your Express request. You can only cancel before a driver is assigned.",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Cancel delivery",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setCancelling(true);
+              await expressDeliveryApi.cancelExpressDelivery(
+                String(deliveryId),
+              );
+              await fetchDelivery();
+            } catch (e: any) {
+              Alert.alert(
+                "Couldn't cancel",
+                e?.message ||
+                  "A driver may already be assigned. Please contact support.",
+              );
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   if (loading && !delivery) {
     return (
       <SafeAreaView style={[s.safe, { justifyContent: "center" }]}>
@@ -122,6 +168,8 @@ export default function ExpressDeliveryDetails() {
     delivery?.paymentStatus === "SUCCEEDED";
   const canTrack = TRACKABLE.includes(status);
   const isClosed = status === "DELIVERED" || status === "CANCELLED";
+  // Server rule: a customer can only cancel while still PENDING.
+  const canCancel = status === "PENDING" && !paid;
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
@@ -269,7 +317,7 @@ export default function ExpressDeliveryDetails() {
       {!isClosed && (
         <View style={s.actionBar}>
           {!paid && delivery?.adminApprovedForPayment ? (
-            <TouchableOpacity style={s.payBtn} onPress={goToMap}>
+            <TouchableOpacity style={s.payBtn} onPress={goToPay}>
               <Ionicons name="card-outline" size={20} color="#fff" />
               <Text style={s.payBtnText}>Pay Now</Text>
             </TouchableOpacity>
@@ -292,6 +340,21 @@ export default function ExpressDeliveryDetails() {
                   ? "Track Delivery"
                   : "Track available once driver picks up"}
               </Text>
+            </TouchableOpacity>
+          )}
+
+          {canCancel && (
+            <TouchableOpacity
+              style={s.cancelBtn}
+              onPress={handleCancel}
+              disabled={cancelling}
+              activeOpacity={0.7}
+            >
+              {cancelling ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Text style={s.cancelBtnText}>Cancel delivery</Text>
+              )}
             </TouchableOpacity>
           )}
         </View>
@@ -465,4 +528,11 @@ const s = StyleSheet.create({
   trackBtnOff: { backgroundColor: "#E5E7EB" },
   trackBtnText: { color: "#fff", fontSize: 16, fontWeight: "800" },
   trackBtnTextOff: { color: "#9CA3AF", fontSize: 14, fontWeight: "700" },
+  cancelBtn: {
+    marginTop: 10,
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: { color: "#EF4444", fontSize: 15, fontWeight: "700" },
 });

@@ -2019,39 +2019,10 @@ export default function DeliveryTrackingPage() {
                 </View>
               )}
 
-            {/* Pay Now → opens bottom sheet */}
-            {showPayNow && (
-              <TouchableOpacity
-                style={s.payNowBtn}
-                onPress={() => setShowPaymentSheet(true)}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={[T.brand, T.brandDark]}
-                  style={s.payNowGradient}
-                >
-                  <View style={s.payNowLeft}>
-                    <View style={s.payNowIconWrap}>
-                      <Ionicons name="card-outline" size={18} color={"#fff"} />
-                    </View>
-                    <View>
-                      <Text style={s.payNowEyebrow}>PAYMENT APPROVED</Text>
-                      <Text style={s.payNowText}>Pay Now</Text>
-                    </View>
-                  </View>
-                  <View style={s.payNowRight}>
-                    <Text style={s.payNowAmt}>
-                      {fmtCurrency(delivery.estimatedFee)}
-                    </Text>
-                    <Ionicons
-                      name="chevron-up"
-                      size={13}
-                      color="rgba(255,255,255,0.6)"
-                    />
-                  </View>
-                </LinearGradient>
-              </TouchableOpacity>
-            )}
+            {/* Payment moved to the dedicated Pay screen (reached from the
+                order-details page / Activities), so the tracking map no longer
+                carries a Pay button or the price/package info — this screen is
+                purely live tracking now. */}
 
             {/* Route */}
             <SectionCard title="Delivery Route" icon="navigate-circle-outline">
@@ -2106,133 +2077,9 @@ export default function DeliveryTrackingPage() {
               )}
             </SectionCard>
 
-            {/* Package */}
-            <SectionCard title="Package Details" icon="cube-outline">
-              <InfoRow
-                icon="scale-outline"
-                label="Weight Class"
-                value={delivery.weightClass}
-              />
-              <InfoRow
-                icon="car-outline"
-                label="Vehicle Type"
-                value={
-                  delivery.vehicleType === "KEKE_CARGO"
-                    ? "Keke Cargo"
-                    : String(delivery.vehicleType).replace("_", " ")
-                }
-              />
-              {/* The pickup contact is entered on the booking form but was
-                  never shown back, so nobody could check what they typed or
-                  spot a wrong digit. Listed before the receiver, in the order
-                  the delivery actually happens. */}
-              {delivery.senderName && (
-                <InfoRow
-                  icon="person-outline"
-                  label="Pickup contact"
-                  value={delivery.senderName}
-                  accent
-                />
-              )}
-              {delivery.senderPhone && (
-                <InfoRow
-                  icon="call-outline"
-                  label="Pickup phone"
-                  value={delivery.senderPhone}
-                  accent
-                  onPress={() => Linking.openURL(`tel:${delivery.senderPhone}`)}
-                />
-              )}
-              {delivery.receiverName && (
-                <InfoRow
-                  icon="person-outline"
-                  label="Receiver"
-                  value={delivery.receiverName}
-                  accent
-                />
-              )}
-              {delivery.receiverPhone && (
-                <InfoRow
-                  icon="call-outline"
-                  label="Receiver Phone"
-                  value={delivery.receiverPhone}
-                  accent
-                  onPress={() =>
-                    Linking.openURL(`tel:${delivery.receiverPhone}`)
-                  }
-                />
-              )}
-              {delivery.packageDescription && (
-                <InfoRow
-                  icon="cube-outline"
-                  label="Description"
-                  value={delivery.packageDescription}
-                />
-              )}
-              {delivery.customerNote && (
-                <InfoRow
-                  icon="chatbubble-ellipses-outline"
-                  label="Driver Notes"
-                  value={delivery.customerNote}
-                />
-              )}
-              <View style={{ height: 1 }} />
-            </SectionCard>
-
-            {/* Pricing */}
-            {delivery.estimatedFee != null && (
-              <SectionCard title="Pricing" icon="receipt-outline">
-                {/* Show detailed breakdown if service fee info is available */}
-                {delivery.serviceFee != null && delivery.subtotalFee != null ? (
-                  <>
-                    <View style={s.pricingRow}>
-                      <Text style={s.pricingLabel}>Delivery fee</Text>
-                      <Text style={s.pricingVal}>
-                        {fmtCurrency(delivery.subtotalFee)}
-                      </Text>
-                    </View>
-                    <View style={s.pricingRow}>
-                      <Text style={s.pricingLabel}>
-                        Service fee ({delivery.serviceFeePercent || 5}%)
-                      </Text>
-                      <Text style={s.pricingVal}>
-                        {fmtCurrency(delivery.serviceFee)}
-                      </Text>
-                    </View>
-                    <View style={s.pricingDivider} />
-                    <View style={s.pricingRow}>
-                      <Text style={s.pricingTotalLabel}>Total</Text>
-                      <Text style={s.pricingTotalVal}>
-                        {fmtCurrency(delivery.estimatedFee)}
-                      </Text>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    {/* Fallback: Simple breakdown */}
-                    <View style={s.pricingRow}>
-                      <Text style={s.pricingLabel}>Delivery fee</Text>
-                      <Text style={s.pricingVal}>
-                        {fmtCurrency(delivery.estimatedFee)}
-                      </Text>
-                    </View>
-                    <View style={s.pricingDivider} />
-                    <View style={s.pricingRow}>
-                      <Text style={s.pricingTotalLabel}>Total</Text>
-                      <Text style={s.pricingTotalVal}>
-                        {fmtCurrency(delivery.estimatedFee)}
-                      </Text>
-                    </View>
-                  </>
-                )}
-
-                {/* Payment method badge */}
-                {/* <View style={s.paymentBadge}>
-                  <Ionicons name="cash-outline" size={12} color={T.success} />
-                  <Text style={s.paymentBadgeText}>Pay on delivery</Text>
-                </View> */}
-              </SectionCard>
-            )}
+            {/* Package Details and Pricing intentionally live only on the
+                order-details page now — the tracking map keeps just the live
+                status, route, driver and timeline. */}
 
             {/* Timeline */}
             {delivery.trackingUpdates &&
@@ -2311,14 +2158,6 @@ export default function DeliveryTrackingPage() {
         </ScrollView>
       </Animated.View>
 
-      {/* Payment Bottom Sheet */}
-      {showPaymentSheet && (
-        <PaymentSheet
-          visible={showPaymentSheet}
-          onClose={() => setShowPaymentSheet(false)}
-          delivery={delivery}
-        />
-      )}
     </View>
   );
 }
