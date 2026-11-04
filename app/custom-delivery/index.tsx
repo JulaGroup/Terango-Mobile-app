@@ -354,6 +354,12 @@ export default function CustomDeliveryScreen() {
   );
   const [loadingDeliveries, setLoadingDeliveries] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // In-progress deliveries the customer can resume/track from the landing.
+  const activeDeliveries = recentDeliveries.filter((d) =>
+    ["PENDING", "DRIVER_ASSIGNED", "PICKED_UP", "IN_TRANSIT", "ARRIVED"].includes(
+      String(d.status),
+    ),
+  );
 
   const availableVehicleTypes = selectedWeight
     ? getAvailableVehicles(selectedWeight)
@@ -749,21 +755,12 @@ export default function CustomDeliveryScreen() {
       const deliveryId = result?.data?.id ?? result?.id;
 
       if (deliveryId) {
-        Alert.alert(
-          "Request Sent!",
-          "Your booking is with our team. We'll notify you once confirmed and ready for payment.",
-          [
-            {
-              text: "Track It",
-              onPress: () =>
-                router.push({
-                  pathname: "/custom-delivery/[deliveryId]",
-                  params: { deliveryId },
-                }),
-            },
-            { text: "Done", style: "cancel" },
-          ],
-        );
+        // Go straight to the delivery's page instead of popping an alert — the
+        // detail page shows the booking state and next steps.
+        router.replace({
+          pathname: "/custom-delivery/[deliveryId]",
+          params: { deliveryId },
+        });
       }
 
       // Reset form
@@ -986,6 +983,36 @@ export default function CustomDeliveryScreen() {
             />
           </View>
         </View>
+
+        {/* Active / in-progress express — tap to resume & track */}
+        {activeDeliveries.length > 0 && (
+          <TouchableOpacity
+            style={s.activeBanner}
+            activeOpacity={0.85}
+            onPress={() =>
+              router.push({
+                pathname: "/custom-delivery/[deliveryId]",
+                params: { deliveryId: activeDeliveries[0].id },
+              })
+            }
+          >
+            <View style={s.activeBannerDot} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.activeBannerTitle}>
+                {activeDeliveries.length > 1
+                  ? `${activeDeliveries.length} deliveries in progress`
+                  : "Delivery in progress"}
+              </Text>
+              <Text style={s.activeBannerSub} numberOfLines={1}>
+                {STATUS_MAP[String(activeDeliveries[0].status)]?.label ??
+                  activeDeliveries[0].status}
+                {" · "}
+                {activeDeliveries[0].dropoffAddress}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={T.brand} />
+          </TouchableOpacity>
+        )}
 
         {/* ── Step 1: Where to? ── */}
         <View style={s.block}>
@@ -1595,6 +1622,28 @@ const s = StyleSheet.create({
   },
 
   // Blocks
+  activeBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 14,
+    marginBottom: 2,
+    backgroundColor: T.brandSoft,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,107,0,0.25)",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  activeBannerDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: T.brand,
+  },
+  activeBannerTitle: { fontSize: 15, fontWeight: "800", color: "#1C1C1E" },
+  activeBannerSub: { fontSize: 12.5, color: "#5A6B63", marginTop: 2 },
   block: {
     backgroundColor: T.bg,
     marginHorizontal: 16,
