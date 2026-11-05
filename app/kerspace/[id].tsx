@@ -8,6 +8,7 @@ import {
   Dimensions,
   FlatList,
   Linking,
+  Modal,
   Platform,
   ScrollView,
   Share,
@@ -21,6 +22,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  runOnJS,
+} from "react-native-reanimated";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { kerspaceApi, Property } from "@/lib/api";
 import {
@@ -31,7 +43,7 @@ import {
 } from "@/constants/kerspace";
 import { isSaved, toggleSaved, SavedProperty } from "@/utils/kerspaceSaved";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 export default function PropertyDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,6 +53,8 @@ export default function PropertyDetail() {
   const [imgIndex, setImgIndex] = useState(0);
   const [saved, setSaved] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -115,8 +129,16 @@ export default function PropertyDetail() {
               onMomentumScrollEnd={(e) =>
                 setImgIndex(Math.round(e.nativeEvent.contentOffset.x / width))
               }
-              renderItem={({ item }) => (
-                <Image source={{ uri: item.url }} style={s.galleryImg} contentFit="cover" />
+              renderItem={({ item, index }) => (
+                <TouchableOpacity
+                  activeOpacity={0.95}
+                  onPress={() => {
+                    setViewerIndex(index);
+                    setViewerOpen(true);
+                  }}
+                >
+                  <Image source={{ uri: item.url }} style={s.galleryImg} contentFit="cover" />
+                </TouchableOpacity>
               )}
             />
           ) : (
@@ -156,12 +178,25 @@ export default function PropertyDetail() {
             >
               <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
             </View>
-            {p.isVerified && (
+            {!p.agentId && p.isVerified ? (
+              <View style={[s.pill, { backgroundColor: "#111827" }]}>
+                <Text style={s.pillText}>🛡 TeranGO</Text>
+              </View>
+            ) : p.isVerified ? (
               <View style={[s.pill, { backgroundColor: K.primary }]}>
                 <Text style={s.pillText}>✓ Verified</Text>
               </View>
-            )}
+            ) : null}
           </View>
+
+          {images.length > 0 && (
+            <View style={s.countPill}>
+              <Ionicons name="images" size={12} color="#fff" />
+              <Text style={s.countText}>
+                {imgIndex + 1}/{images.length}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Title + price */}
@@ -331,7 +366,129 @@ export default function PropertyDetail() {
           <Text style={s.interestText}>I'm interested</Text>
         </TouchableOpacity>
       </View>
+
+      <ZoomViewer
+        visible={viewerOpen}
+        images={images.map((i) => i.url)}
+        startIndex={viewerIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </View>
+  );
+}
+
+// ─── Full-screen zoom + slide gallery ─────────────────────────────────────────
+function ZoomViewer({
+  visible,
+  images,
+  startIndex,
+  onClose,
+}: {
+  visible: boolean;
+  images: string[];
+  startIndex: number;
+  onClose: () => void;
+}) {
+  const [index, setIndex] = useState(startIndex);
+  const [zoomed, setZoomed] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setIndex(startIndex);
+      setZoomed(false);
+    }
+  }, [visible, startIndex]);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000" }}>
+        <FlatList
+          data={images}
+          keyExtractor={(u, i) => `${i}`}
+          horizontal
+          pagingEnabled
+          scrollEnabled={!zoomed}
+          initialScrollIndex={startIndex}
+          getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={(e) =>
+            setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
+          }
+          renderItem={({ item }) => (
+            <ZoomableImage uri={item} onZoomChange={setZoomed} />
+          )}
+        />
+        <SafeAreaView edges={["top"]} style={s.viewerTop}>
+          <TouchableOpacity style={s.viewerClose} onPress={onClose}>
+            <Ionicons name="close" size={24} color="#fff" />
+          </TouchableOpacity>
+          <View style={s.viewerCount}>
+            <Text style={s.viewerCountText}>
+              {index + 1} / {images.length}
+            </Text>
+          </View>
+        </SafeAreaView>
+      </GestureHandlerRootView>
+    </Modal>
+  );
+}
+
+function ZoomableImage({
+  uri,
+  onZoomChange,
+}: {
+  uri: string;
+  onZoomChange: (z: boolean) => void;
+}) {
+  const scale = useSharedValue(1);
+  const saved = useSharedValue(1);
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      scale.value = Math.max(1, saved.value * e.scale);
+    })
+    .onEnd(() => {
+      if (scale.value < 1.01) {
+        scale.value = withTiming(1);
+        saved.value = 1;
+        runOnJS(onZoomChange)(false);
+      } else {
+        saved.value = scale.value;
+        runOnJS(onZoomChange)(true);
+      }
+    });
+
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd(() => {
+      if (scale.value > 1.01) {
+        scale.value = withTiming(1);
+        saved.value = 1;
+        runOnJS(onZoomChange)(false);
+      } else {
+        scale.value = withTiming(2.5);
+        saved.value = 2.5;
+        runOnJS(onZoomChange)(true);
+      }
+    });
+
+  const gesture = Gesture.Simultaneous(pinch, doubleTap);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <GestureDetector gesture={gesture}>
+      <Animated.View
+        style={{ width, height, justifyContent: "center", alignItems: "center" }}
+      >
+        <Animated.Image
+          source={{ uri }}
+          style={[{ width, height }, style]}
+          resizeMode="contain"
+        />
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -397,6 +554,45 @@ const s = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+  countPill: {
+    position: "absolute",
+    bottom: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  countText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  viewerTop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  viewerClose: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  viewerCount: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  viewerCountText: { color: "#fff", fontSize: 13, fontWeight: "700" },
   pill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   pillText: { color: "#fff", fontSize: 11, fontWeight: "800" },
   section: {

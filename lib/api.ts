@@ -1478,6 +1478,7 @@ export interface Property {
   isFeatured?: boolean;
   status: PropertyStatusT;
   reviewStatus?: PropertyReviewStatus;
+  agentId?: string | null;
   contactName?: string;
   contactPhone?: string;
   contactEmail?: string | null;

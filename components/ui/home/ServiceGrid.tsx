@@ -1092,54 +1092,12 @@ const ServiceGrid = () => {
           onPress={openExpress}
           badge={expressIsNew ? "NEW" : undefined}
         />
+        <MiniHero
+          label="KërSpace"
+          image={require("@/assets/images/kerrspace_icon (2).png")}
+          onPress={() => router.push("/kerspace" as any)}
+        />
       </View>
-
-      {/* KërSpace real-estate — its own indigo sub-brand, full-width banner. */}
-      <TouchableOpacity
-        activeOpacity={0.92}
-        onPress={() => router.push("/kerspace" as any)}
-        style={{ marginTop: GAP }}
-      >
-        <LinearGradient
-          colors={["#4F46E5", "#4338CA"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            borderRadius: 18,
-            paddingVertical: 16,
-            paddingHorizontal: 18,
-          }}
-        >
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#fff", fontSize: 16, fontWeight: "800" }}>
-              KërSpace
-            </Text>
-            <Text
-              style={{
-                color: "rgba(255,255,255,0.85)",
-                fontSize: 12.5,
-                marginTop: 2,
-              }}
-            >
-              Find your next home, office or land
-            </Text>
-          </View>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              backgroundColor: "rgba(255,255,255,0.2)",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            <Ionicons name="business" size={20} color="#fff" />
-          </View>
-        </LinearGradient>
-      </TouchableOpacity>
 
       {/* Parked until these services go live. SmallTile, MORE_SERVICES and
           MoreServicesSheet are all still defined above/below and unused —

@@ -6,8 +6,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   FlatList,
   Modal,
+  Pressable,
   RefreshControl,
   StatusBar,
   Text,
@@ -32,6 +34,10 @@ import {
   money,
 } from "@/constants/kerspace";
 import { getSavedIds, toggleSaved, SavedProperty } from "@/utils/kerspaceSaved";
+
+const { width } = Dimensions.get("window");
+const COL_GAP = 12;
+const GRID_W = (width - 16 * 2 - COL_GAP) / 2;
 
 const TYPES = [
   { key: "ALL", label: "All", icon: "grid" },
@@ -277,17 +283,24 @@ export default function KerSpaceHome() {
     <SafeAreaView style={s.safe} edges={["top"]}>
       <StatusBar barStyle="light-content" />
       {loading ? (
-        <>
-          {Header}
-          <View style={s.center}>
-            <ActivityIndicator color={K.primary} />
-          </View>
-        </>
+        <FlatList
+          data={[0, 1, 2, 3, 4, 5]}
+          keyExtractor={(i) => String(i)}
+          numColumns={2}
+          ListHeaderComponent={Header}
+          columnWrapperStyle={{ paddingHorizontal: 16, gap: COL_GAP }}
+          contentContainerStyle={{ paddingBottom: 30 }}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
+          renderItem={() => <SkeletonCard />}
+        />
       ) : (
         <FlatList
           data={items}
           keyExtractor={(p) => p.id}
+          numColumns={2}
           ListHeaderComponent={Header}
+          columnWrapperStyle={{ paddingHorizontal: 16, gap: COL_GAP }}
           contentContainerStyle={{ paddingBottom: 30 }}
           showsVerticalScrollIndicator={false}
           onEndReachedThreshold={0.4}
@@ -303,14 +316,12 @@ export default function KerSpaceHome() {
             />
           }
           renderItem={({ item }) => (
-            <View style={{ paddingHorizontal: 16 }}>
-              <ListCard
-                p={item}
-                saved={savedIds.includes(item.id)}
-                onPress={() => openDetail(item.id)}
-                onSave={() => onToggleSave(item)}
-              />
-            </View>
+            <GridCard
+              p={item}
+              saved={savedIds.includes(item.id)}
+              onPress={() => openDetail(item.id)}
+              onSave={() => onToggleSave(item)}
+            />
           )}
           ListEmptyComponent={
             <View style={s.empty}>
@@ -436,7 +447,29 @@ function FeaturedCard({
   );
 }
 
-function ListCard({
+// A listing owned by no agent but verified is TeranGO's own curated listing.
+export function TrustBadge({ p }: { p: Property }) {
+  const teranGO = !p.agentId && p.isVerified;
+  if (teranGO) {
+    return (
+      <View style={[s.trust, { backgroundColor: "#111827" }]}>
+        <Ionicons name="shield-checkmark" size={11} color="#fff" />
+        <Text style={s.trustText}>TeranGO</Text>
+      </View>
+    );
+  }
+  if (p.isVerified) {
+    return (
+      <View style={[s.trust, { backgroundColor: K.primary }]}>
+        <Ionicons name="checkmark-circle" size={11} color="#fff" />
+        <Text style={s.trustText}>Verified</Text>
+      </View>
+    );
+  }
+  return null;
+}
+
+function GridCard({
   p,
   saved,
   onPress,
@@ -449,45 +482,53 @@ function ListCard({
 }) {
   const img = p.images?.find((i) => i.isPrimary) || p.images?.[0];
   return (
-    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.9}>
-      <View style={s.cardImgWrap}>
-        <Image source={{ uri: img?.url }} style={s.cardImg} contentFit="cover" />
-        <View style={s.cardImgTop}>
+    <TouchableOpacity
+      style={[s.grid, { width: GRID_W }]}
+      onPress={onPress}
+      activeOpacity={0.9}
+    >
+      <View style={s.gridImgWrap}>
+        <Image source={{ uri: img?.url }} style={s.gridImg} contentFit="cover" />
+        <View style={s.gridImgTop}>
           <View
-            style={[
-              s.pill,
-              { backgroundColor: listingTypeColor(p.listingType) },
-            ]}
+            style={[s.pill, { backgroundColor: listingTypeColor(p.listingType) }]}
           >
             <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
           </View>
           <HeartBtn saved={saved} onPress={onSave} />
         </View>
-        {p.isVerified && (
-          <View style={s.verified}>
-            <Ionicons name="checkmark-circle" size={12} color="#fff" />
-            <Text style={s.verifiedText}>Verified</Text>
-          </View>
-        )}
-      </View>
-      <View style={s.cardBody}>
-        <View style={s.rowBetween}>
-          <Text style={s.cardPrice}>
-            {money(p.price, p.currency)}
-            {p.listingType === "FOR_RENT" ? "/mo" : ""}
-          </Text>
+        <View style={s.gridImgBottom}>
+          <TrustBadge p={p} />
         </View>
-        <Text style={s.cardTitle} numberOfLines={1}>
+      </View>
+      <View style={s.gridBody}>
+        <Text style={s.gridPrice} numberOfLines={1}>
+          {money(p.price, p.currency)}
+          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+        </Text>
+        <Text style={s.gridTitle} numberOfLines={1}>
           {p.title}
         </Text>
-        <Text style={s.cardLoc} numberOfLines={1}>
-          <Ionicons name="location-outline" size={12} color={K.inkLight} />{" "}
+        <Text style={s.gridLoc} numberOfLines={1}>
+          <Ionicons name="location-outline" size={11} color={K.inkLight} />{" "}
           {p.city}
-          {p.region ? `, ${p.region}` : ""}
         </Text>
         <Specs p={p} />
       </View>
     </TouchableOpacity>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <View style={[s.grid, { width: GRID_W }]}>
+      <View style={[s.gridImgWrap, { backgroundColor: "#E9EAF2" }]} />
+      <View style={s.gridBody}>
+        <View style={[s.skel, { width: "60%", height: 16 }]} />
+        <View style={[s.skel, { width: "90%", height: 12, marginTop: 8 }]} />
+        <View style={[s.skel, { width: "50%", height: 12, marginTop: 6 }]} />
+      </View>
+    </View>
   );
 }
 
@@ -506,10 +547,15 @@ function FilterModal({
 }: any) {
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.modalBg}>
-        <View style={s.modalCard}>
+      <Pressable style={s.modalBg} onPress={onClose}>
+        <Pressable style={s.modalCard} onPress={(e) => e.stopPropagation()}>
           <View style={s.modalHandle} />
-          <Text style={s.modalTitle}>Filters</Text>
+          <View style={s.modalHeaderRow}>
+            <Text style={s.modalTitle}>Filters</Text>
+            <TouchableOpacity style={s.modalClose} onPress={onClose} hitSlop={8}>
+              <Ionicons name="close" size={20} color={K.inkMid} />
+            </TouchableOpacity>
+          </View>
 
           <Text style={s.modalLabel}>Price range</Text>
           <View style={{ flexDirection: "row", gap: 10 }}>
@@ -554,8 +600,8 @@ function FilterModal({
               <Text style={s.applyText}>Apply</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -719,6 +765,41 @@ const s = StyleSheet.create({
   cardPrice: { fontSize: 18, fontWeight: "800", color: K.primary },
   cardTitle: { fontSize: 16, fontWeight: "700", color: K.ink, marginTop: 4 },
   cardLoc: { fontSize: 13, color: K.inkLight, marginTop: 3 },
+  // Grid card (2 columns)
+  grid: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    marginBottom: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: K.border,
+  },
+  gridImgWrap: { height: 130, backgroundColor: "#E5E7EB" },
+  gridImg: { width: "100%", height: "100%" },
+  gridImgTop: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    right: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  gridImgBottom: { position: "absolute", bottom: 8, left: 8 },
+  gridBody: { padding: 10 },
+  gridPrice: { fontSize: 15, fontWeight: "800", color: K.primary },
+  gridTitle: { fontSize: 13.5, fontWeight: "700", color: K.ink, marginTop: 3 },
+  gridLoc: { fontSize: 11.5, color: K.inkLight, marginTop: 2 },
+  trust: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 7,
+  },
+  trustText: { color: "#fff", fontSize: 9.5, fontWeight: "800" },
+  skel: { backgroundColor: "#E9EAF2", borderRadius: 6 },
   empty: { alignItems: "center", paddingVertical: 50, gap: 6 },
   emptyTitle: { fontSize: 16, fontWeight: "800", color: K.ink, marginTop: 8 },
   emptySub: { fontSize: 13, color: K.inkMid },
@@ -739,7 +820,21 @@ const s = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 14,
   },
-  modalTitle: { fontSize: 18, fontWeight: "800", color: K.ink, marginBottom: 14 },
+  modalHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "800", color: K.ink },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: K.bg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   modalLabel: {
     fontSize: 13,
     fontWeight: "700",
