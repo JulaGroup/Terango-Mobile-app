@@ -22,7 +22,7 @@ import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // KërSpace indigo brand (kept the ORANGE name to avoid churn across the file).
-const ORANGE = "#4F46E5";
+const ORANGE = "#FF6B00";
 const DARK = "#1a1a1a";
 
 const INQUIRY_TYPES = [

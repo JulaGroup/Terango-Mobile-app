@@ -1,18 +1,18 @@
-// KërSpace real-estate sub-brand palette. Clean, premium, industry-standard:
-// white surfaces with a dark navy/charcoal accent (buttons, active states,
-// circular controls), per the reference design — not orange, not a heavy
-// gradient. For-Sale / For-Rent keep subtle distinct tags.
+// KërSpace real-estate palette. Clean, premium, industry-standard: white
+// surfaces with the TeranGO ORANGE as the accent (buttons, active states,
+// price, circular controls) on a crisp white/soft-grey base. For-Sale /
+// For-Rent keep subtle distinct tags.
 export const KerSpace = {
-  primary: "#1B2430", // dark navy/charcoal accent
-  primaryDark: "#10161F",
-  primaryLight: "#EDEFF3", // light chip/tint bg
-  primaryFaint: "#F6F7F9",
-  forSale: "#1B2430", // navy
-  forRent: "#5B2D8E", // purple
+  primary: "#FF6B00", // TeranGO orange accent
+  primaryDark: "#E55F00",
+  primaryLight: "#FFF1E8", // light tint bg
+  primaryFaint: "#FFF8F3",
+  forSale: "#0E7C66", // green = for sale
+  forRent: "#7A3DB8", // purple = for rent
   bg: "#FFFFFF",
-  bgSoft: "#F6F7F9",
+  bgSoft: "#F5F6F8",
   card: "#FFFFFF",
-  ink: "#0F172A",
+  ink: "#141A1F",
   inkMid: "#5B6472",
   inkLight: "#9AA1AD",
   border: "#ECEDF1",
