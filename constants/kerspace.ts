@@ -1,19 +1,21 @@
-// KërSpace real-estate sub-brand palette. Distinct from the TeranGO orange —
-// indigo/purple, matching the ker-space.vercel.app site + logo and the
-// existing in-app For-Sale (navy) / For-Rent (purple) accents.
+// KërSpace real-estate sub-brand palette. Clean, premium, industry-standard:
+// white surfaces with a dark navy/charcoal accent (buttons, active states,
+// circular controls), per the reference design — not orange, not a heavy
+// gradient. For-Sale / For-Rent keep subtle distinct tags.
 export const KerSpace = {
-  primary: "#4F46E5", // indigo-600
-  primaryDark: "#4338CA", // indigo-700
-  primaryLight: "#EEF0FD",
-  primaryFaint: "#F5F6FF",
-  forSale: "#1E3A5F", // navy
+  primary: "#1B2430", // dark navy/charcoal accent
+  primaryDark: "#10161F",
+  primaryLight: "#EDEFF3", // light chip/tint bg
+  primaryFaint: "#F6F7F9",
+  forSale: "#1B2430", // navy
   forRent: "#5B2D8E", // purple
-  bg: "#F5F6FB",
+  bg: "#FFFFFF",
+  bgSoft: "#F6F7F9",
   card: "#FFFFFF",
-  ink: "#111827",
-  inkMid: "#4B5563",
-  inkLight: "#9CA3AF",
-  border: "#E7E8F0",
+  ink: "#0F172A",
+  inkMid: "#5B6472",
+  inkLight: "#9AA1AD",
+  border: "#ECEDF1",
   success: "#059669",
   warn: "#B45309",
   warnBg: "#FFFBEB",

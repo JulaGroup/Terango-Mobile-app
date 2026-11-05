@@ -1,7 +1,7 @@
 /**
- * KërSpace — Real Estate home (customer).
- * Homely-style layout with the KërSpace indigo/purple brand: search, property
- * type chips, a Recommended rail and a Nearby/All list with saveable cards.
+ * KërSpace — Real Estate home (customer). Clean, industry-standard layout
+ * (white surfaces + dark navy accent): location bar, search, category tiles,
+ * Buy/Rent tabs, a Recommended rail and a switchable 1-col / 2-col listing grid.
  */
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -21,9 +21,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { kerspaceApi, Property } from "@/lib/api";
 import { useMaintenance } from "@/context/MaintenanceContext";
 import MaintenanceScreen from "@/components/common/MaintenanceScreen";
@@ -38,15 +38,16 @@ import { getSavedIds, toggleSaved, SavedProperty } from "@/utils/kerspaceSaved";
 const { width } = Dimensions.get("window");
 const COL_GAP = 12;
 const GRID_W = (width - 16 * 2 - COL_GAP) / 2;
+const COLS_KEY = "@kerspace_cols";
 
 const TYPES = [
-  { key: "ALL", label: "All", icon: "grid" },
+  { key: "ALL", label: "All", icon: "apps" },
   { key: "HOUSE", label: "House", icon: "home" },
   { key: "VILLA", label: "Villa", icon: "business" },
   { key: "APARTMENT", label: "Apartment", icon: "business-outline" },
   { key: "OFFICE", label: "Office", icon: "briefcase" },
   { key: "LAND", label: "Land", icon: "map" },
-  { key: "COMMERCIAL", label: "Commercial", icon: "storefront" },
+  { key: "COMMERCIAL", label: "Shop", icon: "storefront" },
 ];
 
 const LISTING_TABS = [
@@ -70,12 +71,23 @@ export default function KerSpaceHome() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [savedIds, setSavedIds] = useState<string[]>([]);
+  const [cols, setCols] = useState(2);
 
-  // Filters
   const [filterOpen, setFilterOpen] = useState(false);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [beds, setBeds] = useState("");
+
+  useEffect(() => {
+    AsyncStorage.getItem(COLS_KEY).then((v) => {
+      if (v === "1" || v === "2") setCols(Number(v));
+    });
+  }, []);
+
+  const switchCols = (c: number) => {
+    setCols(c);
+    AsyncStorage.setItem(COLS_KEY, String(c)).catch(() => {});
+  };
 
   const baseParams = useCallback(
     (p: number) => ({
@@ -125,7 +137,6 @@ export default function KerSpaceHome() {
     }
   }, [loadingMore, page, totalPages, baseParams]);
 
-  // Reload when filters change
   useEffect(() => {
     setLoading(true);
     loadFirst();
@@ -153,95 +164,93 @@ export default function KerSpaceHome() {
 
   const Header = (
     <View>
-      {/* Brand header */}
-      <LinearGradient
-        colors={[K.primary, K.primaryDark]}
-        style={s.hero}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <View style={s.heroTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={20} color="#fff" />
+      {/* Top bar */}
+      <View style={s.topBar}>
+        <View style={s.locWrap}>
+          <TouchableOpacity style={s.back} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={K.ink} />
           </TouchableOpacity>
-          <View style={{ flex: 1, alignItems: "center" }}>
-            <Text style={s.brand}>KërSpace</Text>
-            <Text style={s.brandSub}>Find your space</Text>
+          <View>
+            <Text style={s.locLabel}>Location</Text>
+            <View style={s.locRow}>
+              <Ionicons name="location" size={14} color={K.primary} />
+              <Text style={s.locCity}>The Gambia</Text>
+              <Ionicons name="chevron-down" size={13} color={K.inkMid} />
+            </View>
           </View>
-          <TouchableOpacity
-            style={s.iconBtn}
-            onPress={() => router.push("/kerspace/saved" as any)}
-          >
-            <Ionicons name="heart" size={19} color="#fff" />
-          </TouchableOpacity>
         </View>
-
-        {/* Search */}
-        <View style={s.searchRow}>
-          <View style={s.search}>
-            <Ionicons name="search" size={18} color={K.inkLight} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="Search area, city, property…"
-              placeholderTextColor={K.inkLight}
-              value={search}
-              onChangeText={setSearch}
-              returnKeyType="search"
-              onSubmitEditing={() => {
-                setLoading(true);
-                loadFirst();
-              }}
-            />
-          </View>
-          <TouchableOpacity style={s.filterBtn} onPress={() => setFilterOpen(true)}>
-            <Ionicons name="options" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      {/* Listing type tabs */}
-      <View style={s.listingTabs}>
-        {LISTING_TABS.map((t) => (
-          <TouchableOpacity
-            key={t.key}
-            style={[s.listingTab, listingType === t.key && s.listingTabOn]}
-            onPress={() => setListingType(t.key)}
-          >
-            <Text
-              style={[
-                s.listingTabText,
-                listingType === t.key && s.listingTabTextOn,
-              ]}
-            >
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity
+          style={s.bell}
+          onPress={() => router.push("/kerspace/saved" as any)}
+        >
+          <Ionicons name="heart-outline" size={20} color={K.ink} />
+        </TouchableOpacity>
       </View>
 
-      {/* Property type chips */}
+      {/* Search */}
+      <View style={s.searchRow}>
+        <View style={s.search}>
+          <Ionicons name="search" size={18} color={K.inkLight} />
+          <TextInput
+            style={s.searchInput}
+            placeholder="Search area, city, property…"
+            placeholderTextColor={K.inkLight}
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              setLoading(true);
+              loadFirst();
+            }}
+          />
+        </View>
+        <TouchableOpacity style={s.filterCircle} onPress={() => setFilterOpen(true)}>
+          <Ionicons name="options" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Buy / Rent tabs */}
+      <View style={s.listingTabs}>
+        {LISTING_TABS.map((t) => {
+          const on = listingType === t.key;
+          return (
+            <TouchableOpacity
+              key={t.key}
+              style={s.listingTab}
+              onPress={() => setListingType(t.key)}
+            >
+              <Text style={[s.listingTabText, on && s.listingTabTextOn]}>
+                {t.label}
+              </Text>
+              {on && <View style={s.listingUnderline} />}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Category tiles */}
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
         data={TYPES}
         keyExtractor={(t) => t.key}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        style={{ marginTop: 4 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 10, paddingTop: 4 }}
         renderItem={({ item: t }) => {
           const on = type === t.key;
           return (
             <TouchableOpacity
-              style={[s.typeChip, on && s.typeChipOn]}
+              style={s.catTile}
               onPress={() => setType(t.key)}
+              activeOpacity={0.85}
             >
-              <Ionicons
-                name={t.icon as any}
-                size={15}
-                color={on ? "#fff" : K.primary}
-              />
-              <Text style={[s.typeChipText, on && s.typeChipTextOn]}>
-                {t.label}
-              </Text>
+              <View style={[s.catIcon, on && s.catIconOn]}>
+                <Ionicons
+                  name={t.icon as any}
+                  size={20}
+                  color={on ? "#fff" : K.primary}
+                />
+              </View>
+              <Text style={[s.catLabel, on && s.catLabelOn]}>{t.label}</Text>
             </TouchableOpacity>
           );
         }}
@@ -249,7 +258,7 @@ export default function KerSpaceHome() {
 
       {/* Recommended rail */}
       {featured.length > 0 && (
-        <View style={{ marginTop: 18 }}>
+        <View style={{ marginTop: 20 }}>
           <View style={s.sectionHead}>
             <Text style={s.sectionTitle}>Recommended</Text>
           </View>
@@ -271,20 +280,63 @@ export default function KerSpaceHome() {
         </View>
       )}
 
-      <View style={[s.sectionHead, { marginTop: 20 }]}>
+      {/* Section head + column toggle */}
+      <View style={[s.sectionHead, { marginTop: 22 }]}>
         <Text style={s.sectionTitle}>
           {search ? "Results" : "Available properties"}
         </Text>
+        <View style={s.colToggle}>
+          <TouchableOpacity
+            style={[s.colBtn, cols === 1 && s.colBtnOn]}
+            onPress={() => switchCols(1)}
+          >
+            <Ionicons
+              name="list"
+              size={17}
+              color={cols === 1 ? "#fff" : K.inkMid}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.colBtn, cols === 2 && s.colBtnOn]}
+            onPress={() => switchCols(2)}
+          >
+            <Ionicons
+              name="grid"
+              size={15}
+              color={cols === 2 ? "#fff" : K.inkMid}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
 
+  const renderItem = ({ item }: { item: Property }) =>
+    cols === 2 ? (
+      <GridCard
+        p={item}
+        saved={savedIds.includes(item.id)}
+        onPress={() => openDetail(item.id)}
+        onSave={() => onToggleSave(item)}
+      />
+    ) : (
+      <View style={{ paddingHorizontal: 16 }}>
+        <RowCard
+          p={item}
+          saved={savedIds.includes(item.id)}
+          onPress={() => openDetail(item.id)}
+          onSave={() => onToggleSave(item)}
+        />
+      </View>
+    );
+
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       {loading ? (
         <FlatList
-          data={[0, 1, 2, 3, 4, 5]}
+          key="skeleton"
+          data={[0, 1, 2, 3]}
           keyExtractor={(i) => String(i)}
           numColumns={2}
           ListHeaderComponent={Header}
@@ -296,11 +348,14 @@ export default function KerSpaceHome() {
         />
       ) : (
         <FlatList
+          key={`list-${cols}`}
           data={items}
           keyExtractor={(p) => p.id}
-          numColumns={2}
+          numColumns={cols}
           ListHeaderComponent={Header}
-          columnWrapperStyle={{ paddingHorizontal: 16, gap: COL_GAP }}
+          columnWrapperStyle={
+            cols === 2 ? { paddingHorizontal: 16, gap: COL_GAP } : undefined
+          }
           contentContainerStyle={{ paddingBottom: 30 }}
           showsVerticalScrollIndicator={false}
           onEndReachedThreshold={0.4}
@@ -315,14 +370,7 @@ export default function KerSpaceHome() {
               tintColor={K.primary}
             />
           }
-          renderItem={({ item }) => (
-            <GridCard
-              p={item}
-              saved={savedIds.includes(item.id)}
-              onPress={() => openDetail(item.id)}
-              onSave={() => onToggleSave(item)}
-            />
-          )}
+          renderItem={renderItem}
           ListEmptyComponent={
             <View style={s.empty}>
               <Ionicons name="home-outline" size={40} color={K.inkLight} />
@@ -362,7 +410,7 @@ export default function KerSpaceHome() {
   );
 }
 
-// ─── Cards ────────────────────────────────────────────────────────────────────
+// ─── Shared bits ──────────────────────────────────────────────────────────────
 function Specs({ p, light }: { p: Property; light?: boolean }) {
   const c = light ? "rgba(255,255,255,0.9)" : K.inkMid;
   return (
@@ -389,70 +437,35 @@ function Specs({ p, light }: { p: Property; light?: boolean }) {
   );
 }
 
-function HeartBtn({ saved, onPress }: { saved: boolean; onPress: () => void }) {
-  return (
-    <TouchableOpacity style={s.heart} onPress={onPress} hitSlop={8}>
-      <Ionicons
-        name={saved ? "heart" : "heart-outline"}
-        size={18}
-        color={saved ? "#EF4444" : "#fff"}
-      />
-    </TouchableOpacity>
-  );
-}
-
-function FeaturedCard({
-  p,
+function HeartBtn({
   saved,
   onPress,
-  onSave,
+  dark,
 }: {
-  p: Property;
   saved: boolean;
   onPress: () => void;
-  onSave: () => void;
+  dark?: boolean;
 }) {
-  const img = p.images?.find((i) => i.isPrimary) || p.images?.[0];
   return (
-    <TouchableOpacity style={s.featCard} onPress={onPress} activeOpacity={0.9}>
-      <Image source={{ uri: img?.url }} style={s.featImg} contentFit="cover" />
-      <LinearGradient
-        colors={["transparent", "rgba(0,0,0,0.75)"]}
-        style={s.featOverlay}
+    <TouchableOpacity
+      style={[s.heart, dark && s.heartDark]}
+      onPress={onPress}
+      hitSlop={8}
+    >
+      <Ionicons
+        name={saved ? "heart" : "heart-outline"}
+        size={17}
+        color={saved ? "#EF4444" : dark ? K.inkMid : "#fff"}
       />
-      <View style={s.featTop}>
-        <View
-          style={[s.pill, { backgroundColor: listingTypeColor(p.listingType) }]}
-        >
-          <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
-        </View>
-        <HeartBtn saved={saved} onPress={onSave} />
-      </View>
-      <View style={s.featBottom}>
-        <Text style={s.featTitle} numberOfLines={1}>
-          {p.title}
-        </Text>
-        <Text style={s.featLoc} numberOfLines={1}>
-          <Ionicons name="location" size={11} color="#fff" /> {p.city}
-        </Text>
-        <View style={s.featRow}>
-          <Text style={s.featPrice}>
-            {money(p.price, p.currency)}
-            {p.listingType === "FOR_RENT" ? "/mo" : ""}
-          </Text>
-        </View>
-        <Specs p={p} light />
-      </View>
     </TouchableOpacity>
   );
 }
 
-// A listing owned by no agent but verified is TeranGO's own curated listing.
 export function TrustBadge({ p }: { p: Property }) {
   const teranGO = !p.agentId && p.isVerified;
   if (teranGO) {
     return (
-      <View style={[s.trust, { backgroundColor: "#111827" }]}>
+      <View style={[s.trust, { backgroundColor: "#0F172A" }]}>
         <Ionicons name="shield-checkmark" size={11} color="#fff" />
         <Text style={s.trustText}>TeranGO</Text>
       </View>
@@ -469,23 +482,44 @@ export function TrustBadge({ p }: { p: Property }) {
   return null;
 }
 
-function GridCard({
-  p,
-  saved,
-  onPress,
-  onSave,
-}: {
-  p: Property;
-  saved: boolean;
-  onPress: () => void;
-  onSave: () => void;
-}) {
+function FeaturedCard({ p, saved, onPress, onSave }: CardProps) {
+  const img = p.images?.find((i) => i.isPrimary) || p.images?.[0];
+  return (
+    <TouchableOpacity style={s.featCard} onPress={onPress} activeOpacity={0.92}>
+      <Image source={{ uri: img?.url }} style={s.featImg} contentFit="cover" />
+      <View style={s.featTop}>
+        <View
+          style={[s.pill, { backgroundColor: listingTypeColor(p.listingType) }]}
+        >
+          <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
+        </View>
+        <HeartBtn saved={saved} onPress={onSave} />
+      </View>
+      <View style={s.featBody}>
+        <Text style={s.featPrice} numberOfLines={1}>
+          {money(p.price, p.currency)}
+          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+        </Text>
+        <Text style={s.featTitle} numberOfLines={1}>
+          {p.title}
+        </Text>
+        <Text style={s.featLoc} numberOfLines={1}>
+          <Ionicons name="location-outline" size={11} color={K.inkLight} />{" "}
+          {p.city}
+        </Text>
+        <Specs p={p} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function GridCard({ p, saved, onPress, onSave }: CardProps) {
   const img = p.images?.find((i) => i.isPrimary) || p.images?.[0];
   return (
     <TouchableOpacity
-      style={[s.grid, { width: GRID_W }]}
+      style={[s.card, { width: GRID_W }]}
       onPress={onPress}
-      activeOpacity={0.9}
+      activeOpacity={0.92}
     >
       <View style={s.gridImgWrap}>
         <Image source={{ uri: img?.url }} style={s.gridImg} contentFit="cover" />
@@ -502,14 +536,14 @@ function GridCard({
         </View>
       </View>
       <View style={s.gridBody}>
-        <Text style={s.gridPrice} numberOfLines={1}>
+        <Text style={s.price} numberOfLines={1}>
           {money(p.price, p.currency)}
           {p.listingType === "FOR_RENT" ? "/mo" : ""}
         </Text>
-        <Text style={s.gridTitle} numberOfLines={1}>
+        <Text style={s.title} numberOfLines={1}>
           {p.title}
         </Text>
-        <Text style={s.gridLoc} numberOfLines={1}>
+        <Text style={s.loc} numberOfLines={1}>
           <Ionicons name="location-outline" size={11} color={K.inkLight} />{" "}
           {p.city}
         </Text>
@@ -519,18 +553,62 @@ function GridCard({
   );
 }
 
+function RowCard({ p, saved, onPress, onSave }: CardProps) {
+  const img = p.images?.find((i) => i.isPrimary) || p.images?.[0];
+  return (
+    <TouchableOpacity style={s.row} onPress={onPress} activeOpacity={0.92}>
+      <View style={s.rowImgWrap}>
+        <Image source={{ uri: img?.url }} style={s.rowImg} contentFit="cover" />
+        <View style={s.rowImgBottom}>
+          <TrustBadge p={p} />
+        </View>
+      </View>
+      <View style={s.rowBody}>
+        <View style={s.rowTop}>
+          <View
+            style={[s.pill, { backgroundColor: listingTypeColor(p.listingType) }]}
+          >
+            <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
+          </View>
+          <HeartBtn saved={saved} onPress={onSave} dark />
+        </View>
+        <Text style={s.title} numberOfLines={1}>
+          {p.title}
+        </Text>
+        <Text style={s.loc} numberOfLines={1}>
+          <Ionicons name="location-outline" size={11} color={K.inkLight} />{" "}
+          {p.city}
+          {p.region ? `, ${p.region}` : ""}
+        </Text>
+        <Specs p={p} />
+        <Text style={[s.price, { marginTop: 6 }]} numberOfLines={1}>
+          {money(p.price, p.currency)}
+          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+        </Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function SkeletonCard() {
   return (
-    <View style={[s.grid, { width: GRID_W }]}>
-      <View style={[s.gridImgWrap, { backgroundColor: "#E9EAF2" }]} />
+    <View style={[s.card, { width: GRID_W }]}>
+      <View style={[s.gridImgWrap, { backgroundColor: "#EEF0F3" }]} />
       <View style={s.gridBody}>
-        <View style={[s.skel, { width: "60%", height: 16 }]} />
+        <View style={[s.skel, { width: "55%", height: 16 }]} />
         <View style={[s.skel, { width: "90%", height: 12, marginTop: 8 }]} />
-        <View style={[s.skel, { width: "50%", height: 12, marginTop: 6 }]} />
+        <View style={[s.skel, { width: "45%", height: 12, marginTop: 6 }]} />
       </View>
     </View>
   );
 }
+
+type CardProps = {
+  p: Property;
+  saved: boolean;
+  onPress: () => void;
+  onSave: () => void;
+};
 
 // ─── Filter modal ─────────────────────────────────────────────────────────────
 function FilterModal({
@@ -606,78 +684,107 @@ function FilterModal({
   );
 }
 
+const CARD_SHADOW = {
+  shadowColor: "#0F172A",
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  elevation: 2,
+};
+
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: K.bg },
-  center: { paddingVertical: 60, alignItems: "center" },
-  hero: {
-    paddingTop: 10,
-    paddingBottom: 18,
+  // Top bar
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingTop: 6,
+    paddingBottom: 10,
   },
-  heroTop: { flexDirection: "row", alignItems: "center" },
-  iconBtn: {
+  locWrap: { flexDirection: "row", alignItems: "center", gap: 10 },
+  back: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: K.bgSoft,
     justifyContent: "center",
     alignItems: "center",
   },
-  brand: { color: "#fff", fontSize: 19, fontWeight: "800", letterSpacing: 0.3 },
-  brandSub: { color: "rgba(255,255,255,0.8)", fontSize: 11, marginTop: 1 },
-  searchRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  locLabel: { fontSize: 11, color: K.inkLight, fontWeight: "600" },
+  locRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 1 },
+  locCity: { fontSize: 15, fontWeight: "800", color: K.ink },
+  bell: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: K.bgSoft,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  // Search
+  searchRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
   search: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#fff",
+    backgroundColor: K.bgSoft,
     borderRadius: 14,
     paddingHorizontal: 14,
-    height: 48,
+    height: 50,
   },
-  searchInput: { flex: 1, fontSize: 14, color: K.ink },
-  filterBtn: {
-    width: 48,
-    height: 48,
+  searchInput: { flex: 1, fontSize: 14.5, color: K.ink },
+  filterCircle: {
+    width: 50,
+    height: 50,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: K.primary,
     justifyContent: "center",
     alignItems: "center",
   },
+  // Buy/Rent tabs
   listingTabs: {
     flexDirection: "row",
-    gap: 8,
+    gap: 22,
     paddingHorizontal: 16,
-    marginTop: 16,
+    marginTop: 18,
   },
-  listingTab: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: K.border,
+  listingTab: { alignItems: "center" },
+  listingTabText: { fontSize: 15, fontWeight: "700", color: K.inkLight },
+  listingTabTextOn: { color: K.ink, fontWeight: "800" },
+  listingUnderline: {
+    marginTop: 6,
+    width: 22,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: K.primary,
   },
-  listingTabOn: { backgroundColor: K.primary, borderColor: K.primary },
-  listingTabText: { fontSize: 14, fontWeight: "700", color: K.inkMid },
-  listingTabTextOn: { color: "#fff" },
-  typeChip: {
-    flexDirection: "row",
+  // Category tiles
+  catTile: { alignItems: "center", width: 64 },
+  catIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: K.bgSoft,
+    justifyContent: "center",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: K.border,
   },
-  typeChipOn: { backgroundColor: K.primary, borderColor: K.primary },
-  typeChipText: { fontSize: 13, fontWeight: "700", color: K.inkMid },
-  typeChipTextOn: { color: "#fff" },
+  catIconOn: { backgroundColor: K.primary },
+  catLabel: {
+    fontSize: 11.5,
+    color: K.inkMid,
+    fontWeight: "600",
+    marginTop: 6,
+  },
+  catLabelOn: { color: K.ink, fontWeight: "800" },
+  // Section head
   sectionHead: {
     flexDirection: "row",
     alignItems: "center",
@@ -686,95 +793,83 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   sectionTitle: { fontSize: 18, fontWeight: "800", color: K.ink },
+  colToggle: {
+    flexDirection: "row",
+    backgroundColor: K.bgSoft,
+    borderRadius: 10,
+    padding: 3,
+    gap: 3,
+  },
+  colBtn: {
+    width: 30,
+    height: 28,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  colBtnOn: { backgroundColor: K.primary },
+  // Specs
   specs: { flexDirection: "row", gap: 12, marginTop: 8 },
   spec: { flexDirection: "row", alignItems: "center", gap: 4 },
   specText: { fontSize: 12, fontWeight: "600" },
   heart: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(0,0,0,0.3)",
     justifyContent: "center",
     alignItems: "center",
   },
+  heartDark: { backgroundColor: K.bgSoft },
   pill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   pillText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  // Featured
-  featCard: {
-    width: 240,
-    height: 260,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: "#E5E7EB",
-  },
-  featImg: { width: "100%", height: "100%" },
-  featOverlay: { position: "absolute", left: 0, right: 0, bottom: 0, height: 150 },
-  featTop: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  featBottom: { position: "absolute", left: 14, right: 14, bottom: 14 },
-  featTitle: { color: "#fff", fontSize: 16, fontWeight: "800" },
-  featLoc: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 2 },
-  featRow: { flexDirection: "row", alignItems: "center", marginTop: 6 },
-  featPrice: { color: "#fff", fontSize: 18, fontWeight: "800" },
-  // List card
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    marginBottom: 14,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: K.border,
-  },
-  cardImgWrap: { height: 180, backgroundColor: "#E5E7EB" },
-  cardImg: { width: "100%", height: "100%" },
-  cardImgTop: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    right: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  verified: {
-    position: "absolute",
-    bottom: 12,
-    left: 12,
+  trust: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: K.primary,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: 7,
   },
-  verifiedText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  cardBody: { padding: 14 },
-  rowBetween: {
+  trustText: { color: "#fff", fontSize: 9.5, fontWeight: "800" },
+  price: { fontSize: 16, fontWeight: "900", color: K.ink },
+  title: { fontSize: 14, fontWeight: "700", color: K.ink, marginTop: 4 },
+  loc: { fontSize: 12, color: K.inkLight, marginTop: 2 },
+  // Featured
+  featCard: {
+    width: 230,
+    borderRadius: 18,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: K.border,
+    overflow: "hidden",
+    ...CARD_SHADOW,
+  },
+  featImg: { width: "100%", height: 150 },
+  featTop: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    right: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  cardPrice: { fontSize: 18, fontWeight: "800", color: K.primary },
-  cardTitle: { fontSize: 16, fontWeight: "700", color: K.ink, marginTop: 4 },
-  cardLoc: { fontSize: 13, color: K.inkLight, marginTop: 3 },
-  // Grid card (2 columns)
-  grid: {
+  featBody: { padding: 12 },
+  featPrice: { fontSize: 17, fontWeight: "900", color: K.ink },
+  featTitle: { fontSize: 14, fontWeight: "700", color: K.ink, marginTop: 3 },
+  featLoc: { fontSize: 12, color: K.inkLight, marginTop: 2 },
+  // Grid card
+  card: {
     backgroundColor: "#fff",
     borderRadius: 16,
     marginBottom: 14,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: K.border,
+    ...CARD_SHADOW,
   },
-  gridImgWrap: { height: 130, backgroundColor: "#E5E7EB" },
+  gridImgWrap: { height: 130, backgroundColor: "#EEF0F3" },
   gridImg: { width: "100%", height: "100%" },
   gridImgTop: {
     position: "absolute",
@@ -786,20 +881,34 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   gridImgBottom: { position: "absolute", bottom: 8, left: 8 },
-  gridBody: { padding: 10 },
-  gridPrice: { fontSize: 15, fontWeight: "800", color: K.primary },
-  gridTitle: { fontSize: 13.5, fontWeight: "700", color: K.ink, marginTop: 3 },
-  gridLoc: { fontSize: 11.5, color: K.inkLight, marginTop: 2 },
-  trust: {
+  gridBody: { padding: 11 },
+  // Row card (1 column)
+  row: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 7,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: K.border,
+    ...CARD_SHADOW,
   },
-  trustText: { color: "#fff", fontSize: 9.5, fontWeight: "800" },
-  skel: { backgroundColor: "#E9EAF2", borderRadius: 6 },
+  rowImgWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#EEF0F3",
+  },
+  rowImg: { width: "100%", height: "100%" },
+  rowImgBottom: { position: "absolute", bottom: 6, left: 6 },
+  rowBody: { flex: 1, paddingLeft: 12, paddingVertical: 2 },
+  rowTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  skel: { backgroundColor: "#EEF0F3", borderRadius: 6 },
   empty: { alignItems: "center", paddingVertical: 50, gap: 6 },
   emptyTitle: { fontSize: 16, fontWeight: "800", color: K.ink, marginTop: 8 },
   emptySub: { fontSize: 13, color: K.inkMid },
@@ -831,7 +940,7 @@ const s = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: K.bg,
+    backgroundColor: K.bgSoft,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -843,7 +952,7 @@ const s = StyleSheet.create({
     marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: K.bg,
+    backgroundColor: K.bgSoft,
     borderWidth: 1,
     borderColor: K.border,
     borderRadius: 12,
@@ -857,7 +966,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: 12,
-    backgroundColor: K.bg,
+    backgroundColor: K.bgSoft,
     borderWidth: 1,
     borderColor: K.border,
   },

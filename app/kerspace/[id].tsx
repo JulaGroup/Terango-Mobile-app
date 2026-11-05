@@ -18,7 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
@@ -391,6 +391,7 @@ function ZoomViewer({
 }) {
   const [index, setIndex] = useState(startIndex);
   const [zoomed, setZoomed] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -418,8 +419,12 @@ function ZoomViewer({
             <ZoomableImage uri={item} onZoomChange={setZoomed} />
           )}
         />
-        <SafeAreaView edges={["top"]} style={s.viewerTop}>
-          <TouchableOpacity style={s.viewerClose} onPress={onClose}>
+        <View style={[s.viewerTop, { top: insets.top + 6 }]} pointerEvents="box-none">
+          <TouchableOpacity
+            style={s.viewerClose}
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
             <Ionicons name="close" size={24} color="#fff" />
           </TouchableOpacity>
           <View style={s.viewerCount}>
@@ -427,7 +432,7 @@ function ZoomViewer({
               {index + 1} / {images.length}
             </Text>
           </View>
-        </SafeAreaView>
+        </View>
       </GestureHandlerRootView>
     </Modal>
   );
@@ -569,14 +574,13 @@ const s = StyleSheet.create({
   countText: { color: "#fff", fontSize: 12, fontWeight: "700" },
   viewerTop: {
     position: "absolute",
-    top: 0,
     left: 0,
     right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 8,
+    zIndex: 20,
   },
   viewerClose: {
     width: 42,
