@@ -21,7 +21,8 @@ import { API_URL } from "@/constants/config";
 import * as Haptics from "expo-haptics";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const ORANGE = "#ff6b00";
+// KërSpace indigo brand (kept the ORANGE name to avoid churn across the file).
+const ORANGE = "#4F46E5";
 const DARK = "#1a1a1a";
 
 const INQUIRY_TYPES = [
