@@ -163,17 +163,14 @@ export default function PropertyDetail() {
             >
               <Text style={s.pillText}>{listingTypeLabel(p.listingType)}</Text>
             </View>
-            {teranGO ? (
-              <View style={[s.pill, { backgroundColor: "#141A1F" }]}>
-                <Ionicons name="shield-checkmark" size={11} color="#fff" />
-                <Text style={s.pillText}> TeranGO</Text>
+            {p.isVerified && (
+              <View style={s.verifiedPill}>
+                <Ionicons name="checkmark-circle" size={13} color={K.primary} />
+                <Text style={s.verifiedPillText}>
+                  {teranGO ? "TeranGO" : "Verified"}
+                </Text>
               </View>
-            ) : p.isVerified ? (
-              <View style={[s.pill, { backgroundColor: K.primary }]}>
-                <Ionicons name="checkmark-circle" size={11} color="#fff" />
-                <Text style={s.pillText}> Verified</Text>
-              </View>
-            ) : null}
+            )}
           </View>
         </View>
 
@@ -558,6 +555,16 @@ const s = StyleSheet.create({
     borderRadius: 8,
   },
   pillText: { color: "#fff", fontSize: 11, fontWeight: "800" },
+  verifiedPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#fff",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  verifiedPillText: { color: K.ink, fontSize: 11, fontWeight: "800" },
   // Thumbnail strip
   thumbStrip: {
     flexDirection: "row",

@@ -465,17 +465,16 @@ export function TrustBadge({ p }: { p: Property }) {
   const teranGO = !p.agentId && p.isVerified;
   if (teranGO) {
     return (
-      <View style={[s.trust, { backgroundColor: "#0F172A" }]}>
-        <Ionicons name="shield-checkmark" size={11} color="#fff" />
-        <Text style={s.trustText}>TeranGO</Text>
+      <View style={s.trustTeranGO}>
+        <Ionicons name="checkmark-circle" size={13} color={K.primary} />
+        <Text style={s.trustTeranGOText}>TeranGO</Text>
       </View>
     );
   }
   if (p.isVerified) {
     return (
-      <View style={[s.trust, { backgroundColor: K.primary }]}>
-        <Ionicons name="checkmark-circle" size={11} color="#fff" />
-        <Text style={s.trustText}>Verified</Text>
+      <View style={s.trustTick}>
+        <Ionicons name="checkmark-circle" size={18} color={K.primary} />
       </View>
     );
   }
@@ -823,15 +822,24 @@ const s = StyleSheet.create({
   heartDark: { backgroundColor: K.bgSoft },
   pill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8 },
   pillText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  trust: {
+  trustTick: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  trustTeranGO: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
+    backgroundColor: "#fff",
     paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 7,
+    borderRadius: 8,
   },
-  trustText: { color: "#fff", fontSize: 9.5, fontWeight: "800" },
+  trustTeranGOText: { color: K.ink, fontSize: 10, fontWeight: "800" },
   price: { fontSize: 16, fontWeight: "900", color: K.ink },
   title: { fontSize: 14, fontWeight: "700", color: K.ink, marginTop: 4 },
   loc: { fontSize: 12, color: K.inkLight, marginTop: 2 },
