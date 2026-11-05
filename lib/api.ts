@@ -1417,6 +1417,187 @@ export const customDeliveryApi = {
   },
 };
 
+// ─── KërSpace Real Estate ─────────────────────────────────────────────────────
+export type PropertyListingType = "FOR_SALE" | "FOR_RENT";
+export type PropertyType =
+  | "HOUSE"
+  | "APARTMENT"
+  | "OFFICE"
+  | "LAND"
+  | "COMMERCIAL"
+  | "VILLA";
+export type PropertyStatusT =
+  | "AVAILABLE"
+  | "UNDER_OFFER"
+  | "SOLD"
+  | "RENTED"
+  | "INACTIVE";
+export type PropertyReviewStatus = "PENDING_REVIEW" | "APPROVED" | "REJECTED";
+
+export interface PropertyImage {
+  id: string;
+  url: string;
+  isPrimary?: boolean;
+  order?: number;
+}
+
+export interface PropertyAgent {
+  id: string;
+  type?: "INDIVIDUAL" | "COMPANY";
+  companyName?: string | null;
+  phone?: string;
+  email?: string | null;
+  logoUrl?: string | null;
+  isVerified?: boolean;
+  user?: { fullName?: string | null; avatarUrl?: string | null };
+}
+
+export interface Property {
+  id: string;
+  title: string;
+  description?: string;
+  type: PropertyType;
+  listingType: PropertyListingType;
+  price: number;
+  currency: string;
+  negotiable?: boolean;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  toilets?: number | null;
+  area?: number | null;
+  address: string;
+  city: string;
+  region?: string | null;
+  country?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  features?: string[];
+  furnished?: boolean;
+  serviced?: boolean;
+  isVerified?: boolean;
+  isFeatured?: boolean;
+  status: PropertyStatusT;
+  reviewStatus?: PropertyReviewStatus;
+  contactName?: string;
+  contactPhone?: string;
+  contactEmail?: string | null;
+  viewCount?: number;
+  inquiryCount?: number;
+  images: PropertyImage[];
+  agent?: PropertyAgent | null;
+  createdAt?: string;
+}
+
+const qs = (params?: Record<string, any>) => {
+  if (!params) return "";
+  const entries = Object.entries(params).filter(
+    ([, v]) => v !== undefined && v !== null && v !== "",
+  );
+  if (entries.length === 0) return "";
+  return "?" + entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
+};
+
+// Public KërSpace browsing (customer side)
+export const kerspaceApi = {
+  list: (params?: Record<string, any>): Promise<{ data: Property[]; meta: any }> =>
+    apiCall(`/api/kerspace/properties${qs(params)}`),
+  get: (id: string): Promise<Property> =>
+    apiCall(`/api/kerspace/properties/${id}`),
+  inquire: (
+    id: string,
+    body: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      message?: string;
+      inquiryType?: string;
+    },
+  ) =>
+    apiCall(`/api/kerspace/properties/${id}/inquire`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  appointment: (
+    id: string,
+    body: {
+      fullName: string;
+      phone: string;
+      email?: string;
+      notes?: string;
+      preferredDate: string;
+      preferredTime: string;
+    },
+  ) =>
+    apiCall(`/api/kerspace/properties/${id}/appointment`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+// Agent self-service (KërSpace agents manage their own listings/leads/viewings)
+export const agentApi = {
+  apply: (body: {
+    fullName: string;
+    companyName?: string;
+    type?: "INDIVIDUAL" | "COMPANY";
+    phone: string;
+    email?: string;
+    city?: string;
+    licenseNo?: string;
+  }) =>
+    apiCall("/api/agent/apply", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  me: (): Promise<{ agent: any; application: any; isAgent: boolean }> =>
+    apiCall("/api/agent/me"),
+  stats: (): Promise<any> => apiCall("/api/agent/stats"),
+  listProperties: (
+    params?: Record<string, any>,
+  ): Promise<{ data: Property[] }> =>
+    apiCall(`/api/agent/properties${qs(params)}`),
+  createProperty: (body: Record<string, any>): Promise<Property> =>
+    apiCall("/api/agent/properties", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateProperty: (id: string, body: Record<string, any>): Promise<Property> =>
+    apiCall(`/api/agent/properties/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteProperty: (id: string) =>
+    apiCall(`/api/agent/properties/${id}`, { method: "DELETE" }),
+  addImage: (id: string, url: string, isPrimary?: boolean) =>
+    apiCall(`/api/agent/properties/${id}/images`, {
+      method: "POST",
+      body: JSON.stringify({ url, isPrimary }),
+    }),
+  deleteImage: (id: string, imageId: string) =>
+    apiCall(`/api/agent/properties/${id}/images/${imageId}`, {
+      method: "DELETE",
+    }),
+  updateStatus: (id: string, status: string) =>
+    apiCall(`/api/agent/properties/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  listInquiries: (params?: Record<string, any>): Promise<{ data: any[] }> =>
+    apiCall(`/api/agent/inquiries${qs(params)}`),
+  updateInquiryStatus: (id: string, status: string) =>
+    apiCall(`/api/agent/inquiries/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+  listAppointments: (params?: Record<string, any>): Promise<{ data: any[] }> =>
+    apiCall(`/api/agent/appointments${qs(params)}`),
+  updateAppointmentStatus: (id: string, status: string) =>
+    apiCall(`/api/agent/appointments/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+};
+
 // Express Delivery API
 export const expressDeliveryApi = {
   quoteExpressDelivery: async (payload: {

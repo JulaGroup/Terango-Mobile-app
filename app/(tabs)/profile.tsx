@@ -431,6 +431,24 @@ export default function ProfilePage() {
     });
   }
 
+  // KërSpace real-estate agent access. Agents get a prominent dashboard entry;
+  // everyone else sees an invitation to list their property.
+  if (user?.role === "AGENT") {
+    menuItems.unshift({
+      icon: "business-outline",
+      title: "KërSpace Agent",
+      subtitle: "Manage your listings, leads and viewings",
+      onPress: () => router.push("/agent" as any),
+    });
+  } else {
+    menuItems.push({
+      icon: "business-outline",
+      title: "List on KërSpace",
+      subtitle: "Become a real-estate agent and post properties",
+      onPress: () => router.push("/agent" as any),
+    });
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>

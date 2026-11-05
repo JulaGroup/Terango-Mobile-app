@@ -850,6 +850,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="agent"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="teranpro"
                                 options={{
                                   animation: "slide_from_right",
