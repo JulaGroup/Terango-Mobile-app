@@ -243,8 +243,17 @@ export default function ExperienceDetailScreen() {
     );
   }
 
+  // Sold out when the event's overall cap is reached, or the chosen tier is.
+  const soldOut =
+    isEvent &&
+    (experience?.soldOut === true ||
+      (selectedOption?.remaining != null && selectedOption.remaining <= 0));
+
   const canBook =
-    !!selectedOption && quantity > 0 && (isEvent || !!selectedSlot);
+    !soldOut &&
+    !!selectedOption &&
+    quantity > 0 &&
+    (isEvent || !!selectedSlot);
 
   return (
     <View style={styles.container}>
@@ -343,8 +352,13 @@ export default function ExperienceDetailScreen() {
 
           <View style={styles.divider} />
 
-          {/* Packages — side-by-side horizontal cards */}
-          <Text style={styles.blockTitle}>Choose a package</Text>
+          {/* Tickets / packages. A single-fee event shows just the price —
+              no confusing one-item picker. */}
+          {(experience.options?.length || 0) > 1 ? (
+          <>
+          <Text style={styles.blockTitle}>
+            {isEvent ? "Choose a ticket" : "Choose a package"}
+          </Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -387,6 +401,24 @@ export default function ExperienceDetailScreen() {
               );
             })}
           </ScrollView>
+          </>
+          ) : (
+            <View style={styles.singlePriceRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.blockTitle}>
+                  {isEvent ? "Ticket" : "Price"}
+                </Text>
+                {!!selectedOption?.label && (
+                  <Text style={styles.singlePriceSub}>
+                    {selectedOption.label}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.singlePriceValue}>
+                D{selectedOption?.price ?? 0}
+              </Text>
+            </View>
+          )}
 
           <View style={styles.divider} />
 
@@ -404,6 +436,22 @@ export default function ExperienceDetailScreen() {
                   </Text>
                 </View>
               )}
+              {soldOut ? (
+                <View style={styles.eventCardRow}>
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  <Text style={[styles.eventCardText, { color: "#EF4444" }]}>
+                    Sold out
+                  </Text>
+                </View>
+              ) : experience.remaining != null &&
+                experience.remaining <= 30 ? (
+                <View style={styles.eventCardRow}>
+                  <Ionicons name="flame" size={18} color="#F59E0B" />
+                  <Text style={[styles.eventCardText, { color: "#B45309" }]}>
+                    Only {experience.remaining} left
+                  </Text>
+                </View>
+              ) : null}
             </View>
           )}
 
@@ -620,12 +668,18 @@ export default function ExperienceDetailScreen() {
             style={styles.cta}
           >
             <Ionicons
-              name="flash"
+              name={soldOut ? "close-circle" : "flash"}
               size={17}
               color={canBook ? "#fff" : "#94A3B8"}
             />
             <Text style={[styles.ctaText, !canBook && { color: "#94A3B8" }]}>
-              {canBook ? "Book now" : "Select a time"}
+              {soldOut
+                ? "Sold Out"
+                : canBook
+                  ? isEvent
+                    ? "Get Tickets"
+                    : "Book now"
+                  : "Select a time"}
             </Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -734,6 +788,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0F172A",
   },
+  singlePriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF7F0",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FFE4CC",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  singlePriceSub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  singlePriceValue: { fontSize: 24, fontWeight: "900", color: PrimaryColor },
 
   /* Package cards — side by side */
   pkgCard: {

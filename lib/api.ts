@@ -2081,6 +2081,7 @@ export interface ExperienceOption {
   durationMins: number;
   price: number;
   maxUnits?: number | null;
+  remaining?: number | null;
 }
 
 export interface Experience {
@@ -2106,6 +2107,9 @@ export interface Experience {
   ticketCap?: number | null;
   autoConfirmLocation?: boolean;
   isPublished?: boolean;
+  // Live capacity (ticketed events only), set by the detail endpoint.
+  remaining?: number | null;
+  soldOut?: boolean;
   // Organiser branding (shown on event pages and tickets).
   vendor?: {
     displayName?: string | null;
