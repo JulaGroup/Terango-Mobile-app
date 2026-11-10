@@ -284,11 +284,8 @@ export default function ExperiencesScreen() {
             <Ionicons name="chevron-back" size={22} color="#1C1C1E" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.locLabel}>Location</Text>
-            <View style={s.locRow}>
-              <Ionicons name="location-sharp" size={14} color={PrimaryColor} />
-              <Text style={s.locText}>The Gambia</Text>
-            </View>
+            <Text style={s.hEyebrow}>TeranGO Events</Text>
+            <Text style={s.hTitle}>Discover Gambia</Text>
           </View>
           <TouchableOpacity
             style={s.ticketsIconBtn}
@@ -474,13 +471,19 @@ const s = StyleSheet.create({
     justifyContent: "center",
     ...CARD_SHADOW,
   },
-  locLabel: { fontSize: 12, color: "#9AA0A8", fontWeight: "600" },
-  locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  locText: {
-    fontSize: 17,
+  hEyebrow: {
+    fontSize: 12,
+    color: PrimaryColor,
     fontWeight: "800",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  hTitle: {
+    fontSize: 23,
+    fontWeight: "900",
     color: "#1C1C1E",
-    letterSpacing: -0.2,
+    letterSpacing: -0.5,
+    marginTop: 2,
   },
   searchWrap: {
     marginHorizontal: H_PAD,
