@@ -851,72 +851,76 @@ export default function Orders() {
         }
         style={{
           backgroundColor: "#fff",
-          borderRadius: 16,
+          borderRadius: 18,
           padding: 14,
           marginBottom: 12,
           flexDirection: "row",
           alignItems: "center",
+          gap: 12,
           shadowColor: "#000",
-          shadowOffset: { width: 0, height: 3 },
-          shadowOpacity: 0.06,
-          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.07,
+          shadowRadius: 12,
           elevation: 2,
         }}
       >
         <View
           style={{
-            width: 48,
-            height: 48,
+            width: 50,
+            height: 50,
             borderRadius: 14,
-            backgroundColor: "#FFF5EE",
+            backgroundColor: "#FFF1E6",
             justifyContent: "center",
             alignItems: "center",
-            marginRight: 12,
           }}
         >
-          <Ionicons name="star" size={22} color={PrimaryColor} />
+          <Ionicons name="ticket" size={24} color={PrimaryColor} />
         </View>
         <View style={{ flex: 1 }}>
           <Text
-            style={{ fontSize: 15, fontWeight: "800", color: "#0F172A" }}
+            style={{ fontSize: 15.5, fontWeight: "800", color: "#1C1C1E" }}
             numberOfLines={1}
           >
-            {booking.experience?.name || "Experience"}
+            {booking.experience?.name || "Event"}
           </Text>
-          <Text style={{ fontSize: 12, color: "#94A3B8", marginTop: 2 }}>
-            {booking.option?.label} · {when}
+          <Text
+            style={{ fontSize: 12.5, color: "#8A8F98", marginTop: 2 }}
+            numberOfLines={1}
+          >
+            {booking.quantity} {booking.quantity > 1 ? "tickets" : "ticket"}
+            {booking.option?.label ? ` · ${booking.option.label}` : ""} · {when}
           </Text>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              marginTop: 8,
+              marginTop: 9,
               gap: 8,
             }}
           >
             <View
               style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 4,
                 backgroundColor: s.bg,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
+                paddingHorizontal: 9,
+                paddingVertical: 4,
                 borderRadius: 8,
               }}
             >
-              <Text style={{ fontSize: 11, fontWeight: "700", color: s.fg }}>
+              <Text style={{ fontSize: 11, fontWeight: "800", color: s.fg }}>
                 {s.label}
               </Text>
             </View>
-            <Text style={{ fontSize: 12, color: "#64748B" }}>
-              {booking.quantity} × D{booking.unitPrice}
+            <Text
+              style={{ fontSize: 14, fontWeight: "900", color: PrimaryColor }}
+            >
+              D{booking.totalAmount}
             </Text>
           </View>
         </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={{ fontSize: 16, fontWeight: "900", color: PrimaryColor }}>
-            D{booking.totalAmount}
-          </Text>
-          <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
-        </View>
+        <Ionicons name="chevron-forward" size={20} color="#C2C6CE" />
       </TouchableOpacity>
     );
   };
