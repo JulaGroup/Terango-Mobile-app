@@ -203,8 +203,30 @@ export default function BookingTicketScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={PrimaryColor} size="large" />
+      <View style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor={PAGE_BG} />
+        <SafeAreaView edges={["top", "left", "right"]}>
+          <View style={styles.header}>
+            <View style={styles.headerBtn} />
+            <Text style={styles.headerTitle}>E-Ticket</Text>
+            <View style={styles.headerBtn} />
+          </View>
+        </SafeAreaView>
+        <View style={{ paddingHorizontal: 16 }}>
+          <View style={skel.card}>
+            <View style={skel.head} />
+            <View style={skel.qrZone}>
+              <View style={skel.qr} />
+              <View style={[skel.line, { width: 160, marginTop: 14 }]} />
+            </View>
+            <View style={skel.body}>
+              <View style={[skel.line, { width: "60%" }]} />
+              <View style={[skel.line, { width: "40%", marginTop: 10 }]} />
+              <View style={[skel.line, { width: "80%", marginTop: 18 }]} />
+              <View style={[skel.line, { width: "50%", marginTop: 10 }]} />
+            </View>
+          </View>
+        </View>
       </View>
     );
   }
@@ -470,6 +492,21 @@ function Field({
     </View>
   );
 }
+
+const SKEL = "#E7EAF0";
+const skel = StyleSheet.create({
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  head: { height: 64, backgroundColor: SKEL },
+  qrZone: { alignItems: "center", paddingVertical: 24 },
+  qr: { width: 170, height: 170, borderRadius: 16, backgroundColor: SKEL },
+  body: { padding: 20, paddingTop: 8 },
+  line: { height: 12, borderRadius: 6, backgroundColor: SKEL },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PAGE_BG },

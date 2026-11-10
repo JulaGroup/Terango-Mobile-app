@@ -299,20 +299,23 @@ export default function ExperiencesScreen() {
           )}
         </View>
 
-        {/* Category chips */}
+        {/* Categories — round icon circles */}
+        <View style={s.catsHeaderRow}>
+          <Text style={s.sectionTitle}>Categories</Text>
+        </View>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.chipsRow}
+          contentContainerStyle={s.circlesRow}
         >
-          <Chip
+          <CategoryCircle
             label="All"
             icon="apps"
             active={!activeCat}
             onPress={() => setActiveCat(null)}
           />
           {EXPERIENCE_CATEGORIES.map((c) => (
-            <Chip
+            <CategoryCircle
               key={c.label}
               label={c.label}
               icon={c.icon}
@@ -381,7 +384,7 @@ export default function ExperiencesScreen() {
   );
 }
 
-function Chip({
+function CategoryCircle({
   label,
   icon,
   active,
@@ -394,12 +397,19 @@ function Chip({
 }) {
   return (
     <TouchableOpacity
-      style={[s.chip, active && s.chipActive]}
+      style={s.circleItem}
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <Ionicons name={icon} size={15} color={active ? "#fff" : PrimaryColor} />
-      <Text style={[s.chipText, active && s.chipTextActive]}>{label}</Text>
+      <View style={[s.circle, active && s.circleActive]}>
+        <Ionicons name={icon} size={24} color={active ? "#fff" : PrimaryColor} />
+      </View>
+      <Text
+        style={[s.circleLabel, active && s.circleLabelActive]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -459,25 +469,34 @@ const s = StyleSheet.create({
     ...CARD_SHADOW,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1C1C1E", fontWeight: "500" },
-  chipsRow: {
+  catsHeaderRow: {
     paddingHorizontal: H_PAD,
-    gap: 8,
-    paddingVertical: 16,
+    paddingTop: 18,
+    paddingBottom: 4,
   },
-  chip: {
-    flexDirection: "row",
+  circlesRow: {
+    paddingHorizontal: H_PAD,
+    gap: 18,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  circleItem: { alignItems: "center", gap: 7, width: 64 },
+  circle: {
+    width: 60,
+    height: 60,
+    borderRadius: 20,
+    backgroundColor: "#FFF1E6",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderWidth: 1,
-    borderColor: "#EEF0F3",
+    justifyContent: "center",
   },
-  chipActive: { backgroundColor: PrimaryColor, borderColor: PrimaryColor },
-  chipText: { fontSize: 13, fontWeight: "700", color: "#1C1C1E" },
-  chipTextActive: { color: "#fff" },
+  circleActive: { backgroundColor: PrimaryColor },
+  circleLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#3A3A3C",
+    textAlign: "center",
+  },
+  circleLabelActive: { color: PrimaryColor },
 
   sectionHeader: {
     paddingHorizontal: H_PAD,
