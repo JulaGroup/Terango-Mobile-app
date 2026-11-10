@@ -855,19 +855,19 @@ const eventStyles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 14,
-    backgroundColor: "rgba(255,107,0,0.9)",
+    backgroundColor: "rgba(255,255,255,0.22)",
     alignItems: "center",
     justifyContent: "center",
   },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: -0.3 },
   newPill: {
-    backgroundColor: "#FF6B00",
+    backgroundColor: "#fff",
     borderRadius: 8,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  newPillText: { color: "#fff", fontSize: 9, fontWeight: "800" },
+  newPillText: { color: ORANGE, fontSize: 9, fontWeight: "800" },
   sub: {
     color: "rgba(255,255,255,0.72)",
     fontSize: 12.5,
@@ -1139,7 +1139,7 @@ const ServiceGrid = () => {
         onPress={() => router.push("/experiences" as any)}
       >
         <LinearGradient
-          colors={["#1C2237", "#323A5C"]}
+          colors={[ORANGE, "#FF8A34"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={eventStyles.card}

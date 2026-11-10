@@ -263,11 +263,7 @@ export default function BookingTicketScreen() {
           {/* Stub head — organiser-branded */}
           <LinearGradient
             colors={
-              isCancelled
-                ? ["#94A3B8", "#64748B"]
-                : isEvent
-                  ? ["#141B34", "#243056"]
-                  : [PrimaryColor, "#FF8A34"]
+              isCancelled ? ["#94A3B8", "#64748B"] : [PrimaryColor, "#FF8A34"]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
@@ -525,13 +521,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   tierBadge: {
-    backgroundColor: "#E11D48",
+    backgroundColor: "#fff",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
   },
   tierBadgeText: {
-    color: "#fff",
+    color: PrimaryColor,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 1,
