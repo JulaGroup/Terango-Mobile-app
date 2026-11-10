@@ -2207,6 +2207,15 @@ export const experienceApi = {
   getBooking: async (bookingId: string): Promise<Booking> =>
     apiCall(`/api/experiences/bookings/${bookingId}`),
 
+  /** Actively confirm a booking after returning from Wave (verifies the Wave
+   *  session server-side), so the ticket appears without waiting on the webhook. */
+  confirmBookingPayment: async (
+    bookingId: string,
+  ): Promise<{ status: string; paid: boolean }> =>
+    apiCall(`/api/experiences/bookings/${bookingId}/confirm-payment`, {
+      method: "POST",
+    }),
+
   getMyBookings: async (limit?: number): Promise<Booking[]> =>
     apiCall(`/api/experiences/bookings/mine${limit ? `?limit=${limit}` : ""}`),
 

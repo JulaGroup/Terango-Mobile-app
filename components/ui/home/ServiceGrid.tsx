@@ -1155,7 +1155,7 @@ const ServiceGrid = () => {
               </View>
             </View>
             <Text style={eventStyles.sub} numberOfLines={1}>
-              Concerts, matches & shows — get your tickets
+              Matches, conferences & more — get tickets
             </Text>
           </View>
           <Ionicons

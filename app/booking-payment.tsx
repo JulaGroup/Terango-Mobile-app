@@ -74,9 +74,11 @@ export default function BookingPaymentScreen() {
   const router = useRouter();
 
   const [booking, setBooking] = useState<Booking | null>(null);
+  // Wave is the only method — pre-select it so the user never lands here with
+  // nothing chosen (which blocked the pay button).
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<
     string | null
-  >(null);
+  >("wave");
   const [loading, setLoading] = useState(true);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
@@ -206,20 +208,15 @@ export default function BookingPaymentScreen() {
         );
       }
 
-      Alert.alert(
-        "Wave Opened",
-        "Complete your payment in Wave. You will be redirected back automatically.",
-        [
-          {
-            text: "OK",
-            onPress: () =>
-              router.replace({
-                pathname: "/booking/[bookingId]" as any,
-                params: { bookingId: String(newBookingId) },
-              }),
-          },
-        ],
-      );
+      // Go straight to the ticket screen (like the order flow). It polls for
+      // the paid state and the payment deep-link also lands here, so the ticket
+      // appears as soon as the webhook/redirect confirms — no extra tap.
+      if (newBookingId) {
+        router.replace({
+          pathname: "/booking/[bookingId]" as any,
+          params: { bookingId: String(newBookingId) },
+        });
+      }
     } catch (error) {
       console.error("Payment error:", error);
       Alert.alert(

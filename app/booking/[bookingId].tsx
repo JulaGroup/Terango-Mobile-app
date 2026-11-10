@@ -23,8 +23,9 @@ import { experienceApi, Booking } from "@/lib/api";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const PAGE_BG = "#EEF1F5";
-/** ~16s of grace for Wave's confirmation to land before we call it unpaid. */
-const MAX_SETTLE_TRIES = 8;
+/** Fast-poll window (2s each) while Wave's confirmation lands; the slower
+ *  background poll keeps refreshing after this, so the ticket still appears. */
+const MAX_SETTLE_TRIES = 20;
 const TICKET_W = SCREEN_W - 32;
 const NOTCH = 26;
 
@@ -107,14 +108,20 @@ export default function BookingTicketScreen() {
   useEffect(() => {
     if (loading || !booking || isPaid || isCancelled) return;
 
-    if (settleTries >= MAX_SETTLE_TRIES) {
-      router.replace({
-        pathname: "/booking-payment" as any,
-        params: { bookingId: String(booking.id) },
-      });
-      return;
-    }
-    const t = setTimeout(() => {
+    // Never bounce the user back to the payment screen: the webhook confirms
+    // the booking server-side, so we keep the ticket open and let the slower
+    // background poll flip it to paid. (Previously this redirected to
+    // booking-payment after ~16s, which looked like the payment had failed even
+    // though the money had gone through.)
+    if (settleTries >= MAX_SETTLE_TRIES) return;
+    const t = setTimeout(async () => {
+      // Actively confirm (verifies the Wave session server-side) so the ticket
+      // appears right away instead of waiting on the async webhook.
+      try {
+        await experienceApi.confirmBookingPayment(String(booking.id));
+      } catch {
+        /* best-effort; the poll below still picks up the confirmed state */
+      }
       fetchBooking();
       setSettleTries((n) => n + 1);
     }, 2000);
@@ -258,6 +265,22 @@ export default function BookingTicketScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Confirming banner — the money has gone through; we're just waiting
+            for Wave's confirmation to land. The ticket QR appears below once
+            it's confirmed. */}
+        {!isPaid && !isCancelled && (
+          <View style={styles.confirmBanner}>
+            <ActivityIndicator size="small" color={PrimaryColor} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.confirmTitle}>Confirming your payment…</Text>
+              <Text style={styles.confirmSub}>
+                This can take a few seconds. Your ticket appears here
+                automatically — no need to pay again.
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* ── Ticket ──────────────────────────────────────────────────── */}
         <View style={[styles.ticket, dead && { opacity: 0.62 }]}>
           {/* Stub head — organiser-branded */}
@@ -487,6 +510,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   headerTitle: { fontSize: 17, fontWeight: "800", color: "#0F172A" },
+  confirmBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#FFF7F0",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#FFE4CC",
+    padding: 14,
+    marginBottom: 14,
+  },
+  confirmTitle: { fontSize: 14, fontWeight: "800", color: "#1C1C1E" },
+  confirmSub: { fontSize: 12, color: "#8A6D3B", marginTop: 2, lineHeight: 16 },
 
   /* Ticket */
   ticket: {

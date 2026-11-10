@@ -166,42 +166,63 @@ export default function ExperiencesScreen() {
     );
   };
 
-  // ── List row card (full width) ──
+  // ── List card (full-width, large image on top) ──
   const ListCard = ({ exp }: { exp: Experience }) => {
     const price = fromPrice(exp);
     const date = eventDate(exp);
     const fav = !!favs[exp.id];
     return (
       <TouchableOpacity
-        style={s.row}
-        activeOpacity={0.92}
+        style={s.listCard}
+        activeOpacity={0.93}
         onPress={() => goto(exp.id)}
       >
-        <View style={s.rowImgWrap}>
+        <View style={s.listImgWrap}>
           {exp.imageUrl ? (
-            <Image source={{ uri: exp.imageUrl }} style={s.rowImg} />
+            <Image source={{ uri: exp.imageUrl }} style={s.listImg} />
           ) : (
             <LinearGradient
               colors={["#FFB877", PrimaryColor]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={[s.rowImg, s.imgFallback]}
+              style={[s.listImg, s.imgFallback]}
             >
               <Ionicons
                 name={iconForCategory(exp.category)}
-                size={26}
+                size={40}
                 color="rgba(255,255,255,0.9)"
               />
             </LinearGradient>
           )}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.55)"]}
+            style={s.featScrim}
+          />
+          {!!exp.category && (
+            <View style={s.catTag}>
+              <Text style={s.catTagText}>{exp.category}</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={s.heart}
+            onPress={() => toggleFav(exp.id)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={fav ? "heart" : "heart-outline"}
+              size={18}
+              color={fav ? "#FF3B5C" : "#fff"}
+            />
+          </TouchableOpacity>
           {date && (
-            <View style={s.rowDateChip}>
-              <Text style={s.rowDateText}>{date}</Text>
+            <View style={s.listDateChip}>
+              <Ionicons name="calendar" size={12} color={PrimaryColor} />
+              <Text style={s.listDateText}>{date}</Text>
             </View>
           )}
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={s.rowName} numberOfLines={2}>
+        <View style={s.listBody}>
+          <Text style={s.listName} numberOfLines={1}>
             {exp.name}
           </Text>
           <View style={s.rowMetaRow}>
@@ -210,17 +231,14 @@ export default function ExperiencesScreen() {
               {exp.city || exp.address || "The Gambia"}
             </Text>
           </View>
-          <View style={s.rowBottom}>
+          <View style={s.listBottom}>
             <Text style={s.rowPrice}>
-              {price != null ? `D${price}` : "Free"}
+              {price != null ? `From D${price}` : "Free"}
             </Text>
-            <TouchableOpacity onPress={() => toggleFav(exp.id)} hitSlop={8}>
-              <Ionicons
-                name={fav ? "heart" : "heart-outline"}
-                size={18}
-                color={fav ? "#FF3B5C" : "#C2C6CE"}
-              />
-            </TouchableOpacity>
+            <View style={s.ctaMini}>
+              <Text style={s.ctaMiniText}>Get tickets</Text>
+              <Ionicons name="arrow-forward" size={13} color="#fff" />
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -253,6 +271,14 @@ export default function ExperiencesScreen() {
             <Text style={s.greeting}>Discover</Text>
             <Text style={s.bigTitle}>Amazing Events</Text>
           </View>
+          <TouchableOpacity
+            style={s.ticketsBtn}
+            onPress={() => router.push("/(tabs)/orders" as any)}
+            activeOpacity={0.9}
+          >
+            <Ionicons name="ticket" size={16} color="#fff" />
+            <Text style={s.ticketsBtnText}>Tickets</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Search */}
@@ -537,33 +563,51 @@ const s = StyleSheet.create({
   },
   ctaMiniText: { color: "#fff", fontSize: 12.5, fontWeight: "800" },
 
-  // List row
-  row: {
+  ticketsBtn: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: PrimaryColor,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 42,
+  },
+  ticketsBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+
+  // List card (large image)
+  listCard: {
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 10,
+    borderRadius: 20,
+    overflow: "hidden",
     ...CARD_SHADOW,
   },
-  rowImgWrap: { width: 96, height: 96, borderRadius: 14, overflow: "hidden" },
-  rowImg: { width: "100%", height: "100%" },
-  rowDateChip: {
+  listImgWrap: { height: 170, position: "relative" },
+  listImg: { width: "100%", height: "100%" },
+  listDateChip: {
     position: "absolute",
-    top: 6,
-    left: 6,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    borderRadius: 8,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    bottom: 12,
+    left: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
-  rowDateText: { color: "#fff", fontSize: 10, fontWeight: "800" },
-  rowName: {
-    fontSize: 15.5,
-    fontWeight: "800",
+  listDateText: { color: "#1C1C1E", fontSize: 11.5, fontWeight: "800" },
+  listBody: { padding: 14 },
+  listName: {
+    fontSize: 17,
+    fontWeight: "900",
     color: "#1C1C1E",
-    letterSpacing: -0.2,
-    paddingTop: 2,
+    letterSpacing: -0.3,
+  },
+  listBottom: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
   },
   rowMetaRow: {
     flexDirection: "row",

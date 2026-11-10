@@ -10,7 +10,7 @@
     "scheme": [
       "teranggo"
     ],
-    "runtimeVersion": "1.1.3",
+    "runtimeVersion": "1.1.2",
     "updates": {
       "url": "https://u.expo.dev/507d12d6-9a8c-4115-a413-86c6c9901d3d",
       "checkAutomatically": "ON_LOAD",
