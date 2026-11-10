@@ -45,6 +45,22 @@ export default function ExperiencesScreen() {
   const [query, setQuery] = useState("");
   const [activeCat, setActiveCat] = useState<string | null>(null);
   const [favs, setFavs] = useState<Record<string, boolean>>({});
+  const [ticketCount, setTicketCount] = useState(0);
+
+  // How many live tickets the user holds — drives the badge on the Tickets
+  // button so they know where to find them after buying.
+  useEffect(() => {
+    experienceApi
+      .getMyBookings(50)
+      .then((bs) => {
+        const live = (bs || []).filter(
+          (b: any) =>
+            b.paymentStatus === "PAID" && b.status !== "CANCELLED",
+        ).length;
+        setTicketCount(live);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchExperiences = useCallback(async (isRefresh = false) => {
     try {
@@ -280,6 +296,13 @@ export default function ExperiencesScreen() {
             activeOpacity={0.9}
           >
             <Ionicons name="ticket" size={20} color="#fff" />
+            {ticketCount > 0 && (
+              <View style={s.ticketBadge}>
+                <Text style={s.ticketBadgeText}>
+                  {ticketCount > 9 ? "9+" : ticketCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -592,6 +615,21 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ticketBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#F6F7FB",
+  },
+  ticketBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
 
   // List card (large image)
   listCard: {

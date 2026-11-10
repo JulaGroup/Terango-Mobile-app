@@ -124,8 +124,15 @@ export default function ExperienceDetailScreen() {
   // A ticketed event is a single dated thing (no time-slot picker): the
   // customer just chooses a tier and how many tickets.
   const isEvent = experience?.capacityType === "FIXED_EVENT";
+  // Per-order limit: up to however many are left (tier or event), capped at a
+  // sensible 10 per order. ticketCap is the TOTAL event capacity, not the
+  // per-order max, so it must not cap the stepper directly.
+  const eventRemaining = Math.min(
+    selectedOption?.remaining ?? Infinity,
+    experience?.remaining ?? Infinity,
+  );
   const qtyMax = isEvent
-    ? selectedOption?.maxUnits || experience?.ticketCap || 20
+    ? Math.max(1, Math.min(eventRemaining, 10))
     : slotAvailable;
   const eventDateLabel = experience?.eventStartAt
     ? new Date(experience.eventStartAt).toLocaleString(undefined, {

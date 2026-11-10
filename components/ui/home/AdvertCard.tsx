@@ -171,6 +171,10 @@ const AdvertCard: React.FC<AdvertCardProps> = ({
       case "RESTAURANT":
         router.push(`/restaurant-details?restaurantId=${ad.vendorId}` as any);
         break;
+      case "EXPERIENCE":
+      case "EVENT":
+        router.push(`/experiences/${ad.vendorId}` as any);
+        break;
       case "SHOP":
       case "PHARMACY":
       default:
