@@ -844,8 +844,9 @@ export default function ProfilePage() {
                     color={item.danger ? "#EF4444" : "#FF6B35"}
                   />
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.menuTitle,
                       item.danger && styles.menuTitleDanger,
@@ -853,7 +854,9 @@ export default function ProfilePage() {
                   >
                     {item.title}
                   </Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  <Text style={styles.menuSubtitle} numberOfLines={2}>
+                    {item.subtitle}
+                  </Text>
                 </View>
               </View>
               {(item as any).badge !== undefined && (item as any).badge > 0 && (

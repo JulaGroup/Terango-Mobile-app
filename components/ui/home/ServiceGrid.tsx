@@ -842,6 +842,40 @@ const miniStyles = StyleSheet.create({
   },
 });
 
+const eventStyles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+  },
+  iconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,107,0,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  title: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: -0.3 },
+  newPill: {
+    backgroundColor: "#FF6B00",
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  newPillText: { color: "#fff", fontSize: 9, fontWeight: "800" },
+  sub: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 12.5,
+    fontWeight: "500",
+    marginTop: 3,
+  },
+});
+
 // ─── Main Grid ────────────────────────────────────────────────────────────────
 const PROMO_KEY = "terango_express_promo_seen_v1";
 
@@ -1098,6 +1132,39 @@ const ServiceGrid = () => {
           onPress={() => router.push("/kerspace" as any)}
         />
       </View>
+
+      {/* Events — its own feature row (concerts, matches, shows). */}
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => router.push("/experiences" as any)}
+      >
+        <LinearGradient
+          colors={["#1C2237", "#323A5C"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={eventStyles.card}
+        >
+          <View style={eventStyles.iconWrap}>
+            <Ionicons name="ticket" size={24} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={eventStyles.titleRow}>
+              <Text style={eventStyles.title}>Events</Text>
+              <View style={eventStyles.newPill}>
+                <Text style={eventStyles.newPillText}>NEW</Text>
+              </View>
+            </View>
+            <Text style={eventStyles.sub} numberOfLines={1}>
+              Concerts, matches & shows — get your tickets
+            </Text>
+          </View>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color="rgba(255,255,255,0.7)"
+          />
+        </LinearGradient>
+      </TouchableOpacity>
 
       {/* Parked until these services go live. SmallTile, MORE_SERVICES and
           MoreServicesSheet are all still defined above/below and unused —
