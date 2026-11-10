@@ -324,12 +324,14 @@ export default function BookingPaymentScreen() {
               D{summary.subtotal.toLocaleString()}
             </Text>
           </View>
-          <View style={styles.sumRow}>
-            <Text style={styles.sumLabel}>Service fee (5%)</Text>
-            <Text style={styles.sumValue}>
-              D{summary.serviceFee.toLocaleString()}
-            </Text>
-          </View>
+          {summary.serviceFee > 0 && (
+            <View style={styles.sumRow}>
+              <Text style={styles.sumLabel}>Service fee</Text>
+              <Text style={styles.sumValue}>
+                D{summary.serviceFee.toLocaleString()}
+              </Text>
+            </View>
+          )}
           <View style={[styles.sumRow, { marginBottom: 0 }]}>
             <Text style={styles.priceLabelTotal}>Total</Text>
             <Text style={styles.priceValueTotal}>

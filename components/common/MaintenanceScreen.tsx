@@ -13,7 +13,6 @@
 import React, { useEffect, useRef } from "react";
 import {
   Animated,
-  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,7 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import { useMaintenance } from "@/context/MaintenanceContext";
 
 interface MaintenanceScreenProps {
@@ -29,15 +28,20 @@ interface MaintenanceScreenProps {
   message?: string;
   onRetry?: () => void;
   fullScreen?: boolean;
+  onBack?: () => void;
 }
+
+const ORANGE = "#FF6B00";
 
 export default function MaintenanceScreen({
   serviceName,
   message,
   onRetry,
   fullScreen = true,
+  onBack,
 }: MaintenanceScreenProps) {
   const { flags, refetch } = useMaintenance();
+  const router = useRouter();
 
   const displayMessage = message || flags.maintenanceMessage;
 
@@ -84,7 +88,7 @@ export default function MaintenanceScreen({
         style={[styles.iconWrapper, { transform: [{ translateY: floatAnim }] }]}
       >
         <View style={styles.iconCircle}>
-          <Ionicons name="construct-outline" size={44} color="#ff6b00" />
+          <Ionicons name="construct" size={42} color={ORANGE} />
         </View>
       </Animated.View>
 
@@ -102,7 +106,7 @@ export default function MaintenanceScreen({
       <TouchableOpacity
         style={styles.retryBtn}
         onPress={handleRetry}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
       >
         <Ionicons
           name="refresh"
@@ -115,102 +119,112 @@ export default function MaintenanceScreen({
     </Animated.View>
   );
 
+  const backButton = (
+    <TouchableOpacity
+      style={styles.backBtn}
+      onPress={() => (onBack ? onBack() : router.back())}
+      activeOpacity={0.8}
+    >
+      <Ionicons name="chevron-back" size={22} color="#1C1C1E" />
+    </TouchableOpacity>
+  );
+
   if (!fullScreen) {
-    return <View style={styles.cardContainer}>{content}</View>;
+    return (
+      <View style={styles.cardContainer}>
+        {content}
+      </View>
+    );
   }
 
   return (
-    <LinearGradient
-      colors={["#1a1a1a", "#2d1a0a", "#1a1a1a"]}
-      style={styles.gradient}
-    >
-      <SafeAreaView style={styles.safeArea}>{content}</SafeAreaView>
-    </LinearGradient>
+    <View style={styles.screen}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+        <View style={styles.topBar}>{backButton}</View>
+        <View style={styles.centerWrap}>{content}</View>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    justifyContent: "center",
+  screen: { flex: 1, backgroundColor: "#F6F7FB" },
+  safeArea: { flex: 1 },
+  topBar: { paddingHorizontal: 16, paddingTop: 8 },
+  centerWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: "#fff",
     alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1C1C1E",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   cardContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#F6F7FB",
   },
   content: {
     alignItems: "center",
     paddingHorizontal: 32,
     maxWidth: 360,
   },
-  iconWrapper: {
-    marginBottom: 24,
-  },
+  iconWrapper: { marginBottom: 24 },
   iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: "rgba(255,107,0,0.12)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,107,0,0.3)",
+    width: 104,
+    height: 104,
+    borderRadius: 28,
+    backgroundColor: "#FFF1E6",
     justifyContent: "center",
     alignItems: "center",
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#ffffff",
+    fontSize: 23,
+    fontWeight: "900",
+    color: "#1C1C1E",
     textAlign: "center",
-    marginBottom: 12,
-    letterSpacing: -0.3,
+    marginBottom: 10,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: "#8A8F98",
     textAlign: "center",
     lineHeight: 22,
-    marginBottom: 28,
+    marginBottom: 26,
+    fontWeight: "500",
   },
   pill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,107,0,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,107,0,0.3)",
+    backgroundColor: "#FFF1E6",
     paddingHorizontal: 14,
-    paddingVertical: 7,
+    paddingVertical: 8,
     borderRadius: 20,
-    marginBottom: 32,
+    marginBottom: 30,
   },
   pillDot: {
     width: 7,
     height: 7,
     borderRadius: 4,
-    backgroundColor: "#ff6b00",
+    backgroundColor: ORANGE,
     marginRight: 8,
   },
-  pillText: {
-    fontSize: 12,
-    color: "#ff6b00",
-    fontWeight: "600",
-  },
+  pillText: { fontSize: 12.5, color: ORANGE, fontWeight: "700" },
   retryBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#ff6b00",
-    paddingHorizontal: 24,
-    paddingVertical: 13,
-    borderRadius: 12,
+    backgroundColor: ORANGE,
+    paddingHorizontal: 26,
+    paddingVertical: 14,
+    borderRadius: 14,
   },
-  retryText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
+  retryText: { color: "#fff", fontWeight: "800", fontSize: 15 },
 });

@@ -268,16 +268,18 @@ export default function ExperiencesScreen() {
             <Ionicons name="chevron-back" size={22} color="#1C1C1E" />
           </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={s.greeting}>Discover</Text>
-            <Text style={s.bigTitle}>Amazing Events</Text>
+            <Text style={s.locLabel}>Location</Text>
+            <View style={s.locRow}>
+              <Ionicons name="location-sharp" size={14} color={PrimaryColor} />
+              <Text style={s.locText}>The Gambia</Text>
+            </View>
           </View>
           <TouchableOpacity
-            style={s.ticketsBtn}
+            style={s.ticketsIconBtn}
             onPress={() => router.push("/(tabs)/orders" as any)}
             activeOpacity={0.9}
           >
-            <Ionicons name="ticket" size={16} color="#fff" />
-            <Text style={s.ticketsBtnText}>Tickets</Text>
+            <Ionicons name="ticket" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
 
@@ -449,13 +451,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
     ...CARD_SHADOW,
   },
-  greeting: { fontSize: 13, color: "#8A8F98", fontWeight: "600" },
-  bigTitle: {
-    fontSize: 24,
-    fontWeight: "900",
+  locLabel: { fontSize: 12, color: "#9AA0A8", fontWeight: "600" },
+  locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+  locText: {
+    fontSize: 17,
+    fontWeight: "800",
     color: "#1C1C1E",
-    letterSpacing: -0.5,
-    marginTop: 1,
+    letterSpacing: -0.2,
   },
   searchWrap: {
     marginHorizontal: H_PAD,
@@ -582,16 +584,14 @@ const s = StyleSheet.create({
   },
   ctaMiniText: { color: "#fff", fontSize: 12.5, fontWeight: "800" },
 
-  ticketsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: PrimaryColor,
+  ticketsIconBtn: {
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    height: 42,
+    backgroundColor: PrimaryColor,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  ticketsBtnText: { color: "#fff", fontSize: 13, fontWeight: "800" },
 
   // List card (large image)
   listCard: {
