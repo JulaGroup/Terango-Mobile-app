@@ -124,7 +124,12 @@ export default function VendorBookingsScreen() {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Bookings</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.push("/vendor/scan" as any)}
+          >
+            <Ionicons name="scan" size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
         <View style={styles.summaryRow}>
           <View style={styles.summaryPill}>

@@ -665,6 +665,13 @@ export default function RootLayout() {
                                 }}
                               />
                               <Stack.Screen
+                                name="vendor/scan"
+                                options={{
+                                  animation: "slide_from_right",
+                                  headerShown: false,
+                                }}
+                              />
+                              <Stack.Screen
                                 name="ViewAllStores"
                                 options={{
                                   animation: "slide_from_right",

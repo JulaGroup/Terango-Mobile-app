@@ -2225,4 +2225,54 @@ export const experienceApi = {
     apiCall(`/api/experiences/vendor/bookings/${bookingId}/check-in`, {
       method: "POST",
     }),
+
+  // ── Ticketed-event gate scanning ──
+  /** The organiser's own listings (incl. drafts) — used to pick which event to scan. */
+  getMyExperiences: async (): Promise<Experience[]> =>
+    apiCall("/api/experiences/vendor/mine"),
+
+  /** Scan one ticket online. Returns { status, message, booking }. */
+  scanTicket: async (data: {
+    bookingId?: string;
+    token?: string;
+    deviceId?: string;
+    gate?: string;
+  }): Promise<{ status: string; message: string; booking?: any }> =>
+    apiCall("/api/experiences/vendor/scan", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  /** Download an event's full paid-ticket list for offline validation. */
+  getEventManifest: async (
+    experienceId: string,
+  ): Promise<{
+    event: { id: string; name: string; startAt?: string; ticketCap?: number };
+    tickets: {
+      bookingId: string;
+      token: string | null;
+      tier: string | null;
+      holder: string | null;
+      quantity: number;
+      status: string;
+      checkedInAt: string | null;
+      gate: string | null;
+    }[];
+  }> => apiCall(`/api/experiences/vendor/events/${experienceId}/manifest`),
+
+  /** Upload a batch of offline scans; idempotent, returns a per-scan result. */
+  syncScans: async (
+    experienceId: string,
+    scans: {
+      bookingId?: string;
+      token?: string;
+      deviceId?: string;
+      gate?: string;
+      scannedAt?: string;
+    }[],
+  ): Promise<{ results: { ref: string; result: { status: string } }[] }> =>
+    apiCall(`/api/experiences/vendor/events/${experienceId}/scan-sync`, {
+      method: "POST",
+      body: JSON.stringify({ scans }),
+    }),
 };
