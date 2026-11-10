@@ -69,6 +69,22 @@ export default function BookingTicketScreen() {
   const serviceFee =
     booking?.serviceFee ?? Math.max(0, (booking?.totalAmount ?? 0) - subtotal);
 
+  const isEvent = booking?.experience?.capacityType === "FIXED_EVENT";
+  const organiserName =
+    booking?.experience?.vendor?.displayName ||
+    booking?.experience?.vendor?.user?.fullName ||
+    "TeranGO";
+  const organiserLogo = booking?.experience?.vendor?.logoUrl || null;
+  const tierLabel = booking?.option?.label || "";
+  // Human ticket id, e.g. "TG-8JJI-79E8" — derived from the booking id so it is
+  // stable and unique without exposing the raw id.
+  const ticketId = booking
+    ? `TG-${booking.id.replace(/[^a-zA-Z0-9]/g, "").slice(-8, -4).toUpperCase()}-${booking.id
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .slice(-4)
+        .toUpperCase()}`
+    : "";
+
   const fetchBooking = useCallback(async () => {
     try {
       const b = await experienceApi.getBooking(bookingId);
@@ -244,27 +260,46 @@ export default function BookingTicketScreen() {
       >
         {/* ── Ticket ──────────────────────────────────────────────────── */}
         <View style={[styles.ticket, dead && { opacity: 0.62 }]}>
-          {/* Stub head */}
+          {/* Stub head — organiser-branded */}
           <LinearGradient
             colors={
               isCancelled
                 ? ["#94A3B8", "#64748B"]
-                : [PrimaryColor, "#FF8A34"]
+                : isEvent
+                  ? ["#141B34", "#243056"]
+                  : [PrimaryColor, "#FF8A34"]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.ticketHead}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.ticketBrand}>TERANGO</Text>
-              <Text style={styles.ticketVenue} numberOfLines={1}>
-                {booking.experience?.name}
+            <View style={styles.headBrandRow}>
+              {organiserLogo ? (
+                <Image source={{ uri: organiserLogo }} style={styles.orgLogo} />
+              ) : (
+                <View style={[styles.orgLogo, styles.orgLogoFallback]}>
+                  <Ionicons name="ticket" size={18} color="#fff" />
+                </View>
+              )}
+              <Text style={styles.ticketBrand} numberOfLines={1}>
+                {organiserName.toUpperCase()}
               </Text>
             </View>
-            <View style={styles.headIcon}>
-              <Ionicons name="ticket" size={20} color="#fff" />
-            </View>
+            {!!tierLabel && (
+              <View style={styles.tierBadge}>
+                <Text style={styles.tierBadgeText} numberOfLines={1}>
+                  {tierLabel.toUpperCase()}
+                </Text>
+              </View>
+            )}
           </LinearGradient>
+
+          {/* Event title */}
+          <View style={styles.titleZone}>
+            <Text style={styles.eventTitle} numberOfLines={2}>
+              {booking.experience?.name}
+            </Text>
+          </View>
 
           {/* QR */}
           <View style={styles.qrZone}>
@@ -316,8 +351,8 @@ export default function BookingTicketScreen() {
 
             <View style={styles.gridRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Booking reference</Text>
-                <Text style={styles.refValue}>{ref}</Text>
+                <Text style={styles.fieldLabel}>Ticket ID</Text>
+                <Text style={styles.refValue}>{ticketId}</Text>
               </View>
               <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
                 <Ionicons name={status.icon as any} size={13} color={status.fg} />
@@ -338,6 +373,11 @@ export default function BookingTicketScreen() {
                 <Text style={styles.fieldLabel}>Total paid</Text>
                 <Text style={styles.payTotal}>D{booking.totalAmount}</Text>
               </View>
+            </View>
+
+            <View style={styles.poweredRow}>
+              <Text style={styles.poweredText}>POWERED BY </Text>
+              <Text style={styles.poweredBrand}>TeranGO</Text>
             </View>
           </View>
         </View>
@@ -467,15 +507,66 @@ const styles = StyleSheet.create({
   ticketHead: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingVertical: 16,
     gap: 12,
   },
-  ticketBrand: {
-    color: "rgba(255,255,255,0.85)",
+  headBrandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+  },
+  orgLogo: { width: 34, height: 34, borderRadius: 8, backgroundColor: "#fff" },
+  orgLogoFallback: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  tierBadge: {
+    backgroundColor: "#E11D48",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  tierBadgeText: {
+    color: "#fff",
     fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 1,
+  },
+  titleZone: { paddingHorizontal: 20, paddingTop: 16 },
+  eventTitle: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#0F172A",
+    letterSpacing: -0.4,
+  },
+  poweredRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+  poweredText: {
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: "#94A3B8",
+  },
+  poweredBrand: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: PrimaryColor,
+    letterSpacing: -0.2,
+  },
+  ticketBrand: {
+    color: "rgba(255,255,255,0.95)",
+    fontSize: 13,
     fontWeight: "800",
-    letterSpacing: 2.5,
+    letterSpacing: 1,
+    flexShrink: 1,
   },
   ticketVenue: {
     color: "#fff",

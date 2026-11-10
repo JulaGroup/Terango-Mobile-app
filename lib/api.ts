@@ -2080,6 +2080,7 @@ export interface ExperienceOption {
   description?: string;
   durationMins: number;
   price: number;
+  maxUnits?: number | null;
 }
 
 export interface Experience {
@@ -2092,10 +2093,25 @@ export interface Experience {
   address?: string;
   city?: string;
   phone?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   unitLabel: string;
   totalUnits: number;
   slotMinutes: number;
   options: ExperienceOption[];
+  // Ticketed-event fields (capacityType "FIXED_EVENT")
+  capacityType?: "TIME_SLOT" | "FIXED_EVENT";
+  eventStartAt?: string | null;
+  eventEndAt?: string | null;
+  ticketCap?: number | null;
+  autoConfirmLocation?: boolean;
+  isPublished?: boolean;
+  // Organiser branding (shown on event pages and tickets).
+  vendor?: {
+    displayName?: string | null;
+    logoUrl?: string | null;
+    user?: { fullName?: string | null } | null;
+  } | null;
 }
 
 export interface Booking {

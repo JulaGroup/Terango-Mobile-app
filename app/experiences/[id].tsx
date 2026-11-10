@@ -92,6 +92,8 @@ export default function ExperienceDetailScreen() {
 
   const loadSlots = useCallback(async () => {
     if (!experience || !selectedOption) return;
+    // Events have no time slots — the date is fixed.
+    if (experience.capacityType === "FIXED_EVENT") return;
     setSlotsLoading(true);
     setSelectedSlot(null);
     try {
@@ -119,6 +121,22 @@ export default function ExperienceDetailScreen() {
   const serviceFee = Math.round(subtotal * 0.05);
   const total = subtotal + serviceFee;
 
+  // A ticketed event is a single dated thing (no time-slot picker): the
+  // customer just chooses a tier and how many tickets.
+  const isEvent = experience?.capacityType === "FIXED_EVENT";
+  const qtyMax = isEvent
+    ? selectedOption?.maxUnits || experience?.ticketCap || 20
+    : slotAvailable;
+  const eventDateLabel = experience?.eventStartAt
+    ? new Date(experience.eventStartAt).toLocaleString(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "Date to be announced";
+
   const onPickSlot = (slot: { startTime: string; available: number }) => {
     if (slot.available <= 0) return;
     setSelectedSlot(slot.startTime);
@@ -129,19 +147,28 @@ export default function ExperienceDetailScreen() {
   // Nothing is created here — the booking is only written when the customer
   // commits to paying, so browsing never leaves rows behind for the provider.
   const handleBook = () => {
-    if (!experience || !selectedOption || !selectedSlot) return;
+    if (!experience || !selectedOption) return;
+    // For an event the time is fixed to the event's own schedule; the server
+    // uses eventStartAt regardless, so we just pass it along.
+    const startTime = isEvent
+      ? experience.eventStartAt || new Date().toISOString()
+      : selectedSlot;
+    if (!startTime) return;
     router.push({
       pathname: "/booking-payment" as any,
       params: {
         experienceId: experience.id,
         optionId: selectedOption.id,
-        startTime: selectedSlot,
+        startTime,
         quantity: String(quantity),
         experienceName: experience.name,
         optionLabel: selectedOption.label,
         unitLabel,
         unitPrice: String(selectedOption.price),
         address: experience.address || experience.city || "",
+        isEvent: isEvent ? "1" : "",
+        eventDate: isEvent ? eventDateLabel : "",
+        autoConfirm: experience.autoConfirmLocation === false ? "" : "1",
       },
     });
   };
@@ -216,7 +243,8 @@ export default function ExperienceDetailScreen() {
     );
   }
 
-  const canBook = !!selectedOption && !!selectedSlot && quantity > 0;
+  const canBook =
+    !!selectedOption && quantity > 0 && (isEvent || !!selectedSlot);
 
   return (
     <View style={styles.container}>
@@ -362,6 +390,25 @@ export default function ExperienceDetailScreen() {
 
           <View style={styles.divider} />
 
+          {isEvent && (
+            <View style={styles.eventCard}>
+              <View style={styles.eventCardRow}>
+                <Ionicons name="calendar" size={18} color={PrimaryColor} />
+                <Text style={styles.eventCardText}>{eventDateLabel}</Text>
+              </View>
+              {!!(experience.address || experience.city) && (
+                <View style={styles.eventCardRow}>
+                  <Ionicons name="location" size={18} color={PrimaryColor} />
+                  <Text style={styles.eventCardText}>
+                    {experience.address || experience.city}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {!isEvent && (
+            <>
           {/* Date — with month context badge */}
           <View style={styles.sectionRow}>
             <Text style={styles.blockTitle}>Pick a date</Text>
@@ -457,14 +504,22 @@ export default function ExperienceDetailScreen() {
               })}
             </ScrollView>
           )}
+            </>
+          )}
 
           {/* Quantity — card with price math */}
-          {selectedSlot && (
+          {(isEvent ? !!selectedOption : !!selectedSlot) && (
             <View style={styles.qtyCard}>
               <View style={styles.qtyCardRow}>
                 <View>
-                  <Text style={styles.qtyLabel}>Quantity</Text>
-                  <Text style={styles.qtyHint}>{slotAvailable} {unitLabel}s available</Text>
+                  <Text style={styles.qtyLabel}>
+                    {isEvent ? "Tickets" : "Quantity"}
+                  </Text>
+                  <Text style={styles.qtyHint}>
+                    {isEvent
+                      ? `Up to ${qtyMax} per order`
+                      : `${slotAvailable} ${unitLabel}s available`}
+                  </Text>
                 </View>
                 <View style={styles.stepper}>
                   <TouchableOpacity
@@ -480,14 +535,14 @@ export default function ExperienceDetailScreen() {
                   </TouchableOpacity>
                   <Text style={styles.stepValue}>{quantity}</Text>
                   <TouchableOpacity
-                    style={[styles.stepBtn, quantity >= slotAvailable && styles.stepBtnDisabled]}
-                    onPress={() => setQuantity((q) => Math.min(slotAvailable, q + 1))}
-                    disabled={quantity >= slotAvailable}
+                    style={[styles.stepBtn, quantity >= qtyMax && styles.stepBtnDisabled]}
+                    onPress={() => setQuantity((q) => Math.min(qtyMax, q + 1))}
+                    disabled={quantity >= qtyMax}
                   >
                     <Ionicons
                       name="add"
                       size={18}
-                      color={quantity >= slotAvailable ? "#CBD5E1" : PrimaryColor}
+                      color={quantity >= qtyMax ? "#CBD5E1" : PrimaryColor}
                     />
                   </TouchableOpacity>
                 </View>
@@ -664,6 +719,21 @@ const styles = StyleSheet.create({
   },
   readMore: { color: PrimaryColor, fontWeight: "700", marginTop: 6, fontSize: 13 },
   divider: { height: 1, backgroundColor: "#F1F5F9", marginVertical: 22 },
+  eventCard: {
+    backgroundColor: "#FFF7F0",
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#FFE4CC",
+  },
+  eventCardRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  eventCardText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
 
   /* Package cards — side by side */
   pkgCard: {
