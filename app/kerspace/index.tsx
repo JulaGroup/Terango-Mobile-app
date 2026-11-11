@@ -250,7 +250,12 @@ export default function KerSpaceHome() {
                   color={on ? "#fff" : K.primary}
                 />
               </View>
-              <Text style={[s.catLabel, on && s.catLabelOn]}>{t.label}</Text>
+              <Text
+                style={[s.catLabel, on && s.catLabelOn]}
+                numberOfLines={1}
+              >
+                {t.label}
+              </Text>
             </TouchableOpacity>
           );
         }}
@@ -766,7 +771,7 @@ const s = StyleSheet.create({
     backgroundColor: K.primary,
   },
   // Category tiles
-  catTile: { alignItems: "center", width: 64 },
+  catTile: { alignItems: "center", width: 76 },
   catIcon: {
     width: 58,
     height: 58,

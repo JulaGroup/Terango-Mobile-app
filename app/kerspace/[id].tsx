@@ -324,27 +324,14 @@ export default function PropertyDetail() {
                     : "Property contact"}
               </Text>
             </View>
-            {!!agentPhone && (
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <TouchableOpacity
-                  style={[s.agentIcon, { backgroundColor: "#ECFDF5" }]}
-                  onPress={() =>
-                    Linking.openURL(
-                      `https://wa.me/${agentPhone.replace(/[^\d]/g, "")}`,
-                    )
-                  }
-                >
-                  <Ionicons name="logo-whatsapp" size={20} color={K.success} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.agentIcon, { backgroundColor: K.primary }]}
-                  onPress={() => Linking.openURL(`tel:${agentPhone}`)}
-                >
-                  <Ionicons name="call" size={18} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            )}
+            {/* Contact goes through TeranGO — clients use "Book viewing" or
+                "I'm interested" below; TeranGO confirms and notifies the agent.
+                No direct agent phone/WhatsApp is exposed. */}
           </View>
+          <Text style={s.agentNote}>
+            Interested? Use “Book viewing” or “I’m interested” below — TeranGO
+            confirms your request and connects you.
+          </Text>
         </View>
       </ScrollView>
 
@@ -663,6 +650,7 @@ const s = StyleSheet.create({
   agentAvatarImg: { width: 50, height: 50 },
   agentName: { fontSize: 15.5, fontWeight: "800", color: K.ink },
   agentRole: { fontSize: 12, color: K.inkLight, marginTop: 2 },
+  agentNote: { fontSize: 12, color: K.inkLight, marginTop: 10, lineHeight: 17 },
   agentIcon: {
     width: 44,
     height: 44,
