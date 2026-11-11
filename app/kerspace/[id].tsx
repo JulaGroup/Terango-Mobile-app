@@ -24,7 +24,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import {
   Gesture,
@@ -209,7 +209,9 @@ export default function PropertyDetail() {
             <View style={{ alignItems: "flex-end" }}>
               <Text style={s.price}>{money(p.price, p.currency)}</Text>
               {p.listingType === "FOR_RENT" && (
-                <Text style={s.perMonth}>per month</Text>
+                <Text style={s.perMonth}>
+                  {p.rentPeriod === "NIGHT" ? "per night" : "per month"}
+                </Text>
               )}
               {p.negotiable && <Text style={s.negotiable}>Negotiable</Text>}
             </View>
@@ -229,13 +231,13 @@ export default function PropertyDetail() {
               <SpecBox icon="bed-outline" value={`${p.bedrooms}`} label="Beds" />
             )}
             {p.bathrooms != null && (
-              <SpecBox icon="water-outline" value={`${p.bathrooms}`} label="Baths" />
+              <SpecBox mci icon="shower" value={`${p.bathrooms}`} label="Baths" />
             )}
             {p.area != null && (
               <SpecBox icon="resize-outline" value={`${p.area}`} label="m²" />
             )}
             {p.toilets != null && (
-              <SpecBox icon="man-outline" value={`${p.toilets}`} label="Toilets" />
+              <SpecBox mci icon="toilet" value={`${p.toilets}`} label="Toilets" />
             )}
           </View>
         </View>
@@ -357,10 +359,24 @@ export default function PropertyDetail() {
   );
 }
 
-function SpecBox({ icon, value, label }: { icon: string; value: string; label: string }) {
+function SpecBox({
+  icon,
+  value,
+  label,
+  mci,
+}: {
+  icon: string;
+  value: string;
+  label: string;
+  mci?: boolean;
+}) {
   return (
     <View style={s.specBox}>
-      <Ionicons name={icon as any} size={18} color={K.primary} />
+      {mci ? (
+        <MaterialCommunityIcons name={icon as any} size={18} color={K.primary} />
+      ) : (
+        <Ionicons name={icon as any} size={18} color={K.primary} />
+      )}
       <Text style={s.specValue}>{value}</Text>
       <Text style={s.specLabel}>{label}</Text>
     </View>

@@ -22,6 +22,8 @@ import {
   iconForCategory,
 } from "@/constants/experienceCategories";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useMaintenance } from "@/context/MaintenanceContext";
+import MaintenanceScreen from "@/components/common/MaintenanceScreen";
 
 const { width: SCREEN_W } = Dimensions.get("window");
 const RAIL_W = Math.round(SCREEN_W * 0.78);
@@ -38,6 +40,7 @@ function eventDate(exp: Experience): string | null {
 
 export default function ExperiencesScreen() {
   const router = useRouter();
+  const { flags } = useMaintenance();
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -260,6 +263,10 @@ export default function ExperiencesScreen() {
       </TouchableOpacity>
     );
   };
+
+  if (flags?.eventsMaintenanceMode) {
+    return <MaintenanceScreen serviceName="TeranGO Events" />;
+  }
 
   return (
     <SafeAreaView style={s.safe} edges={["top"]}>

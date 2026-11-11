@@ -1459,6 +1459,7 @@ export interface Property {
   type: PropertyType;
   listingType: PropertyListingType;
   price: number;
+  rentPeriod?: string | null;
   currency: string;
   negotiable?: boolean;
   bedrooms?: number | null;

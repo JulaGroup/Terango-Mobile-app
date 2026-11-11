@@ -33,3 +33,14 @@ export const money = (price?: number | null, currency = "GMD") => {
   const sym = currency === "GMD" ? "D" : currency + " ";
   return `${sym}${Number(price).toLocaleString()}`;
 };
+
+// Rental price suffix. Short-lets are priced per night; everything else per
+// month. Sales get no suffix. rentPeriod comes from the listing ("NIGHT" |
+// "MONTH"); it falls back to per-month for older listings with no period set.
+export const rentSuffix = (p?: {
+  listingType?: string;
+  rentPeriod?: string | null;
+}) => {
+  if (!p || p.listingType !== "FOR_RENT") return "";
+  return p.rentPeriod === "NIGHT" ? "/night" : "/month";
+};

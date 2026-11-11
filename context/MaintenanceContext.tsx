@@ -28,6 +28,7 @@ export interface MaintenanceFlags {
   furnitureMaintenanceMode: boolean;
   restaurantMaintenanceMode: boolean;
   shopMaintenanceMode: boolean;
+  eventsMaintenanceMode: boolean;
   maintenanceMessage: string;
   noDriversWindow: {
     active: boolean;
@@ -45,6 +46,7 @@ const DEFAULT_FLAGS: MaintenanceFlags = {
   furnitureMaintenanceMode: false,
   restaurantMaintenanceMode: false,
   shopMaintenanceMode: false,
+  eventsMaintenanceMode: false,
   maintenanceMessage:
     "This service is temporarily unavailable for scheduled maintenance. Please try again later.",
   noDriversWindow: { active: false, startHour: 0, endHour: 6 },

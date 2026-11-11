@@ -20,7 +20,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,6 +32,7 @@ import {
   listingTypeLabel,
   listingTypeColor,
   money,
+  rentSuffix,
 } from "@/constants/kerspace";
 import { getSavedIds, toggleSaved, SavedProperty } from "@/utils/kerspaceSaved";
 
@@ -158,6 +159,20 @@ export default function KerSpaceHome() {
   const openDetail = (id: string) =>
     router.push({ pathname: "/kerspace/[id]", params: { id } });
 
+  // Which of the "hidden" filters (the ones behind the Filters sheet) are set.
+  // The Buy/Rent tabs and type chips are always visible so they don't count.
+  const activeFilterCount =
+    (minPrice ? 1 : 0) + (maxPrice ? 1 : 0) + (beds ? 1 : 0);
+  const filtersActive = activeFilterCount > 0;
+
+  const clearFilters = () => {
+    setMinPrice("");
+    setMaxPrice("");
+    setBeds("");
+    setLoading(true);
+    // loadFirst re-runs via the effect on these deps.
+  };
+
   if (flags?.kerspaceMaintenanceMode) {
     return <MaintenanceScreen serviceName="KërSpace" />;
   }
@@ -206,8 +221,40 @@ export default function KerSpaceHome() {
         </View>
         <TouchableOpacity style={s.filterCircle} onPress={() => setFilterOpen(true)}>
           <Ionicons name="options" size={20} color="#fff" />
+          {filtersActive && (
+            <View style={s.filterBadge}>
+              <Text style={s.filterBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
+
+      {/* Active filters bar — tells the user a filter is on and lets them clear it */}
+      {filtersActive && (
+        <View style={s.activeFilterBar}>
+          <View style={s.activeFilterChips}>
+            {!!(minPrice || maxPrice) && (
+              <View style={s.activeChip}>
+                <Ionicons name="pricetag" size={12} color={K.primary} />
+                <Text style={s.activeChipText}>
+                  {money(minPrice ? Number(minPrice) : 0)} –{" "}
+                  {maxPrice ? money(Number(maxPrice)) : "Any"}
+                </Text>
+              </View>
+            )}
+            {!!beds && (
+              <View style={s.activeChip}>
+                <Ionicons name="bed" size={12} color={K.primary} />
+                <Text style={s.activeChipText}>{beds}+ beds</Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity style={s.clearBtn} onPress={clearFilters} hitSlop={8}>
+            <Ionicons name="close-circle" size={14} color={K.inkMid} />
+            <Text style={s.clearBtnText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Buy / Rent tabs */}
       <View style={s.listingTabs}>
@@ -428,7 +475,7 @@ function Specs({ p, light }: { p: Property; light?: boolean }) {
       )}
       {p.bathrooms != null && (
         <View style={s.spec}>
-          <Ionicons name="water-outline" size={13} color={c} />
+          <MaterialCommunityIcons name="shower" size={13} color={c} />
           <Text style={[s.specText, { color: c }]}>{p.bathrooms}</Text>
         </View>
       )}
@@ -502,7 +549,7 @@ function FeaturedCard({ p, saved, onPress, onSave }: CardProps) {
       <View style={s.featBody}>
         <Text style={s.featPrice} numberOfLines={1}>
           {money(p.price, p.currency)}
-          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+          <Text style={s.perText}>{rentSuffix(p)}</Text>
         </Text>
         <Text style={s.featTitle} numberOfLines={1}>
           {p.title}
@@ -542,7 +589,7 @@ function GridCard({ p, saved, onPress, onSave }: CardProps) {
       <View style={s.gridBody}>
         <Text style={s.price} numberOfLines={1}>
           {money(p.price, p.currency)}
-          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+          <Text style={s.perText}>{rentSuffix(p)}</Text>
         </Text>
         <Text style={s.title} numberOfLines={1}>
           {p.title}
@@ -587,7 +634,7 @@ function RowCard({ p, saved, onPress, onSave }: CardProps) {
         <Specs p={p} />
         <Text style={[s.price, { marginTop: 6 }]} numberOfLines={1}>
           {money(p.price, p.currency)}
-          {p.listingType === "FOR_RENT" ? "/mo" : ""}
+          <Text style={s.perText}>{rentSuffix(p)}</Text>
         </Text>
       </View>
     </TouchableOpacity>
@@ -753,6 +800,50 @@ const s = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  filterBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#EF4444",
+    borderWidth: 2,
+    borderColor: K.bg,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 3,
+  },
+  filterBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
+  activeFilterBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginTop: 12,
+    gap: 8,
+  },
+  activeFilterChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, flex: 1 },
+  activeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: K.primaryLight,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+  },
+  activeChipText: { fontSize: 12, fontWeight: "700", color: K.primaryDark },
+  clearBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: K.bgSoft,
+  },
+  clearBtnText: { fontSize: 12, fontWeight: "700", color: K.inkMid },
   // Buy/Rent tabs
   listingTabs: {
     flexDirection: "row",
@@ -846,6 +937,7 @@ const s = StyleSheet.create({
   },
   trustTeranGOText: { color: K.ink, fontSize: 10, fontWeight: "800" },
   price: { fontSize: 16, fontWeight: "900", color: K.ink },
+  perText: { fontSize: 12, fontWeight: "700", color: K.inkLight },
   title: { fontSize: 14, fontWeight: "700", color: K.ink, marginTop: 4 },
   loc: { fontSize: 12, color: K.inkLight, marginTop: 2 },
   // Featured
